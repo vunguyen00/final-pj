@@ -10,53 +10,22 @@ type User = {
   role: string;
 };
 
-// Mock data for courses
-const mockCourses = [
-  {
-    id: "1",
-    title: "Tiếng Anh Giao Tiếp Cơ Bản",
-    description: "Học cách giao tiếp cơ bản trong các tình huống thường ngày",
-    thumbnail: "https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=400&h=300&fit=crop",
-    instructor: "Nguyễn Văn A",
-    price: 299000,
-    students: 1250,
-    rating: 4.8,
-    category: "Speaking",
-  },
-  {
-    id: "2",
-    title: "IELTS Writing Band 7+",
-    description: "Luyện viết IELTS với chiến lược và template hiệu quả",
-    thumbnail: "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&h=300&fit=crop",
-    instructor: "Trần Thị B",
-    price: 499000,
-    students: 890,
-    rating: 4.9,
-    category: "Writing",
-  },
-  {
-    id: "3",
-    title: "Reading Comprehension Nâng Cao",
-    description: "Kỹ năng đọc hiểu và tốc độ đọc cho người học nâng cao",
-    thumbnail: "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400&h=300&fit=crop",
-    instructor: "Lê Văn C",
-    price: 399000,
-    students: 650,
-    rating: 4.7,
-    category: "Reading",
-  },
-  {
-    id: "4",
-    title: "Listening & Dictation Master",
-    description: "Luyện nghe và nghe chính tả từ cơ bản đến nâng cao",
-    thumbnail: "https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=400&h=300&fit=crop",
-    instructor: "Phạm Thị D",
-    price: 349000,
-    students: 720,
-    rating: 4.6,
-    category: "Listening",
-  },
-];
+type Course = {
+  id: string;
+  name: string;
+  description: string;
+  thumbnail: string | null;
+  price: number;
+  category: string | null;
+  duration: string | null;
+  lessons: number;
+  instructor: {
+    username: string;
+  };
+  _count: {
+    enrollments: number;
+  };
+};
 
 // Mock data for top students
 const mockTopStudents = [
@@ -121,6 +90,7 @@ const skills = [
 
 export default function HomePage() {
   const [user, setUser] = useState<User | null>(null);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -130,6 +100,17 @@ export default function HomePage() {
         setUser(data?.user || null);
       })
       .catch(() => setUser(null))
+      .finally(() => setLoading(false));
+
+    // Fetch courses
+    fetch("/api/courses")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.courses) {
+          setCourses(data.courses);
+        }
+      })
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
@@ -189,32 +170,43 @@ export default function HomePage() {
           </div>
           
           <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {mockCourses.map((course) => (
+            {courses.slice(0, 4).map((course) => (
               <Link
                 key={course.id}
                 href={`/courses/${course.id}`}
                 className="group overflow-hidden rounded-xl border border-slate-200 bg-white transition-all hover:shadow-lg"
               >
-                <div className="relative aspect-video overflow-hidden">
-                  <img
-                    src={course.thumbnail}
-                    alt={course.title}
-                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                  />
-                  <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2 py-1 text-xs font-medium text-slate-700">
-                    {course.category}
-                  </span>
+                <div className="relative aspect-video overflow-hidden bg-slate-100">
+                  {course.thumbnail ? (
+                    <img
+                      src={course.thumbnail}
+                      alt={course.name}
+                      className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-slate-400">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-12 w-12">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                      </svg>
+                    </div>
+                  )}
+                  {course.category && (
+                    <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2 py-1 text-xs font-medium text-slate-700">
+                      {course.category}
+                    </span>
+                  )}
                 </div>
                 <div className="p-4">
                   <h3 className="font-semibold text-slate-900 line-clamp-2 group-hover:text-blue-600">
-                    {course.title}
+                    {course.name}
                   </h3>
-                  <p className="mt-1 text-sm text-slate-500">{course.instructor}</p>
+                  <p className="mt-1 text-sm text-slate-500">{course.instructor.username}</p>
                   <div className="mt-3 flex items-center justify-between">
                     <div className="flex items-center gap-1">
-                      <span className="text-sm font-medium text-yellow-500">★</span>
-                      <span className="text-sm font-medium text-slate-900">{course.rating}</span>
-                      <span className="text-xs text-slate-500">({course.students})</span>
+                      <span className="text-sm text-slate-500">
+                        {course._count.enrollments} học viên
+                      </span>
                     </div>
                     <span className="text-sm font-semibold text-blue-600">
                       {course.price.toLocaleString("vi-VN")}đ
@@ -238,24 +230,38 @@ export default function HomePage() {
           </div>
           
           <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {mockCourses.slice(0, 4).map((course) => (
+            {courses.slice(0, 4).map((course) => (
               <Link
                 key={course.id}
                 href={`/courses/${course.id}`}
                 className="group overflow-hidden rounded-xl border border-slate-200 bg-white transition-all hover:shadow-lg"
               >
-                <div className="relative aspect-video overflow-hidden">
-                  <img
-                    src={course.thumbnail}
-                    alt={course.title}
-                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                  />
+                <div className="relative aspect-video overflow-hidden bg-slate-100">
+                  {course.thumbnail ? (
+                    <img
+                      src={course.thumbnail}
+                      alt={course.name}
+                      className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-slate-400">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-12 w-12">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                      </svg>
+                    </div>
+                  )}
+                  {course.category && (
+                    <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2 py-1 text-xs font-medium text-slate-700">
+                      {course.category}
+                    </span>
+                  )}
                 </div>
                 <div className="p-4">
                   <h3 className="font-semibold text-slate-900 line-clamp-2 group-hover:text-blue-600">
-                    {course.title}
+                    {course.name}
                   </h3>
-                  <p className="mt-1 text-sm text-slate-500">{course.instructor}</p>
+                  <p className="mt-1 text-sm text-slate-500">{course.instructor.username}</p>
                   <div className="mt-3">
                     <span className="text-sm font-semibold text-blue-600">
                       {course.price.toLocaleString("vi-VN")}đ

@@ -20,6 +20,7 @@ model User {
   testAttempts      TestAttempt[]
   feedbacks         Feedback[]
   orders            Order[]
+  courses           Course[]
 }
 
 model Session {
@@ -58,9 +59,17 @@ model Course {
   id          String       @id @default(uuid())
   name        String
   description String
-  status      CourseStatus
+  thumbnail   String?   
+  category    String?      
+  duration    String?      
+  lessons     Int          @default(0)
+  status      CourseStatus @default(ACTIVE)
   createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
   price       Float
+  instructorId String?     // ID của giảng viên
+
+  instructor  User?        @relation(fields: [instructorId], references: [id])
   modules     Module[]
   enrollments Enrollment[]
   tests       Test[]
@@ -109,13 +118,52 @@ model Test {
   id           String   @id @default(uuid())
   courseId     String
   name         String
+  description String?
   maxScore     Float
   passingScore Float
   maxAttempts  Int
+  timeLimit    Int?  
+  shuffleQuestions Boolean @default(false)
   createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   course   Course        @relation(fields: [courseId], references: [id])
   attempts TestAttempt[]
+  questions Question[]
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE  // Trắc nghiệm
+  FILL_IN_BLANK    // Điền từ
+  ESSAY            // Viết bài văn
+  TRUE_FALSE       // Đúng/Sai
+}
+
+model Question {
+  id           String       @id @default(uuid())
+  testId       String
+  type         QuestionType
+  content      String       // Nội dung câu hỏi
+  order        Int
+  score        Float        // Điểm cho câu này
+  explanation  String?     // Giải thích/Lý do đúng
+  hint         String?      // Gợi ý
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  test     Test          @relation(fields: [testId], references: [id])
+  answers  Answer[]
+}
+
+model Answer {
+  id         String  @id @default(uuid())
+  questionId String
+  content    String  // Nội dung đáp án
+  isCorrect  Boolean // Đáp án đúng hay sai
+  order      Int     // Thứ tự đáp án (đặc biệt quan trọng với trắc nghiệm)
+  feedback   String? // Phản hồi khi chọn đáp án này
+
+  question Question @relation(fields: [questionId], references: [id])
 }
 
 model TestAttempt {

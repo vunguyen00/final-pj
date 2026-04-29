@@ -22,6 +22,28 @@ export function ForgotPasswordForm() {
     setMessage("");
 
     try {
+      // Kiểm tra email tồn tại trước
+      const checkRes = await fetch("/api/auth/verify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const checkData = await checkRes.json();
+      
+      if (!checkRes.ok) {
+        setError(checkData.error ?? "Không kiểm tra được email.");
+        setLoading(false);
+        return;
+      }
+
+      // Email không tồn tại - báo lỗi rõ ràng
+      if (!checkData.exists) {
+        setError("Email không tồn tại trong hệ thống.");
+        setLoading(false);
+        return;
+      }
+
+      // Email tồn tại - gửi OTP
       const response = await fetch("/api/auth/forgot-password/request-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -30,14 +52,15 @@ export function ForgotPasswordForm() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error ?? "Khong gui duoc OTP.");
+        setError(data.error ?? "Không gửi được OTP.");
         return;
       }
 
+      // Chuyển sang phase reset và hiển thị message rõ ràng
       setPhase("reset");
-      setMessage(data.message ?? "OTP da duoc gui toi email neu tai khoan ton tai.");
+      setMessage("OTP đã được gửi đến email của bạn.");
     } catch {
-      setError("Loi mang. Vui long thu lai.");
+      setError("Lỗi mạng. Vui lòng thử lại.");
     } finally {
       setLoading(false);
     }
