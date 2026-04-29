@@ -124,16 +124,37 @@ export default function TeacherCoursesPage() {
   };
 
   const handleDelete = async (courseId: string) => {
-    if (!confirm("Bạn có chắc chắn muốn xóa khóa học này?")) return;
+    if (!confirm("Bạn có chắc chắn muốn xóa khóa học này? Thao tác này sẽ xóa vĩnh viễn tất cả dữ liệu liên quan.")) return;
     try {
       const res = await fetch(`/api/teacher/courses/${courseId}`, {
         method: "DELETE",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        fetchCourses();
+        alert("Xóa khóa học thành công!");
+      } else {
+        alert(data.error || "Không thể xóa khóa học");
+      }
+    } catch (error) {
+      console.error("Error deleting course:", error);
+    }
+  };
+
+  const handleToggleLock = async (courseId: string, currentStatus: string) => {
+    const action = currentStatus === "ACTIVE" ? "khóa" : "mở khóa";
+    if (!confirm(`Bạn có chắc chắn muốn ${action} khóa học này?`)) return;
+    try {
+      const res = await fetch(`/api/teacher/courses/${courseId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "toggleLock" }),
       });
       if (res.ok) {
         fetchCourses();
       }
     } catch (error) {
-      console.error("Error deleting course:", error);
+      console.error("Error toggling course status:", error);
     }
   };
 
@@ -331,6 +352,41 @@ export default function TeacherCoursesPage() {
                           >
                             <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
                           </svg>
+                        </button>
+                        <button
+                          onClick={() => handleToggleLock(course.id, course.status)}
+                          className={`rounded-lg p-2 hover:bg-slate-100 ${
+                            course.status === "ACTIVE" 
+                              ? "text-orange-600" 
+                              : "text-green-600"
+                          }`}
+                          title={course.status === "ACTIVE" ? "Khóa khóa học" : "Mở khóa khóa học"}
+                        >
+                          {course.status === "ACTIVE" ? (
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              className="h-4 w-4"
+                            >
+                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg>
+                          ) : (
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              className="h-4 w-4"
+                            >
+                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                              <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+                            </svg>
+                          )}
                         </button>
                         <button
                           onClick={() => handleDelete(course.id)}
