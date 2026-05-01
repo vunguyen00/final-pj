@@ -8,6 +8,7 @@ type Question = {
   id: string;
   type: string;
   content: string;
+  audioUrl: string | null;
   order: number;
   score: number;
   explanation: string | null;
@@ -54,6 +55,8 @@ export default function TeacherTestQuestionsPage() {
   const [questionForm, setQuestionForm] = useState({
     type: "MULTIPLE_CHOICE",
     content: "",
+    audioUrl: "",
+    hasListening: false,
     score: "10",
     explanation: "",
     hint: "",
@@ -91,6 +94,8 @@ export default function TeacherTestQuestionsPage() {
     setQuestionForm({
       type: "MULTIPLE_CHOICE",
       content: "",
+      audioUrl: "",
+      hasListening: false,
       score: "10",
       explanation: "",
       hint: "",
@@ -109,6 +114,8 @@ export default function TeacherTestQuestionsPage() {
     setQuestionForm({
       type: question.type,
       content: question.content,
+      audioUrl: question.audioUrl || "",
+      hasListening: !!question.audioUrl,
       score: question.score.toString(),
       explanation: question.explanation || "",
       hint: question.hint || "",
@@ -176,12 +183,32 @@ export default function TeacherTestQuestionsPage() {
       return;
     }
 
+    if (!questionForm.score || parseFloat(questionForm.score) <= 0) {
+      alert("Điểm số phải lớn hơn 0");
+      return;
+    }
+
+    if (questionForm.hasListening && !questionForm.audioUrl.trim()) {
+      alert("Vui lòng nhập URL audio hoặc upload file");
+      return;
+    }
+
+    if (questionForm.answers.some(a => !a.content.trim())) {
+      alert("Vui lòng điền đủ nội dung cho tất cả đáp án");
+      return;
+    }
+
     if (questionForm.type === "MULTIPLE_CHOICE" || questionForm.type === "TRUE_FALSE") {
       const hasCorrect = questionForm.answers.some(a => a.isCorrect);
       if (!hasCorrect) {
         alert("Vui lòng chọn đáp án đúng");
         return;
       }
+    }
+
+    if ((questionForm.type === "FILL_IN_BLANK" || questionForm.type === "ESSAY") && !questionForm.answers[0]?.content) {
+      alert("Vui lòng nhập đáp án đúng");
+      return;
     }
 
     try {
@@ -194,17 +221,26 @@ export default function TeacherTestQuestionsPage() {
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(questionForm),
+        body: JSON.stringify({
+          ...questionForm,
+          audioUrl: questionForm.hasListening ? questionForm.audioUrl : null,
+        }),
       });
+
+      const data = await res.json();
 
       if (res.ok) {
         setShowModal(false);
         setEditingQuestion(null);
         resetForm();
         fetchTestAndQuestions();
+      } else {
+        alert(data.error || "Không thể lưu câu hỏi. Vui lòng thử lại.");
+        console.error("Error response:", data);
       }
     } catch (error) {
       console.error("Error saving question:", error);
+      alert("Lỗi khi lưu câu hỏi. Vui lòng kiểm tra console.");
     }
   };
 
@@ -325,10 +361,23 @@ export default function TeacherTestQuestionsPage() {
                       <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
                         {getQuestionTypeLabel(question.type)}
                       </span>
+                      {question.audioUrl && (
+                        <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">
+                          🎧 Listening
+                        </span>
+                      )}
                       <span className="text-sm text-slate-500">
                         {question.score} điểm
                       </span>
                     </div>
+                    {question.audioUrl && (
+                      <div className="mt-2">
+                        <audio controls className="h-8 w-full max-w-md">
+                          <source src={question.audioUrl} type="audio/mpeg" />
+                          Your browser does not support the audio element.
+                        </audio>
+                      </div>
+                    )}
                     <p className="mt-3 text-slate-900">{question.content}</p>
                     
                     {/* Show answers for multiple choice */}
@@ -465,6 +514,61 @@ export default function TeacherTestQuestionsPage() {
                   placeholder="Nhập nội dung câu hỏi..."
                 />
               </div>
+
+              {/* Audio URL for Listening */}
+              <div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="hasListening"
+                    checked={questionForm.hasListening}
+                    onChange={(e) => setQuestionForm({ 
+                      ...questionForm, 
+                      hasListening: e.target.checked,
+                      audioUrl: e.target.checked ? questionForm.audioUrl : ""
+                    })}
+                    className="h-4 w-4 rounded border-slate-300"
+                  />
+                  <label htmlFor="hasListening" className="text-sm font-medium text-slate-700">
+                    Câu hỏi có audio (Listening) 🎧
+                  </label>
+                </div>
+              </div>
+
+              {/* Audio Input - Show only if hasListening is true */}
+              {questionForm.hasListening && (
+                <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700">
+                      Chọn cách nhập audio *
+                    </label>
+                    <div className="mt-2 space-y-3">
+                      {/* Link Input */}
+                      <div>
+                        <label className="text-xs font-medium text-slate-600">Dán link URL:</label>
+                        <input
+                          type="url"
+                          value={questionForm.audioUrl}
+                          onChange={(e) => setQuestionForm({ ...questionForm, audioUrl: e.target.value })}
+                          className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                          placeholder="https://example.com/audio.mp3"
+                        />
+                        <p className="mt-1 text-xs text-slate-500">
+                          Ví dụ: https://storage.googleapis.com/audio.mp3
+                        </p>
+                      </div>
+
+                      {/* File Upload Info */}
+                      <div className="rounded bg-white p-3">
+                        <p className="text-xs font-medium text-slate-700">📤 Hoặc upload file:</p>
+                        <p className="mt-1 text-xs text-slate-600">
+                          Tải file lên một dịch vụ lưu trữ (Google Drive, Dropbox, etc.) và dán link vào ô trên.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Score */}
               <div>

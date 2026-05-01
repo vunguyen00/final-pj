@@ -98,7 +98,9 @@ export async function POST(
     const body = await request.json();
     const { 
       type, 
-      content, 
+      content,
+      audioUrl,
+      hasListening,
       order, 
       score, 
       explanation, 
@@ -111,6 +113,40 @@ export async function POST(
         { error: "Missing required fields" },
         { status: 400 }
       );
+    }
+
+    // Validate score
+    const parsedScore = score ? parseFloat(score) : 10;
+    if (parsedScore <= 0) {
+      return NextResponse.json(
+        { error: "Điểm số phải lớn hơn 0" },
+        { status: 400 }
+      );
+    }
+
+    // Validate audio if has listening
+    let finalAudioUrl: string | null = null;
+    if (hasListening && audioUrl?.trim()) {
+      try {
+        new URL(audioUrl);
+        finalAudioUrl = audioUrl;
+      } catch (e) {
+        return NextResponse.json(
+          { error: "URL audio không hợp lệ" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate answers
+    if (answers && Array.isArray(answers)) {
+      const hasEmptyAnswer = answers.some((a: any) => !a.content || !a.content.trim());
+      if (hasEmptyAnswer) {
+        return NextResponse.json(
+          { error: "Tất cả đáp án phải có nội dung" },
+          { status: 400 }
+        );
+      }
     }
 
     // Get max order
@@ -126,8 +162,9 @@ export async function POST(
         testId,
         type,
         content,
+        audioUrl: finalAudioUrl,
         order: newOrder,
-        score: score ? parseFloat(score) : 10,
+        score: parsedScore,
         explanation: explanation || null,
         hint: hint || null,
         ...(answers && answers.length > 0 && {

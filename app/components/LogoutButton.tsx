@@ -13,8 +13,9 @@ export function LogoutButton() {
       await fetch("/api/auth/logout", {
         method: "POST",
       });
-      router.push("/auth/login");
-      router.refresh();
+      // Sử dụng window.location để force full reload,
+      // đảm bảo useUser re-fetch và cập nhật UI với user = null
+      window.location.href = "/auth/login";
     } finally {
       setLoading(false);
     }

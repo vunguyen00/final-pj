@@ -22,28 +22,34 @@ export function ForgotPasswordForm() {
     setMessage("");
 
     try {
-      // Kiểm tra email tồn tại trước
       const checkRes = await fetch("/api/auth/verify-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
       const checkData = await checkRes.json();
-      
+
       if (!checkRes.ok) {
-        setError(checkData.error ?? "Không kiểm tra được email.");
+        setError(checkData.error ?? "Khong kiem tra duoc email.");
         setLoading(false);
         return;
       }
 
-      // Email không tồn tại - báo lỗi rõ ràng
       if (!checkData.exists) {
-        setError("Email không tồn tại trong hệ thống.");
+        setError("Email khong ton tai trong he thong.");
         setLoading(false);
         return;
       }
 
-      // Email tồn tại - gửi OTP
+      if (checkData.role === "ADMIN") {
+        const adminMessage =
+          "Tai khoan admin phai lien he quan tri he thong de duoc cap mat khau moi. Khong the dat lai mat khau bang OTP.";
+        setError(adminMessage);
+        window.alert(adminMessage);
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch("/api/auth/forgot-password/request-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -52,15 +58,14 @@ export function ForgotPasswordForm() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error ?? "Không gửi được OTP.");
+        setError(data.error ?? "Khong gui duoc OTP.");
         return;
       }
 
-      // Chuyển sang phase reset và hiển thị message rõ ràng
       setPhase("reset");
-      setMessage("OTP đã được gửi đến email của bạn.");
+      setMessage("OTP da duoc gui den email cua ban.");
     } catch {
-      setError("Lỗi mạng. Vui lòng thử lại.");
+      setError("Loi mang. Vui long thu lai.");
     } finally {
       setLoading(false);
     }
@@ -189,10 +194,7 @@ export function ForgotPasswordForm() {
       </div>
 
       <div>
-        <label
-          className="mb-1 block text-sm font-medium text-slate-700"
-          htmlFor="confirm-password"
-        >
+        <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="confirm-password">
           Xac nhan mat khau moi
         </label>
         <input

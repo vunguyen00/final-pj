@@ -89,6 +89,11 @@ export async function POST(request: NextRequest) {
     // Verify course ownership
     const course = await prisma.course.findUnique({
       where: { id: courseId },
+      include: {
+        _count: {
+          select: { tests: true, modules: true }
+        }
+      }
     });
 
     if (!course) {
@@ -102,6 +107,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Forbidden" },
         { status: 403 }
+      );
+    }
+
+    // Check if course already has a test
+    if (course._count.tests > 0) {
+      return NextResponse.json(
+        { error: "Khóa học này đã có bài test. Mỗi khóa học chỉ được có 1 bài test cuối." },
+        { status: 400 }
+      );
+    }
+
+    // Check if course has modules
+    if (course._count.modules === 0) {
+      return NextResponse.json(
+        { error: "Khóa học phải có ít nhất 1 module trước khi tạo bài test" },
+        { status: 400 }
       );
     }
 

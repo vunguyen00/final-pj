@@ -26,10 +26,10 @@ export default async function StudentPage() {
             Hoc bai
           </Link>
           <Link
-            href="/student/lam-bai"
+            href="/student/tests"
             className="rounded-lg border border-emerald-300 px-4 py-2 font-semibold text-emerald-900 hover:bg-emerald-100"
           >
-            Lam bai
+            Lam bai test
           </Link>
         </div>
       </div>

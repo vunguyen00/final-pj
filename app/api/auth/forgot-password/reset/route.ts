@@ -66,6 +66,25 @@ export async function POST(request: Request) {
       );
     }
 
+    const user = await prisma.user.findUnique({
+      where: { id: activeOtp.userId },
+      select: { role: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: "Tai khoan khong ton tai." }, { status: 404 });
+    }
+
+    if (user.role === "ADMIN") {
+      return NextResponse.json(
+        {
+          error:
+            "Tai khoan admin khong duoc dat lai mat khau bang OTP. Vui long lien he quan tri he thong de duoc cap mat khau moi.",
+        },
+        { status: 403 },
+      );
+    }
+
     if (activeOtp.attempts >= OTP_MAX_ATTEMPTS) {
       await prisma.passwordResetOtp.update({
         where: { id: activeOtp.id },

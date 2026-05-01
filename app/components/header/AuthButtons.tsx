@@ -1,8 +1,25 @@
 "use client";
 
 import Link from "next/link";
+import { useUser } from "./useUser";
+import ProfileMenu from "./ProfileMenu";
 
 export default function AuthButtons() {
+  const { user, loading } = useUser();
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="h-8 w-20 animate-pulse rounded-lg bg-slate-200" />
+        <div className="h-8 w-16 animate-pulse rounded-lg bg-slate-200" />
+      </div>
+    );
+  }
+
+  if (user) {
+    return <ProfileMenu user={user} />;
+  }
+
   return (
     <div className="flex items-center gap-2">
       <Link

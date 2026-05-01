@@ -44,8 +44,9 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
         throw new Error("Logout failed");
       }
       setMenuOpen(false);
-      router.push("/");
-      router.refresh();
+      // Sử dụng window.location để force full reload,
+      // đảm bảo useUser re-fetch và cập nhật UI
+      window.location.href = "/";
     } catch (error) {
       console.error("Logout failed:", error);
     }

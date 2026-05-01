@@ -4,14 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import AdminMenu from "./header/AdminMenu";
-import ProfileMenu from "./header/ProfileMenu";
 import AuthButtons from "./header/AuthButtons";
-import LoadingSkeleton from "./header/LoadingSkeleton";
 import { useUser } from "./header/useUser";
 
 export default function Header() {
   const pathname = usePathname();
-  const { user, loading } = useUser();
+  const { user } = useUser();
   const [globalError, setGlobalError] = useState<string>("");
 
   // Listen for global error events
@@ -102,15 +100,7 @@ export default function Header() {
 
         {/* Auth Section */}
         <div className="flex items-center gap-3">
-
-          {/* Loading / User / Auth Buttons */}
-          {loading ? (
-            <LoadingSkeleton />
-          ) : user ? (
-            <ProfileMenu user={user} />
-          ) : (
-            <AuthButtons />
-          )}
+          <AuthButtons />
           {/* Hamburger Menu for Teacher/Admin */}
           {(user?.role === "TEACHER" || user?.role === "ADMIN") && user && (
             <AdminMenu user={user} />

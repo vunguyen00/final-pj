@@ -30,7 +30,7 @@ export async function POST(request: Request) {
 
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, email: true },
+      select: { id: true, email: true, role: true },
     });
 
     // Tra loi chung de tranh de lo email ton tai hay khong ton tai.
@@ -41,6 +41,16 @@ export async function POST(request: Request) {
 
     if (!user) {
       return genericResponse;
+    }
+
+    if (user.role === "ADMIN") {
+      return NextResponse.json(
+        {
+          error:
+            "Tai khoan admin khong duoc dat lai mat khau bang OTP. Vui long lien he quan tri he thong de duoc cap mat khau moi.",
+        },
+        { status: 403 },
+      );
     }
 
     const otpCode = generateOtpCode();

@@ -7,22 +7,32 @@ export async function POST(request: Request) {
 
     if (!email) {
       return NextResponse.json(
-        { exists: false, error: "Email là bắt buộc" },
-        { status: 400 }
+        { exists: false, error: "Email la bat buoc" },
+        { status: 400 },
+      );
+    }
+
+    const normalizedEmail =
+      typeof email === "string" ? email.trim().toLowerCase() : "";
+
+    if (!normalizedEmail) {
+      return NextResponse.json(
+        { exists: false, error: "Email la bat buoc" },
+        { status: 400 },
       );
     }
 
     const user = await prisma.user.findUnique({
-      where: { email },
-      select: { id: true },
+      where: { email: normalizedEmail },
+      select: { id: true, role: true },
     });
 
-    return NextResponse.json({ exists: !!user });
+    return NextResponse.json({ exists: !!user, role: user?.role ?? null });
   } catch (error) {
     console.error("Verify email error:", error);
     return NextResponse.json(
-      { exists: false, error: "Lỗi server" },
-      { status: 500 }
+      { exists: false, error: "Loi server" },
+      { status: 500 },
     );
   }
 }

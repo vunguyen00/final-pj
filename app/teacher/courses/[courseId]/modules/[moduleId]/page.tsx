@@ -39,6 +39,7 @@ export default function TeacherModulePage() {
     content: "",
     videoUrl: "",
   });
+  const [uploadingVideo, setUploadingVideo] = useState(false);
 
   useEffect(() => {
     fetchModule();
@@ -261,14 +262,73 @@ export default function TeacherModulePage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">URL Video</label>
-                <input
-                  type="url"
-                  value={lessonForm.videoUrl}
-                  onChange={(e) => setLessonForm({ ...lessonForm, videoUrl: e.target.value })}
-                  className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-                  placeholder="https://..."
-                />
+                <label className="block text-sm font-medium text-slate-700">Video</label>
+                <div className="mt-1 space-y-2">
+                  {lessonForm.videoUrl ? (
+                    <div className="relative rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <video
+                        src={lessonForm.videoUrl}
+                        controls
+                        className="h-40 w-full rounded-lg object-contain"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setLessonForm({ ...lessonForm, videoUrl: "" })}
+                        className="absolute right-2 top-2 rounded-full bg-red-500 p-1 text-white hover:bg-red-600"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+                          <line x1="18" x2="6" y1="6" y2="18" />
+                          <line x1="6" x2="18" y1="6" y2="18" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 p-4 hover:border-slate-400 hover:bg-slate-50">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-8 w-8 text-slate-400">
+                        <polygon points="23 7 16 12 23 17 23 7" />
+                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                      </svg>
+                      <span className="mt-2 text-sm text-slate-600">Tải lên video</span>
+                      <span className="text-xs text-slate-400">MP4, WebM, MOV (tối đa 500MB)</span>
+                      <input
+                        type="file"
+                        accept="video/mp4,video/webm,video/quicktime"
+                        className="hidden"
+                        disabled={uploadingVideo}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setUploadingVideo(true);
+                          try {
+                            const formData = new FormData();
+                            formData.append("file", file);
+                            const res = await fetch("/api/teacher/upload", {
+                              method: "POST",
+                              body: formData,
+                            });
+                            const data = await res.json();
+                            if (res.ok && data.url) {
+                              setLessonForm({ ...lessonForm, videoUrl: data.url });
+                            } else {
+                              alert(data.error || "Upload failed");
+                            }
+                          } catch (error) {
+                            console.error("Error uploading video:", error);
+                            alert("Lỗi khi tải video");
+                          } finally {
+                            setUploadingVideo(false);
+                          }
+                        }}
+                      />
+                    </label>
+                  )}
+                  {uploadingVideo && (
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900"></div>
+                      <span>Đang tải video...</span>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="flex justify-end gap-3 pt-4">
                 <button

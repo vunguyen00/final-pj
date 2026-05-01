@@ -168,6 +168,8 @@ export default function CourseDetailPage() {
           timeLimit: testForm.timeLimit ? parseInt(testForm.timeLimit) : null,
         }),
       });
+
+      const data = await res.json();
       if (res.ok) {
         setShowTestModal(false);
         setTestForm({
@@ -180,9 +182,12 @@ export default function CourseDetailPage() {
           shuffleQuestions: false,
         });
         fetchCourseData();
+      } else {
+        alert(data.error || "Không thể tạo bài test");
       }
     } catch (error) {
       console.error("Error creating test:", error);
+      alert("Lỗi khi tạo bài test");
     }
   };
 
@@ -445,7 +450,19 @@ export default function CourseDetailPage() {
                   });
                   setShowTestModal(true);
                 }}
-                className="flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                disabled={modules.length === 0 || tests.length > 0}
+                className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium ${
+                  modules.length === 0 || tests.length > 0
+                    ? "cursor-not-allowed bg-gray-300 text-gray-500"
+                    : "bg-slate-900 text-white hover:bg-slate-800"
+                }`}
+                title={
+                  tests.length > 0
+                    ? "Khóa học đã có bài test. Mỗi khóa học chỉ được có 1 bài test cuối."
+                    : modules.length === 0
+                    ? "Khóa học phải có ít nhất 1 module trước khi tạo bài test"
+                    : ""
+                }
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -488,7 +505,7 @@ export default function CourseDetailPage() {
                       </div>
                       <div className="flex gap-2">
                         <Link
-                          href={`/teacher/tests/${test.id}`}
+                          href={`/teacher/tests/${test.id}/questions`}
                           className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"
                           title="Quản lý câu hỏi"
                         >

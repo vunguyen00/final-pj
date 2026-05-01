@@ -29,7 +29,9 @@ export function LoginForm() {
       }
 
       router.push(data.redirectTo ?? "/");
-      router.refresh();
+      // Sử dụng window.location để force full reload,
+      // đảm bảo useUser re-fetch và hiển thị đúng menu admin/teacher
+      window.location.href = data.redirectTo ?? "/";
     } catch {
       setError("Loi mang. Vui long thu lai.");
     } finally {
