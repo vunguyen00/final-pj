@@ -126,15 +126,50 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const parsedMaxScore = Number(maxScore ?? 100);
+    const parsedPassingScore = Number(passingScore ?? 50);
+    const parsedMaxAttempts = Number(maxAttempts ?? 3);
+    const parsedTimeLimit = timeLimit === null || timeLimit === undefined || timeLimit === ""
+      ? null
+      : Number(timeLimit);
+
+    if (!Number.isFinite(parsedMaxScore) || parsedMaxScore <= 0) {
+      return NextResponse.json(
+        { error: "Điểm tối đa không hợp lệ" },
+        { status: 400 }
+      );
+    }
+
+    if (!Number.isFinite(parsedPassingScore) || parsedPassingScore < 0 || parsedPassingScore > parsedMaxScore) {
+      return NextResponse.json(
+        { error: "Điểm đạt phải từ 0 đến điểm tối đa" },
+        { status: 400 }
+      );
+    }
+
+    if (!Number.isInteger(parsedMaxAttempts) || parsedMaxAttempts <= 0) {
+      return NextResponse.json(
+        { error: "Số lần làm tối đa phải là số nguyên dương" },
+        { status: 400 }
+      );
+    }
+
+    if (parsedTimeLimit !== null && (!Number.isInteger(parsedTimeLimit) || parsedTimeLimit <= 0)) {
+      return NextResponse.json(
+        { error: "Thời gian làm bài phải là số nguyên dương" },
+        { status: 400 }
+      );
+    }
+
     const test = await prisma.test.create({
       data: {
         name,
         description: description || null,
         courseId,
-        maxScore: maxScore ? parseFloat(maxScore) : 100,
-        passingScore: passingScore ? parseFloat(passingScore) : 50,
-        maxAttempts: maxAttempts || 3,
-        timeLimit: timeLimit || null,
+        maxScore: parsedMaxScore,
+        passingScore: parsedPassingScore,
+        maxAttempts: parsedMaxAttempts,
+        timeLimit: parsedTimeLimit,
         shuffleQuestions: shuffleQuestions || false,
       },
       include: {
@@ -151,7 +186,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Error creating test:", error);
     return NextResponse.json(
-      { error: "Failed to create test" },
+      {
+        error: "Failed to create test",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }

@@ -20,9 +20,9 @@ const AUTH_SECRET =
 export type AppRole = keyof typeof Role;
 
 export const ROLE_HOME: Record<AppRole, string> = {
-  STUDENT: "/student",
-  TEACHER: "/teacher",
-  ADMIN: "/admin",
+  STUDENT: "/",
+  TEACHER: "/",
+  ADMIN: "/",
 };
 
 export function normalizeRole(value: string): AppRole | null {

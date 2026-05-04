@@ -1,26 +1,29 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import {
+  getCourseProgressPercent,
+  hasCertificateSent,
+  markCertificateSent,
+  markCourseCompleted,
+} from "@/lib/learning-progress";
+import { sendCourseCertificateEmail } from "@/lib/mailer";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ testId: string }> }
+  { params }: { params: Promise<{ testId: string }> },
 ) {
   try {
     const { testId } = await params;
     const user = await getCurrentUser();
-    
+
     if (!user || user.role !== "STUDENT") {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
-    const { answers } = body; // { questionId: answerId } or { questionId: content }
+    const { answers } = body;
 
-    // Get test with questions
     const test = await prisma.test.findUnique({
       where: { id: testId },
       include: {
@@ -29,17 +32,16 @@ export async function POST(
             answers: true,
           },
         },
+        course: {
+          select: { id: true, name: true },
+        },
       },
     });
 
     if (!test) {
-      return NextResponse.json(
-        { error: "Test not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Test not found" }, { status: 404 });
     }
 
-    // Check enrollment
     const enrollment = await prisma.enrollment.findUnique({
       where: {
         userId_courseId: {
@@ -50,59 +52,58 @@ export async function POST(
     });
 
     if (!enrollment) {
+      return NextResponse.json({ error: "Not enrolled in this course" }, { status: 403 });
+    }
+
+    const progress = await getCourseProgressPercent(user.id, test.courseId);
+    if (progress < 100) {
       return NextResponse.json(
-        { error: "Not enrolled in this course" },
-        { status: 403 }
+        { error: "Ban can hoan thanh 100% bai hoc truoc khi lam test.", progress },
+        { status: 403 },
       );
     }
 
-    // Check attempts remaining
     const attemptCount = await prisma.testAttempt.count({
       where: { testId, userId: user.id },
     });
 
     if (attemptCount >= test.maxAttempts) {
-      return NextResponse.json(
-        { error: "No attempts remaining" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "No attempts remaining" }, { status: 403 });
     }
 
-    // Calculate score
     let totalScore = 0;
     let maxScore = 0;
-    const questionResults: any[] = [];
+    const questionResults: Array<Record<string, unknown>> = [];
 
     for (const question of test.questions) {
       maxScore += question.score;
       const studentAnswer = answers[question.id];
       let isCorrect = false;
       let earnedScore = 0;
-      let correctAnswer = null;
+      let correctAnswer: string | null = null;
 
       if (question.type === "MULTIPLE_CHOICE" || question.type === "TRUE_FALSE") {
-        // Multiple choice: studentAnswer is answerId
-        const selectedAnswer = question.answers.find(a => a.id === studentAnswer);
-        const correctAns = question.answers.find(a => a.isCorrect);
-        
+        const selectedAnswer = question.answers.find((a) => a.id === studentAnswer);
+        const correctAns = question.answers.find((a) => a.isCorrect);
+
         if (selectedAnswer && correctAns) {
           isCorrect = selectedAnswer.id === correctAns.id;
           correctAnswer = correctAns.content;
         }
       } else if (question.type === "FILL_IN_BLANK") {
-        // Fill in blank: studentAnswer is string, compare ignoring case
-        const correctAns = question.answers.find(a => a.isCorrect);
+        const correctAns = question.answers.find((a) => a.isCorrect);
         if (correctAns && studentAnswer) {
-          isCorrect = studentAnswer.toString().trim().toLowerCase() === correctAns.content.trim().toLowerCase();
+          isCorrect =
+            studentAnswer.toString().trim().toLowerCase() ===
+            correctAns.content.trim().toLowerCase();
           correctAnswer = correctAns.content;
         }
       } else if (question.type === "ESSAY") {
-        // Essay: no auto-grading, mark as pending
-        isCorrect = null;
+        isCorrect = false;
         correctAnswer = question.answers[0]?.content || "";
       }
 
-      if (isCorrect === true) {
+      if (isCorrect) {
         earnedScore = question.score;
         totalScore += question.score;
       }
@@ -111,20 +112,18 @@ export async function POST(
         questionId: question.id,
         questionType: question.type,
         content: question.content,
-        studentAnswer: studentAnswer,
-        correctAnswer: correctAnswer,
-        isCorrect: isCorrect,
+        studentAnswer,
+        correctAnswer,
+        isCorrect,
         score: question.score,
-        earnedScore: earnedScore,
+        earnedScore,
         explanation: question.explanation,
       });
     }
 
-    // Calculate final score
     const finalScore = maxScore > 0 ? (totalScore / maxScore) * test.maxScore : 0;
     const isPassed = finalScore >= test.passingScore;
 
-    // Create test attempt
     const testAttempt = await prisma.testAttempt.create({
       data: {
         testId,
@@ -132,29 +131,39 @@ export async function POST(
         score: finalScore,
         startedAt: new Date(Date.now() - (test.timeLimit ? test.timeLimit * 1000 : 0)),
         submittedAt: new Date(),
-        isPassed: isPassed,
+        isPassed,
       },
     });
 
-    // Store result in database for retrieval
-    // The question results are returned to client for display
-    // In a real app, you'd also store them in a separate table if needed
+    let courseCompleted = false;
+    let certificateSent = false;
+
+    if (isPassed) {
+      await markCourseCompleted(user.id, test.courseId);
+      courseCompleted = true;
+
+      const alreadySent = await hasCertificateSent(user.id, test.courseId);
+      if (!alreadySent) {
+        await sendCourseCertificateEmail(user.email, user.username, test.course.name);
+        await markCertificateSent(user.id, test.courseId);
+        certificateSent = true;
+      }
+    }
 
     return NextResponse.json({
       attemptId: testAttempt.id,
       score: finalScore,
       maxScore: test.maxScore,
       passingScore: test.passingScore,
-      isPassed: isPassed,
+      isPassed,
+      courseCompleted,
+      certificateSent,
       totalQuestions: test.questions.length,
-      correctAnswers: questionResults.filter(q => q.isCorrect === true).length,
+      correctAnswers: questionResults.filter((q) => q.isCorrect === true).length,
       questionResults,
     });
   } catch (error) {
     console.error("Error submitting test:", error);
-    return NextResponse.json(
-      { error: "Failed to submit test" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to submit test" }, { status: 500 });
   }
 }

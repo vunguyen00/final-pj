@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+﻿import nodemailer from "nodemailer";
 
 type MailerConfig = {
   host: string;
@@ -74,6 +74,30 @@ export async function sendPasswordResetOtpEmail(
         <p style="font-size: 28px; font-weight: 700; letter-spacing: 4px;">${otpCode}</p>
         <p>Ma co hieu luc trong <strong>${expiresMinutes} phut</strong>.</p>
         <p>Neu khong phai ban, vui long bo qua email nay.</p>
+      </div>
+    `,
+  });
+}
+
+export async function sendCourseCertificateEmail(
+  to: string,
+  username: string,
+  courseName: string,
+): Promise<void> {
+  const config = readMailerConfig();
+  const transporter = getTransporter();
+
+  await transporter.sendMail({
+    from: config.from,
+    to,
+    subject: `Chung chi hoan thanh khoa hoc: ${courseName}`,
+    text: `Chuc mung ${username}! Ban da hoan thanh khoa hoc ${courseName} va du dieu kien nhan chung chi.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">
+        <h2>Chuc mung ${username}!</h2>
+        <p>Ban da hoan thanh khoa hoc <strong>${courseName}</strong>.</p>
+        <p>Chung chi hoan thanh da duoc ghi nhan trong he thong.</p>
+        <p>Cam on ban da hoc cung LearnHub.</p>
       </div>
     `,
   });

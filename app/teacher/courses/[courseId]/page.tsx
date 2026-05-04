@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
@@ -139,7 +139,7 @@ export default function CourseDetailPage() {
   };
 
   const handleDeleteModule = async (moduleId: string) => {
-    if (!confirm("Bạn có chắc chắn muốn xóa module này?")) return;
+    if (!confirm("Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a module nÃ y?")) return;
     try {
       const res = await fetch(`/api/teacher/courses/${courseId}/modules/${moduleId}`, {
         method: "DELETE",
@@ -169,7 +169,7 @@ export default function CourseDetailPage() {
         }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setShowTestModal(false);
         setTestForm({
@@ -183,7 +183,10 @@ export default function CourseDetailPage() {
         });
         fetchCourseData();
       } else {
-        alert(data.error || "Không thể tạo bài test");
+        const message = data?.details
+          ? `${data.error || "Không thể tạo bài test"}: ${data.details}`
+          : data?.error || "Không thể tạo bài test";
+        alert(message);
       }
     } catch (error) {
       console.error("Error creating test:", error);
@@ -192,7 +195,7 @@ export default function CourseDetailPage() {
   };
 
   const handleDeleteTest = async (testId: string) => {
-    if (!confirm("Bạn có chắc chắn muốn xóa bài test này?")) return;
+    if (!confirm("Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a bÃ i test nÃ y?")) return;
     try {
       const res = await fetch(`/api/teacher/tests/${testId}`, {
         method: "DELETE",
@@ -216,7 +219,7 @@ export default function CourseDetailPage() {
   if (!course) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-slate-600">Không tìm thấy khóa học</p>
+        <p className="text-slate-600">KhÃ´ng tÃ¬m tháº¥y khÃ³a há»c</p>
       </div>
     );
   }
@@ -239,7 +242,7 @@ export default function CourseDetailPage() {
           >
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
-          Quay lại danh sách khóa học
+          Quay láº¡i danh sÃ¡ch khÃ³a há»c
         </Link>
 
         {/* Course header */}
@@ -262,7 +265,7 @@ export default function CourseDetailPage() {
                     <circle cx="9" cy="7" r="4" />
                     <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
                   </svg>
-                  {course._count.enrollments} học viên
+                  {course._count.enrollments} há»c viÃªn
                 </span>
                 <span className="flex items-center gap-1">
                   <svg
@@ -290,7 +293,7 @@ export default function CourseDetailPage() {
                     <path d="M9 11l3 3L22 4" />
                     <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
                   </svg>
-                  {course._count.tests} bài test
+                  {course._count.tests} bÃ i test
                 </span>
                 <span
                   className={`rounded-full px-2 py-1 text-xs font-medium ${
@@ -299,13 +302,13 @@ export default function CourseDetailPage() {
                       : "bg-red-100 text-red-700"
                   }`}
                 >
-                  {course.status === "ACTIVE" ? "Hoạt động" : "Đã khóa"}
+                  {course.status === "ACTIVE" ? "Hoáº¡t Ä‘á»™ng" : "ÄÃ£ khÃ³a"}
                 </span>
               </div>
             </div>
             <div className="text-right">
               <p className="text-2xl font-bold text-slate-900">
-                {course.price.toLocaleString("vi-VN")}đ
+                {course.price.toLocaleString("vi-VN")}Ä‘
               </p>
               <p className="text-sm text-slate-500">{course.category}</p>
             </div>
@@ -323,7 +326,7 @@ export default function CourseDetailPage() {
                   : "border-transparent text-slate-500 hover:text-slate-700"
               }`}
             >
-              Quản lý Module ({modules.length})
+              Quáº£n lÃ½ Module ({modules.length})
             </button>
             <button
               onClick={() => setActiveTab("tests")}
@@ -333,7 +336,7 @@ export default function CourseDetailPage() {
                   : "border-transparent text-slate-500 hover:text-slate-700"
               }`}
             >
-              Quản lý Bài Test ({tests.length})
+              Quáº£n lÃ½ BÃ i Test ({tests.length})
             </button>
           </nav>
         </div>
@@ -361,13 +364,13 @@ export default function CourseDetailPage() {
                   <line x1="12" x2="12" y1="5" y2="19" />
                   <line x1="5" x2="19" y1="12" y2="12" />
                 </svg>
-                Thêm Module
+                ThÃªm Module
               </button>
             </div>
 
             {modules.length === 0 ? (
               <div className="rounded-xl border border-slate-200 bg-white p-12 text-center">
-                <p className="text-slate-600">Chưa có module nào</p>
+                <p className="text-slate-600">ChÆ°a cÃ³ module nÃ o</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -384,7 +387,7 @@ export default function CourseDetailPage() {
                         <div>
                           <h3 className="font-medium text-slate-900">{module.name}</h3>
                           <p className="text-sm text-slate-500">
-                            {module.lessons.length} bài học
+                            {module.lessons.length} bÃ i há»c
                           </p>
                         </div>
                       </div>
@@ -392,7 +395,7 @@ export default function CourseDetailPage() {
                         <Link
                           href={`/teacher/courses/${courseId}/modules/${module.id}`}
                           className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"
-                          title="Quản lý bài học"
+                          title="Quáº£n lÃ½ bÃ i há»c"
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -409,7 +412,7 @@ export default function CourseDetailPage() {
                         <button
                           onClick={() => handleDeleteModule(module.id)}
                           className="rounded-lg p-2 text-red-600 hover:bg-red-50"
-                          title="Xóa"
+                          title="XÃ³a"
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -458,9 +461,9 @@ export default function CourseDetailPage() {
                 }`}
                 title={
                   tests.length > 0
-                    ? "Khóa học đã có bài test. Mỗi khóa học chỉ được có 1 bài test cuối."
+                    ? "KhÃ³a há»c Ä‘Ã£ cÃ³ bÃ i test. Má»—i khÃ³a há»c chá»‰ Ä‘Æ°á»£c cÃ³ 1 bÃ i test cuá»‘i."
                     : modules.length === 0
-                    ? "Khóa học phải có ít nhất 1 module trước khi tạo bài test"
+                    ? "KhÃ³a há»c pháº£i cÃ³ Ã­t nháº¥t 1 module trÆ°á»›c khi táº¡o bÃ i test"
                     : ""
                 }
               >
@@ -475,13 +478,13 @@ export default function CourseDetailPage() {
                   <line x1="12" x2="12" y1="5" y2="19" />
                   <line x1="5" x2="19" y1="12" y2="12" />
                 </svg>
-                Tạo Bài Test
+                Táº¡o BÃ i Test
               </button>
             </div>
 
             {tests.length === 0 ? (
               <div className="rounded-xl border border-slate-200 bg-white p-12 text-center">
-                <p className="text-slate-600">Chưa có bài test nào</p>
+                <p className="text-slate-600">ChÆ°a cÃ³ bÃ i test nÃ o</p>
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
@@ -494,20 +497,20 @@ export default function CourseDetailPage() {
                       <div>
                         <h3 className="font-medium text-slate-900">{test.name}</h3>
                         <div className="mt-2 flex flex-wrap gap-4 text-sm text-slate-500">
-                          <span>Điểm tối đa: {test.maxScore}</span>
-                          <span>Điểm đạt: {test.passingScore}</span>
-                          <span>Lần làm: {test._count.attempts}/{test.maxAttempts}</span>
-                          {test.timeLimit && <span>Thời gian: {test.timeLimit}p</span>}
+                          <span>Äiá»ƒm tá»‘i Ä‘a: {test.maxScore}</span>
+                          <span>Äiá»ƒm Ä‘áº¡t: {test.passingScore}</span>
+                          <span>Láº§n lÃ m: {test._count.attempts}/{test.maxAttempts}</span>
+                          {test.timeLimit && <span>Thá»i gian: {test.timeLimit}p</span>}
                         </div>
                         <p className="mt-2 text-sm text-slate-500">
-                          {test._count.questions} câu hỏi
+                          {test._count.questions} cÃ¢u há»i
                         </p>
                       </div>
                       <div className="flex gap-2">
                         <Link
                           href={`/teacher/tests/${test.id}/questions`}
                           className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"
-                          title="Quản lý câu hỏi"
+                          title="Quáº£n lÃ½ cÃ¢u há»i"
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -524,7 +527,7 @@ export default function CourseDetailPage() {
                         <button
                           onClick={() => handleDeleteTest(test.id)}
                           className="rounded-lg p-2 text-red-600 hover:bg-red-50"
-                          title="Xóa"
+                          title="XÃ³a"
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -553,19 +556,19 @@ export default function CourseDetailPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="mx-4 w-full max-w-md rounded-xl bg-white p-6">
             <h2 className="text-xl font-bold text-slate-900">
-              {editingModule ? "Chỉnh sửa Module" : "Tạo Module mới"}
+              {editingModule ? "Chá»‰nh sá»­a Module" : "Táº¡o Module má»›i"}
             </h2>
             <form onSubmit={handleCreateModule} className="mt-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-900">
-                  Tên Module *
+                  TÃªn Module *
                 </label>
                 <input
                   type="text"
                   required
                   value={moduleName}
                   onChange={(e) => setModuleName(e.target.value)}
-                  placeholder="Ví dụ: Unit 1 - Introduction"
+                  placeholder="VÃ­ dá»¥: Unit 1 - Introduction"
                   className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
                 />
               </div>
@@ -575,13 +578,13 @@ export default function CourseDetailPage() {
                   onClick={() => setShowModuleModal(false)}
                   className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 >
-                  Hủy
+                  Há»§y
                 </button>
                 <button
                   type="submit"
                   className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
                 >
-                  {editingModule ? "Lưu" : "Tạo"}
+                  {editingModule ? "LÆ°u" : "Táº¡o"}
                 </button>
               </div>
             </form>
@@ -593,24 +596,24 @@ export default function CourseDetailPage() {
       {showTestModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="mx-4 w-full max-w-lg rounded-xl bg-white p-6">
-            <h2 className="text-xl font-bold text-slate-900">Tạo Bài Test mới</h2>
+            <h2 className="text-xl font-bold text-slate-900">Táº¡o BÃ i Test má»›i</h2>
             <form onSubmit={handleCreateTest} className="mt-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-900">
-                  Tên bài test *
+                  TÃªn bÃ i test *
                 </label>
                 <input
                   type="text"
                   required
                   value={testForm.name}
                   onChange={(e) => setTestForm({ ...testForm, name: e.target.value })}
-                  placeholder="Ví dụ: Test Unit 1"
+                  placeholder="VÃ­ dá»¥: Test Unit 1"
                   className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-900">
-                  Mô tả
+                  MÃ´ táº£
                 </label>
                 <textarea
                   rows={2}
@@ -622,7 +625,7 @@ export default function CourseDetailPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-900">
-                    Điểm tối đa *
+                    Äiá»ƒm tá»‘i Ä‘a *
                   </label>
                   <input
                     type="number"
@@ -634,7 +637,7 @@ export default function CourseDetailPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-900">
-                    Điểm đạt *
+                    Äiá»ƒm Ä‘áº¡t *
                   </label>
                   <input
                     type="number"
@@ -648,7 +651,7 @@ export default function CourseDetailPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-900">
-                    Số lần làm tối đa *
+                    Sá»‘ láº§n lÃ m tá»‘i Ä‘a *
                   </label>
                   <input
                     type="number"
@@ -660,13 +663,13 @@ export default function CourseDetailPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-900">
-                    Thời gian (phút)
+                    Thá»i gian (phÃºt)
                   </label>
                   <input
                     type="number"
                     value={testForm.timeLimit}
                     onChange={(e) => setTestForm({ ...testForm, timeLimit: e.target.value })}
-                    placeholder="Để trống nếu không giới hạn"
+                    placeholder="Äá»ƒ trá»‘ng náº¿u khÃ´ng giá»›i háº¡n"
                     className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
                   />
                 </div>
@@ -680,7 +683,7 @@ export default function CourseDetailPage() {
                   className="h-4 w-4 rounded border-slate-300"
                 />
                 <label htmlFor="shuffleQuestions" className="text-sm text-slate-700">
-                  Xáo trộn câu hỏi khi làm bài
+                  XÃ¡o trá»™n cÃ¢u há»i khi lÃ m bÃ i
                 </label>
               </div>
               <div className="flex justify-end gap-3 pt-4">
@@ -689,13 +692,13 @@ export default function CourseDetailPage() {
                   onClick={() => setShowTestModal(false)}
                   className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 >
-                  Hủy
+                  Há»§y
                 </button>
                 <button
                   type="submit"
                   className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
                 >
-                  Tạo bài test
+                  Táº¡o bÃ i test
                 </button>
               </div>
             </form>
