@@ -139,7 +139,7 @@ export default function CourseDetailPage() {
   };
 
   const handleDeleteModule = async (moduleId: string) => {
-    if (!confirm("Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a module nÃ y?")) return;
+    if (!confirm("Ban co chac chan muon xoa module nay?")) return;
     try {
       const res = await fetch(`/api/teacher/courses/${courseId}/modules/${moduleId}`, {
         method: "DELETE",
@@ -184,18 +184,18 @@ export default function CourseDetailPage() {
         fetchCourseData();
       } else {
         const message = data?.details
-          ? `${data.error || "Không thể tạo bài test"}: ${data.details}`
-          : data?.error || "Không thể tạo bài test";
+          ? `${data.error || "Khong the tao bai test"}: ${data.details}`
+          : data?.error || "Khong the tao bai test";
         alert(message);
       }
     } catch (error) {
       console.error("Error creating test:", error);
-      alert("Lỗi khi tạo bài test");
+      alert("Loi khi tao bai test");
     }
   };
 
   const handleDeleteTest = async (testId: string) => {
-    if (!confirm("Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a bÃ i test nÃ y?")) return;
+    if (!confirm("Ban co chac chan muon xoa bai test nay?")) return;
     try {
       const res = await fetch(`/api/teacher/tests/${testId}`, {
         method: "DELETE",
@@ -219,7 +219,7 @@ export default function CourseDetailPage() {
   if (!course) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-slate-600">KhÃ´ng tÃ¬m tháº¥y khÃ³a há»c</p>
+        <p className="text-slate-600">Không tìm thấy khóa học</p>
       </div>
     );
   }
@@ -242,7 +242,7 @@ export default function CourseDetailPage() {
           >
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
-          Quay láº¡i danh sÃ¡ch khÃ³a há»c
+          Quay lại danh sách khóa học
         </Link>
 
         {/* Course header */}
@@ -265,7 +265,7 @@ export default function CourseDetailPage() {
                     <circle cx="9" cy="7" r="4" />
                     <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
                   </svg>
-                  {course._count.enrollments} há»c viÃªn
+                  {course._count.enrollments} hoc vien
                 </span>
                 <span className="flex items-center gap-1">
                   <svg
@@ -293,7 +293,7 @@ export default function CourseDetailPage() {
                     <path d="M9 11l3 3L22 4" />
                     <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
                   </svg>
-                  {course._count.tests} bÃ i test
+                  {course._count.tests} bai test
                 </span>
                 <span
                   className={`rounded-full px-2 py-1 text-xs font-medium ${
@@ -302,13 +302,13 @@ export default function CourseDetailPage() {
                       : "bg-red-100 text-red-700"
                   }`}
                 >
-                  {course.status === "ACTIVE" ? "Hoáº¡t Ä‘á»™ng" : "ÄÃ£ khÃ³a"}
+                  {course.status === "ACTIVE" ? "Hoat dong" : "Da khoa"}
                 </span>
               </div>
             </div>
             <div className="text-right">
               <p className="text-2xl font-bold text-slate-900">
-                {course.price.toLocaleString("vi-VN")}Ä‘
+                {course.price.toLocaleString("vi-VN")} VND
               </p>
               <p className="text-sm text-slate-500">{course.category}</p>
             </div>
@@ -326,7 +326,7 @@ export default function CourseDetailPage() {
                   : "border-transparent text-slate-500 hover:text-slate-700"
               }`}
             >
-              Quáº£n lÃ½ Module ({modules.length})
+              Quan ly Module ({modules.length})
             </button>
             <button
               onClick={() => setActiveTab("tests")}
@@ -336,7 +336,7 @@ export default function CourseDetailPage() {
                   : "border-transparent text-slate-500 hover:text-slate-700"
               }`}
             >
-              Quáº£n lÃ½ BÃ i Test ({tests.length})
+              Quan ly Bai Test ({tests.length})
             </button>
           </nav>
         </div>
@@ -364,13 +364,13 @@ export default function CourseDetailPage() {
                   <line x1="12" x2="12" y1="5" y2="19" />
                   <line x1="5" x2="19" y1="12" y2="12" />
                 </svg>
-                ThÃªm Module
+                Them Module
               </button>
             </div>
 
             {modules.length === 0 ? (
               <div className="rounded-xl border border-slate-200 bg-white p-12 text-center">
-                <p className="text-slate-600">ChÆ°a cÃ³ module nÃ o</p>
+                <p className="text-slate-600">Chua co module nao</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -387,7 +387,7 @@ export default function CourseDetailPage() {
                         <div>
                           <h3 className="font-medium text-slate-900">{module.name}</h3>
                           <p className="text-sm text-slate-500">
-                            {module.lessons.length} bÃ i há»c
+                            {module.lessons.length} bai hoc
                           </p>
                         </div>
                       </div>
@@ -395,7 +395,7 @@ export default function CourseDetailPage() {
                         <Link
                           href={`/teacher/courses/${courseId}/modules/${module.id}`}
                           className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"
-                          title="Quáº£n lÃ½ bÃ i há»c"
+                          title="Quan ly bai hoc"
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -412,7 +412,7 @@ export default function CourseDetailPage() {
                         <button
                           onClick={() => handleDeleteModule(module.id)}
                           className="rounded-lg p-2 text-red-600 hover:bg-red-50"
-                          title="XÃ³a"
+                          title="Xoa"
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -461,9 +461,9 @@ export default function CourseDetailPage() {
                 }`}
                 title={
                   tests.length > 0
-                    ? "KhÃ³a há»c Ä‘Ã£ cÃ³ bÃ i test. Má»—i khÃ³a há»c chá»‰ Ä‘Æ°á»£c cÃ³ 1 bÃ i test cuá»‘i."
+                    ? "Khoa hoc da co bai test. Moi khoa hoc chi duoc co 1 bai test."
                     : modules.length === 0
-                    ? "KhÃ³a há»c pháº£i cÃ³ Ã­t nháº¥t 1 module trÆ°á»›c khi táº¡o bÃ i test"
+                    ? "Khoa hoc phai co it nhat 1 module truoc khi tao bai test"
                     : ""
                 }
               >
@@ -478,73 +478,44 @@ export default function CourseDetailPage() {
                   <line x1="12" x2="12" y1="5" y2="19" />
                   <line x1="5" x2="19" y1="12" y2="12" />
                 </svg>
-                Táº¡o BÃ i Test
+                Tao Bai Test
               </button>
             </div>
 
             {tests.length === 0 ? (
               <div className="rounded-xl border border-slate-200 bg-white p-12 text-center">
-                <p className="text-slate-600">ChÆ°a cÃ³ bÃ i test nÃ o</p>
+                <p className="text-slate-600">Chua co bai test nao</p>
               </div>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2">
-                {tests.map((test) => (
-                  <div
-                    key={test.id}
-                    className="rounded-xl border border-slate-200 bg-white p-4"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-medium text-slate-900">{test.name}</h3>
-                        <div className="mt-2 flex flex-wrap gap-4 text-sm text-slate-500">
-                          <span>Äiá»ƒm tá»‘i Ä‘a: {test.maxScore}</span>
-                          <span>Äiá»ƒm Ä‘áº¡t: {test.passingScore}</span>
-                          <span>Láº§n lÃ m: {test._count.attempts}/{test.maxAttempts}</span>
-                          {test.timeLimit && <span>Thá»i gian: {test.timeLimit}p</span>}
-                        </div>
-                        <p className="mt-2 text-sm text-slate-500">
-                          {test._count.questions} cÃ¢u há»i
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Link
-                          href={`/teacher/tests/${test.id}/questions`}
-                          className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"
-                          title="Quáº£n lÃ½ cÃ¢u há»i"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            className="h-4 w-4"
-                          >
-                            <path d="M9 11l3 3L22 4" />
-                            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                          </svg>
-                        </Link>
-                        <button
-                          onClick={() => handleDeleteTest(test.id)}
-                          className="rounded-lg p-2 text-red-600 hover:bg-red-50"
-                          title="XÃ³a"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            className="h-4 w-4"
-                          >
-                            <polyline points="3 6 5 6 21 6" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                          </svg>
-                        </button>
-                      </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-medium text-slate-900">{tests[0].name}</h3>
+                    <div className="mt-2 flex flex-wrap gap-4 text-sm text-slate-500">
+                      <span>Diem toi da: {tests[0].maxScore}</span>
+                      <span>Diem dat: {tests[0].passingScore}</span>
+                      <span>Lan lam: {tests[0]._count.attempts}/{tests[0].maxAttempts}</span>
+                      {tests[0].timeLimit && <span>Thoi gian: {tests[0].timeLimit}p</span>}
                     </div>
+                    <p className="mt-2 text-sm text-slate-500">
+                      {tests[0]._count.questions} cau hoi
+                    </p>
                   </div>
-                ))}
+                  <div className="flex gap-2">
+                    <Link
+                      href={`/teacher/tests/${tests[0].id}/questions`}
+                      className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                    >
+                      Quan ly bai test
+                    </Link>
+                    <button
+                      onClick={() => handleDeleteTest(tests[0].id)}
+                      className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                    >
+                      Xoa
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -556,19 +527,19 @@ export default function CourseDetailPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="mx-4 w-full max-w-md rounded-xl bg-white p-6">
             <h2 className="text-xl font-bold text-slate-900">
-              {editingModule ? "Chá»‰nh sá»­a Module" : "Táº¡o Module má»›i"}
+              {editingModule ? "Chinh sua Module" : "Tao Module moi"}
             </h2>
             <form onSubmit={handleCreateModule} className="mt-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-900">
-                  TÃªn Module *
+                  Ten Module *
                 </label>
                 <input
                   type="text"
                   required
                   value={moduleName}
                   onChange={(e) => setModuleName(e.target.value)}
-                  placeholder="VÃ­ dá»¥: Unit 1 - Introduction"
+                  placeholder="Ví dụ: Unit 1 - Introduction"
                   className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
                 />
               </div>
@@ -578,13 +549,13 @@ export default function CourseDetailPage() {
                   onClick={() => setShowModuleModal(false)}
                   className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 >
-                  Há»§y
+                  Huy
                 </button>
                 <button
                   type="submit"
                   className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
                 >
-                  {editingModule ? "LÆ°u" : "Táº¡o"}
+                  {editingModule ? "Luu" : "Tao"}
                 </button>
               </div>
             </form>
@@ -596,24 +567,24 @@ export default function CourseDetailPage() {
       {showTestModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="mx-4 w-full max-w-lg rounded-xl bg-white p-6">
-            <h2 className="text-xl font-bold text-slate-900">Táº¡o BÃ i Test má»›i</h2>
+            <h2 className="text-xl font-bold text-slate-900">Tao Bai Test moi</h2>
             <form onSubmit={handleCreateTest} className="mt-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-900">
-                  TÃªn bÃ i test *
+                  Ten bai test *
                 </label>
                 <input
                   type="text"
                   required
                   value={testForm.name}
                   onChange={(e) => setTestForm({ ...testForm, name: e.target.value })}
-                  placeholder="VÃ­ dá»¥: Test Unit 1"
+                  placeholder="Ví dụ: Test Unit 1"
                   className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-900">
-                  MÃ´ táº£
+                  Mo ta
                 </label>
                 <textarea
                   rows={2}
@@ -625,7 +596,7 @@ export default function CourseDetailPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-900">
-                    Äiá»ƒm tá»‘i Ä‘a *
+                    Diem toi da *
                   </label>
                   <input
                     type="number"
@@ -637,7 +608,7 @@ export default function CourseDetailPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-900">
-                    Äiá»ƒm Ä‘áº¡t *
+                    Diem dat *
                   </label>
                   <input
                     type="number"
@@ -651,7 +622,7 @@ export default function CourseDetailPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-900">
-                    Sá»‘ láº§n lÃ m tá»‘i Ä‘a *
+                    So lan lam toi da *
                   </label>
                   <input
                     type="number"
@@ -663,13 +634,13 @@ export default function CourseDetailPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-900">
-                    Thá»i gian (phÃºt)
+                    Thoi gian (phut)
                   </label>
                   <input
                     type="number"
                     value={testForm.timeLimit}
                     onChange={(e) => setTestForm({ ...testForm, timeLimit: e.target.value })}
-                    placeholder="Äá»ƒ trá»‘ng náº¿u khÃ´ng giá»›i háº¡n"
+                    placeholder="De trong neu khong gioi han"
                     className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
                   />
                 </div>
@@ -683,7 +654,7 @@ export default function CourseDetailPage() {
                   className="h-4 w-4 rounded border-slate-300"
                 />
                 <label htmlFor="shuffleQuestions" className="text-sm text-slate-700">
-                  XÃ¡o trá»™n cÃ¢u há»i khi lÃ m bÃ i
+                  Xao tron cau hoi khi lam bai
                 </label>
               </div>
               <div className="flex justify-end gap-3 pt-4">
@@ -692,13 +663,13 @@ export default function CourseDetailPage() {
                   onClick={() => setShowTestModal(false)}
                   className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 >
-                  Há»§y
+                  Huy
                 </button>
                 <button
                   type="submit"
                   className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
                 >
-                  Táº¡o bÃ i test
+                  Tao bai test
                 </button>
               </div>
             </form>
@@ -708,3 +679,4 @@ export default function CourseDetailPage() {
     </div>
   );
 }
+

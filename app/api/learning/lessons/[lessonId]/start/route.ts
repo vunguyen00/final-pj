@@ -1,5 +1,5 @@
 ﻿import { NextResponse } from "next/server";
-import { requireRole } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ensureLessonStart } from "@/lib/learning-progress";
 
@@ -8,7 +8,7 @@ export async function POST(
   { params }: { params: Promise<{ lessonId: string }> },
 ) {
   try {
-    const user = await requireRole("STUDENT");
+    const user = await requireUser();
     const { lessonId } = await params;
 
     const lesson = await prisma.lesson.findUnique({

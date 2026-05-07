@@ -90,7 +90,6 @@ model Module {
 
   course  Course   @relation(fields: [courseId], references: [id])
   lessons Lesson[]
-  tests   Test[]
 }
 
 model Lesson {
@@ -118,7 +117,6 @@ model Enrollment {
 model Test {
   id           String   @id @default(uuid())
   courseId     String
-  moduleId     String?       // Module mà test thuộc về (null = test cuối khóa)
   name         String
   description String?
   maxScore     Float
@@ -130,7 +128,6 @@ model Test {
   updatedAt    DateTime @updatedAt
 
   course   Course        @relation(fields: [courseId], references: [id])
-  module   Module?       @relation(fields: [moduleId], references: [id])
   attempts TestAttempt[]
   questions Question[]
 }

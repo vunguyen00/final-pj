@@ -1,5 +1,5 @@
 ﻿import Link from "next/link";
-import { requireRole } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import LearningContent from "./components/LearningContent";
 
@@ -8,7 +8,7 @@ export default async function StudentHocBaiPage({
 }: {
   searchParams: Promise<{ courseId?: string }>;
 }) {
-  const user = await requireRole("STUDENT");
+  const user = await requireUser();
   const { courseId } = await searchParams;
 
   const enrollments = await prisma.enrollment.findMany({

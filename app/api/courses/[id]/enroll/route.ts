@@ -1,5 +1,5 @@
 ﻿import { NextResponse } from "next/server";
-import { requireRole } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserBalance } from "@/lib/wallet";
 
@@ -8,7 +8,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireRole("STUDENT");
+    const user = await requireUser();
     const { id: courseId } = await params;
 
     const [course, existing] = await Promise.all([
@@ -24,6 +24,17 @@ export async function POST(
 
     if (existing) {
       return NextResponse.json({ ok: true, alreadyEnrolled: true });
+    }
+
+    if (course.instructorId === user.id) {
+      await prisma.enrollment.create({
+        data: {
+          userId: user.id,
+          courseId,
+        },
+      });
+
+      return NextResponse.json({ ok: true, enrolled: true, freeForInstructor: true });
     }
 
     const balance = await getUserBalance(user.id);

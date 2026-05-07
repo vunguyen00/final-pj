@@ -7,10 +7,16 @@ type Props = {
   courseId: string;
   price: number;
   initiallyEnrolled: boolean;
+  canLearnDirectly?: boolean;
 };
 
-export default function EnrollCourseCard({ courseId, price, initiallyEnrolled }: Props) {
-  const [enrolled, setEnrolled] = useState(initiallyEnrolled);
+export default function EnrollCourseCard({
+  courseId,
+  price,
+  initiallyEnrolled,
+  canLearnDirectly = false,
+}: Props) {
+  const [enrolled, setEnrolled] = useState(initiallyEnrolled || canLearnDirectly);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
@@ -74,13 +80,19 @@ export default function EnrollCourseCard({ courseId, price, initiallyEnrolled }:
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6">
       <div className="text-3xl font-bold text-slate-900">{price.toLocaleString("vi-VN")}d</div>
-      <button
-        disabled={loading || enrolled}
-        onClick={handleEnroll}
-        className="mt-4 w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-      >
-        {enrolled ? "Da dang ky" : loading ? "Dang xu ly..." : "Dang ky ngay"}
-      </button>
+      {!canLearnDirectly ? (
+        <button
+          disabled={loading || enrolled}
+          onClick={handleEnroll}
+          className="mt-4 w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+        >
+          {enrolled ? "Da dang ky" : loading ? "Dang xu ly..." : "Dang ky ngay"}
+        </button>
+      ) : (
+        <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          Ban la giang vien cua khoa hoc nay. Co the vao hoc ngay.
+        </p>
+      )}
 
       {enrolled ? (
         <Link

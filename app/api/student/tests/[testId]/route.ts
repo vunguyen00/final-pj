@@ -11,7 +11,7 @@ export async function GET(
     const { testId } = await params;
     const user = await getCurrentUser();
 
-    if (!user || user.role !== "STUDENT") {
+    if (!user || (user.role !== "STUDENT" && user.role !== "TEACHER" && user.role !== "ADMIN")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -41,29 +41,37 @@ export async function GET(
       return NextResponse.json({ error: "Test not found" }, { status: 404 });
     }
 
-    const enrollment = await prisma.enrollment.findUnique({
-      where: {
-        userId_courseId: {
-          userId: user.id,
-          courseId: test.courseId,
+    const isOwnerPreview =
+      (user.role === "TEACHER" || user.role === "ADMIN") && test.course.instructorId === user.id;
+
+    let remainingAttempts = test.maxAttempts - test._count.attempts;
+    if (!isOwnerPreview) {
+      const enrollment = await prisma.enrollment.findUnique({
+        where: {
+          userId_courseId: {
+            userId: user.id,
+            courseId: test.courseId,
+          },
         },
-      },
-    });
+      });
 
-    if (!enrollment) {
-      return NextResponse.json({ error: "Not enrolled in this course" }, { status: 403 });
-    }
+      if (!enrollment) {
+        return NextResponse.json({ error: "Not enrolled in this course" }, { status: 403 });
+      }
 
-    const progress = await getCourseProgressPercent(user.id, test.courseId);
-    if (progress < 100) {
-      return NextResponse.json(
-        { error: "Ban can hoan thanh 100% bai hoc truoc khi lam test.", progress },
-        { status: 403 },
-      );
-    }
+      const progress = await getCourseProgressPercent(user.id, test.courseId);
+      if (progress < 100) {
+        return NextResponse.json(
+          { error: "Ban can hoan thanh 100% bai hoc truoc khi lam test.", progress },
+          { status: 403 },
+        );
+      }
 
-    if (test._count.attempts >= test.maxAttempts) {
-      return NextResponse.json({ error: "No attempts remaining", remainingAttempts: 0 }, { status: 403 });
+      if (test._count.attempts >= test.maxAttempts) {
+        return NextResponse.json({ error: "No attempts remaining", remainingAttempts: 0 }, { status: 403 });
+      }
+    } else {
+      remainingAttempts = 9999;
     }
 
     const questions = test.questions.map((q) => ({
@@ -94,7 +102,8 @@ export async function GET(
         maxAttempts: test.maxAttempts,
         timeLimit: test.timeLimit,
         shuffleQuestions: test.shuffleQuestions,
-        remainingAttempts: test.maxAttempts - test._count.attempts,
+        remainingAttempts,
+        previewMode: isOwnerPreview,
       },
       questions,
     });

@@ -34,7 +34,7 @@ export default async function CoursesPage() {
   const [courses, user] = await Promise.all([getCourses(), authenticate()]);
 
   const enrolledIds = new Set<string>();
-  if (user?.role === "STUDENT") {
+  if (user) {
     const enrollments = await prisma.enrollment.findMany({
       where: { userId: user.id },
       select: { courseId: true },

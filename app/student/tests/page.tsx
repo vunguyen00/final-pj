@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 type Test = {
   id: string;
@@ -27,33 +28,35 @@ type Test = {
 };
 
 export default function StudentTestsPage() {
+  const searchParams = useSearchParams();
+  const courseId = searchParams.get("courseId");
   const [tests, setTests] = useState<Test[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "available" | "completed">("all");
+  const [error, setError] = useState<string>("");
 
   useEffect(() => {
     fetchTests();
-  }, []);
+  }, [courseId]);
 
   const fetchTests = async () => {
     try {
-      const res = await fetch("/api/student/tests");
+      const query = courseId ? `?courseId=${encodeURIComponent(courseId)}` : "";
+      const res = await fetch(`/api/student/tests${query}`);
       if (res.ok) {
         const data = await res.json();
         setTests(data.tests);
+        setError("");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data?.error || "Khong the tai danh sach bai test.");
       }
     } catch (error) {
       console.error("Error fetching tests:", error);
+      setError("Khong the tai danh sach bai test.");
     } finally {
       setLoading(false);
     }
   };
-
-  const filteredTests = tests.filter((test) => {
-    if (filter === "available") return test.canAttempt;
-    if (filter === "completed") return (test.lastAttempt?.isPassed ?? false);
-    return true;
-  });
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString("vi-VN", {
@@ -86,22 +89,18 @@ export default function StudentTestsPage() {
           </Link>
         </div>
 
-        <div className="mb-4 flex gap-2">
-          {(["all", "available", "completed"] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                filter === f ? "bg-emerald-600 text-white" : "bg-white text-emerald-700 hover:bg-emerald-100"
-              }`}
-            >
-              {f === "all" ? "Tat ca" : f === "available" ? "Co the lam" : "Da dat"}
-            </button>
-          ))}
-        </div>
-
         <div className="space-y-4">
-          {filteredTests.map((test) => (
+          {error ? (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              {error}
+            </div>
+          ) : null}
+          {tests.length === 0 ? (
+            <div className="rounded-xl border border-emerald-200 bg-white p-8 text-center text-sm text-emerald-700">
+              Khong co bai test nao cho khoa hoc nay.
+            </div>
+          ) : null}
+          {tests.map((test) => (
             <div key={test.id} className="rounded-xl border border-emerald-200 bg-white p-6">
               <div className="flex items-start justify-between">
                 <div className="flex-1">

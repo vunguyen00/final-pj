@@ -79,17 +79,17 @@ export async function POST(
     }
 
     if (!ALLOWED_TYPES.has(type)) {
-      return NextResponse.json({ error: "Lo?i câu h?i không h?p l?" }, { status: 400 });
+      return NextResponse.json({ error: "Loại câu hỏi không hợp lệ" }, { status: 400 });
     }
 
     const parsedScore = score ? parseFloat(score) : 10;
     if (!Number.isFinite(parsedScore) || parsedScore <= 0) {
-      return NextResponse.json({ error: "Ði?m s? ph?i l?n hon 0" }, { status: 400 });
+      return NextResponse.json({ error: "Điểm số phải lớn hơn 0" }, { status: 400 });
     }
 
     let finalAudioUrl: string | null = null;
     if (hasListening && !audioUrl?.trim()) {
-      return NextResponse.json({ error: "Thi?u URL audio cho d?ng nghe" }, { status: 400 });
+      return NextResponse.json({ error: "Thiếu URL audio cho dạng nghe" }, { status: 400 });
     }
 
     if (hasListening && audioUrl?.trim()) {
@@ -97,14 +97,14 @@ export async function POST(
         new URL(audioUrl);
         finalAudioUrl = audioUrl;
       } catch {
-        return NextResponse.json({ error: "URL audio không h?p l?" }, { status: 400 });
+        return NextResponse.json({ error: "URL audio không hợp lệ" }, { status: 400 });
       }
     }
 
     if (answers && Array.isArray(answers)) {
       const hasEmptyAnswer = answers.some((a: any) => !a.content || !a.content.trim());
       if (hasEmptyAnswer) {
-        return NextResponse.json({ error: "T?t c? dáp án ph?i có n?i dung" }, { status: 400 });
+        return NextResponse.json({ error: "Tất cả đáp án phải có nội dung" }, { status: 400 });
       }
     }
 

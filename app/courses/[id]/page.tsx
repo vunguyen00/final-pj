@@ -30,9 +30,9 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
   }
 
   const totalLessons = course.modules.reduce((acc, module) => acc + module.lessons.length, 0);
-  const isStudent = user?.role === "STUDENT";
+  const canLearnDirectly = Boolean(user && user.role === "TEACHER" && course.instructorId === user.id);
   const enrollment =
-    isStudent && user
+    user
       ? await prisma.enrollment.findUnique({
           where: { userId_courseId: { userId: user.id, courseId: course.id } },
         })
@@ -72,15 +72,16 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
         </section>
 
         <aside className="space-y-4">
-          {isStudent ? (
+          {user ? (
             <EnrollCourseCard
               courseId={course.id}
               price={course.price}
               initiallyEnrolled={Boolean(enrollment)}
+              canLearnDirectly={canLearnDirectly}
             />
           ) : (
             <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-700">
-              Dang nhap bang tai khoan hoc vien de dang ky khoa hoc.
+              Dang nhap de dang ky khoa hoc.
             </div>
           )}
         </aside>

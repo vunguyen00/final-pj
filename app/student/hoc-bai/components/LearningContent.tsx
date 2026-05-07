@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
 type Lesson = {
@@ -38,6 +38,7 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
   const [videoFull, setVideoFull] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const maxPlayedRef = useRef<Record<string, number>>({});
+  const startedReadingRef = useRef<Record<string, boolean>>({});
 
   const selectedLesson = lessons.find((item) => item.id === selectedLessonId) ?? firstLesson;
 
@@ -71,14 +72,16 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
     window.setTimeout(() => window.clearInterval(interval), MIN_READING_SECONDS * 1000 + 5000);
   }
 
-  async function markDone(lesson: Lesson) {
+  async function markDone(lesson: Lesson, options?: { watchedFull?: boolean }) {
+    if (completed[lesson.id] || loadingLesson === lesson.id) return;
+
     setLoadingLesson(lesson.id);
     setErrors((prev) => ({ ...prev, [lesson.id]: "" }));
 
     try {
       const payload = lesson.videoUrl
         ? {
-            watchedFull: videoFull[lesson.id] === true,
+            watchedFull: options?.watchedFull ?? videoFull[lesson.id] === true,
             noSeek: true,
           }
         : {};
@@ -111,6 +114,11 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
   }
 
   function onVideoTimeUpdate(lessonId: string, currentTime: number) {
+    if (completed[lessonId]) {
+      maxPlayedRef.current[lessonId] = Math.max(maxPlayedRef.current[lessonId] ?? 0, currentTime);
+      return;
+    }
+
     const maxPlayed = maxPlayedRef.current[lessonId] ?? 0;
     if (currentTime > maxPlayed + 1) {
       return;
@@ -119,9 +127,18 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
   }
 
   function preventSeek(lessonId: string, currentTime: number, seekTo: (value: number) => void) {
+    if (completed[lessonId]) return;
+
     const maxPlayed = maxPlayedRef.current[lessonId] ?? 0;
     if (currentTime > maxPlayed + 0.5) {
       seekTo(maxPlayed);
+    }
+  }
+
+  function applySubtitleMode(lessonId: string, video: HTMLVideoElement) {
+    const tracks = video.textTracks;
+    for (let i = 0; i < tracks.length; i += 1) {
+      tracks[i].mode = "showing";
     }
   }
 
@@ -131,7 +148,25 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
 
   const readingRemain = remainingReadingSeconds(selectedLesson.id);
   const canCompleteReading = readingRemain === 0;
-  const canCompleteVideo = videoFull[selectedLesson.id] === true;
+
+  useEffect(() => {
+    if (!selectedLesson || selectedLesson.videoUrl) return;
+    if (completed[selectedLesson.id]) return;
+    if (readingStarts[selectedLesson.id]) return;
+    if (startedReadingRef.current[selectedLesson.id]) return;
+
+    startedReadingRef.current[selectedLesson.id] = true;
+    void startReading(selectedLesson.id);
+  }, [completed, readingStarts, selectedLesson]);
+
+  useEffect(() => {
+    if (!selectedLesson || selectedLesson.videoUrl) return;
+    if (completed[selectedLesson.id]) return;
+    if (!canCompleteReading) return;
+    if (loadingLesson === selectedLesson.id) return;
+
+    void markDone(selectedLesson);
+  }, [canCompleteReading, completed, loadingLesson, selectedLesson]);
 
   return (
     <div className="grid h-full min-h-0 gap-4 lg:grid-cols-10">
@@ -178,27 +213,24 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
       <section className="lg:col-span-7 flex h-full min-h-0 flex-col rounded-xl border border-slate-200 bg-white p-5">
         <div className="flex items-start justify-between gap-4">
           <h3 className="text-lg font-semibold text-slate-900">{selectedLesson.title}</h3>
-          <button
-            onClick={() => markDone(selectedLesson)}
-            disabled={
-              !!completed[selectedLesson.id] ||
-              loadingLesson === selectedLesson.id ||
-              (!selectedLesson.videoUrl && !canCompleteReading) ||
-              (!!selectedLesson.videoUrl && !canCompleteVideo)
-            }
-            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white disabled:bg-slate-400"
-          >
-            {completed[selectedLesson.id] ? "Da xong" : loadingLesson === selectedLesson.id ? "Dang luu..." : "Danh dau hoan thanh"}
-          </button>
+          {completed[selectedLesson.id] ? (
+            <p className="text-sm font-medium text-emerald-600">Da hoan thanh bai hoc nay</p>
+          ) : (
+            <p className="text-sm font-medium text-slate-500">
+              {loadingLesson === selectedLesson.id ? "Dang luu..." : "Chua hoan thanh"}
+            </p>
+          )}
         </div>
 
         <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
           {selectedLesson.videoUrl ? (
           <div>
             <video
+              key={selectedLesson.id}
               controls
               preload="metadata"
               className="aspect-video w-full rounded-lg border border-slate-200 bg-black"
+              onLoadedMetadata={(e) => applySubtitleMode(selectedLesson.id, e.currentTarget)}
               onTimeUpdate={(e) => onVideoTimeUpdate(selectedLesson.id, e.currentTarget.currentTime)}
               onSeeking={(e) =>
                 preventSeek(selectedLesson.id, e.currentTarget.currentTime, (value) => {
@@ -210,28 +242,28 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
                   e.currentTarget.currentTime = value;
                 })
               }
-              onEnded={() => setVideoFull((prev) => ({ ...prev, [selectedLesson.id]: true }))}
+              onEnded={() => {
+                setVideoFull((prev) => ({ ...prev, [selectedLesson.id]: true }));
+                void markDone(selectedLesson, { watchedFull: true });
+              }}
             >
-              <source src={selectedLesson.videoUrl} />
+              <source key={selectedLesson.videoUrl} src={selectedLesson.videoUrl} />
             </video>
             <p className="mt-2 text-xs text-slate-600">Yeu cau: xem het video. Thanh tua se bi khoa trong qua trinh hoc.</p>
           </div>
         ) : (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-            <p className="text-sm text-amber-900">Bai khong co video: can hoc toi thieu 10 phut.</p>
-            {!readingStarts[selectedLesson.id] ? (
-              <button
-                onClick={() => startReading(selectedLesson.id)}
-                className="mt-2 rounded-md bg-amber-600 px-3 py-1.5 text-sm text-white"
-              >
-                Bat dau hoc
-              </button>
-            ) : (
-              <p className="mt-2 text-sm font-medium text-amber-800">
-                Con lai: {Math.floor(readingRemain / 60)}:{String(readingRemain % 60).padStart(2, "0")}
-              </p>
-            )}
-          </div>
+          !completed[selectedLesson.id] ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <p className="text-sm text-amber-900">Bai khong co video: can hoc toi thieu 10 phut.</p>
+              {!readingStarts[selectedLesson.id] ? (
+                <p className="mt-2 text-sm font-medium text-amber-800">Dang bat dau tinh gio...</p>
+              ) : (
+                <p className="mt-2 text-sm font-medium text-amber-800">
+                  Con lai: {Math.floor(readingRemain / 60)}:{String(readingRemain % 60).padStart(2, "0")}
+                </p>
+              )}
+            </div>
+          ) : null
           )}
 
           <p className="mt-4 whitespace-pre-line text-sm leading-6 text-slate-700">{selectedLesson.content}</p>
