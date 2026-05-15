@@ -1,0 +1,9 @@
+{
+  "tmnCode": "",
+  "hashSecret": "",
+  "paymentUrl": "Read from VNPAY_PAYMENT_URL in .env",
+  "apiUrl": "Read from VNPAY_API in .env",
+  "baseUrl": "Read from VNPAY_BASE_URL in .env",
+  "returnPath": "/api/wallet/vnpay-return",
+  "ipnPath": "/api/wallet/vnpay-ipn"
+}

@@ -1,6 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { unlink } from "fs/promises";
+import { join } from "path";
+
+function getLocalVideoPath(videoUrl: string | null | undefined) {
+  if (!videoUrl || !videoUrl.startsWith("/videos/")) return null;
+  const fileName = videoUrl.replace("/videos/", "").trim();
+  if (!fileName) return null;
+  return join(process.cwd(), "public", "videos", fileName);
+}
+
+async function cleanupVideoIfUnused(videoUrl: string | null | undefined, excludeLessonId?: string) {
+  if (!videoUrl) return;
+  const inUseCount = await prisma.lesson.count({
+    where: {
+      videoUrl,
+      ...(excludeLessonId ? { id: { not: excludeLessonId } } : {}),
+    },
+  });
+  if (inUseCount > 0) return;
+
+  const localPath = getLocalVideoPath(videoUrl);
+  if (!localPath) return;
+
+  try {
+    await unlink(localPath);
+  } catch {
+    // Ignore when file was already removed or path is invalid.
+  }
+}
 
 export async function GET(
   request: NextRequest,
@@ -77,13 +106,18 @@ export async function PUT(
 
     const body = await request.json();
     const { title, content, videoUrl } = body;
+    const nextVideoUrl = videoUrl !== undefined ? (videoUrl ? String(videoUrl) : null) : undefined;
+
+    if (nextVideoUrl !== undefined && existingLesson.videoUrl && nextVideoUrl !== existingLesson.videoUrl) {
+      await cleanupVideoIfUnused(existingLesson.videoUrl, lessonId);
+    }
 
     const lesson = await prisma.lesson.update({
       where: { id: lessonId },
       data: {
         ...(title && { title }),
         ...(content && { content }),
-        ...(videoUrl !== undefined && { videoUrl }),
+        ...(nextVideoUrl !== undefined && { videoUrl: nextVideoUrl }),
       },
     });
 
@@ -133,6 +167,8 @@ export async function DELETE(
         { status: 404 }
       );
     }
+
+    await cleanupVideoIfUnused(existingLesson.videoUrl, lessonId);
 
     await prisma.lesson.delete({
       where: { id: lessonId },

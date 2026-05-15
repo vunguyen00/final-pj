@@ -30,8 +30,14 @@ async function getCourses() {
 
 const categories = ["Tat ca", "Speaking", "Writing", "Reading", "Listening", "Grammar", "Vocabulary"];
 
-export default async function CoursesPage() {
+export default async function CoursesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ skill?: string }>;
+}) {
+  const { skill } = await searchParams;
   const [courses, user] = await Promise.all([getCourses(), authenticate()]);
+  const selectedSkill = (skill || "").trim().toLowerCase();
 
   const enrolledIds = new Set<string>();
   if (user) {
@@ -44,6 +50,11 @@ export default async function CoursesPage() {
     }
   }
 
+  const filteredCourses =
+    selectedSkill && selectedSkill !== "tat-ca" && selectedSkill !== "all"
+      ? courses.filter((course) => (course.category || "").trim().toLowerCase() === selectedSkill)
+      : courses;
+
   return (
     <main className="min-h-screen bg-slate-50 py-8">
       <div className="mx-auto max-w-7xl px-4">
@@ -53,22 +64,26 @@ export default async function CoursesPage() {
         </div>
 
         <div className="mb-6 flex flex-wrap gap-2">
-          {categories.map((cat) => (
-            <button
+          {categories.map((cat) => {
+            const catKey = cat.toLowerCase();
+            const isActive = (!selectedSkill && cat === "Tat ca") || selectedSkill === catKey;
+            return (
+            <Link
               key={cat}
+              href={cat === "Tat ca" ? "/courses" : `/courses?skill=${catKey}`}
               className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                cat === "Tat ca"
+                isActive
                   ? "bg-slate-900 text-white"
                   : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
               }`}
             >
               {cat}
-            </button>
-          ))}
+            </Link>
+          )})}
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {courses.map((course) => {
+          {filteredCourses.map((course) => {
             const isEnrolled = enrolledIds.has(course.id);
 
             return (
@@ -122,6 +137,7 @@ export default async function CoursesPage() {
             );
           })}
         </div>
+        {filteredCourses.length === 0 ? <p className="mt-6 text-sm text-slate-600">Chua co khoa hoc cho ky nang nay.</p> : null}
       </div>
     </main>
   );

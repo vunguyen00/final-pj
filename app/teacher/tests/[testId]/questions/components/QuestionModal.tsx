@@ -1,4 +1,4 @@
-import { buildAnswersForKind, QUESTION_KIND_OPTIONS } from "../helpers";
+import { buildAnswersForKind, QUESTION_KIND_OPTIONS, WRITING_ONLY_QUESTION_KIND_OPTIONS } from "../helpers";
 import { Answer, QuestionForm, QuestionKind } from "../types";
 
 type Props = {
@@ -8,12 +8,14 @@ type Props = {
   onClose: () => void;
   onSubmit: (e: React.FormEvent) => void;
   setForm: (updater: (prev: QuestionForm) => QuestionForm) => void;
+  canUseEssay: boolean;
 };
 
 const needsObjectiveAnswers = (kind: QuestionKind) => kind === "MULTIPLE_CHOICE" || kind === "TRUE_FALSE";
 
-export function QuestionModal({ show, isEditing, form, onClose, onSubmit, setForm }: Props) {
+export function QuestionModal({ show, isEditing, form, onClose, onSubmit, setForm, canUseEssay }: Props) {
   if (!show) return null;
+  const kindOptions = canUseEssay ? WRITING_ONLY_QUESTION_KIND_OPTIONS : QUESTION_KIND_OPTIONS;
 
   const handleTypeSelect = (kind: QuestionKind) => {
     const answers = buildAnswersForKind(kind);
@@ -47,7 +49,7 @@ export function QuestionModal({ show, isEditing, form, onClose, onSubmit, setFor
               onChange={(e) => handleTypeSelect(e.target.value as QuestionKind)}
               className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
             >
-              {QUESTION_KIND_OPTIONS.map((opt) => (
+              {kindOptions.map((opt) => (
                 <option key={opt.value || "empty"} value={opt.value}>
                   {opt.label}
                 </option>

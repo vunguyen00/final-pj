@@ -29,6 +29,7 @@ export type Test = {
   course: {
     id: string;
     name: string;
+    category: string | null;
   };
 };
 

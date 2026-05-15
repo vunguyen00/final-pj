@@ -9,6 +9,9 @@ export async function POST(
 ) {
   try {
     const user = await requireUser();
+    if (user.role !== "STUDENT" && user.role !== "TEACHER" && user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const { id: courseId } = await params;
 
     const [course, existing] = await Promise.all([
@@ -73,7 +76,8 @@ export async function POST(
       });
     });
 
-    return NextResponse.json({ ok: true, enrolled: true });
+    const updatedBalance = await getUserBalance(user.id);
+    return NextResponse.json({ ok: true, enrolled: true, balance: updatedBalance });
   } catch {
     return NextResponse.json({ error: "Loi he thong." }, { status: 500 });
   }

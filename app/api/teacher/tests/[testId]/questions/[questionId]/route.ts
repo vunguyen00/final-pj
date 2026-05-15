@@ -97,6 +97,16 @@ export async function PUT(
       answers 
     } = body;
 
+    const isWritingCourse = (existingQuestion.test.course.category || "").trim().toLowerCase() === "writing";
+    const nextType = type ?? existingQuestion.type;
+    const nextHasListening = hasListening ?? Boolean(existingQuestion.audioUrl);
+    if (nextType === "ESSAY" && !nextHasListening && !isWritingCourse) {
+      return NextResponse.json(
+        { error: "Khóa học không phải Writing nên không được lưu câu hỏi tự luận" },
+        { status: 400 }
+      );
+    }
+
     // Validate score
     if (score !== undefined) {
       const parsedScore = parseFloat(score);

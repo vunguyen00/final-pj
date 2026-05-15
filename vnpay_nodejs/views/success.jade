@@ -1,0 +1,14 @@
+extends layout
+
+block content
+    if code == "00"
+        p(style="text-align: center") GD thanh cong
+    else
+        p(style="text-align: center; color: red") GD that bai
+
+    if order
+        p(style="text-align: center") Ma don: #{order.orderCode}
+        p(style="text-align: center") Trang thai luu DB: #{status}
+
+    p(style="text-align: center")
+        a.btn.btn-default(href='/order') Ve danh sach

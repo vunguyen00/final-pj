@@ -20,6 +20,12 @@ export default async function StudentPage() {
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
+            href="/student/wallet"
+            className="rounded-lg border border-emerald-300 px-4 py-2 font-semibold text-emerald-900 hover:bg-emerald-100"
+          >
+            Vi va diem AI
+          </Link>
+          <Link
             href="/student/hoc-bai"
             className="rounded-lg border border-emerald-300 px-4 py-2 font-semibold text-emerald-900 hover:bg-emerald-100"
           >

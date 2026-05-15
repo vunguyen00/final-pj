@@ -19,6 +19,7 @@ export default function TeacherTestQuestionsPage() {
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [questionForm, setQuestionForm] = useState<QuestionForm>(createDefaultForm());
   const [pageError, setPageError] = useState<string | null>(null);
+  const isWritingCourse = (test?.course.category || "").trim().toLowerCase() === "writing";
 
   useEffect(() => {
     void fetchTestAndQuestions();
@@ -82,6 +83,7 @@ export default function TeacherTestQuestionsPage() {
     if (!form.kind) return "Vui lòng chọn dạng câu hỏi";
     if (!form.content.trim()) return "Vui lòng nhập nội dung câu hỏi";
     if (!form.score || Number(form.score) <= 0) return "Điểm số phải lớn hơn 0";
+    if (form.kind === "ESSAY" && !isWritingCourse) return "Dạng tự luận chỉ áp dụng cho khóa học Writing";
     if (form.kind === "LISTENING" && !form.audioUrl.trim()) return "Vui lòng nhập URL audio";
 
     if ((form.kind === "MULTIPLE_CHOICE" || form.kind === "TRUE_FALSE") && form.answers.some((a) => !a.content.trim())) {
@@ -214,6 +216,7 @@ export default function TeacherTestQuestionsPage() {
         }}
         onSubmit={handleSubmit}
         setForm={(updater) => setQuestionForm((prev) => updater(prev))}
+        canUseEssay={isWritingCourse}
       />
     </div>
   );

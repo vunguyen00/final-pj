@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -43,7 +43,11 @@ export default function EnrollCourseCard({
       }
 
       setEnrolled(true);
-      setInfo("Dang ky khoa hoc thanh cong. Ban co the vao hoc ngay.");
+      const remainingBalance =
+        typeof data?.balance === "number"
+          ? ` So du con lai: ${Math.round(data.balance).toLocaleString("vi-VN")}d.`
+          : "";
+      setInfo(`Dang ky khoa hoc thanh cong.${remainingBalance} Ban co the vao hoc ngay.`);
     } catch {
       setError("Loi mang. Vui long thu lai.");
     } finally {
@@ -69,7 +73,12 @@ export default function EnrollCourseCard({
         return;
       }
 
-      setInfo("Nap tien thanh cong. Ban co the dang ky lai khoa hoc.");
+      if (!data?.paymentUrl) {
+        setError("Khong tao duoc URL thanh toan.");
+        return;
+      }
+
+      window.location.href = data.paymentUrl;
     } catch {
       setError("Loi mang. Vui long thu lai.");
     } finally {
@@ -114,9 +123,16 @@ export default function EnrollCourseCard({
           >
             Nap tien nhanh
           </button>
+          <Link
+            href="/student/wallet"
+            className="ml-2 inline-block rounded-md border border-amber-400 px-3 py-1.5 text-amber-800 hover:bg-amber-100"
+          >
+            Mo vi
+          </Link>
         </div>
       ) : null}
       {info ? <p className="mt-3 text-sm text-emerald-700">{info}</p> : null}
     </div>
   );
 }
+

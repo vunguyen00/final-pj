@@ -5,8 +5,12 @@ export const QUESTION_KIND_OPTIONS: Array<{ value: QuestionKind; label: string }
   { value: "MULTIPLE_CHOICE", label: "Trắc nghiệm" },
   { value: "TRUE_FALSE", label: "Đúng/Sai" },
   { value: "FILL_IN_BLANK", label: "Điền từ" },
-  { value: "ESSAY", label: "Tự luận (Viết)" },
   { value: "LISTENING", label: "Nghe" },
+];
+
+export const WRITING_ONLY_QUESTION_KIND_OPTIONS: Array<{ value: QuestionKind; label: string }> = [
+  ...QUESTION_KIND_OPTIONS,
+  { value: "ESSAY", label: "Tự luận (Viết)" },
 ];
 
 export const createDefaultForm = (): QuestionForm => ({

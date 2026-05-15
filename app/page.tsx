@@ -9,6 +9,10 @@ type User = {
   email: string;
   role: string;
 };
+type WalletSummary = {
+  balance: number;
+  aiPoints: { available: number };
+};
 
 type Course = {
   id: string;
@@ -93,6 +97,7 @@ export default function HomePage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [enrolledIds, setEnrolledIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [wallet, setWallet] = useState<WalletSummary | null>(null);
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -116,6 +121,18 @@ export default function HomePage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
+
+    fetch("/api/wallet")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) {
+          setWallet({
+            balance: Number(data.balance || 0),
+            aiPoints: { available: Number(data.aiPoints?.available || 0) },
+          });
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const enrolledSet = new Set(enrolledIds);
@@ -149,7 +166,7 @@ export default function HomePage() {
               {skills.map((skill) => (
                 <Link
                   key={skill.name}
-                  href={`/practice/${skill.name.toLowerCase()}`}
+                  href={`/courses?skill=${skill.name.toLowerCase()}`}
                   className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 transition-all hover:bg-white/10 hover:scale-105"
                 >
                   <div className={`mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-xl ${skill.color}`}>
@@ -328,6 +345,35 @@ export default function HomePage() {
                   </div>
                 </Link>
               ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {!loading && user?.role === "STUDENT" ? (
+        <section className="bg-white py-16">
+          <div className="mx-auto max-w-7xl px-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">Dành cho bạn</h2>
+                <p className="mt-1 text-slate-600">Quản lý hồ sơ, khóa học và ví học tập</p>
+              </div>
+            </div>
+
+            <div className="mt-8 grid gap-6 md:grid-cols-3">
+              <Link href="/profile" className="rounded-xl border border-slate-200 bg-slate-50 p-6 transition-all hover:shadow-md">
+                <h3 className="text-lg font-semibold text-slate-900">Hồ sơ của tôi</h3>
+                <p className="mt-2 text-sm text-slate-600">Cập nhật thông tin cá nhân và xem các khóa học đã hoàn thành.</p>
+              </Link>
+              <Link href="/my-courses" className="rounded-xl border border-slate-200 bg-slate-50 p-6 transition-all hover:shadow-md">
+                <h3 className="text-lg font-semibold text-slate-900">Khóa học của tôi</h3>
+                <p className="mt-2 text-sm text-slate-600">Xem cả khóa học đã đăng ký lẫn đã hoàn thành.</p>
+              </Link>
+              <Link href="/student/wallet" className="rounded-xl border border-slate-200 bg-slate-50 p-6 transition-all hover:shadow-md">
+                <h3 className="text-lg font-semibold text-slate-900">Nạp tiền</h3>
+                <p className="mt-2 text-sm text-slate-600">Số dư: {Math.round(wallet?.balance ?? 0).toLocaleString("vi-VN")}d</p>
+                <p className="text-sm text-slate-600">Điểm hiện có: {(wallet?.aiPoints.available ?? 0).toLocaleString("vi-VN")}</p>
+              </Link>
             </div>
           </div>
         </section>

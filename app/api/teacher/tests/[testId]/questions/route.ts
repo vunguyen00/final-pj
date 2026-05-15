@@ -81,6 +81,10 @@ export async function POST(
     if (!ALLOWED_TYPES.has(type)) {
       return NextResponse.json({ error: "Loại câu hỏi không hợp lệ" }, { status: 400 });
     }
+    const isWritingCourse = (test.course.category || "").trim().toLowerCase() === "writing";
+    if (type === "ESSAY" && !hasListening && !isWritingCourse) {
+      return NextResponse.json({ error: "Khóa học không phải Writing nên không được tạo câu hỏi tự luận" }, { status: 400 });
+    }
 
     const parsedScore = score ? parseFloat(score) : 10;
     if (!Number.isFinite(parsedScore) || parsedScore <= 0) {
@@ -155,4 +159,3 @@ export async function POST(
     );
   }
 }
-

@@ -8,6 +8,7 @@ import {
   markCourseCompleted,
 } from "@/lib/learning-progress";
 import { sendCourseCertificateEmail } from "@/lib/mailer";
+import { getAiPointsSummary, grantCourseCompletionPoints } from "@/lib/ai-points";
 
 export async function POST(
   request: NextRequest,
@@ -159,10 +160,13 @@ export async function POST(
 
     let courseCompleted = false;
     let certificateSent = false;
+    let aiPointsAwarded = 0;
 
     if (isPassed) {
       await markCourseCompleted(user.id, test.courseId);
       courseCompleted = true;
+      const pointResult = await grantCourseCompletionPoints(user.id, test.courseId);
+      aiPointsAwarded = pointResult.points;
 
       const alreadySent = await hasCertificateSent(user.id, test.courseId);
       if (!alreadySent) {
@@ -172,6 +176,8 @@ export async function POST(
       }
     }
 
+    const aiPoints = await getAiPointsSummary(user.id);
+
     return NextResponse.json({
       attemptId: testAttempt.id,
       score: finalScore,
@@ -180,6 +186,8 @@ export async function POST(
       isPassed,
       courseCompleted,
       certificateSent,
+      aiPointsAwarded,
+      aiPoints,
       totalQuestions: test.questions.length,
       correctAnswers: questionResults.filter((q) => q.isCorrect === true).length,
       questionResults,
