@@ -10,6 +10,114 @@ import {
 import { sendCourseCertificateEmail } from "@/lib/mailer";
 import { getAiPointsSummary, grantCourseCompletionPoints } from "@/lib/ai-points";
 
+/**
+ * Evaluates ESSAY type answers using AI
+ */
+async function evaluateEssayWithAI(essayText: string, taskPrompt?: string): Promise<{
+  aiScore: number;
+  language: string;
+  band: {
+    system: string;
+    level: string;
+    score: number;
+    rationale: string;
+  };
+  taskRequirements: {
+    promptUnderstanding: string;
+    addressedPoints: string[];
+    missingPoints: string[];
+  };
+  feedback: {
+    summary: string;
+    strengths: string[];
+    weaknesses: string[];
+    feedback: string[];
+    suggestions: string[];
+    corrections: Array<{
+      original: string;
+      improved: string;
+      reason: string;
+    }>;
+  };
+}> {
+  try {
+    const response = await fetch("http://localhost:3000/api/ai/essay-evaluation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ essay: essayText, taskPrompt }),
+    });
+
+    if (!response.ok) {
+      console.error("AI evaluation failed:", response.statusText);
+      return {
+        aiScore: 5, // Default score if AI fails
+        language: "Unknown",
+        band: { system: "GENERAL", level: "Unknown", score: 5, rationale: "AI unavailable" },
+        taskRequirements: {
+          promptUnderstanding: "",
+          addressedPoints: [],
+          missingPoints: [],
+        },
+        feedback: {
+          summary: "AI evaluation temporarily unavailable",
+          strengths: [],
+          weaknesses: [],
+          feedback: [],
+          suggestions: [],
+          corrections: [],
+        },
+      };
+    }
+
+    const data = await response.json();
+    const evaluation = data.data?.evaluation;
+
+    return {
+      aiScore: evaluation?.scores?.overall ?? 5,
+      language: evaluation?.language ?? "Unknown",
+      band: evaluation?.band ?? {
+        system: "GENERAL",
+        level: "Intermediate",
+        score: evaluation?.scores?.overall ?? 5,
+        rationale: "",
+      },
+      taskRequirements: {
+        promptUnderstanding: evaluation?.task_requirements?.prompt_understanding ?? "",
+        addressedPoints: evaluation?.task_requirements?.addressed_points ?? [],
+        missingPoints: evaluation?.task_requirements?.missing_points ?? [],
+      },
+      feedback: {
+        summary: evaluation?.summary ?? "",
+        strengths: data.data?.analysis?.strengths ?? [],
+        weaknesses: data.data?.analysis?.weaknesses ?? [],
+        feedback: data.data?.analysis?.feedback ?? [],
+        suggestions: data.data?.analysis?.suggestions ?? [],
+        corrections: data.data?.improvements?.corrections ?? [],
+      },
+    };
+  } catch (error) {
+    console.error("Error evaluating essay with AI:", error);
+    return {
+      aiScore: 5,
+      language: "Unknown",
+      band: { system: "GENERAL", level: "Unknown", score: 5, rationale: "AI error" },
+      taskRequirements: {
+        promptUnderstanding: "",
+        addressedPoints: [],
+        missingPoints: [],
+      },
+      feedback: {
+        summary: "Could not evaluate essay",
+        strengths: [],
+        weaknesses: [],
+        feedback: [],
+        suggestions: [],
+        corrections: [],
+      },
+    };
+  }
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ testId: string }> },
@@ -84,19 +192,23 @@ export async function POST(
     for (const question of test.questions) {
       maxScore += question.score;
       const studentAnswer = answers[question.id];
+      let studentAnswerDisplay = "";
       let isCorrect = false;
       let earnedScore = 0;
       let correctAnswer: string | null = null;
+      let aiEvaluation: Record<string, unknown> | null = null;
 
       if (question.type === "MULTIPLE_CHOICE" || question.type === "TRUE_FALSE") {
         const selectedAnswer = question.answers.find((a) => a.id === studentAnswer);
         const correctAns = question.answers.find((a) => a.isCorrect);
+        studentAnswerDisplay = selectedAnswer?.content ?? "";
 
         if (selectedAnswer && correctAns) {
           isCorrect = selectedAnswer.id === correctAns.id;
           correctAnswer = correctAns.content;
         }
       } else if (question.type === "FILL_IN_BLANK") {
+        studentAnswerDisplay = studentAnswer ? studentAnswer.toString() : "";
         const correctAns = question.answers.find((a) => a.isCorrect);
         if (correctAns && studentAnswer) {
           isCorrect =
@@ -105,11 +217,41 @@ export async function POST(
           correctAnswer = correctAns.content;
         }
       } else if (question.type === "ESSAY") {
-        isCorrect = false;
+        studentAnswerDisplay = studentAnswer ? studentAnswer.toString() : "";
         correctAnswer = question.answers[0]?.content || "";
+
+        // Evaluate ESSAY with AI if student provided an answer
+        if (studentAnswer && studentAnswerDisplay.trim().length > 0) {
+          const aiResult = await evaluateEssayWithAI(studentAnswerDisplay, question.content);
+          
+          // Convert AI score (0-10) to question score percentage
+          const scorePercentage = aiResult.aiScore / 10;
+          earnedScore = Math.round(question.score * scorePercentage);
+          
+          // Mark as "correct" if score is 70% or higher
+          isCorrect = aiResult.aiScore >= 7;
+          totalScore += earnedScore;
+
+          aiEvaluation = {
+            language: aiResult.language,
+            overallScore: aiResult.aiScore,
+            band: aiResult.band,
+            taskRequirements: aiResult.taskRequirements,
+            summary: aiResult.feedback.summary,
+            strengths: aiResult.feedback.strengths,
+            weaknesses: aiResult.feedback.weaknesses,
+            feedback: aiResult.feedback.feedback,
+            suggestions: aiResult.feedback.suggestions,
+            corrections: aiResult.feedback.corrections,
+          };
+        } else {
+          // No answer provided
+          isCorrect = false;
+          earnedScore = 0;
+        }
       }
 
-      if (isCorrect) {
+      if (isCorrect && question.type !== "ESSAY") {
         earnedScore = question.score;
         totalScore += question.score;
       }
@@ -118,12 +260,13 @@ export async function POST(
         questionId: question.id,
         questionType: question.type,
         content: question.content,
-        studentAnswer,
+        studentAnswer: studentAnswerDisplay,
         correctAnswer,
         isCorrect,
         score: question.score,
         earnedScore,
         explanation: question.explanation,
+        ...(aiEvaluation && { aiEvaluation }),
       });
     }
 

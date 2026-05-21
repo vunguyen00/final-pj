@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
         },
         attempts: {
           where: { userId: user.id },
-          orderBy: { startedAt: "desc" },
+          orderBy: { submittedAt: "desc" },
           take: 1,
         },
       },
@@ -107,6 +107,7 @@ export async function GET(request: NextRequest) {
         timeLimit: test.timeLimit,
         questionCount: test._count.questions,
         userAttempts: test._count.attempts,
+        hasAttempt: test._count.attempts > 0,
         lastAttempt: test.attempts[0]
           ? {
               id: test.attempts[0].id,

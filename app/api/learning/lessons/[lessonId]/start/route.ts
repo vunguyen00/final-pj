@@ -18,7 +18,7 @@ export async function POST(
         module: {
           select: {
             course: {
-              select: { id: true },
+              select: { id: true, instructorId: true },
             },
           },
         },
@@ -34,7 +34,11 @@ export async function POST(
       where: { userId_courseId: { userId: user.id, courseId } },
     });
 
-    if (!enrollment) {
+    const isAdmin = user.role === "ADMIN";
+    const isInstructor = lesson.module.course.instructorId === user.id;
+    const canAccess = isAdmin || isInstructor || Boolean(enrollment);
+
+    if (!canAccess) {
       return NextResponse.json({ error: "Ban chua dang ky khoa hoc." }, { status: 403 });
     }
 

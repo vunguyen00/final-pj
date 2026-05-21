@@ -16,6 +16,7 @@ type Test = {
   timeLimit: number | null;
   questionCount: number;
   userAttempts: number;
+  hasAttempt: boolean;
   progress: number;
   isUnlocked: boolean;
   lastAttempt: {
@@ -106,9 +107,15 @@ export default function StudentTestsPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-3">
                     <h3 className="text-lg font-semibold text-emerald-900">{test.name}</h3>
-                    {test.lastAttempt?.isPassed ? (
-                      <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Da dat</span>
-                    ) : null}
+                    {test.hasAttempt ? (
+                      test.lastAttempt?.isPassed ? (
+                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Da dat</span>
+                      ) : (
+                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">Chua dat</span>
+                      )
+                    ) : (
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">Chua lam</span>
+                    )}
                     {!test.isUnlocked ? (
                       <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Khoa test</span>
                     ) : null}
