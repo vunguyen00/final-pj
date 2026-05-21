@@ -1,179 +1,54 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { prisma } from "@/lib/prisma";
+import { LANGUAGES, getCourseLanguage, getCourseType, priceLabel } from "@/app/components/learningMarketplace";
 
-type User = {
-  id: string;
-  username: string;
-  email: string;
-  role: string;
-};
-type WalletSummary = {
-  balance: number;
-  aiPoints: { available: number };
-};
+async function getHomeCourses() {
+  try {
+    return await prisma.course.findMany({
+      where: { status: "ACTIVE" },
+      include: { instructor: { select: { username: true } }, _count: { select: { enrollments: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+    });
+  } catch {
+    return [];
+  }
+}
 
-type Course = {
-  id: string;
-  name: string;
-  description: string;
-  thumbnail: string | null;
-  price: number;
-  category: string | null;
-  duration: string | null;
-  lessons: number;
-  instructor: {
-    username: string;
-  };
-  _count: {
-    enrollments: number;
-  };
-};
-
-// Mock data for top students
-const mockTopStudents = [
-  { id: "1", name: "Nguyễn Minh Hoàng", avatar: "NH", points: 9850, streak: 45 },
-  { id: "2", name: "Trần Lan Anh", avatar: "TA", points: 9200, streak: 38 },
-  { id: "3", name: "Lê Đức Phong", avatar: "LP", points: 8900, streak: 32 },
-  { id: "4", name: "Vũ Thảo My", avatar: "VM", points: 8650, streak: 28 },
-  { id: "5", name: "Hoàng Gia Huy", avatar: "HG", points: 8400, streak: 25 },
+const teachers = ["Mina Tran", "Daniel Park", "Sakura Ito", "Liu Wen"];
+const testimonials = [
+  "The dashboard made it easy to move from vocabulary to speaking practice.",
+  "I used the diagnostic test to pick the right Japanese level.",
+  "Combo bundles helped me plan a full certification path.",
 ];
 
-const skills = [
-  {
-    name: "Speaking",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8">
-        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-        <line x1="12" y1="19" x2="12" y2="23" />
-        <line x1="8" y1="23" x2="16" y2="23" />
-      </svg>
-    ),
-    color: "bg-orange-100 text-orange-600",
-    bgColor: "bg-orange-500",
-    description: "Luyện phát âm và giao tiếp",
-  },
-  {
-    name: "Writing",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8">
-        <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-      </svg>
-    ),
-    color: "bg-blue-100 text-blue-600",
-    bgColor: "bg-blue-500",
-    description: "Luyện viết các dạng bài",
-  },
-  {
-    name: "Reading",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8">
-        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-      </svg>
-    ),
-    color: "bg-green-100 text-green-600",
-    bgColor: "bg-green-500",
-    description: "Đọc hiểu và tốc độ",
-  },
-  {
-    name: "Listening",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8">
-        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
-      </svg>
-    ),
-    color: "bg-purple-100 text-purple-600",
-    bgColor: "bg-purple-500",
-    description: "Luyện nghe và nghe chính tả",
-  },
-];
-
-export default function HomePage() {
-  const [user, setUser] = useState<User | null>(null);
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [enrolledIds, setEnrolledIds] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [wallet, setWallet] = useState<WalletSummary | null>(null);
-
-  useEffect(() => {
-    fetch("/api/auth/me")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        setUser(data?.user || null);
-      })
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false));
-
-    // Fetch courses
-    fetch("/api/courses")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.courses) {
-          setCourses(data.courses);
-        }
-        if (Array.isArray(data.enrolledCourseIds)) {
-          setEnrolledIds(data.enrolledCourseIds);
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-
-    fetch("/api/wallet")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data) {
-          setWallet({
-            balance: Number(data.balance || 0),
-            aiPoints: { available: Number(data.aiPoints?.available || 0) },
-          });
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  const enrolledSet = new Set(enrolledIds);
-  const enrolledCourses = courses.filter((course) => enrolledSet.has(course.id));
-  const popularCourses = courses
-    .filter((course) => !enrolledSet.has(course.id))
-    .sort((a, b) => b._count.enrollments - a._count.enrollments)
-    .slice(0, 4);
+export default async function HomePage() {
+  const courses = await getHomeCourses();
+  const combos = courses.filter((course) => getCourseType(course) === "Combo course").slice(0, 3);
+  const featured = courses.slice(0, 4);
 
   return (
-    <main className="min-h-screen">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-20 text-white">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute left-1/4 top-1/4 h-64 w-64 rounded-full bg-blue-500 blur-3xl" />
-          <div className="absolute bottom-1/4 right-1/4 h-64 w-64 rounded-full bg-purple-500 blur-3xl" />
-        </div>
-        
-        <div className="relative mx-auto max-w-7xl px-4">
-          <div className="mx-auto max-w-3xl text-center">
-            <h1 className="text-4xl font-bold leading-tight md:text-5xl lg:text-6xl">
-              Học Tiếng Anh <span className="text-blue-400">Hiệu Quả</span>
-            </h1>
-            <p className="mt-6 text-lg text-slate-300">
-              Nền tảng học tiếng Anh trực tuyến với phương pháp cá nhân hóa,
-              giúp bạn cải thiện kỹ năng nhanh chóng
+    <main className="min-h-screen bg-slate-50 dark:bg-slate-950">
+      <section className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Multi-language marketplace and LMS</p>
+            <h1 className="mt-4 text-5xl font-bold tracking-tight text-slate-950 dark:text-white">LearnHub</h1>
+            <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-300">
+              Courses, combo paths, skill training, vocabulary packs, mock tests, and certification prep for English, Chinese, Japanese, and Korean.
             </p>
-            
-            {/* Skills Grid */}
-            <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4">
-              {skills.map((skill) => (
-                <Link
-                  key={skill.name}
-                  href={`/courses?skill=${skill.name.toLowerCase()}`}
-                  className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 transition-all hover:bg-white/10 hover:scale-105"
-                >
-                  <div className={`mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-xl ${skill.color}`}>
-                    {skill.icon}
-                  </div>
-                  <h3 className="font-semibold">{skill.name}</h3>
-                  <p className="mt-1 text-xs text-slate-400">{skill.description}</p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link href="/courses" className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700">Explore courses</Link>
+              <Link href="/student/tests" className="rounded-lg border border-slate-200 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-100">Take placement test</Link>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-950">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {LANGUAGES.map((language, index) => (
+                <Link key={language} href={`/courses?language=${language}`} className="rounded-xl border border-slate-200 bg-white p-5 hover:border-blue-300 dark:border-slate-800 dark:bg-slate-900">
+                  <p className="text-3xl font-bold text-slate-950 dark:text-white">{["EN", "中文", "日本", "한글"][index]}</p>
+                  <p className="mt-2 font-semibold text-slate-800 dark:text-slate-100">{language}</p>
+                  <p className="mt-1 text-sm text-slate-500">Courses, skills, tests</p>
                 </Link>
               ))}
             </div>
@@ -181,390 +56,107 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Featured Courses */}
-      <section className="py-16">
-        <div className="mx-auto max-w-7xl px-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900">Khóa học nổi bật</h2>
-              <p className="mt-1 text-slate-600">Những khóa học được đánh giá cao nhất</p>
-            </div>
-            <Link
-              href="/courses"
-              className="text-sm font-medium text-blue-600 hover:text-blue-700"
-            >
-              Xem tất cả →
-            </Link>
+      <section className="mx-auto max-w-7xl px-4 py-12">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-950 dark:text-white">Featured courses</h2>
+            <p className="mt-1 text-slate-600 dark:text-slate-300">Popular paths across languages and product types.</p>
           </div>
-          
-          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {courses.slice(0, 4).map((course) => {
-              const isEnrolled = enrolledSet.has(course.id);
-              return (
-                <Link
-                  key={course.id}
-                  href={`/courses/${course.id}`}
-                  className="group overflow-hidden rounded-xl border border-slate-200 bg-white transition-all hover:shadow-lg"
-                >
-                  <div className="relative aspect-video overflow-hidden bg-slate-100">
-                    {course.thumbnail ? (
-                      <img
-                        src={course.thumbnail}
-                        alt={course.name}
-                        className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-slate-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-12 w-12">
-                          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                        </svg>
-                      </div>
-                    )}
-                    {course.category && (
-                      <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2 py-1 text-xs font-medium text-slate-700">
-                        {course.category}
-                      </span>
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-semibold text-slate-900 line-clamp-2 group-hover:text-blue-600">
-                      {course.name}
-                    </h3>
-                    <p className="mt-1 text-sm text-slate-500">{course.instructor.username}</p>
-                    <div className="mt-3 flex items-center justify-between">
-                      <div className="flex items-center gap-1">
-                        <span className="text-sm text-slate-500">{course._count.enrollments} hoc vien</span>
-                      </div>
-                      {isEnrolled ? (
-                        <span className="inline-flex rounded-md border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                          Vao hoc
-                        </span>
-                      ) : (
-                        <span className="text-sm font-semibold text-blue-600">{course.price.toLocaleString("vi-VN")}d</span>
-                      )}
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
+          <Link href="/courses" className="text-sm font-semibold text-blue-600">View all</Link>
+        </div>
+        <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {featured.map((course) => <CourseCard key={course.id} course={course} />)}
+        </div>
+      </section>
+
+      <section className="bg-white py-12 dark:bg-slate-900">
+        <div className="mx-auto max-w-7xl px-4">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-950 dark:text-white">Combo bundles</h2>
+              <p className="mt-1 text-slate-600 dark:text-slate-300">Structured paths for learners who want a full plan.</p>
+            </div>
+            <Link href="/combos" className="text-sm font-semibold text-blue-600">Open combos</Link>
+          </div>
+          <div className="mt-6 grid gap-5 md:grid-cols-3">
+            {(combos.length ? combos : featured.slice(0, 3)).map((course) => <CourseCard key={course.id} course={course} />)}
           </div>
         </div>
       </section>
 
-      {/* Popular Courses */}
-      <section className="bg-slate-100 py-16">
-        <div className="mx-auto max-w-7xl px-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900">Khoa hoc duoc hoc vien quan tam</h2>
-              <p className="mt-1 text-slate-600">Uu tien nhung khoa hoc co nhieu hoc vien dang ky</p>
-            </div>
+      <section className="mx-auto grid max-w-7xl gap-6 px-4 py-12 lg:grid-cols-3">
+        {["Adaptive learning", "Marketplace choice", "LMS tracking"].map((title, index) => (
+          <div key={title} className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+            <p className="text-sm font-semibold text-blue-600">0{index + 1}</p>
+            <h3 className="mt-3 text-xl font-bold text-slate-950 dark:text-white">{title}</h3>
+            <p className="mt-2 text-slate-600 dark:text-slate-300">
+              {index === 0 && "Placement tests and diagnostics connect learners to the right level."}
+              {index === 1 && "Single courses, combos, certification prep, vocabulary, and mock tests in one catalog."}
+              {index === 2 && "Progress, schedules, course content, and review queues remain connected."}
+            </p>
           </div>
-
-          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {popularCourses.map((course) => (
-              <Link
-                key={course.id}
-                href={`/courses/${course.id}`}
-                className="group overflow-hidden rounded-xl border border-slate-200 bg-white transition-all hover:shadow-lg"
-              >
-                <div className="relative aspect-video overflow-hidden bg-slate-100">
-                  {course.thumbnail ? (
-                    <img
-                      src={course.thumbnail}
-                      alt={course.name}
-                      className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-slate-400">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-12 w-12">
-                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                      </svg>
-                    </div>
-                  )}
-                  {course.category && (
-                    <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2 py-1 text-xs font-medium text-slate-700">
-                      {course.category}
-                    </span>
-                  )}
-                </div>
-                <div className="p-4">
-                  <h3 className="font-semibold text-slate-900 line-clamp-2 group-hover:text-blue-600">
-                    {course.name}
-                  </h3>
-                  <p className="mt-1 text-sm text-slate-500">{course.instructor.username}</p>
-                  <div className="mt-3 flex items-center justify-between">
-                    <span className="text-sm text-slate-500">{course._count.enrollments} hoc vien</span>
-                    <span className="text-sm font-semibold text-blue-600">
-                      {course.price.toLocaleString("vi-VN")}d
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
+        ))}
       </section>
 
-      {/* Enrolled Courses */}
-      {!loading && user?.role === "STUDENT" && enrolledCourses.length > 0 ? (
-        <section className="py-16">
-          <div className="mx-auto max-w-7xl px-4">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900">Khoa hoc da dang ky</h2>
-              <p className="mt-1 text-slate-600">Khong hien thi gia, bam vao de tiep tuc hoc ngay</p>
-            </div>
-            <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {enrolledCourses.map((course) => (
-                <Link
-                  key={course.id}
-                  href={`/student/hoc-bai?courseId=${course.id}`}
-                  className="group overflow-hidden rounded-xl border border-emerald-200 bg-white transition-all hover:shadow-lg"
-                >
-                  <div className="relative aspect-video overflow-hidden bg-slate-100">
-                    {course.thumbnail ? (
-                      <img
-                        src={course.thumbnail}
-                        alt={course.name}
-                        className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-slate-400">No image</div>
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <h3 className="line-clamp-2 font-semibold text-slate-900 group-hover:text-emerald-700">{course.name}</h3>
-                    <p className="mt-1 text-sm text-slate-500">{course.instructor.username}</p>
-                    <div className="mt-3">
-                      <span className="inline-flex rounded-md border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-700">
-                        Vao hoc
-                      </span>
+      <section className="bg-white py-12 dark:bg-slate-900">
+        <div className="mx-auto grid max-w-7xl gap-8 px-4 lg:grid-cols-2">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-950 dark:text-white">Top teachers</h2>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {teachers.map((teacher) => (
+                <div key={teacher} className="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-50 font-bold text-blue-700">{teacher.split(" ").map((part) => part[0]).join("")}</span>
+                    <div>
+                      <p className="font-semibold text-slate-950 dark:text-white">{teacher}</p>
+                      <p className="text-sm text-slate-500">Language coach</p>
                     </div>
                   </div>
-                </Link>
+                </div>
               ))}
             </div>
           </div>
-        </section>
-      ) : null}
-
-      {!loading && user?.role === "STUDENT" ? (
-        <section className="bg-white py-16">
-          <div className="mx-auto max-w-7xl px-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900">Dành cho bạn</h2>
-                <p className="mt-1 text-slate-600">Quản lý hồ sơ, khóa học và ví học tập</p>
-              </div>
+          <div>
+            <h2 className="text-2xl font-bold text-slate-950 dark:text-white">Testimonials</h2>
+            <div className="mt-5 space-y-3">
+              {testimonials.map((text) => (
+                <blockquote key={text} className="rounded-xl border border-slate-200 p-4 text-slate-600 dark:border-slate-800 dark:text-slate-300">
+                  "{text}"
+                </blockquote>
+              ))}
             </div>
-
-            <div className="mt-8 grid gap-6 md:grid-cols-3">
-              <Link href="/profile" className="rounded-xl border border-slate-200 bg-slate-50 p-6 transition-all hover:shadow-md">
-                <h3 className="text-lg font-semibold text-slate-900">Hồ sơ của tôi</h3>
-                <p className="mt-2 text-sm text-slate-600">Cập nhật thông tin cá nhân và xem các khóa học đã hoàn thành.</p>
-              </Link>
-              <Link href="/my-courses" className="rounded-xl border border-slate-200 bg-slate-50 p-6 transition-all hover:shadow-md">
-                <h3 className="text-lg font-semibold text-slate-900">Khóa học của tôi</h3>
-                <p className="mt-2 text-sm text-slate-600">Xem cả khóa học đã đăng ký lẫn đã hoàn thành.</p>
-              </Link>
-              <Link href="/student/wallet" className="rounded-xl border border-slate-200 bg-slate-50 p-6 transition-all hover:shadow-md">
-                <h3 className="text-lg font-semibold text-slate-900">Nạp tiền</h3>
-                <p className="mt-2 text-sm text-slate-600">Số dư: {Math.round(wallet?.balance ?? 0).toLocaleString("vi-VN")}d</p>
-                <p className="text-sm text-slate-600">Điểm hiện có: {(wallet?.aiPoints.available ?? 0).toLocaleString("vi-VN")}</p>
-              </Link>
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      {/* Top Students */}
-      <section className="py-16">
-        <div className="mx-auto max-w-7xl px-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900">Học viên xuất sắc</h2>
-              <p className="mt-1 text-slate-600">Những học viên có thành tích cao nhất</p>
-            </div>
-            <Link
-              href="/top-students"
-              className="text-sm font-medium text-blue-600 hover:text-blue-700"
-            >
-              Xem tất cả →
-            </Link>
-          </div>
-          
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {mockTopStudents.map((student, index) => (
-              <Link
-                key={student.id}
-                href={`/students/${student.id}`}
-                className="group flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 transition-all hover:border-blue-300 hover:shadow-md"
-              >
-                <div className="relative flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-lg font-bold text-white">
-                  {student.avatar}
-                  {index === 0 && (
-                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-yellow-500 text-xs">
-                      👑
-                    </span>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="truncate font-medium text-slate-900 group-hover:text-blue-600">
-                    {student.name}
-                  </h3>
-                  <div className="mt-1 flex items-center gap-3 text-xs text-slate-500">
-                    <span>{student.points.toLocaleString()} điểm</span>
-                    <span>🔥 {student.streak} ngày</span>
-                  </div>
-                </div>
-              </Link>
-            ))}
           </div>
         </div>
       </section>
 
-      {/* Learning Progress (for logged in users) */}
-      {!loading && user && (
-        <section className="bg-slate-100 py-16">
-          <div className="mx-auto max-w-7xl px-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900">Tiến trình học của bạn</h2>
-                <p className="mt-1 text-slate-600">Theo dõi quá trình học tiếng Anh của bạn</p>
-              </div>
-              <Link
-                href="/my-learning"
-                className="text-sm font-medium text-blue-600 hover:text-blue-700"
-              >
-                Xem chi tiết →
-              </Link>
-            </div>
-            
-            <div className="mt-8 grid gap-6 sm:grid-cols-3">
-              {/* Completed Courses */}
-              <div className="rounded-xl border border-slate-200 bg-white p-6">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-green-600">
-                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                      <polyline points="22 4 12 14.01 9 11.01" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-slate-900">3</p>
-                    <p className="text-sm text-slate-600">Khóa học đã hoàn thành</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* In Progress */}
-              <div className="rounded-xl border border-slate-200 bg-white p-6">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-blue-600">
-                      <circle cx="12" cy="12" r="10" />
-                      <polyline points="12 6 12 12 16 14" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-slate-900">2</p>
-                    <p className="text-sm text-slate-600">Khóa học đang học</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Total Points */}
-              <div className="rounded-xl border border-slate-200 bg-white p-6">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-purple-600">
-                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-slate-900">1,250</p>
-                    <p className="text-sm text-slate-600">Tổng điểm tích lũy</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+      <section className="bg-slate-950 py-12 text-white">
+        <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-3xl font-bold">Start with the right language path</h2>
+            <p className="mt-2 text-slate-300">Browse the marketplace or begin with a placement assessment.</p>
           </div>
-        </section>
-      )}
-
-      {/* CTA Section */}
-      <section className="bg-slate-900 py-16 text-white">
-        <div className="mx-auto max-w-7xl px-4 text-center">
-          <h2 className="text-3xl font-bold">Sẵn sàng để bắt đầu học?</h2>
-          <p className="mt-4 text-slate-300">
-            Đăng ký ngay hôm nay để nhận ưu đãi học phí lên đến 30%
-          </p>
-          <div className="mt-8 flex justify-center gap-4">
-            <Link
-              href="/auth/register"
-              className="rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-blue-700"
-            >
-              Đăng ký ngay
-            </Link>
-            <Link
-              href="/courses"
-              className="rounded-lg border border-slate-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-white/10"
-            >
-              Khám phá khóa học
-            </Link>
-          </div>
+          <Link href="/auth/register" className="rounded-lg bg-white px-5 py-3 font-semibold text-slate-950">Create account</Link>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-12">
-        <div className="mx-auto max-w-7xl px-4">
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 text-white">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-                  </svg>
-                </div>
-                <span className="text-xl font-bold text-slate-900">LearnHub</span>
-              </div>
-              <p className="mt-4 text-sm text-slate-600">
-                Nền tảng học tiếng Anh trực tuyến hàng đầu Việt Nam
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold text-slate-900">Liên kết nhanh</h4>
-              <ul className="mt-4 space-y-2 text-sm text-slate-600">
-                <li><Link href="/courses" className="hover:text-blue-600">Khóa học</Link></li>
-                <li><Link href="/teachers" className="hover:text-blue-600">Giảng viên</Link></li>
-                <li><Link href="/about" className="hover:text-blue-600">Về chúng tôi</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-slate-900">Hỗ trợ</h4>
-              <ul className="mt-4 space-y-2 text-sm text-slate-600">
-                <li><Link href="/help" className="hover:text-blue-600">Trợ giúp</Link></li>
-                <li><Link href="/contact" className="hover:text-blue-600">Liên hệ</Link></li>
-                <li><Link href="/faq" className="hover:text-blue-600">Câu hỏi thường gặp</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-slate-900">Liên hệ</h4>
-              <ul className="mt-4 space-y-2 text-sm text-slate-600">
-                <li>Email: contact@learnhub.com</li>
-                <li>Hotline: 1900 xxxx</li>
-              </ul>
-            </div>
-          </div>
-          <div className="mt-8 border-t border-slate-200 pt-8 text-center text-sm text-slate-600">
-            © 2026 LearnHub. All rights reserved.
-          </div>
-        </div>
-      </footer>
     </main>
+  );
+}
+
+function CourseCard({ course }: { course: Awaited<ReturnType<typeof getHomeCourses>>[number] }) {
+  return (
+    <Link href={`/courses/${course.id}`} className="overflow-hidden rounded-xl border border-slate-200 bg-white transition hover:border-blue-300 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900">
+      <div className="aspect-video bg-slate-100 dark:bg-slate-800">
+        {course.thumbnail ? <img src={course.thumbnail} alt={course.name} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-slate-400">{getCourseLanguage(course)}</div>}
+      </div>
+      <div className="p-4">
+        <div className="flex flex-wrap gap-2">
+          <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">{getCourseLanguage(course)}</span>
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">{getCourseType(course)}</span>
+        </div>
+        <h3 className="mt-3 line-clamp-2 font-bold text-slate-950 dark:text-white">{course.name}</h3>
+        <p className="mt-1 text-sm text-slate-500">{course.instructor?.username || "Teacher"} - {course._count.enrollments} learners</p>
+        <p className="mt-3 font-bold text-blue-600">{priceLabel(course.price)}</p>
+      </div>
+    </Link>
   );
 }

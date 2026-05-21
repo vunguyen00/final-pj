@@ -14,8 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LearnHub - Học tiếng Anh online",
-  description: "Nền tảng học tiếng Anh trực tuyến với các khóa học chất lượng cao",
+  title: "LearnHub - Multi-language learning marketplace",
+  description:
+    "Marketplace and LMS for English, Chinese, Japanese, Korean, certification prep, vocabulary, and mock tests.",
 };
 
 export default function RootLayout({
@@ -24,11 +25,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="vi"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col bg-slate-50">
+    <html lang="vi" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+      <body className="min-h-full bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-100">
         <Header />
         {children}
       </body>
