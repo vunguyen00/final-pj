@@ -13,10 +13,10 @@ import {
 
 const DEFAULT_CONFIG: AIServiceConfig = {
   ollamaUrl: process.env.OLLAMA_URL || "http://127.0.0.1:11434",
-  model: process.env.OLLAMA_MODEL || "gpt-4.1-mini",
+  model: process.env.OLLAMA_MODEL || "gemma4",
   temperature: 0,
   top_p: 0.1,
-  timeout: 60000, // 60 seconds
+  timeout: 500000, // 90 seconds
   maxRetries: 2,
 };
 
@@ -31,8 +31,9 @@ class OllamaService {
    * Sends a chat request to Ollama API
    */
   async chat(messages: OllamaMessage[]): Promise<string> {
+    const model = await this.resolveModel();
     const request: OllamaChatRequest = {
-      model: this.config.model,
+      model,
       messages,
       temperature: this.config.temperature,
       top_p: this.config.top_p,
@@ -43,31 +44,12 @@ class OllamaService {
     const startTime = Date.now();
 
     try {
-      const response = await this.fetchWithTimeout(
-        `${this.config.ollamaUrl}/api/chat`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(request),
-        },
-        this.config.timeout
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(
-          `Ollama API error: ${response.status} - ${errorText}`
-        );
-      }
-
-      const data: OllamaChatResponse = await response.json();
+      const data = await this.callChatWithFallback(request, messages, model);
       const duration = Date.now() - startTime;
 
       // Log successful request
       this.log("success", {
-        model: this.config.model,
+        model,
         duration,
         inputTokens: data.prompt_eval_count,
         outputTokens: data.eval_count,
@@ -80,13 +62,182 @@ class OllamaService {
 
       // Log error
       this.log("error", {
-        model: this.config.model,
+        model,
         duration,
         error: errorMessage,
       });
 
       throw error;
     }
+  }
+
+  private async callChatWithFallback(
+    request: OllamaChatRequest,
+    messages: OllamaMessage[],
+    model: string
+  ): Promise<OllamaChatResponse> {
+    const chatResponse = await this.fetchWithTimeout(
+      `${this.config.ollamaUrl}/api/chat`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      },
+      this.config.timeout
+    );
+
+    if (chatResponse.ok) {
+      return (await chatResponse.json()) as OllamaChatResponse;
+    }
+
+    if (chatResponse.status !== 404) {
+      const errorText = await chatResponse.text();
+      throw new Error(`Ollama API error: ${chatResponse.status} - ${errorText}`);
+    }
+
+    const openAIResponse = await this.fetchWithTimeout(
+      `${this.config.ollamaUrl}/v1/chat/completions`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: this.config.temperature,
+          top_p: this.config.top_p,
+          stream: false,
+        }),
+      },
+      this.config.timeout
+    );
+
+    if (openAIResponse.ok) {
+      const data = (await openAIResponse.json()) as {
+        choices?: Array<{ message?: { content?: string } }>;
+        usage?: { prompt_tokens?: number; completion_tokens?: number };
+      };
+      return {
+        message: { role: "assistant", content: data.choices?.[0]?.message?.content ?? "" },
+        model,
+        created_at: new Date().toISOString(),
+        done: true,
+        total_duration: 0,
+        load_duration: 0,
+        prompt_eval_count: data.usage?.prompt_tokens ?? 0,
+        prompt_eval_duration: 0,
+        eval_count: data.usage?.completion_tokens ?? 0,
+        eval_duration: 0,
+      };
+    }
+
+    const prompt = messages.map((m) => `${m.role.toUpperCase()}:\n${m.content}`).join("\n\n");
+    const generateResponse = await this.fetchWithTimeout(
+      `${this.config.ollamaUrl}/api/generate`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          prompt,
+          stream: false,
+          format: "json",
+          options: {
+            temperature: this.config.temperature,
+            top_p: this.config.top_p,
+          },
+        }),
+      },
+      this.config.timeout
+    );
+
+    if (!generateResponse.ok) {
+      const chatError = await chatResponse.text();
+      const openAIError = await openAIResponse.text();
+      const generateError = await generateResponse.text();
+      throw new Error(
+        `Ollama API endpoints failed. /api/chat: ${chatResponse.status} ${chatError}; /v1/chat/completions: ${openAIResponse.status} ${openAIError}; /api/generate: ${generateResponse.status} ${generateError}`
+      );
+    }
+
+    const generated = (await generateResponse.json()) as {
+      response: string;
+      prompt_eval_count?: number;
+      eval_count?: number;
+    };
+
+    return {
+      message: { role: "assistant", content: generated.response || "" },
+      model,
+      created_at: new Date().toISOString(),
+      done: true,
+      total_duration: 0,
+      load_duration: 0,
+      prompt_eval_count: generated.prompt_eval_count ?? 0,
+      prompt_eval_duration: 0,
+      eval_count: generated.eval_count ?? 0,
+      eval_duration: 0,
+    };
+  }
+
+  private async resolveModel(): Promise<string> {
+    const configured = this.config.model?.trim();
+    if (!configured) {
+      return this.getFirstAvailableModel();
+    }
+
+    try {
+      const models = await this.getAvailableModels();
+      if (models.includes(configured)) return configured;
+      if (models.length > 0) {
+        this.log("info", {
+          action: "resolveModel",
+          requested: configured,
+          fallback: models[0],
+          reason: "configured_model_not_installed",
+        });
+        return models[0];
+      }
+      return configured;
+    } catch {
+      return configured;
+    }
+  }
+
+  private async getFirstAvailableModel(): Promise<string> {
+    const models = await this.getAvailableModels();
+    const first = models[0];
+    if (!first) {
+      throw new Error("No model installed in Ollama");
+    }
+    return first;
+  }
+
+  private async getAvailableModels(): Promise<string[]> {
+    // Prefer OpenAI-compatible endpoint when available.
+    try {
+      const response = await this.fetchWithTimeout(
+        `${this.config.ollamaUrl}/v1/models`,
+        { method: "GET" },
+        5000
+      );
+      if (response.ok) {
+        const data = (await response.json()) as { data?: Array<{ id?: string }> };
+        const models = (data.data ?? []).map((item) => item.id).filter(Boolean) as string[];
+        if (models.length > 0) return models;
+      }
+    } catch {
+      // Fall through to Ollama native endpoint.
+    }
+
+    const tagsResponse = await this.fetchWithTimeout(
+      `${this.config.ollamaUrl}/api/tags`,
+      { method: "GET" },
+      5000
+    );
+    if (!tagsResponse.ok) return [];
+
+    const tagsData = (await tagsResponse.json()) as { models?: Array<{ name?: string }> };
+    return (tagsData.models ?? []).map((item) => item.name).filter(Boolean) as string[];
   }
 
   /**

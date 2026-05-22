@@ -27,13 +27,6 @@ export async function GET(
           },
           orderBy: { order: "asc" },
         },
-        _count: {
-          select: {
-            attempts: {
-              where: { userId: user.id },
-            },
-          },
-        },
       },
     });
 
@@ -44,7 +37,6 @@ export async function GET(
     const isOwnerPreview =
       (user.role === "TEACHER" || user.role === "ADMIN") && test.course.instructorId === user.id;
 
-    let remainingAttempts = test.maxAttempts - test._count.attempts;
     if (!isOwnerPreview) {
       const enrollment = await prisma.enrollment.findUnique({
         where: {
@@ -67,12 +59,21 @@ export async function GET(
         );
       }
 
-      if (test._count.attempts >= test.maxAttempts) {
-        return NextResponse.json({ error: "No attempts remaining", remainingAttempts: 0 }, { status: 403 });
-      }
-    } else {
-      remainingAttempts = 9999;
     }
+
+    const attempts = await prisma.testAttempt.findMany({
+      where: { testId, userId: user.id },
+      orderBy: { submittedAt: "desc" },
+      select: {
+        id: true,
+        attemptNo: true,
+        score: true,
+        maxScore: true,
+        isPassed: true,
+        submittedAt: true,
+      },
+      take: 20,
+    });
 
     const questions = test.questions.map((q) => ({
       id: q.id,
@@ -99,13 +100,12 @@ export async function GET(
         courseName: test.course.name,
         maxScore: test.maxScore,
         passingScore: test.passingScore,
-        maxAttempts: test.maxAttempts,
         timeLimit: test.timeLimit,
         shuffleQuestions: test.shuffleQuestions,
-        remainingAttempts,
         previewMode: isOwnerPreview,
       },
       questions,
+      attempts,
     });
   } catch (error) {
     console.error("Error fetching test:", error);

@@ -65,9 +65,6 @@ export async function GET(request: NextRequest) {
         _count: {
           select: {
             questions: true,
-            attempts: {
-              where: { userId: user.id },
-            },
           },
         },
         attempts: {
@@ -103,11 +100,9 @@ export async function GET(request: NextRequest) {
         courseName: courseNameMap.get(test.courseId) ?? "Unknown course",
         maxScore: test.maxScore,
         passingScore: test.passingScore,
-        maxAttempts: test.maxAttempts,
         timeLimit: test.timeLimit,
         questionCount: test._count.questions,
-        userAttempts: test._count.attempts,
-        hasAttempt: test._count.attempts > 0,
+        hasAttempt: Boolean(test.attempts[0]),
         lastAttempt: test.attempts[0]
           ? {
               id: test.attempts[0].id,
@@ -117,7 +112,7 @@ export async function GET(request: NextRequest) {
             }
           : null,
         progress,
-        canAttempt: unlocked && test._count.attempts < test.maxAttempts,
+        canAttempt: unlocked,
         isUnlocked: unlocked,
       };
     });

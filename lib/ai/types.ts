@@ -41,6 +41,16 @@ export interface AIEvaluationResponse {
   overall: number;
   band: BandAssessment;
   task_requirements: TaskRequirementAnalysis;
+  writing_structure?: {
+    exam?: string;
+    task_type?: string;
+    sections: Array<{
+      name: string;
+      score: number;
+      max_score: number;
+      feedback: string;
+    }>;
+  };
   summary: string;
   strengths: string[];
   weaknesses: string[];

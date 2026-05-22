@@ -9,6 +9,7 @@ import {
 } from "@/lib/learning-progress";
 import { sendCourseCertificateEmail } from "@/lib/mailer";
 import { getAiPointsSummary, grantCourseCompletionPoints } from "@/lib/ai-points";
+import { scoringService } from "@/lib/ai";
 
 /**
  * Evaluates ESSAY type answers using AI
@@ -27,6 +28,7 @@ async function evaluateEssayWithAI(essayText: string, taskPrompt?: string): Prom
     addressedPoints: string[];
     missingPoints: string[];
   };
+  writingStructure?: Record<string, unknown> | null;
   feedback: {
     summary: string;
     strengths: string[];
@@ -41,66 +43,38 @@ async function evaluateEssayWithAI(essayText: string, taskPrompt?: string): Prom
   };
 }> {
   try {
-    const response = await fetch("http://localhost:3000/api/ai/essay-evaluation", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ essay: essayText, taskPrompt }),
-    });
-
-    if (!response.ok) {
-      console.error("AI evaluation failed:", response.statusText);
-      return {
-        aiScore: 5, // Default score if AI fails
-        language: "Unknown",
-        band: { system: "GENERAL", level: "Unknown", score: 5, rationale: "AI unavailable" },
-        taskRequirements: {
-          promptUnderstanding: "",
-          addressedPoints: [],
-          missingPoints: [],
-        },
-        feedback: {
-          summary: "AI evaluation temporarily unavailable",
-          strengths: [],
-          weaknesses: [],
-          feedback: [],
-          suggestions: [],
-          corrections: [],
-        },
-      };
-    }
-
-    const data = await response.json();
-    const evaluation = data.data?.evaluation;
+    const evaluation = await scoringService.evaluateEssay({ essay: essayText, taskPrompt });
 
     return {
-      aiScore: evaluation?.scores?.overall ?? 5,
+      aiScore: evaluation?.overall ?? 0,
       language: evaluation?.language ?? "Unknown",
       band: evaluation?.band ?? {
         system: "GENERAL",
-        level: "Intermediate",
-        score: evaluation?.scores?.overall ?? 5,
+        level: "Unknown",
+        score: evaluation?.overall ?? 0,
         rationale: "",
       },
       taskRequirements: {
-        promptUnderstanding: evaluation?.task_requirements?.prompt_understanding ?? "",
-        addressedPoints: evaluation?.task_requirements?.addressed_points ?? [],
-        missingPoints: evaluation?.task_requirements?.missing_points ?? [],
+        promptUnderstanding: evaluation.task_requirements?.prompt_understanding ?? "",
+        addressedPoints: evaluation.task_requirements?.addressed_points ?? [],
+        missingPoints: evaluation.task_requirements?.missing_points ?? [],
       },
       feedback: {
         summary: evaluation?.summary ?? "",
-        strengths: data.data?.analysis?.strengths ?? [],
-        weaknesses: data.data?.analysis?.weaknesses ?? [],
-        feedback: data.data?.analysis?.feedback ?? [],
-        suggestions: data.data?.analysis?.suggestions ?? [],
-        corrections: data.data?.improvements?.corrections ?? [],
+        strengths: evaluation.strengths ?? [],
+        weaknesses: evaluation.weaknesses ?? [],
+        feedback: evaluation.feedback ?? [],
+        suggestions: evaluation.suggestions ?? [],
+        corrections: evaluation.corrections ?? [],
       },
+      writingStructure: evaluation.writing_structure ?? null,
     };
   } catch (error) {
     console.error("Error evaluating essay with AI:", error);
     return {
-      aiScore: 5,
+      aiScore: 0,
       language: "Unknown",
-      band: { system: "GENERAL", level: "Unknown", score: 5, rationale: "AI error" },
+      band: { system: "GENERAL", level: "Unknown", score: 0, rationale: "AI error" },
       taskRequirements: {
         promptUnderstanding: "",
         addressedPoints: [],
@@ -114,8 +88,15 @@ async function evaluateEssayWithAI(essayText: string, taskPrompt?: string): Prom
         suggestions: [],
         corrections: [],
       },
+      writingStructure: null,
     };
   }
+}
+
+function bandScoreToTenScale(system: string, bandScore: number): number {
+  if (!Number.isFinite(bandScore)) return 0;
+  if (system === "HSK") return Math.max(0, Math.min(10, (bandScore / 6) * 10));
+  return Math.max(0, Math.min(10, bandScore));
 }
 
 export async function POST(
@@ -176,13 +157,6 @@ export async function POST(
         );
       }
 
-      const attemptCount = await prisma.testAttempt.count({
-        where: { testId, userId: user.id },
-      });
-
-      if (attemptCount >= test.maxAttempts) {
-        return NextResponse.json({ error: "No attempts remaining" }, { status: 403 });
-      }
     }
 
     let totalScore = 0;
@@ -224,12 +198,13 @@ export async function POST(
         if (studentAnswer && studentAnswerDisplay.trim().length > 0) {
           const aiResult = await evaluateEssayWithAI(studentAnswerDisplay, question.content);
           
-          // Convert AI score (0-10) to question score percentage
-          const scorePercentage = aiResult.aiScore / 10;
+          // Convert AI band to 10-scale, then map to question score.
+          const scaledBand = bandScoreToTenScale(aiResult.band.system, aiResult.band.score);
+          const scorePercentage = scaledBand / 10;
           earnedScore = Math.round(question.score * scorePercentage);
           
           // Mark as "correct" if score is 70% or higher
-          isCorrect = aiResult.aiScore >= 7;
+          isCorrect = scaledBand >= 7;
           totalScore += earnedScore;
 
           aiEvaluation = {
@@ -237,6 +212,7 @@ export async function POST(
             overallScore: aiResult.aiScore,
             band: aiResult.band,
             taskRequirements: aiResult.taskRequirements,
+            writingStructure: aiResult.writingStructure ?? null,
             summary: aiResult.feedback.summary,
             strengths: aiResult.feedback.strengths,
             weaknesses: aiResult.feedback.weaknesses,
@@ -290,16 +266,29 @@ export async function POST(
       });
     }
 
+    const attemptCount = await prisma.testAttempt.count({
+      where: { testId, userId: user.id },
+    });
+    const attemptNo = attemptCount + 1;
+
     const testAttempt = await prisma.testAttempt.create({
       data: {
         testId,
         userId: user.id,
+        attemptNo,
         score: finalScore,
+        maxScore: test.maxScore,
+        answers,
+        results: {
+          totalQuestions: test.questions.length,
+          correctAnswers: questionResults.filter((q) => q.isCorrect === true).length,
+          questionResults,
+        },
         startedAt: new Date(Date.now() - (test.timeLimit ? test.timeLimit * 1000 : 0)),
         submittedAt: new Date(),
         isPassed,
-      },
-    });
+      } as never,
+    }) as unknown as { id: string; attemptNo: number };
 
     let courseCompleted = false;
     let certificateSent = false;
@@ -323,6 +312,7 @@ export async function POST(
 
     return NextResponse.json({
       attemptId: testAttempt.id,
+      attemptNo: testAttempt.attemptNo,
       score: finalScore,
       maxScore: test.maxScore,
       passingScore: test.passingScore,

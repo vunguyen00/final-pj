@@ -7,12 +7,27 @@ import AdminMenu from "./header/AdminMenu";
 import AuthButtons from "./header/AuthButtons";
 import { useUser } from "./header/useUser";
 
+type MatchedNavItem = {
+  href: string;
+  label: string;
+  match: (path: string) => boolean;
+};
+
+type BasicNavItem = {
+  href: string;
+  label: string;
+};
+
+function hasMatch(item: MatchedNavItem | BasicNavItem): item is MatchedNavItem {
+  return typeof (item as MatchedNavItem).match === "function";
+}
+
 const navItems = [
   { href: "/", label: "Marketplace", match: (path: string) => path === "/" },
   { href: "/courses", label: "Courses", match: (path: string) => path.startsWith("/courses") },
   { href: "/combos", label: "Combos", match: (path: string) => path.startsWith("/combos") },
   { href: "/teachers", label: "Teachers", match: (path: string) => path.startsWith("/teachers") },
-];
+] satisfies MatchedNavItem[];
 
 export default function Header() {
   const pathname = usePathname() || "";
@@ -42,7 +57,7 @@ export default function Header() {
           { href: "/student/lam-bai", label: "Practice" },
           { href: "/student/tests", label: "Tests" },
           { href: "/student/wallet", label: "Wallet" },
-        ]
+        ] satisfies BasicNavItem[]
       : [];
 
   return (
@@ -58,7 +73,7 @@ export default function Header() {
 
         <nav className="hidden items-center gap-1 md:flex">
           {[...navItems, ...studentLinks].map((item) => {
-            const active = "match" in item ? item.match(pathname) : pathname === item.href;
+            const active = hasMatch(item) ? item.match(pathname) : pathname === item.href;
             return (
               <Link
                 key={item.href}

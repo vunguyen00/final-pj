@@ -171,7 +171,11 @@ model TestAttempt {
   id          String   @id @default(uuid())
   testId      String
   userId      String
+  attemptNo   Int
   score       Float
+  maxScore    Float
+  answers     Json?
+  results     Json?
   startedAt   DateTime
   submittedAt DateTime
   isPassed    Boolean
@@ -179,6 +183,8 @@ model TestAttempt {
   test         Test          @relation(fields: [testId], references: [id])
   user         User          @relation(fields: [userId], references: [id])
   cheatingLogs CheatingLog[]
+
+  @@unique([testId, userId, attemptNo])
 }
 
 model CheatingLog {

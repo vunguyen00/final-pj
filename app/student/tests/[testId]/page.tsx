@@ -21,24 +21,30 @@ type TestInfo = {
   courseName: string;
   maxScore: number;
   passingScore: number;
-  maxAttempts: number;
   timeLimit: number | null;
   shuffleQuestions: boolean;
-  remainingAttempts: number;
+};
+type AttemptHistoryItem = {
+  id: string;
+  attemptNo: number;
+  score: number;
+  maxScore: number;
+  isPassed: boolean;
+  submittedAt: string;
 };
 
 const QUESTION_TYPES = [
-  { value: "MULTIPLE_CHOICE", label: "Trắc nghiệm" },
-  { value: "FILL_IN_BLANK", label: "Điền từ" },
-  { value: "ESSAY", label: "Viết bài văn" },
-  { value: "TRUE_FALSE", label: "Đúng/Sai" },
+  { value: "MULTIPLE_CHOICE", label: "Trac nghiem" },
+  { value: "FILL_IN_BLANK", label: "Dien tu" },
+  { value: "ESSAY", label: "Viet bai van" },
+  { value: "TRUE_FALSE", label: "Dung/Sai" },
 ];
 
 export default function StudentTakeTestPage() {
   const router = useRouter();
   const params = useParams();
   const testId = params.testId as string;
-  
+
   const [test, setTest] = useState<TestInfo | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,10 +52,11 @@ export default function StudentTakeTestPage() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [attemptHistory, setAttemptHistory] = useState<AttemptHistoryItem[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    fetchTest();
+    void fetchTest();
   }, [testId]);
 
   useEffect(() => {
@@ -58,7 +65,7 @@ export default function StudentTakeTestPage() {
         setTimeLeft(timeLeft - 1);
       }, 1000);
     } else if (timeLeft === 0) {
-      handleSubmit();
+      void handleSubmit();
     }
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -67,9 +74,9 @@ export default function StudentTakeTestPage() {
 
   const fetchTest = async () => {
     try {
-      const res = await fetch(`/api/student/tests/${testId}`);
+      const res = await fetch(`/api/student/tests/${testId}`, { cache: "no-store" });
       const data = await res.json();
-      
+
       if (!res.ok) {
         setError(data.error || "Failed to load test");
         return;
@@ -77,12 +84,13 @@ export default function StudentTakeTestPage() {
 
       setTest(data.test);
       setQuestions(data.questions);
-      
+      setAttemptHistory(data.attempts || []);
+
       if (data.test.timeLimit) {
         setTimeLeft(data.test.timeLimit * 60);
       }
-    } catch (error) {
-      console.error("Error fetching test:", error);
+    } catch (fetchError) {
+      console.error("Error fetching test:", fetchError);
       setError("Failed to load test");
     } finally {
       setLoading(false);
@@ -90,21 +98,21 @@ export default function StudentTakeTestPage() {
   };
 
   const handleAnswerChange = (questionId: string, answer: string) => {
-    setAnswers(prev => ({ ...prev, [questionId]: answer }));
+    setAnswers((prev) => ({ ...prev, [questionId]: answer }));
   };
 
   const handleSubmit = async () => {
     if (submitting) return;
-    
-    const unanswered = questions.filter(q => !answers[q.id]);
+
+    const unanswered = questions.filter((q) => !answers[q.id]);
     if (unanswered.length > 0) {
-      if (!confirm(`Còn ${unanswered.length} câu chưa trả lời. Bạn có chắc muốn nộp bài?`)) {
+      if (!confirm(`Con ${unanswered.length} cau chua tra loi. Ban co chac muon nop bai?`)) {
         return;
       }
     }
 
     setSubmitting(true);
-    
+
     try {
       const res = await fetch(`/api/student/tests/${testId}/submit`, {
         method: "POST",
@@ -113,17 +121,16 @@ export default function StudentTakeTestPage() {
       });
 
       const data = await res.json();
-      
+
       if (res.ok) {
-        // Store result for result page
         sessionStorage.setItem(`test-result-${data.attemptId}`, JSON.stringify(data));
         router.push(`/student/tests/${testId}/result/${data.attemptId}`);
       } else {
         alert(data.error || "Failed to submit test");
         setSubmitting(false);
       }
-    } catch (error) {
-      console.error("Error submitting test:", error);
+    } catch (submitError) {
+      console.error("Error submitting test:", submitError);
       alert("Failed to submit test");
       setSubmitting(false);
     }
@@ -136,7 +143,7 @@ export default function StudentTakeTestPage() {
   };
 
   const getQuestionTypeLabel = (type: string) => {
-    return QUESTION_TYPES.find(t => t.value === type)?.label || type;
+    return QUESTION_TYPES.find((t) => t.value === type)?.label || type;
   };
 
   if (loading) {
@@ -153,7 +160,7 @@ export default function StudentTakeTestPage() {
         <div className="text-center">
           <p className="text-red-600">{error}</p>
           <Link href="/student/tests" className="mt-4 text-emerald-600 hover:underline">
-            ← Quay lại danh sách test
+            Quay lai danh sach test
           </Link>
         </div>
       </div>
@@ -163,35 +170,33 @@ export default function StudentTakeTestPage() {
   return (
     <div className="min-h-screen bg-emerald-50 py-8">
       <div className="mx-auto max-w-4xl px-4">
-        {/* Header */}
         <div className="mb-6 flex items-center justify-between rounded-xl border border-emerald-200 bg-white p-4">
           <div>
             <h1 className="text-xl font-bold text-emerald-900">{test?.name}</h1>
-            <p className="mt-1 text-sm text-emerald-600">Khóa học: {test?.courseName}</p>
+            <p className="mt-1 text-sm text-emerald-600">Khoa hoc: {test?.courseName}</p>
           </div>
           <div className="flex items-center gap-4">
             {timeLeft !== null && (
-              <div className={`rounded-lg px-4 py-2 text-lg font-bold ${timeLeft < 300 ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}`}>
-                ⏱️ {formatTime(timeLeft)}
+              <div
+                className={`rounded-lg px-4 py-2 text-lg font-bold ${
+                  timeLeft < 300 ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"
+                }`}
+              >
+                {formatTime(timeLeft)}
               </div>
             )}
             <Link
               href="/student/tests"
               className="rounded-lg border border-emerald-300 px-4 py-2 text-sm text-emerald-700 hover:bg-emerald-50"
             >
-              Thoát
+              Thoat
             </Link>
           </div>
         </div>
 
-        {/* Questions */}
         <div className="space-y-6">
           {questions.map((question, index) => (
-            <div
-              key={question.id}
-              className="rounded-xl border border-emerald-200 bg-white p-6"
-            >
-              {/* Question Header */}
+            <div key={question.id} className="rounded-xl border border-emerald-200 bg-white p-6">
               <div className="flex items-center gap-3">
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-xs font-medium text-emerald-700">
                   {index + 1}
@@ -199,10 +204,9 @@ export default function StudentTakeTestPage() {
                 <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
                   {getQuestionTypeLabel(question.type)}
                 </span>
-                <span className="text-sm text-emerald-600">{question.score} điểm</span>
+                <span className="text-sm text-emerald-600">{question.score} diem</span>
               </div>
 
-              {/* Audio for Listening */}
               {question.audioUrl && (
                 <div className="mt-3">
                   <audio controls className="w-full max-w-md">
@@ -212,10 +216,8 @@ export default function StudentTakeTestPage() {
                 </div>
               )}
 
-              {/* Question Content */}
               <p className="mt-3 text-lg text-emerald-900">{question.content}</p>
 
-              {/* Answers */}
               <div className="mt-4">
                 {(question.type === "MULTIPLE_CHOICE" || question.type === "TRUE_FALSE") && question.answers && (
                   <div className="space-y-2">
@@ -247,7 +249,7 @@ export default function StudentTakeTestPage() {
                     type="text"
                     value={answers[question.id] || ""}
                     onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-                    placeholder="Nhập đáp án..."
+                    placeholder="Nhap dap an..."
                     className="w-full rounded-lg border border-slate-300 px-4 py-3 text-emerald-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
                   />
                 )}
@@ -256,7 +258,7 @@ export default function StudentTakeTestPage() {
                   <textarea
                     value={answers[question.id] || ""}
                     onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-                    placeholder="Viết câu trả lời..."
+                    placeholder="Viet cau tra loi..."
                     rows={6}
                     className="w-full rounded-lg border border-slate-300 px-4 py-3 text-emerald-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
                   />
@@ -266,14 +268,45 @@ export default function StudentTakeTestPage() {
           ))}
         </div>
 
-        {/* Submit Button */}
+        <section className="mt-6 rounded-xl border border-emerald-200 bg-white p-4">
+          <h2 className="text-lg font-bold text-emerald-900">Lich su lam bai</h2>
+          {attemptHistory.length === 0 ? (
+            <p className="mt-2 text-sm text-emerald-700">Ban chua co lan lam nao.</p>
+          ) : (
+            <div className="mt-3 space-y-2">
+              {attemptHistory.map((attempt) => (
+                <Link
+                  key={attempt.id}
+                  href={`/student/tests/${testId}/result/${attempt.id}`}
+                  className="flex items-center justify-between rounded-lg border border-emerald-100 px-3 py-2 hover:bg-emerald-50"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-emerald-900">Lan #{attempt.attemptNo}</p>
+                    <p className="text-xs text-emerald-700">
+                      {new Date(attempt.submittedAt).toLocaleString("vi-VN")}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-emerald-900">
+                      {attempt.score.toFixed(1)} / {attempt.maxScore}
+                    </p>
+                    <p className={`text-xs font-semibold ${attempt.isPassed ? "text-emerald-700" : "text-amber-700"}`}>
+                      {attempt.isPassed ? "Dat" : "Chua dat"}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+
         <div className="mt-6 flex justify-center">
           <button
-            onClick={handleSubmit}
+            onClick={() => void handleSubmit()}
             disabled={submitting}
             className="rounded-lg bg-emerald-600 px-8 py-3 text-lg font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
           >
-            {submitting ? "Đang nộp bài..." : "Nộp bài"}
+            {submitting ? "Dang nop bai..." : "Nop bai"}
           </button>
         </div>
       </div>

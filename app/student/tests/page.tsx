@@ -13,10 +13,8 @@ type Test = {
   courseName: string;
   maxScore: number;
   passingScore: number;
-  maxAttempts: number;
   timeLimit: number | null;
   questionCount: number;
-  userAttempts: number;
   hasAttempt: boolean;
   progress: number;
   isUnlocked: boolean;
@@ -40,7 +38,7 @@ export default function StudentTestsPage() {
       setLoading(true);
       try {
         const query = courseId ? `?courseId=${encodeURIComponent(courseId)}` : "";
-        const res = await fetch(`/api/student/tests${query}`);
+        const res = await fetch(`/api/student/tests${query}`, { cache: "no-store" });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           setError(data?.error || "Unable to load tests.");
@@ -157,11 +155,11 @@ export default function StudentTestsPage() {
                   </div>
                   {test.canAttempt ? (
                     <Link href={`/student/tests/${test.id}`} className="rounded-lg bg-blue-600 px-4 py-2 text-center text-sm font-semibold text-white hover:bg-blue-700">
-                      {test.userAttempts > 0 ? "Retake" : "Start"}
+                      {test.hasAttempt ? "Retake" : "Start"}
                     </Link>
                   ) : (
                     <span className="rounded-lg bg-slate-100 px-4 py-2 text-center text-sm font-semibold text-slate-500 dark:bg-slate-800">
-                      {!test.isUnlocked ? "Complete course" : "No attempts left"}
+                      {!test.isUnlocked ? "Complete course" : "Unavailable"}
                     </span>
                   )}
                 </div>
@@ -169,7 +167,7 @@ export default function StudentTestsPage() {
                   <Metric label="Progress" value={`${test.progress}%`} />
                   <Metric label="Questions" value={`${test.questionCount}`} />
                   <Metric label="Time" value={test.timeLimit ? `${test.timeLimit}m` : "Self-paced"} />
-                  <Metric label="Attempts" value={`${test.userAttempts}/${test.maxAttempts}`} />
+                  <Metric label="Pass score" value={`${test.passingScore}`} />
                 </div>
                 {test.lastAttempt ? (
                   <div className="mt-4 rounded-lg border border-slate-200 p-3 dark:border-slate-800">

@@ -139,6 +139,20 @@ export function sanitizeResponse(response: AIEvaluationResponse): AIEvaluationRe
         .map((p) => String(p).trim())
         .filter(Boolean),
     },
+    writing_structure: response.writing_structure
+      ? {
+          exam: String(response.writing_structure.exam || "GENERAL").trim(),
+          task_type: String(response.writing_structure.task_type || "").trim(),
+          sections: (response.writing_structure.sections || [])
+            .map((section) => ({
+              name: String(section.name || "").trim(),
+              score: Number(section.score || 0),
+              max_score: Number(section.max_score || 10),
+              feedback: String(section.feedback || "").trim(),
+            }))
+            .filter((section) => section.name),
+        }
+      : undefined,
     // Ensure no null/undefined values
     summary: response.summary || "",
     strengths: (response.strengths || []).map((s) => String(s).trim()).filter(Boolean),
@@ -173,6 +187,7 @@ export function formatResponseForClient(response: AIEvaluationResponse) {
       language: response.language,
       band: response.band,
       task_requirements: response.task_requirements,
+      writing_structure: response.writing_structure,
     },
     analysis: {
       strengths: response.strengths,
