@@ -1,4 +1,4 @@
-﻿import { FormEvent } from "react";
+import { FormEvent } from "react";
 import { TestForm } from "../types";
 
 type TestModalProps = {
@@ -33,7 +33,7 @@ export function TestModal({ isOpen, form, onChangeForm, onClose, onSubmit }: Tes
           </div>
           <div className="flex justify-end gap-3 pt-4">
             <button type="button" onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Huy</button>
-            <button type="submit" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">Tao bai test</button>
+            <button type="submit" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Tao bai test</button>
           </div>
         </form>
       </div>

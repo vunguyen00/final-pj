@@ -166,7 +166,7 @@ export default function TeacherModulePage() {
             </div>
             <button
               onClick={openCreateModal}
-              className="flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
                 <line x1="12" x2="12" y1="5" y2="19" />
@@ -343,7 +343,7 @@ export default function TeacherModulePage() {
                 </button>
                 <button
                   type="submit"
-                  className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
                 >
                   {editingLesson ? "Lưu thay đổi" : "Thêm bài học"}
                 </button>

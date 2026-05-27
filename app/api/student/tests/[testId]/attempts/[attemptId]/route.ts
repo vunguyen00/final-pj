@@ -20,7 +20,7 @@ export async function GET(
         test: {
           include: {
             course: {
-              select: { instructorId: true },
+              select: { id: true, name: true, instructorId: true },
             },
           },
         },
@@ -32,7 +32,7 @@ export async function GET(
       score: number;
       isPassed: boolean;
       submittedAt: Date;
-      test: { passingScore: number; course: { instructorId: string | null } };
+      test: { passingScore: number; course: { id: string; name: string; instructorId: string | null } };
     }) | null;
 
     if (!attempt || attempt.testId !== testId) {
@@ -56,8 +56,11 @@ export async function GET(
       maxScore: Number(attempt.maxScore ?? attempt.score),
       passingScore: attempt.test.passingScore,
       isPassed: attempt.isPassed,
+      courseId: attempt.test.course.id,
+      courseName: attempt.test.course.name,
       totalQuestions: Number(stored.totalQuestions ?? 0),
       correctAnswers: Number(stored.correctAnswers ?? 0),
+      submittedAnswers: Array.isArray(stored.submittedAnswers) ? stored.submittedAnswers : [],
       questionResults: Array.isArray(stored.questionResults) ? stored.questionResults : [],
       submittedAt: attempt.submittedAt,
     });

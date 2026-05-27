@@ -56,19 +56,21 @@ export default function Header() {
           { href: "/student", label: "Dashboard" },
           { href: "/student/lam-bai", label: "Practice" },
           { href: "/student/tests", label: "Tests" },
+          { href: "/student/results", label: "Results" },
+          { href: "/student/rewards", label: "Points" },
           { href: "/student/wallet", label: "Wallet" },
         ] satisfies BasicNavItem[]
       : [];
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
+    <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/90 backdrop-blur">
       {globalError ? <div className="bg-red-50 py-2 text-center text-sm font-semibold text-red-700">{globalError}</div> : null}
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
         <Link href="/" className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-950 text-sm font-bold text-white dark:bg-white dark:text-slate-950">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white">
             LH
           </span>
-          <span className="text-lg font-bold tracking-tight text-slate-950 dark:text-white">LearnHub</span>
+          <span className="text-lg font-bold tracking-tight text-slate-950">LearnHub</span>
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">
@@ -80,8 +82,8 @@ export default function Header() {
                 href={item.href}
                 className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
                   active
-                    ? "bg-slate-100 text-slate-950 dark:bg-slate-800 dark:text-white"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800"
+                    ? "bg-slate-100 text-slate-950"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
                 }`}
               >
                 {item.label}
@@ -96,7 +98,7 @@ export default function Header() {
           <button
             type="button"
             onClick={() => setOpen((value) => !value)}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-700 md:hidden dark:border-slate-700 dark:text-slate-200"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-700 md:hidden"
             aria-label="Open navigation"
           >
             <span className="text-lg">{open ? "x" : "="}</span>
@@ -105,9 +107,9 @@ export default function Header() {
       </div>
 
       {open ? (
-        <nav className="border-t border-slate-200 bg-white px-4 py-3 md:hidden dark:border-slate-800 dark:bg-slate-950">
+        <nav className="border-t border-slate-200 bg-white px-4 py-3 md:hidden">
           {[...navItems, ...studentLinks].map((item) => (
-            <Link key={item.href} href={item.href} className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">
+            <Link key={item.href} href={item.href} className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">
               {item.label}
             </Link>
           ))}

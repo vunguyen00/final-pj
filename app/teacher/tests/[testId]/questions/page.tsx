@@ -181,7 +181,7 @@ export default function TeacherTestQuestionsPage() {
               <h1 className="text-2xl font-bold text-slate-900">{test?.name}</h1>
               <p className="mt-1 text-sm text-slate-600">Khóa học: {test?.course.name}</p>
             </div>
-            <button onClick={openCreateModal} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white">
+            <button onClick={openCreateModal} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white">
               Thêm câu hỏi
             </button>
           </div>

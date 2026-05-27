@@ -21,6 +21,9 @@ model User {
   feedbacks         Feedback[]
   orders            Order[]
   courses           Course[]
+  aiAssessments     AiAssessment[]
+  pointTransactions PointTransaction[]
+  learningActivities LearningActivity[]
 }
 
 model Session {
@@ -75,6 +78,9 @@ model Course {
   tests       Test[]
   feedbacks   Feedback[]
   orderItems  OrderItem[]
+  aiAssessments AiAssessment[]
+  pointTransactions PointTransaction[]
+  learningActivities LearningActivity[]
 }
 
 enum CourseStatus {
@@ -185,6 +191,72 @@ model TestAttempt {
   cheatingLogs CheatingLog[]
 
   @@unique([testId, userId, attemptNo])
+}
+
+model AiAssessment {
+  id              String   @id @default(uuid())
+  userId          String
+  courseId        String?
+  type            String
+  title           String?
+  prompt          String?
+  submissionText  String?
+  audioUrl        String?
+  durationSeconds Int?
+  score           Float
+  maxScore        Float    @default(10)
+  bandSystem      String
+  bandLevel       String
+  bandScore       Float
+  criteria        Json
+  feedback        Json
+  mistakes        Json?
+  improvements    Json?
+  sampleAnswer    String?
+  startedAt       DateTime?
+  submittedAt     DateTime @default(now())
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course? @relation(fields: [courseId], references: [id])
+
+  @@index([userId, submittedAt])
+  @@index([courseId, submittedAt])
+  @@index([type, submittedAt])
+}
+
+model PointTransaction {
+  id           String   @id @default(uuid())
+  userId       String
+  courseId     String?
+  type         String
+  amount       Int
+  balanceAfter Int
+  sourceKey    String   @unique
+  description  String
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course? @relation(fields: [courseId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
+}
+
+model LearningActivity {
+  id           String   @id @default(uuid())
+  userId       String
+  courseId     String?
+  activityType String
+  sourceKey    String   @unique
+  activityDate DateTime
+  createdAt    DateTime @default(now())
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course? @relation(fields: [courseId], references: [id])
+
+  @@index([userId, activityDate])
+  @@index([activityType, createdAt])
 }
 
 model CheatingLog {

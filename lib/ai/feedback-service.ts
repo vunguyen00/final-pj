@@ -9,6 +9,15 @@ import { AIEvaluationResponse } from "./types";
  * Safely parses JSON response from AI
  */
 export function parseAIResponse(rawResponse: string): AIEvaluationResponse | null {
+  const tryParse = (input: string): AIEvaluationResponse | null => {
+    const parsed = normalizeAIResponse(JSON.parse(input));
+    if (!validateResponseStructure(parsed)) {
+      console.error("Invalid response structure:", parsed);
+      return null;
+    }
+    return parsed as AIEvaluationResponse;
+  };
+
   try {
     // Clean the response (remove markdown code blocks if present)
     let cleanedResponse = rawResponse.trim();
@@ -26,21 +35,117 @@ export function parseAIResponse(rawResponse: string): AIEvaluationResponse | nul
 
     cleanedResponse = cleanedResponse.trim();
 
-    // Parse JSON
-    const parsed = JSON.parse(cleanedResponse);
+    // Parse strict JSON first
+    const strict = tryParse(cleanedResponse);
+    if (strict) return strict;
 
-    // Validate response structure
-    if (!validateResponseStructure(parsed)) {
-      console.error("Invalid response structure:", parsed);
-      return null;
+    // Fallback: extract first JSON object from mixed text response
+    const start = cleanedResponse.indexOf("{");
+    const end = cleanedResponse.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      const jsonSlice = cleanedResponse.slice(start, end + 1);
+      const extracted = tryParse(jsonSlice);
+      if (extracted) return extracted;
     }
 
-    return parsed as AIEvaluationResponse;
+    return null;
   } catch (error) {
     console.error("Failed to parse AI response:", error);
     console.error("Raw response:", rawResponse);
     return null;
   }
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+  if (typeof value === "string" && value.trim()) {
+    return [value.trim()];
+  }
+  return [];
+}
+
+function normalizeScore(value: unknown): number {
+  const score = Number(value);
+  return Number.isFinite(score) ? Math.max(0, Math.min(10, score)) : 0;
+}
+
+function normalizeAIResponse(value: unknown): Record<string, unknown> {
+  if (typeof value !== "object" || value === null) return {};
+
+  const source = value as Record<string, unknown>;
+  const evaluation = source.evaluation as Record<string, unknown> | undefined;
+  const scores = evaluation?.scores as Record<string, unknown> | undefined;
+  const analysis = source.analysis as Record<string, unknown> | undefined;
+  const improvements = source.improvements as Record<string, unknown> | undefined;
+
+  const normalized: Record<string, unknown> = {
+    ...source,
+    language: source.language ?? evaluation?.language ?? "English",
+    grammar: normalizeScore(source.grammar ?? scores?.grammar),
+    vocabulary: normalizeScore(source.vocabulary ?? scores?.vocabulary),
+    coherence: normalizeScore(source.coherence ?? scores?.coherence),
+    task_response: normalizeScore(source.task_response ?? scores?.task_response),
+    overall: normalizeScore(source.overall ?? scores?.overall),
+    summary: String(source.summary ?? evaluation?.summary ?? "").trim(),
+    strengths: normalizeStringArray(source.strengths ?? analysis?.strengths),
+    weaknesses: normalizeStringArray(source.weaknesses ?? analysis?.weaknesses),
+    feedback: normalizeStringArray(source.feedback ?? analysis?.feedback),
+    suggestions: normalizeStringArray(source.suggestions ?? analysis?.suggestions),
+    improved_version: String(source.improved_version ?? improvements?.improved_version ?? "").trim(),
+  };
+
+  if (!normalized.overall) {
+    normalized.overall =
+      (Number(normalized.grammar) +
+        Number(normalized.vocabulary) +
+        Number(normalized.coherence) +
+        Number(normalized.task_response)) /
+      4;
+  }
+
+  const correctionsSource = source.corrections ?? improvements?.corrections;
+  normalized.corrections = Array.isArray(correctionsSource)
+    ? correctionsSource
+        .map((item) => {
+          const correction = item as Record<string, unknown>;
+          const improved = correction.improved ?? correction.suggestion ?? correction.corrected;
+          return {
+            original: String(correction.original ?? "").trim(),
+            improved: String(improved ?? "").trim(),
+            reason: String(correction.reason ?? "Suggested wording improvement.").trim(),
+          };
+        })
+        .filter((item) => item.original && item.improved)
+    : [];
+
+  if (!normalized.summary) {
+    normalized.summary = "AI evaluation completed.";
+  }
+  if ((normalized.strengths as string[]).length === 0) {
+    normalized.strengths = ["The response addresses the writing task."];
+  }
+  if ((normalized.weaknesses as string[]).length === 0) {
+    normalized.weaknesses = ["The response needs more detail and clearer development."];
+  }
+  if ((normalized.feedback as string[]).length === 0) {
+    normalized.feedback = [String(normalized.summary)];
+  }
+  if ((normalized.suggestions as string[]).length === 0) {
+    normalized.suggestions = ["Add more specific examples and connect ideas with clearer transitions."];
+  }
+  if ((normalized.corrections as unknown[]).length === 0) {
+    normalized.corrections = [
+      {
+        original: "No specific correction provided.",
+        improved: "Review the essay for grammar, vocabulary, and coherence improvements.",
+        reason: "The model did not return phrase-level corrections.",
+      },
+    ];
+  }
+
+  return normalized;
 }
 
 /**
@@ -53,7 +158,7 @@ function validateResponseStructure(response: unknown): response is AIEvaluationR
 
   const obj = response as Record<string, unknown>;
 
-  // Check required fields and types
+  // Check key fields and types
   const requiredFields: Array<[string, string]> = [
     ["language", "string"],
     ["grammar", "number"],
@@ -62,12 +167,6 @@ function validateResponseStructure(response: unknown): response is AIEvaluationR
     ["task_response", "number"],
     ["overall", "number"],
     ["summary", "string"],
-    ["strengths", "object"], // array
-    ["weaknesses", "object"], // array
-    ["feedback", "object"], // array
-    ["suggestions", "object"], // array
-    ["improved_version", "string"],
-    ["corrections", "object"], // array
   ];
 
   for (const [field, expectedType] of requiredFields) {
@@ -98,19 +197,18 @@ function validateResponseStructure(response: unknown): response is AIEvaluationR
     }
   }
 
-  // Validate arrays are not empty
+  // Validate optional array fields if present
   const arrayFields = ["strengths", "weaknesses", "feedback", "suggestions", "corrections"];
   for (const field of arrayFields) {
-    const arr = obj[field] as unknown[];
-    if (!Array.isArray(arr) || arr.length === 0) {
-      console.error(`Field ${field} must be non-empty array`);
+    const value = obj[field];
+    if (value == null) continue;
+    if (!Array.isArray(value)) {
+      console.error(`Field ${field} must be an array`);
       return false;
     }
   }
 
-  // Validate language
-  const validLanguages = ["English", "Japanese", "Korean", "Chinese", "Vietnamese"];
-  if (!validLanguages.includes(obj.language as string)) {
+  if (typeof obj.language !== "string" || !obj.language.trim()) {
     console.error(`Invalid language: ${obj.language}`);
     return false;
   }
@@ -122,8 +220,18 @@ function validateResponseStructure(response: unknown): response is AIEvaluationR
  * Sanitizes response to remove any potential sensitive data
  */
 export function sanitizeResponse(response: AIEvaluationResponse): AIEvaluationResponse {
+  const normalizeLanguage = (language: unknown): AIEvaluationResponse["language"] => {
+    const raw = String(language || "").trim().toLowerCase();
+    if (raw.includes("japan")) return "Japanese";
+    if (raw.includes("korea")) return "Korean";
+    if (raw.includes("china") || raw.includes("chinese")) return "Chinese";
+    if (raw.includes("viet")) return "Vietnamese";
+    return "English";
+  };
+
   return {
     ...response,
+    language: normalizeLanguage(response.language),
     band: {
       system: response.band?.system || "GENERAL",
       level: response.band?.level || "Intermediate",

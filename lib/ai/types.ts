@@ -71,8 +71,35 @@ export interface OllamaChatRequest {
   temperature: number;
   top_p: number;
   stream: boolean;
-  format: "json" | "text";
+  format?: "json" | "text";
+  options?: {
+    num_predict?: number;
+    temperature?: number;
+    top_p?: number;
+  };
 }
+
+export interface SpeakingEvaluationResponse {
+  language: SupportedLanguage;
+  fluency_coherence: number;
+  pronunciation: number;
+  lexical_resource: number;
+  grammar: number;
+  overall: number;
+  band: BandAssessment;
+  summary: string;
+  strengths: string[];
+  weaknesses: string[];
+  pronunciation_errors: string[];
+  grammar_errors: string[];
+  vocabulary_errors: string[];
+  fluency_issues: string[];
+  feedback: string[];
+  suggestions: string[];
+  practice_methods: string[];
+}
+
+export type AssessmentType = "SPEAKING" | "WRITING";
 
 export interface OllamaChatResponse {
   message: {

@@ -4,10 +4,10 @@ export default function AboutPage() {
   return (
     <main className="min-h-screen bg-slate-50">
       {/* Hero */}
-      <section className="bg-slate-900 py-16 text-white">
+      <section className="bg-blue-50 py-16">
         <div className="mx-auto max-w-7xl px-4 text-center">
           <h1 className="text-4xl font-bold">Về LearnHub</h1>
-          <p className="mt-4 text-lg text-slate-300">
+          <p className="mt-4 text-lg text-slate-600">
             Nền tảng học tiếng Anh trực tuyến hàng đầu Việt Nam
           </p>
         </div>
@@ -124,10 +124,10 @@ export default function AboutPage() {
       </section>
 
       {/* CTA */}
-      <section className="bg-slate-900 py-16 text-white">
+      <section className="bg-blue-50 py-16">
         <div className="mx-auto max-w-7xl px-4 text-center">
           <h2 className="text-2xl font-bold">Sẵn sàng bắt đầu?</h2>
-          <p className="mt-4 text-slate-300">
+          <p className="mt-4 text-slate-600">
             Tham gia cùng hàng nghìn học viên trên hành trình chinh phục tiếng Anh
           </p>
           <div className="mt-8 flex justify-center gap-4">
@@ -139,7 +139,7 @@ export default function AboutPage() {
             </Link>
             <Link
               href="/courses"
-              className="rounded-lg border border-slate-600 px-6 py-3 font-semibold text-white hover:bg-white/10"
+              className="rounded-lg border border-slate-300 px-6 py-3 font-semibold text-slate-900 hover:bg-white"
             >
               Khám phá khóa học
             </Link>

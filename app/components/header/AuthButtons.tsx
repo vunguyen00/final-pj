@@ -30,7 +30,7 @@ export default function AuthButtons() {
       </Link>
       <Link
         href="/auth/register"
-        className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800"
+        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
       >
         Đăng ký
       </Link>

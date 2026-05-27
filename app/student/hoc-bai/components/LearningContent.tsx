@@ -170,15 +170,15 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
 
   return (
     <div className="grid h-full min-h-0 gap-4 lg:grid-cols-10">
-      <aside className="lg:col-span-3 flex h-full min-h-0 flex-col rounded-xl border border-slate-200 bg-slate-900 text-slate-100">
-        <div className="border-b border-slate-700 px-4 py-3">
-          <p className="text-xs uppercase tracking-wide text-slate-300">Muc luc bai hoc</p>
-          <p className="mt-1 text-sm text-slate-200">Tien do: {progress}%</p>
+      <aside className="lg:col-span-3 flex h-full min-h-0 flex-col rounded-xl border border-slate-200 bg-white text-slate-900">
+        <div className="border-b border-slate-200 px-4 py-3">
+          <p className="text-xs uppercase tracking-wide text-slate-500">Muc luc bai hoc</p>
+          <p className="mt-1 text-sm text-slate-600">Tien do: {progress}%</p>
         </div>
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
           {modules.map((module, moduleIndex) => (
-            <div key={module.id} className="rounded-lg border border-slate-700 bg-slate-800/60">
-              <p className="px-3 py-2 text-sm font-semibold text-white">Module {moduleIndex + 1}: {module.name}</p>
+            <div key={module.id} className="rounded-lg border border-slate-200 bg-slate-50">
+              <p className="px-3 py-2 text-sm font-semibold text-slate-950">Module {moduleIndex + 1}: {module.name}</p>
               <div className="space-y-1 px-2 pb-2">
                 {module.lessons.map((lesson, lessonIndex) => {
                   const active = lesson.id === selectedLesson.id;
@@ -192,12 +192,12 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
                       className={`w-full rounded-md px-3 py-2 text-left text-sm transition ${
                         active
                           ? "bg-blue-600 text-white"
-                          : "bg-slate-700/60 text-slate-100 hover:bg-slate-700"
+                          : "bg-white text-slate-700 hover:bg-blue-50"
                       }`}
                     >
                       <div>
                         <span className="line-clamp-1">{moduleIndex + 1}.{lessonIndex + 1} {lesson.title}</span>
-                        <p className={`mt-1 text-xs ${done ? "text-emerald-300" : "text-slate-300"}`}>
+                        <p className={`mt-1 text-xs ${active ? "text-blue-100" : done ? "text-emerald-600" : "text-slate-500"}`}>
                           {done ? "Da hoan thanh" : "Chua hoan thanh"}
                         </p>
                       </div>

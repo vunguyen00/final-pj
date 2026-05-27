@@ -2,6 +2,7 @@
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getLessonStart, markLessonCompleted } from "@/lib/learning-progress";
+import { recordLearningActivity } from "@/lib/ai-points";
 
 const MIN_READING_SECONDS = 10 * 60;
 
@@ -71,6 +72,12 @@ export async function POST(
     }
 
     await markLessonCompleted(user.id, courseId, lessonId);
+    await recordLearningActivity({
+      userId: user.id,
+      courseId,
+      activityType: "LESSON",
+      sourceId: lessonId,
+    });
 
     return NextResponse.json({ ok: true });
   } catch {

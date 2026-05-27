@@ -195,7 +195,7 @@ export default function TeacherCoursesPage() {
           </div>
           <button
             onClick={openCreateModal}
-            className="flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800"
+            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -530,7 +530,7 @@ export default function TeacherCoursesPage() {
                 </button>
                 <button
                   type="submit"
-                  className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
                 >
                   {editingCourse ? "Lưu thay đổi" : "Tạo khóa học"}
                 </button>

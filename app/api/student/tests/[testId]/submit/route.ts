@@ -8,7 +8,7 @@ import {
   markCourseCompleted,
 } from "@/lib/learning-progress";
 import { sendCourseCertificateEmail } from "@/lib/mailer";
-import { getAiPointsSummary, grantCourseCompletionPoints } from "@/lib/ai-points";
+import { getAiPointsSummary, grantCourseCompletionPoints, recordLearningActivity } from "@/lib/ai-points";
 import { scoringService } from "@/lib/ai";
 
 /**
@@ -162,6 +162,7 @@ export async function POST(
     let totalScore = 0;
     let maxScore = 0;
     const questionResults: Array<Record<string, unknown>> = [];
+    const answerSnapshots: Array<Record<string, unknown>> = [];
 
     for (const question of test.questions) {
       maxScore += question.score;
@@ -237,12 +238,21 @@ export async function POST(
         questionType: question.type,
         content: question.content,
         studentAnswer: studentAnswerDisplay,
+        rawAnswer: studentAnswer ?? null,
         correctAnswer,
         isCorrect,
         score: question.score,
         earnedScore,
         explanation: question.explanation,
         ...(aiEvaluation && { aiEvaluation }),
+      });
+
+      answerSnapshots.push({
+        questionId: question.id,
+        questionType: question.type,
+        questionContent: question.content,
+        rawAnswer: studentAnswer ?? null,
+        studentAnswer: studentAnswerDisplay,
       });
     }
 
@@ -257,6 +267,8 @@ export async function POST(
         maxScore: test.maxScore,
         passingScore: test.passingScore,
         isPassed,
+        courseId: test.course.id,
+        courseName: test.course.name,
         courseCompleted: false,
         certificateSent: false,
         previewMode: true,
@@ -282,6 +294,7 @@ export async function POST(
         results: {
           totalQuestions: test.questions.length,
           correctAnswers: questionResults.filter((q) => q.isCorrect === true).length,
+          submittedAnswers: answerSnapshots,
           questionResults,
         },
         startedAt: new Date(Date.now() - (test.timeLimit ? test.timeLimit * 1000 : 0)),
@@ -289,6 +302,13 @@ export async function POST(
         isPassed,
       } as never,
     }) as unknown as { id: string; attemptNo: number };
+
+    await recordLearningActivity({
+      userId: user.id,
+      courseId: test.courseId,
+      activityType: "PRACTICE_TEST",
+      sourceId: testAttempt.id,
+    });
 
     let courseCompleted = false;
     let certificateSent = false;
@@ -317,6 +337,8 @@ export async function POST(
       maxScore: test.maxScore,
       passingScore: test.passingScore,
       isPassed,
+      courseId: test.course.id,
+      courseName: test.course.name,
       courseCompleted,
       certificateSent,
       aiPointsAwarded,

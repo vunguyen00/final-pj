@@ -57,7 +57,7 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
         className="flex items-center gap-2 rounded-full border border-slate-200 px-2 py-1.5 transition-colors hover:bg-slate-50"
       >
         {/* Avatar */}
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-sm font-medium text-white">
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-medium text-white">
           {user?.avatarUrl ? (
             <img
               src={user.avatarUrl}

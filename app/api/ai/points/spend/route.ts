@@ -11,20 +11,19 @@ export async function POST(request: Request) {
     const points = Number(body?.points);
     const feature = typeof body?.feature === "string" ? body.feature.trim() : "AI_FEATURE";
     const courseId = typeof body?.courseId === "string" ? body.courseId.trim() : "";
+    const sourceId = typeof body?.sourceId === "string" ? body.sourceId.trim() : undefined;
 
-    if (!courseId) {
-      return NextResponse.json({ error: "Thieu courseId." }, { status: 400 });
+    if (courseId) {
+      const enrollment = await prisma.enrollment.findUnique({
+        where: { userId_courseId: { userId: user.id, courseId } },
+      });
+
+      if (!enrollment) {
+        return NextResponse.json({ error: "Ban khong co quyen tren khoa hoc nay." }, { status: 403 });
+      }
     }
 
-    const enrollment = await prisma.enrollment.findUnique({
-      where: { userId_courseId: { userId: user.id, courseId } },
-    });
-
-    if (!enrollment) {
-      return NextResponse.json({ error: "Ban khong co quyen tren khoa hoc nay." }, { status: 403 });
-    }
-
-    const result = await spendAiPoints(user.id, courseId, points, feature);
+    const result = await spendAiPoints(user.id, courseId || null, points, feature, sourceId);
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     if (error instanceof Error && error.message === "INSUFFICIENT_POINTS") {

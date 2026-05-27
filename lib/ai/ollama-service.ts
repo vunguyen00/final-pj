@@ -13,10 +13,10 @@ import {
 
 const DEFAULT_CONFIG: AIServiceConfig = {
   ollamaUrl: process.env.OLLAMA_URL || "http://127.0.0.1:11434",
-  model: process.env.OLLAMA_MODEL || "gemma4",
+  model: process.env.OLLAMA_MODEL || "nemotron-3-super:cloud",
   temperature: 0,
   top_p: 0.1,
-  timeout: 500000, // 90 seconds
+  timeout: 50000,
   maxRetries: 2,
 };
 
@@ -38,7 +38,12 @@ class OllamaService {
       temperature: this.config.temperature,
       top_p: this.config.top_p,
       stream: false,
-      format: "json",
+      options: {
+        // Limit generation length to reduce hanging responses on slow models.
+        num_predict: 1600,
+        temperature: this.config.temperature,
+        top_p: this.config.top_p,
+      },
     };
 
     const startTime = Date.now();
@@ -76,6 +81,7 @@ class OllamaService {
     messages: OllamaMessage[],
     model: string
   ): Promise<OllamaChatResponse> {
+    let chatErrorText = "";
     const chatResponse = await this.fetchWithTimeout(
       `${this.config.ollamaUrl}/api/chat`,
       {
@@ -87,12 +93,33 @@ class OllamaService {
     );
 
     if (chatResponse.ok) {
-      return (await chatResponse.json()) as OllamaChatResponse;
-    }
-
-    if (chatResponse.status !== 404) {
-      const errorText = await chatResponse.text();
-      throw new Error(`Ollama API error: ${chatResponse.status} - ${errorText}`);
+      const chatData = (await chatResponse.json()) as Record<string, unknown>;
+      const content = this.extractResponseContent(chatData);
+      if (content.trim()) {
+        return {
+          message: { role: "assistant", content },
+          model,
+          created_at:
+            typeof chatData.created_at === "string"
+              ? (chatData.created_at as string)
+              : new Date().toISOString(),
+          done: Boolean(chatData.done ?? true),
+          total_duration: Number(chatData.total_duration ?? 0),
+          load_duration: Number(chatData.load_duration ?? 0),
+          prompt_eval_count: Number(chatData.prompt_eval_count ?? 0),
+          prompt_eval_duration: Number(chatData.prompt_eval_duration ?? 0),
+          eval_count: Number(chatData.eval_count ?? 0),
+          eval_duration: Number(chatData.eval_duration ?? 0),
+        };
+      }
+      this.log("info", {
+        action: "callChatWithFallback",
+        stage: "empty_chat_content",
+        fallback: "/v1/chat/completions",
+      });
+      chatErrorText = JSON.stringify(chatData).slice(0, 500);
+    } else {
+      chatErrorText = await chatResponse.text();
     }
 
     const openAIResponse = await this.fetchWithTimeout(
@@ -116,18 +143,26 @@ class OllamaService {
         choices?: Array<{ message?: { content?: string } }>;
         usage?: { prompt_tokens?: number; completion_tokens?: number };
       };
-      return {
-        message: { role: "assistant", content: data.choices?.[0]?.message?.content ?? "" },
-        model,
-        created_at: new Date().toISOString(),
-        done: true,
-        total_duration: 0,
-        load_duration: 0,
-        prompt_eval_count: data.usage?.prompt_tokens ?? 0,
-        prompt_eval_duration: 0,
-        eval_count: data.usage?.completion_tokens ?? 0,
-        eval_duration: 0,
-      };
+      const content = data.choices?.[0]?.message?.content ?? "";
+      if (content.trim()) {
+        return {
+          message: { role: "assistant", content },
+          model,
+          created_at: new Date().toISOString(),
+          done: true,
+          total_duration: 0,
+          load_duration: 0,
+          prompt_eval_count: data.usage?.prompt_tokens ?? 0,
+          prompt_eval_duration: 0,
+          eval_count: data.usage?.completion_tokens ?? 0,
+          eval_duration: 0,
+        };
+      }
+      this.log("info", {
+        action: "callChatWithFallback",
+        stage: "empty_openai_content",
+        fallback: "/api/generate",
+      });
     }
 
     const prompt = messages.map((m) => `${m.role.toUpperCase()}:\n${m.content}`).join("\n\n");
@@ -151,7 +186,7 @@ class OllamaService {
     );
 
     if (!generateResponse.ok) {
-      const chatError = await chatResponse.text();
+      const chatError = chatErrorText;
       const openAIError = await openAIResponse.text();
       const generateError = await generateResponse.text();
       throw new Error(
@@ -177,6 +212,27 @@ class OllamaService {
       eval_count: generated.eval_count ?? 0,
       eval_duration: 0,
     };
+  }
+
+  private extractResponseContent(payload: Record<string, unknown>): string {
+    const message = payload.message as { content?: unknown } | undefined;
+    if (typeof message?.content === "string") return message.content;
+    if (message?.content && typeof message.content === "object") {
+      try {
+        return JSON.stringify(message.content);
+      } catch {
+        // Continue to other fallbacks.
+      }
+    }
+
+    if (typeof payload.response === "string") return payload.response;
+    if (typeof payload.output_text === "string") return payload.output_text;
+
+    const choices = payload.choices as Array<{ message?: { content?: string } }> | undefined;
+    const choiceContent = choices?.[0]?.message?.content;
+    if (typeof choiceContent === "string") return choiceContent;
+
+    return "";
   }
 
   private async resolveModel(): Promise<string> {

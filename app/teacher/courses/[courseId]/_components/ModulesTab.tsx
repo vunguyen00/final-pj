@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { Module } from "../types";
 
 type ModulesTabProps = {
@@ -14,7 +14,7 @@ export function ModulesTab({ courseId, modules, onOpenCreateModal, onDeleteModul
       <div className="mb-4 flex justify-end">
         <button
           onClick={onOpenCreateModal}
-          className="flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
         >
           Them Module
         </button>

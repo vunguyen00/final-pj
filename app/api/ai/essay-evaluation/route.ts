@@ -5,6 +5,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { scoringService, validateRequestBody, formatResponseForClient } from "@/lib/ai";
+import { getCurrentUser } from "@/lib/auth";
+import { getAiPointsSummary, recordLearningActivity, spendAiPoints, WRITING_AI_COST } from "@/lib/ai-points";
+import { prisma } from "@/lib/prisma";
 
 /**
  * Health check before evaluation
@@ -63,7 +66,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { essay, taskPrompt } = body as { essay: string; taskPrompt?: string };
+    const user = await getCurrentUser();
+    if (!user || user.role !== "STUDENT") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { essay, taskPrompt, courseId, title } = body as {
+      essay: string;
+      taskPrompt?: string;
+      courseId?: string;
+      title?: string;
+    };
+
+    if (courseId) {
+      const enrollment = await prisma.enrollment.findUnique({
+        where: { userId_courseId: { userId: user.id, courseId } },
+      });
+      if (!enrollment) {
+        return NextResponse.json({ error: "Ban khong co quyen tren khoa hoc nay." }, { status: 403 });
+      }
+    }
+
+    const pointsBefore = await getAiPointsSummary(user.id);
+    if (pointsBefore.available < WRITING_AI_COST) {
+      return NextResponse.json({ error: "Khong du diem de cham writing AI." }, { status: 400 });
+    }
 
     // Check if Ollama is available
     const ollamaHealthy = await checkOllamaHealth();
@@ -82,6 +109,52 @@ export async function POST(request: NextRequest) {
 
     // Format response
     const formattedResponse = formatResponseForClient(evaluation);
+    const assessment = await prisma.aiAssessment.create({
+      data: {
+        userId: user.id,
+        courseId: courseId || null,
+        type: "WRITING",
+        title: title?.trim() || "Writing AI",
+        prompt: taskPrompt || null,
+        submissionText: essay,
+        score: evaluation.overall,
+        maxScore: 10,
+        bandSystem: evaluation.band?.system || "GENERAL",
+        bandLevel: evaluation.band?.level || "Intermediate",
+        bandScore: Number(evaluation.band?.score ?? evaluation.overall),
+        criteria: {
+          taskAchievement: evaluation.task_response,
+          coherenceCohesion: evaluation.coherence,
+          lexicalResource: evaluation.vocabulary,
+          grammarRangeAccuracy: evaluation.grammar,
+        },
+        feedback: formattedResponse,
+        mistakes: {
+          grammar: evaluation.corrections,
+          vocabulary: evaluation.feedback,
+          weakSentences: evaluation.corrections?.map((item) => item.original) ?? [],
+        },
+        improvements: {
+          suggestions: evaluation.suggestions,
+          improvedVersion: evaluation.improved_version,
+          practiceMethods: [
+            "Rewrite weak sentences, then compare with the improved version.",
+            "Build a topic vocabulary bank before writing.",
+            "Review grammar patterns from repeated corrections.",
+          ],
+        },
+        sampleAnswer: evaluation.improved_version || null,
+        submittedAt: new Date(),
+      } as never,
+    }) as unknown as { id: string };
+
+    const pointResult = await spendAiPoints(user.id, courseId || null, WRITING_AI_COST, "WRITING_AI", assessment.id);
+    const activity = await recordLearningActivity({
+      userId: user.id,
+      courseId: courseId || null,
+      activityType: "WRITING",
+      sourceId: assessment.id,
+    });
 
     const duration = Date.now() - startTime;
 
@@ -102,6 +175,9 @@ export async function POST(request: NextRequest) {
       {
         success: true,
         data: formattedResponse,
+        assessmentId: assessment.id,
+        points: pointResult,
+        streak: activity.streak,
       },
       { status: 200 }
     );
