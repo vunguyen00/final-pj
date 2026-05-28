@@ -27,6 +27,7 @@ export async function POST(request: Request) {
         id: true,
         password: true,
         role: true,
+        isBanned: true,
       },
     });
 
@@ -34,6 +35,13 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "Email hoac mat khau khong dung." },
         { status: 401 },
+      );
+    }
+
+    if (user.isBanned) {
+      return NextResponse.json(
+        { error: "Tai khoan dang bi khoa. Vui long lien he admin." },
+        { status: 403 },
       );
     }
 

@@ -102,3 +102,24 @@ export async function sendCourseCertificateEmail(
     `,
   });
 }
+
+export async function sendBasicEmail(
+  to: string,
+  subject: string,
+  text: string,
+): Promise<void> {
+  const config = readMailerConfig();
+  const transporter = getTransporter();
+
+  await transporter.sendMail({
+    from: config.from,
+    to,
+    subject,
+    text,
+    html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">
+        <p>${text}</p>
+      </div>
+    `,
+  });
+}

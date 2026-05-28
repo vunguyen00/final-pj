@@ -64,10 +64,12 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const coursesFromAttempts = attempts.map((attempt) => ({
-      id: attempt.test.course.id,
-      name: attempt.test.course.name,
-    }));
+    const coursesFromAttempts = attempts
+      .filter((attempt) => attempt.test.course)
+      .map((attempt) => ({
+        id: attempt.test.course!.id,
+        name: attempt.test.course!.name,
+      }));
     const courses = Array.from(
       new Map(
         [...enrolledCourses.map((item) => item.course), ...coursesFromAttempts].map((course) => [
@@ -84,7 +86,7 @@ export async function GET(request: NextRequest) {
           {
             id: attempt.test.id,
             name: attempt.test.name,
-            courseId: attempt.test.course.id,
+            courseId: attempt.test.course?.id ?? null,
           },
         ]),
       ).values(),
@@ -109,8 +111,8 @@ export async function GET(request: NextRequest) {
           maxScore: attempt.test.maxScore,
         },
         course: {
-          id: attempt.test.course.id,
-          name: attempt.test.course.name,
+          id: attempt.test.course?.id ?? null,
+          name: attempt.test.course?.name ?? "Public practice",
         },
       };
     });

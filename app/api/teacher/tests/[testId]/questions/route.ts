@@ -25,7 +25,7 @@ export async function GET(
       return NextResponse.json({ error: "Test not found" }, { status: 404 });
     }
 
-    if (user.role !== "ADMIN" && test.course.instructorId !== user.id) {
+    if (user.role !== "ADMIN" && test.course?.instructorId !== user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -67,7 +67,7 @@ export async function POST(
       return NextResponse.json({ error: "Test not found" }, { status: 404 });
     }
 
-    if (user.role !== "ADMIN" && test.course.instructorId !== user.id) {
+    if (user.role !== "ADMIN" && test.course?.instructorId !== user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -81,7 +81,7 @@ export async function POST(
     if (!ALLOWED_TYPES.has(type)) {
       return NextResponse.json({ error: "Loại câu hỏi không hợp lệ" }, { status: 400 });
     }
-    const isWritingCourse = (test.course.category || "").trim().toLowerCase() === "writing";
+    const isWritingCourse = (test.course?.category || "").trim().toLowerCase() === "writing";
     if (type === "ESSAY" && !hasListening && !isWritingCourse) {
       return NextResponse.json({ error: "Khóa học không phải Writing nên không được tạo câu hỏi tự luận" }, { status: 400 });
     }

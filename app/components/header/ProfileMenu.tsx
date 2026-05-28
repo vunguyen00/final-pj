@@ -17,6 +17,7 @@ interface ProfileMenuProps {
 
 export default function ProfileMenu({ user }: ProfileMenuProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [teacherRegistrationEnabled, setTeacherRegistrationEnabled] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close menu when clicking outside
@@ -34,6 +35,14 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
   useEffect(() => {
     setMenuOpen(false);
   }, []);
+
+  useEffect(() => {
+    if (user.role !== "STUDENT") return;
+    fetch("/api/teacher-applications", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setTeacherRegistrationEnabled(Boolean(data?.setting?.enabled)))
+      .catch(() => setTeacherRegistrationEnabled(false));
+  }, [user.role]);
 
   const handleLogout = async () => {
     try {
@@ -156,6 +165,29 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
               </svg>
               Nạp tiền
             </Link>
+            {teacherRegistrationEnabled ? (
+              <Link
+                href="/teacher-registration"
+                onClick={() => setMenuOpen(false)}
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4 w-4"
+                >
+                  <path d="M12 14l9-5-9-5-9 5 9 5z" />
+                  <path d="M12 14l6.16-3.42A12 12 0 0 1 19 15.5V17" />
+                  <path d="M4.84 10.58A12 12 0 0 0 4 15.5V17" />
+                </svg>
+                Dang ky giang vien
+              </Link>
+            ) : null}
           </div>
           <div className="border-t border-slate-100 py-1">
             <button

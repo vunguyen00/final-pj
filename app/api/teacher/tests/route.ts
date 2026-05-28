@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
               instructorId: user.id,
               ...(courseId ? { id: courseId } : {}),
             },
+            kind: "COURSE" as const,
           };
 
     const tests = await prisma.test.findMany({
@@ -62,45 +63,64 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, description, courseId, maxScore, passingScore, maxAttempts, timeLimit, shuffleQuestions } = body;
+    const { name, description, courseId, languageId, maxScore, passingScore, maxAttempts, timeLimit, shuffleQuestions } = body;
+    const kind = body.kind === "PUBLIC_PRACTICE" || body.kind === "TEACHER_ENTRANCE" ? body.kind : "COURSE";
 
-    if (!name || !courseId) {
+    if (!name || (kind === "COURSE" && !courseId)) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const course = await prisma.course.findUnique({
-      where: { id: courseId },
-      include: {
-        _count: {
-          select: { modules: true },
-        },
-      },
-    });
-
-    if (!course) {
-      return NextResponse.json({ error: "Course not found" }, { status: 404 });
+    if (kind !== "COURSE" && user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Only admin can create public or teacher entrance tests" }, { status: 403 });
     }
 
-    if (user.role !== "ADMIN" && course.instructorId !== user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const course = courseId
+      ? await prisma.course.findUnique({
+          where: { id: courseId },
+          include: {
+            _count: {
+              select: { modules: true },
+            },
+          },
+        })
+      : null;
+
+    if (kind === "COURSE") {
+      if (!course) {
+        return NextResponse.json({ error: "Course not found" }, { status: 404 });
+      }
+
+      if (user.role !== "ADMIN" && course.instructorId !== user.id) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
+      const existingTestCount = await prisma.test.count({
+        where: { courseId },
+      });
+
+      if (existingTestCount > 0) {
+        return NextResponse.json(
+          { error: "Course already has a test. Each course can only have one test." },
+          { status: 400 }
+        );
+      }
+
+      if (course._count.modules === 0) {
+        return NextResponse.json(
+          { error: "Course must have at least one module before creating a test" },
+          { status: 400 }
+        );
+      }
     }
 
-    const existingTestCount = await prisma.test.count({
-      where: { courseId },
-    });
-
-    if (existingTestCount > 0) {
-      return NextResponse.json(
-        { error: "Course already has a test. Each course can only have one test." },
-        { status: 400 }
-      );
-    }
-
-    if (course._count.modules === 0) {
-      return NextResponse.json(
-        { error: "Course must have at least one module before creating a test" },
-        { status: 400 }
-      );
+    if (languageId) {
+      const language = await prisma.learningLanguage.findFirst({
+        where: { id: languageId, isActive: true },
+        select: { id: true },
+      });
+      if (!language) {
+        return NextResponse.json({ error: "Invalid language" }, { status: 400 });
+      }
     }
 
     const parsedMaxScore = Number(maxScore ?? 100);
@@ -128,12 +148,14 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         description: description || null,
-        courseId,
+        courseId: kind === "COURSE" ? courseId : null,
+        languageId: languageId || null,
         maxScore: parsedMaxScore,
         passingScore: parsedPassingScore,
         maxAttempts: parsedMaxAttempts,
         timeLimit: parsedTimeLimit,
         shuffleQuestions: Boolean(shuffleQuestions),
+        kind,
       },
       include: {
         course: {

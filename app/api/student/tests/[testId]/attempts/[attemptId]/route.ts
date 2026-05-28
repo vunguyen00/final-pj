@@ -32,7 +32,7 @@ export async function GET(
       score: number;
       isPassed: boolean;
       submittedAt: Date;
-      test: { passingScore: number; course: { id: string; name: string; instructorId: string | null } };
+      test: { passingScore: number; course: { id: string; name: string; instructorId: string | null } | null };
     }) | null;
 
     if (!attempt || attempt.testId !== testId) {
@@ -41,7 +41,7 @@ export async function GET(
 
     const isOwnerPreview =
       (user.role === "TEACHER" || user.role === "ADMIN") &&
-      attempt.test.course.instructorId === user.id;
+      attempt.test.course?.instructorId === user.id;
 
     if (attempt.userId !== user.id && !isOwnerPreview) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -56,8 +56,8 @@ export async function GET(
       maxScore: Number(attempt.maxScore ?? attempt.score),
       passingScore: attempt.test.passingScore,
       isPassed: attempt.isPassed,
-      courseId: attempt.test.course.id,
-      courseName: attempt.test.course.name,
+      courseId: attempt.test.course?.id ?? null,
+      courseName: attempt.test.course?.name ?? "Public practice",
       totalQuestions: Number(stored.totalQuestions ?? 0),
       correctAnswers: Number(stored.correctAnswers ?? 0),
       submittedAnswers: Array.isArray(stored.submittedAnswers) ? stored.submittedAnswers : [],

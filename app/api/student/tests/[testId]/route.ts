@@ -34,10 +34,17 @@ export async function GET(
       return NextResponse.json({ error: "Test not found" }, { status: 404 });
     }
 
-    const isOwnerPreview =
-      (user.role === "TEACHER" || user.role === "ADMIN") && test.course.instructorId === user.id;
+    if (test.kind === "TEACHER_ENTRANCE") {
+      return NextResponse.json({ error: "Teacher entrance tests are only available from the teacher registration flow." }, { status: 403 });
+    }
 
-    if (!isOwnerPreview) {
+    const isOwnerPreview =
+      (user.role === "TEACHER" || user.role === "ADMIN") && test.course?.instructorId === user.id;
+
+    if (!isOwnerPreview && test.kind === "COURSE") {
+      if (!test.courseId) {
+        return NextResponse.json({ error: "Invalid course test." }, { status: 400 });
+      }
       const enrollment = await prisma.enrollment.findUnique({
         where: {
           userId_courseId: {
@@ -97,7 +104,8 @@ export async function GET(
         id: test.id,
         name: test.name,
         description: test.description,
-        courseName: test.course.name,
+        courseName: test.course?.name ?? "Public practice",
+        kind: test.kind,
         maxScore: test.maxScore,
         passingScore: test.passingScore,
         timeLimit: test.timeLimit,

@@ -77,7 +77,7 @@ export async function PUT(
     }
 
     // Check permission
-    if (user.role !== "ADMIN" && existingQuestion.test.course.instructorId !== user.id) {
+    if (user.role !== "ADMIN" && existingQuestion.test.course?.instructorId !== user.id) {
       return NextResponse.json(
         { error: "Forbidden" },
         { status: 403 }
@@ -97,7 +97,7 @@ export async function PUT(
       answers 
     } = body;
 
-    const isWritingCourse = (existingQuestion.test.course.category || "").trim().toLowerCase() === "writing";
+    const isWritingCourse = (existingQuestion.test.course?.category || "").trim().toLowerCase() === "writing";
     const nextType = type ?? existingQuestion.type;
     const nextHasListening = hasListening ?? Boolean(existingQuestion.audioUrl);
     if (nextType === "ESSAY" && !nextHasListening && !isWritingCourse) {
@@ -239,7 +239,7 @@ export async function DELETE(
     }
 
     // Check permission
-    if (user.role !== "ADMIN" && existingQuestion.test.course.instructorId !== user.id) {
+    if (user.role !== "ADMIN" && existingQuestion.test.course?.instructorId !== user.id) {
       return NextResponse.json(
         { error: "Forbidden" },
         { status: 403 }

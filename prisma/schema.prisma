@@ -9,10 +9,13 @@ datasource db {
 
 model User {
   id                String             @id @default(uuid())
-  username          String             @unique
+  username          String
   email             String             @unique
   password          String
   role              Role               @default(STUDENT)
+  phoneNumber       String?
+  isBanned          Boolean            @default(false)
+  learningLanguageId String?
   createdAt         DateTime           @default(now())
   sessions          Session[]
   passwordResetOtps PasswordResetOtp[]
@@ -24,6 +27,11 @@ model User {
   aiAssessments     AiAssessment[]
   pointTransactions PointTransaction[]
   learningActivities LearningActivity[]
+  learningLanguage  LearningLanguage?  @relation("UserLearningLanguage", fields: [learningLanguageId], references: [id])
+  teacherApplications TeacherApplication[] @relation("TeacherApplicationUser")
+  reviewedTeacherApplications TeacherApplication[] @relation("TeacherApplicationReviewer")
+  notifications     Notification[]
+  emailLogs         EmailLog[]
 }
 
 model Session {
@@ -70,9 +78,11 @@ model Course {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   price       Float
+  languageId  String?
   instructorId String?     // ID của giảng viên
 
   instructor  User?        @relation(fields: [instructorId], references: [id])
+  language    LearningLanguage? @relation(fields: [languageId], references: [id])
   modules     Module[]
   enrollments Enrollment[]
   tests       Test[]
@@ -122,7 +132,9 @@ model Enrollment {
 
 model Test {
   id           String   @id @default(uuid())
-  courseId     String
+  courseId     String?
+  languageId   String?
+  kind         TestKind @default(COURSE)
   name         String
   description String?
   maxScore     Float
@@ -133,9 +145,17 @@ model Test {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  course   Course        @relation(fields: [courseId], references: [id])
+  course   Course?       @relation(fields: [courseId], references: [id])
+  language LearningLanguage? @relation(fields: [languageId], references: [id])
   attempts TestAttempt[]
   questions Question[]
+  teacherApplications TeacherApplication[]
+}
+
+enum TestKind {
+  COURSE
+  PUBLIC_PRACTICE
+  TEACHER_ENTRANCE
 }
 
 enum QuestionType {
@@ -189,6 +209,7 @@ model TestAttempt {
   test         Test          @relation(fields: [testId], references: [id])
   user         User          @relation(fields: [userId], references: [id])
   cheatingLogs CheatingLog[]
+  antiCheatLogs AntiCheatLog[]
 
   @@unique([testId, userId, attemptNo])
 }
@@ -267,6 +288,145 @@ model CheatingLog {
   createdAt DateTime @default(now())
 
   attempt TestAttempt @relation(fields: [attemptId], references: [id])
+}
+
+model LearningLanguage {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  code      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users               User[] @relation("UserLearningLanguage")
+  courses             Course[]
+  tests               Test[]
+  teacherApplications TeacherApplication[]
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model TeacherApplication {
+  id                String                   @id @default(uuid())
+  userId            String
+  languageId        String
+  status            TeacherApplicationStatus @default(DRAFT)
+  attemptNo         Int
+  entranceTestId    String?
+  entranceAttemptId String?
+  answerState       Json?
+  startedAt         DateTime?
+  submittedAt       DateTime?
+  reviewedAt        DateTime?
+  reviewedById      String?
+  rejectionReason   String?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  user             User             @relation("TeacherApplicationUser", fields: [userId], references: [id], onDelete: Cascade)
+  language         LearningLanguage @relation(fields: [languageId], references: [id])
+  entranceTest     Test?            @relation(fields: [entranceTestId], references: [id])
+  reviewedBy       User?            @relation("TeacherApplicationReviewer", fields: [reviewedById], references: [id])
+  certificates     TeacherCertificate[]
+  logs             TeacherApplicationLog[]
+  antiCheatLogs    AntiCheatLog[]
+  suspiciousEvents SuspiciousEvent[]
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+enum TeacherApplicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+model TeacherCertificate {
+  id            String   @id @default(uuid())
+  applicationId String
+  fileName      String
+  fileUrl       String
+  fileType      String
+  fileSize      Int
+  expiryDate    DateTime
+  createdAt     DateTime @default(now())
+
+  application TeacherApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+}
+
+model TeacherApplicationLog {
+  id            String                   @id @default(uuid())
+  applicationId String
+  status        TeacherApplicationStatus
+  message       String
+  actorId       String?
+  createdAt     DateTime                 @default(now())
+
+  application TeacherApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+}
+
+model AntiCheatLog {
+  id              String   @id @default(uuid())
+  applicationId   String
+  testAttemptId   String?
+  eventType       String
+  detail          String?
+  severity        Int      @default(1)
+  clientTimestamp DateTime?
+  serverTimestamp DateTime @default(now())
+  metadata        Json?
+
+  application TeacherApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  testAttempt  TestAttempt?       @relation(fields: [testAttemptId], references: [id])
+
+  @@index([applicationId, serverTimestamp])
+}
+
+model SuspiciousEvent {
+  id                   String   @id @default(uuid())
+  applicationId         String
+  eventType             String
+  count                 Int      @default(0)
+  totalDurationSeconds  Int      @default(0)
+  severity              Int      @default(1)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  application TeacherApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@unique([applicationId, eventType])
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  title     String
+  body      String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EmailLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  to        String
+  subject   String
+  status    String
+  error     String?
+  sentAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
 model Feedback {

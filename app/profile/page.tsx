@@ -1,13 +1,15 @@
 ﻿import Link from "next/link";
-import { requireRole } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getUserBalance } from "@/lib/wallet";
 import { getAiPointsSummary } from "@/lib/ai-points";
+import { getActiveLanguages } from "@/lib/teacher-onboarding";
+import ProfileSettings from "./ProfileSettings";
 
 export default async function ProfilePage() {
-  const user = await requireRole("STUDENT");
+  const user = await requireUser();
 
-  const [enrollments, feedbacks, balance, aiPoints] = await Promise.all([
+  const [enrollments, feedbacks, balance, aiPoints, languages] = await Promise.all([
     prisma.enrollment.findMany({
       where: { userId: user.id },
       include: {
@@ -32,6 +34,7 @@ export default async function ProfilePage() {
     }),
     getUserBalance(user.id),
     getAiPointsSummary(user.id),
+    getActiveLanguages(),
   ]);
 
   const progressMap = new Map<string, Set<string>>();
@@ -52,23 +55,23 @@ export default async function ProfilePage() {
     <main className="min-h-screen bg-slate-50 p-6">
       <div className="mx-auto max-w-5xl space-y-6">
         <section className="rounded-xl border border-slate-200 bg-white p-6">
-          <h1 className="text-3xl font-bold text-slate-900">H? so c?a tôi</h1>
-          <p className="mt-2 text-slate-700">Thông tin cá nhân</p>
+          <h1 className="text-3xl font-bold text-slate-900">Ho so cua toi</h1>
+          <p className="mt-2 text-slate-700">Quan ly thong tin ca nhan va tai khoan.</p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-lg border border-slate-200 p-4">
-              <p className="text-sm text-slate-500">Tên ngu?i dùng</p>
-              <p className="mt-1 font-semibold text-slate-900">{user.username}</p>
-            </div>
             <div className="rounded-lg border border-slate-200 p-4">
               <p className="text-sm text-slate-500">Email</p>
               <p className="mt-1 font-semibold text-slate-900">{user.email}</p>
             </div>
             <div className="rounded-lg border border-slate-200 p-4">
-              <p className="text-sm text-slate-500">S? du còn l?i</p>
+              <p className="text-sm text-slate-500">Vai tro</p>
+              <p className="mt-1 font-semibold text-slate-900">{user.role}</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 p-4">
+              <p className="text-sm text-slate-500">So du con lai</p>
               <p className="mt-1 font-semibold text-slate-900">{Math.round(balance).toLocaleString("vi-VN")}d</p>
             </div>
             <div className="rounded-lg border border-slate-200 p-4">
-              <p className="text-sm text-slate-500">Ði?m hi?n có</p>
+              <p className="text-sm text-slate-500">Diem hien co</p>
               <p className="mt-1 font-semibold text-slate-900">{aiPoints.available.toLocaleString("vi-VN")}</p>
             </div>
           </div>
@@ -76,6 +79,16 @@ export default async function ProfilePage() {
             <Link href="/student/wallet" className="text-sm font-medium text-blue-600 hover:text-blue-700">N?p ti?n</Link>
           </div>
         </section>
+
+        <ProfileSettings
+          user={{
+            username: user.username,
+            email: user.email,
+            phoneNumber: user.phoneNumber ?? null,
+            learningLanguageId: user.learningLanguageId ?? null,
+          }}
+          languages={languages}
+        />
 
         <section className="rounded-xl border border-slate-200 bg-white p-6">
           <h2 className="text-xl font-semibold text-slate-900">Khóa h?c dã hoàn thành</h2>

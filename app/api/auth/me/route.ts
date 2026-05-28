@@ -12,7 +12,7 @@ export async function GET() {
     }
 
     const [balance, aiPoints] =
-      user.role === "STUDENT"
+      user.role === "STUDENT" || user.role === "TEACHER"
         ? await Promise.all([getUserBalance(user.id), getAiPointsSummary(user.id)])
         : [0, { earned: 0, spent: 0, available: 0 }];
 
@@ -22,6 +22,8 @@ export async function GET() {
         username: user.username,
         email: user.email,
         role: user.role,
+        phoneNumber: user.phoneNumber,
+        learningLanguageId: user.learningLanguageId,
         balance,
         aiPoints,
       },

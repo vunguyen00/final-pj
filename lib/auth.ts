@@ -201,10 +201,13 @@ export async function authenticate() {
       username: true,
       email: true,
       role: true,
+      phoneNumber: true,
+      isBanned: true,
+      learningLanguageId: true,
     },
   });
 
-  if (!user) {
+  if (!user || user.isBanned) {
     await clearAuthCookie();
     return null;
   }

@@ -51,7 +51,7 @@ export default function Header() {
   if (hideHeader) return null;
 
   const studentLinks =
-    user?.role === "STUDENT"
+    user?.role === "STUDENT" || user?.role === "TEACHER"
       ? [
           { href: "/student", label: "Dashboard" },
           { href: "/student/lam-bai", label: "Practice" },

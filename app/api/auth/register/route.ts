@@ -34,16 +34,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: passwordError }, { status: 400 });
     }
 
-    const existingUser = await prisma.user.findFirst({
+    const existingUser = await prisma.user.findUnique({
       where: {
-        OR: [{ email }, { username }],
+        email,
       },
       select: { id: true },
     });
 
     if (existingUser) {
       return NextResponse.json(
-        { error: "Email hoac username da ton tai." },
+        { error: "Email da ton tai." },
         { status: 409 },
       );
     }

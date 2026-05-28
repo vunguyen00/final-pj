@@ -46,21 +46,28 @@ export async function GET(request: NextRequest) {
         : [];
     const ownedCourseIds = ownedCourses.map((item) => item.id);
     const visibleCourseIds = Array.from(new Set([...enrolledCourseIds, ...ownedCourseIds]));
-    if (visibleCourseIds.length === 0) {
-      return NextResponse.json({ tests: [] });
-    }
-
     const courseNameMap = new Map(enrollments.map((item) => [item.courseId, item.course.name]));
     for (const owned of ownedCourses) {
       courseNameMap.set(owned.id, owned.name);
     }
 
     const tests = await prisma.test.findMany({
-      where: {
-        courseId: {
-          in: visibleCourseIds,
-        },
-      },
+      where: courseId
+        ? {
+            kind: "COURSE",
+            courseId: { in: visibleCourseIds },
+          }
+        : {
+            OR: [
+              visibleCourseIds.length > 0
+                ? {
+                    kind: "COURSE",
+                    courseId: { in: visibleCourseIds },
+                  }
+                : undefined,
+              { kind: "PUBLIC_PRACTICE" },
+            ].filter(Boolean) as never,
+          },
       include: {
         _count: {
           select: {
@@ -89,15 +96,16 @@ export async function GET(request: NextRequest) {
     }
 
     const normalizedTests = tests.map((test) => {
-      const progress = progressByCourse.get(test.courseId) ?? 0;
-      const unlocked = progress >= 100;
+      const progress = test.courseId ? progressByCourse.get(test.courseId) ?? 0 : 100;
+      const unlocked = test.kind === "PUBLIC_PRACTICE" || progress >= 100;
 
       return {
         id: test.id,
         name: test.name,
         description: test.description,
         courseId: test.courseId,
-        courseName: courseNameMap.get(test.courseId) ?? "Unknown course",
+        courseName: test.courseId ? courseNameMap.get(test.courseId) ?? "Unknown course" : "Public practice",
+        kind: test.kind,
         maxScore: test.maxScore,
         passingScore: test.passingScore,
         timeLimit: test.timeLimit,

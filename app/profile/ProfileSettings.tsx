@@ -1,0 +1,155 @@
+"use client";
+
+import { useState } from "react";
+
+type Language = {
+  id: string;
+  name: string;
+};
+
+type ProfileUser = {
+  username: string;
+  email: string;
+  phoneNumber: string | null;
+  learningLanguageId: string | null;
+};
+
+export default function ProfileSettings({
+  user,
+  languages,
+}: {
+  user: ProfileUser;
+  languages: Language[];
+}) {
+  const [username, setUsername] = useState(user.username);
+  const [phoneNumber, setPhoneNumber] = useState(user.phoneNumber ?? "");
+  const [learningLanguageId, setLearningLanguageId] = useState(user.learningLanguageId ?? "");
+  const [profileMessage, setProfileMessage] = useState("");
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  const saveProfile = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setProfileMessage("");
+    const response = await fetch("/api/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, phoneNumber, learningLanguageId }),
+    });
+    const data = await response.json().catch(() => ({}));
+    setProfileMessage(response.ok ? "Da cap nhat ho so." : data?.error || "Khong the cap nhat.");
+  };
+
+  const changePassword = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setPasswordMessage("");
+    const response = await fetch("/api/profile/password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(passwordForm),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (response.ok) {
+      setPasswordMessage("Da doi mat khau.");
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } else {
+      setPasswordMessage(data?.error || "Khong the doi mat khau.");
+    }
+  };
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-2">
+      <form onSubmit={saveProfile} className="rounded-xl border border-slate-200 bg-white p-6">
+        <h2 className="text-xl font-semibold text-slate-900">Thong tin ca nhan</h2>
+        <div className="mt-4 space-y-4">
+          <Field label="Username">
+            <input
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+            />
+          </Field>
+          <Field label="Email">
+            <input
+              value={user.email}
+              disabled
+              className="w-full rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-slate-600"
+            />
+          </Field>
+          <Field label="So dien thoai">
+            <input
+              value={phoneNumber}
+              onChange={(event) => setPhoneNumber(event.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+            />
+          </Field>
+          <Field label="Ngon ngu muon hoc">
+            <select
+              value={learningLanguageId}
+              onChange={(event) => setLearningLanguageId(event.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+            >
+              <option value="">Chua chon</option>
+              {languages.map((language) => (
+                <option key={language.id} value={language.id}>
+                  {language.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+        {profileMessage ? <p className="mt-3 text-sm text-blue-700">{profileMessage}</p> : null}
+        <button className="mt-5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+          Luu thay doi
+        </button>
+      </form>
+
+      <form onSubmit={changePassword} className="rounded-xl border border-slate-200 bg-white p-6">
+        <h2 className="text-xl font-semibold text-slate-900">Doi mat khau</h2>
+        <div className="mt-4 space-y-4">
+          <Field label="Mat khau cu">
+            <input
+              type="password"
+              value={passwordForm.currentPassword}
+              onChange={(event) => setPasswordForm((prev) => ({ ...prev, currentPassword: event.target.value }))}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+            />
+          </Field>
+          <Field label="Mat khau moi">
+            <input
+              type="password"
+              value={passwordForm.newPassword}
+              onChange={(event) => setPasswordForm((prev) => ({ ...prev, newPassword: event.target.value }))}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+            />
+          </Field>
+          <Field label="Xac nhan mat khau moi">
+            <input
+              type="password"
+              value={passwordForm.confirmPassword}
+              onChange={(event) => setPasswordForm((prev) => ({ ...prev, confirmPassword: event.target.value }))}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+            />
+          </Field>
+        </div>
+        {passwordMessage ? <p className="mt-3 text-sm text-blue-700">{passwordMessage}</p> : null}
+        <button className="mt-5 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+          Doi mat khau
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>
+      {children}
+    </label>
+  );
+}

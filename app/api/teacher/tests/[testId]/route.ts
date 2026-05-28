@@ -45,7 +45,7 @@ export async function GET(
       );
     }
 
-    if (user.role !== "ADMIN" && test.course.instructorId !== user.id) {
+    if (user.role !== "ADMIN" && test.course?.instructorId !== user.id) {
       return NextResponse.json(
         { error: "Forbidden" },
         { status: 403 }
@@ -91,7 +91,7 @@ export async function PUT(
       );
     }
 
-    if (user.role !== "ADMIN" && existingTest.course.instructorId !== user.id) {
+    if (user.role !== "ADMIN" && existingTest.course?.instructorId !== user.id) {
       return NextResponse.json(
         { error: "Forbidden" },
         { status: 403 }
@@ -153,7 +153,7 @@ export async function DELETE(
       );
     }
 
-    if (user.role !== "ADMIN" && existingTest.course.instructorId !== user.id) {
+    if (user.role !== "ADMIN" && existingTest.course?.instructorId !== user.id) {
       return NextResponse.json(
         { error: "Forbidden" },
         { status: 403 }
