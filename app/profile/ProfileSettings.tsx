@@ -23,7 +23,6 @@ export default function ProfileSettings({
 }) {
   const [username, setUsername] = useState(user.username);
   const [phoneNumber, setPhoneNumber] = useState(user.phoneNumber ?? "");
-  const [learningLanguageId, setLearningLanguageId] = useState(user.learningLanguageId ?? "");
   const [profileMessage, setProfileMessage] = useState("");
   const [passwordMessage, setPasswordMessage] = useState("");
   const [passwordForm, setPasswordForm] = useState({
@@ -38,7 +37,7 @@ export default function ProfileSettings({
     const response = await fetch("/api/profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, phoneNumber, learningLanguageId }),
+      body: JSON.stringify({ username, phoneNumber }),
     });
     const data = await response.json().catch(() => ({}));
     setProfileMessage(response.ok ? "Da cap nhat ho so." : data?.error || "Khong the cap nhat.");
@@ -87,20 +86,7 @@ export default function ProfileSettings({
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
             />
           </Field>
-          <Field label="Ngon ngu muon hoc">
-            <select
-              value={learningLanguageId}
-              onChange={(event) => setLearningLanguageId(event.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
-            >
-              <option value="">Chua chon</option>
-              {languages.map((language) => (
-                <option key={language.id} value={language.id}>
-                  {language.name}
-                </option>
-              ))}
-            </select>
-          </Field>
+          {/* Removed language selection per requirements */}
         </div>
         {profileMessage ? <p className="mt-3 text-sm text-blue-700">{profileMessage}</p> : null}
         <button className="mt-5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">

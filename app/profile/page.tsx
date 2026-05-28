@@ -8,6 +8,7 @@ import ProfileSettings from "./ProfileSettings";
 
 export default async function ProfilePage() {
   const user = await requireUser();
+  const isAdmin = user.role === "ADMIN";
 
   const [enrollments, feedbacks, balance, aiPoints, languages] = await Promise.all([
     prisma.enrollment.findMany({
@@ -66,17 +67,23 @@ export default async function ProfilePage() {
               <p className="text-sm text-slate-500">Vai tro</p>
               <p className="mt-1 font-semibold text-slate-900">{user.role}</p>
             </div>
-            <div className="rounded-lg border border-slate-200 p-4">
-              <p className="text-sm text-slate-500">So du con lai</p>
-              <p className="mt-1 font-semibold text-slate-900">{Math.round(balance).toLocaleString("vi-VN")}d</p>
-            </div>
-            <div className="rounded-lg border border-slate-200 p-4">
-              <p className="text-sm text-slate-500">Diem hien co</p>
-              <p className="mt-1 font-semibold text-slate-900">{aiPoints.available.toLocaleString("vi-VN")}</p>
-            </div>
+            {!isAdmin && (
+              <>
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <p className="text-sm text-slate-500">So du con lai</p>
+                  <p className="mt-1 font-semibold text-slate-900">{Math.round(balance).toLocaleString("vi-VN")}d</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <p className="text-sm text-slate-500">Diem hien co</p>
+                  <p className="mt-1 font-semibold text-slate-900">{aiPoints.available.toLocaleString("vi-VN")}</p>
+                </div>
+              </>
+            )}
           </div>
           <div className="mt-4">
-            <Link href="/student/wallet" className="text-sm font-medium text-blue-600 hover:text-blue-700">N?p ti?n</Link>
+            {!isAdmin && (
+              <Link href="/student/wallet" className="text-sm font-medium text-blue-600 hover:text-blue-700">N?p ti?n</Link>
+            )}
           </div>
         </section>
 

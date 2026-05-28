@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import AdminMenu from "./header/AdminMenu";
 import AuthButtons from "./header/AuthButtons";
 import { useUser } from "./header/useUser";
 
@@ -94,7 +93,6 @@ export default function Header() {
 
         <div className="flex items-center gap-2">
           <AuthButtons />
-          {(user?.role === "TEACHER" || user?.role === "ADMIN") && user ? <AdminMenu user={user} /> : null}
           <button
             type="button"
             onClick={() => setOpen((value) => !value)}

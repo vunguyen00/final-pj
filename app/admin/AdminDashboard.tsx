@@ -40,6 +40,9 @@ export default function AdminDashboard({
   const [applications, setApplications] = useState(initialApplications);
   const [languageForm, setLanguageForm] = useState({ name: "", code: "" });
   const [message, setMessage] = useState("");
+  const [showCerts, setShowCerts] = useState(false);
+  const [selectedCertificates, setSelectedCertificates] = useState<{ id: string; fileName: string; fileUrl: string; expiryDate: string }[]>([]);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   async function toggleTeacherEntrance(nextEnabled: boolean) {
     setMessage("");
@@ -106,6 +109,39 @@ export default function AdminDashboard({
 
   return (
     <div className="space-y-6">
+      <header className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setMenuOpen((s) => !s)}
+              aria-expanded={menuOpen}
+              aria-label="Open menu"
+              className="rounded-md p-2 text-slate-700 hover:bg-slate-100 transition duration-150"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+                <path fillRule="evenodd" d="M3 6.75A.75.75 0 0 1 3.75 6h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 6.75zM3 12a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 12zM3.75 17.25a.75.75 0 0 0 0 1.5h16.5a.75.75 0 0 0 0-1.5H3.75z" clipRule="evenodd" />
+              </svg>
+            </button>
+            <h1 className="text-lg font-semibold text-slate-900">Admin Dashboard</h1>
+          </div>
+          <div className="text-sm text-slate-500">Manage site settings and users</div>
+        </div>
+        {menuOpen ? (
+          <nav className="mt-3 rounded-md border border-slate-100 bg-white p-2 shadow-sm">
+            <ul className="flex gap-2">
+              <li>
+                <button onClick={() => { setMenuOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="px-3 py-1 text-sm rounded-md hover:bg-slate-50">Overview</button>
+              </li>
+              <li>
+                <button onClick={() => { setMenuOpen(false); document.getElementById('teacher-applications')?.scrollIntoView({ behavior: 'smooth' }); }} className="px-3 py-1 text-sm rounded-md hover:bg-slate-50">Applications</button>
+              </li>
+              <li>
+                <button onClick={() => { setMenuOpen(false); document.getElementById('users-section')?.scrollIntoView({ behavior: 'smooth' }); }} className="px-3 py-1 text-sm rounded-md hover:bg-slate-50">Users</button>
+              </li>
+            </ul>
+          </nav>
+        ) : null}
+      </header>
       {message ? <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">{message}</div> : null}
 
       <section className="rounded-xl border border-slate-200 bg-white p-6">
@@ -116,7 +152,7 @@ export default function AdminDashboard({
           </div>
           <button
             onClick={() => void toggleTeacherEntrance(!enabled)}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${enabled ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-700"}`}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition duration-150 ease-in-out transform ${enabled ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-700"} active:scale-95`}
           >
             {enabled ? "Tat" : "Bat"}
           </button>
@@ -138,7 +174,7 @@ export default function AdminDashboard({
             placeholder="en"
             className="rounded-lg border border-slate-300 px-3 py-2"
           />
-          <button className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Them</button>
+          <button className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition duration-150 ease-in-out transform hover:-translate-y-0.5 active:scale-95">Them</button>
         </form>
         <div className="mt-4 flex flex-wrap gap-2">
           {languages.map((language) => (
@@ -171,12 +207,18 @@ export default function AdminDashboard({
                     ) : null}
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => void review(application, "APPROVE")} className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white">
-                      Approve
-                    </button>
-                    <button onClick={() => void review(application, "REJECT")} className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white">
-                      Reject
-                    </button>
+                    {application.status !== "APPROVED" && application.status !== "REJECTED" ? (
+                      <>
+                        <button onClick={() => void review(application, "APPROVE")} className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition duration-150 ease-in-out transform hover:-translate-y-0.5 active:scale-95">
+                          Approve
+                        </button>
+                        <button onClick={() => void review(application, "REJECT")} className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white transition duration-150 ease-in-out transform hover:-translate-y-0.5 active:scale-95">
+                          Reject
+                        </button>
+                      </>
+                    ) : (
+                      <span className="inline-block rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">{application.status}</span>
+                    )}
                   </div>
                 </div>
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -228,9 +270,23 @@ export default function AdminDashboard({
                   <td className="py-2 text-slate-600">{user.role}</td>
                   <td className="py-2 text-slate-600">{user.isBanned ? "Banned" : "Active"}</td>
                   <td className="py-2 text-right">
-                    <button onClick={() => void toggleBan(user)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700">
-                      {user.isBanned ? "Unban" : "Ban"}
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      {user.role && (user.role.toLowerCase() === "teacher" || user.role === "TEACHER") ? (
+                        <button
+                          onClick={() => {
+                            const app = applications.find((a) => a.user.email === user.email || a.user.username === user.username);
+                            setSelectedCertificates(app?.certificates ?? []);
+                            setShowCerts(true);
+                          }}
+                          className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition duration-150 ease-in-out transform hover:-translate-y-0.5 active:scale-95"
+                        >
+                          Xem cert
+                        </button>
+                      ) : null}
+                      <button onClick={() => void toggleBan(user)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition duration-150 ease-in-out transform hover:-translate-y-0.5 active:scale-95">
+                        {user.isBanned ? "Unban" : "Ban"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -238,6 +294,30 @@ export default function AdminDashboard({
           </table>
         </div>
       </section>
+      {showCerts ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="max-w-lg w-full rounded-lg bg-white p-6 shadow-lg">
+            <div className="flex items-start justify-between">
+              <h3 className="text-lg font-semibold text-slate-900">Certificates</h3>
+              <button onClick={() => setShowCerts(false)} className="ml-4 rounded-md px-3 py-1 text-sm font-medium text-slate-600 hover:bg-slate-100">Close</button>
+            </div>
+            <div className="mt-4 space-y-2">
+              {selectedCertificates.length === 0 ? (
+                <p className="text-sm text-slate-500">No certificates found for this user.</p>
+              ) : (
+                selectedCertificates.map((c) => {
+                  const expired = new Date(c.expiryDate).getTime() < Date.now();
+                  return (
+                    <a key={c.id} href={c.fileUrl} target="_blank" className="block text-sm text-blue-700 hover:underline">
+                      {c.fileName} {expired ? "(expired)" : ""}
+                    </a>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
