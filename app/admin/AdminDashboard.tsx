@@ -42,7 +42,6 @@ export default function AdminDashboard({
   const [message, setMessage] = useState("");
   const [showCerts, setShowCerts] = useState(false);
   const [selectedCertificates, setSelectedCertificates] = useState<{ id: string; fileName: string; fileUrl: string; expiryDate: string }[]>([]);
-  const [menuOpen, setMenuOpen] = useState(false);
 
   async function toggleTeacherEntrance(nextEnabled: boolean) {
     setMessage("");
@@ -109,39 +108,6 @@ export default function AdminDashboard({
 
   return (
     <div className="space-y-6">
-      <header className="rounded-xl border border-slate-200 bg-white p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setMenuOpen((s) => !s)}
-              aria-expanded={menuOpen}
-              aria-label="Open menu"
-              className="rounded-md p-2 text-slate-700 hover:bg-slate-100 transition duration-150"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
-                <path fillRule="evenodd" d="M3 6.75A.75.75 0 0 1 3.75 6h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 6.75zM3 12a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 12zM3.75 17.25a.75.75 0 0 0 0 1.5h16.5a.75.75 0 0 0 0-1.5H3.75z" clipRule="evenodd" />
-              </svg>
-            </button>
-            <h1 className="text-lg font-semibold text-slate-900">Admin Dashboard</h1>
-          </div>
-          <div className="text-sm text-slate-500">Manage site settings and users</div>
-        </div>
-        {menuOpen ? (
-          <nav className="mt-3 rounded-md border border-slate-100 bg-white p-2 shadow-sm">
-            <ul className="flex gap-2">
-              <li>
-                <button onClick={() => { setMenuOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="px-3 py-1 text-sm rounded-md hover:bg-slate-50">Overview</button>
-              </li>
-              <li>
-                <button onClick={() => { setMenuOpen(false); document.getElementById('teacher-applications')?.scrollIntoView({ behavior: 'smooth' }); }} className="px-3 py-1 text-sm rounded-md hover:bg-slate-50">Applications</button>
-              </li>
-              <li>
-                <button onClick={() => { setMenuOpen(false); document.getElementById('users-section')?.scrollIntoView({ behavior: 'smooth' }); }} className="px-3 py-1 text-sm rounded-md hover:bg-slate-50">Users</button>
-              </li>
-            </ul>
-          </nav>
-        ) : null}
-      </header>
       {message ? <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">{message}</div> : null}
 
       <section className="rounded-xl border border-slate-200 bg-white p-6">

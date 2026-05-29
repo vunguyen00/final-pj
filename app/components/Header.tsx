@@ -28,7 +28,7 @@ const navItems = [
   { href: "/teachers", label: "Teachers", match: (path: string) => path.startsWith("/teachers") },
 ] satisfies MatchedNavItem[];
 
-export default function Header() {
+export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean }) {
   const pathname = usePathname() || "";
   const { user } = useUser();
   const [globalError, setGlobalError] = useState("");
@@ -46,7 +46,7 @@ export default function Header() {
 
   useEffect(() => setOpen(false), [pathname]);
 
-  const hideHeader = pathname.startsWith("/auth") || pathname.startsWith("/admin");
+  const hideHeader = pathname.startsWith("/auth") || (pathname.startsWith("/admin") && !showOnAdmin);
   if (hideHeader) return null;
 
   const studentLinks =

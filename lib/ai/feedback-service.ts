@@ -5,6 +5,147 @@
 
 import { AIEvaluationResponse } from "./types";
 
+function stripMarkdownCodeFence(input: string): string {
+  let cleaned = input.trim();
+  if (cleaned.startsWith("```json")) {
+    cleaned = cleaned.slice(7);
+  } else if (cleaned.startsWith("```")) {
+    cleaned = cleaned.slice(3);
+  }
+  if (cleaned.endsWith("```")) {
+    cleaned = cleaned.slice(0, -3);
+  }
+  return cleaned.trim();
+}
+
+function extractFirstBalancedJSONObject(input: string): string | null {
+  const start = input.indexOf("{");
+  if (start < 0) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaping = false;
+
+  for (let i = start; i < input.length; i++) {
+    const char = input[i];
+
+    if (inString) {
+      if (escaping) {
+        escaping = false;
+      } else if (char === "\\") {
+        escaping = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return input.slice(start, i + 1);
+      }
+    }
+  }
+
+  return null;
+}
+
+function autoCloseJsonStructures(input: string): string | null {
+  const start = input.indexOf("{");
+  if (start < 0) return null;
+
+  const source = input.slice(start);
+  const stack: string[] = [];
+  let output = "";
+  let inString = false;
+  let escaping = false;
+
+  for (let i = 0; i < source.length; i++) {
+    const char = source[i];
+    output += char;
+
+    if (inString) {
+      if (escaping) {
+        escaping = false;
+      } else if (char === "\\") {
+        escaping = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (char === "{") {
+      stack.push("}");
+      continue;
+    }
+
+    if (char === "[") {
+      stack.push("]");
+      continue;
+    }
+
+    if (char === "}" || char === "]") {
+      const expected = stack.pop();
+      if (expected !== char) {
+        return null;
+      }
+    }
+  }
+
+  if (inString) {
+    output += '"';
+  }
+
+  output = output.trimEnd();
+  output = output.replace(/:\s*$/g, "");
+  output = output.replace(/,\s*$/g, "");
+  output = output.replace(/,\s*([}\]])/g, "$1");
+
+  while (stack.length > 0) {
+    output += stack.pop();
+  }
+
+  output = output.replace(/:\s*([}\]])/g, ": null$1");
+  output = output.replace(/,\s*([}\]])/g, "$1");
+
+  return output;
+}
+
+function repairTruncatedJSONObject(input: string): string | null {
+  const start = input.indexOf("{");
+  if (start < 0) return null;
+
+  const jsonLike = input.slice(start).trim();
+  const directRepair = autoCloseJsonStructures(jsonLike);
+  if (directRepair) return directRepair;
+
+  const cutChars = new Set([",", "\n", "\r", "}"]);
+  for (let i = jsonLike.length - 1; i > 0; i--) {
+    if (!cutChars.has(jsonLike[i])) continue;
+    const candidate = autoCloseJsonStructures(jsonLike.slice(0, i));
+    if (candidate) return candidate;
+  }
+
+  return null;
+}
+
 /**
  * Safely parses JSON response from AI
  */
@@ -19,33 +160,27 @@ export function parseAIResponse(rawResponse: string): AIEvaluationResponse | nul
   };
 
   try {
-    // Clean the response (remove markdown code blocks if present)
-    let cleanedResponse = rawResponse.trim();
-
-    // Remove markdown code blocks if present
-    if (cleanedResponse.startsWith("```json")) {
-      cleanedResponse = cleanedResponse.slice(7); // Remove ```json
-    } else if (cleanedResponse.startsWith("```")) {
-      cleanedResponse = cleanedResponse.slice(3); // Remove ```
-    }
-
-    if (cleanedResponse.endsWith("```")) {
-      cleanedResponse = cleanedResponse.slice(0, -3); // Remove trailing ```
-    }
-
-    cleanedResponse = cleanedResponse.trim();
+    const cleanedResponse = stripMarkdownCodeFence(rawResponse);
 
     // Parse strict JSON first
     const strict = tryParse(cleanedResponse);
     if (strict) return strict;
 
-    // Fallback: extract first JSON object from mixed text response
-    const start = cleanedResponse.indexOf("{");
-    const end = cleanedResponse.lastIndexOf("}");
-    if (start >= 0 && end > start) {
-      const jsonSlice = cleanedResponse.slice(start, end + 1);
-      const extracted = tryParse(jsonSlice);
+    // Fallback: extract first balanced JSON object from mixed text response
+    const balanced = extractFirstBalancedJSONObject(cleanedResponse);
+    if (balanced) {
+      const extracted = tryParse(balanced);
       if (extracted) return extracted;
+    }
+
+    // Fallback: repair truncated JSON responses (common when model hits token limit)
+    const repaired = repairTruncatedJSONObject(cleanedResponse);
+    if (repaired) {
+      const recovered = tryParse(repaired);
+      if (recovered) {
+        console.warn("AI response was truncated; recovered with JSON repair.");
+        return recovered;
+      }
     }
 
     return null;

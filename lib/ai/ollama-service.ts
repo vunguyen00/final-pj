@@ -22,9 +22,14 @@ const DEFAULT_CONFIG: AIServiceConfig = {
 
 class OllamaService {
   private config: AIServiceConfig;
+  private readonly maxOutputTokens: number;
 
   constructor(config?: Partial<AIServiceConfig>) {
     this.config = { ...DEFAULT_CONFIG, ...config };
+    const configuredMax = Number(process.env.OLLAMA_NUM_PREDICT ?? 3200);
+    this.maxOutputTokens = Number.isFinite(configuredMax)
+      ? Math.max(256, Math.floor(configuredMax))
+      : 3200;
   }
 
   /**
@@ -38,9 +43,10 @@ class OllamaService {
       temperature: this.config.temperature,
       top_p: this.config.top_p,
       stream: false,
+      format: "json",
       options: {
-        // Limit generation length to reduce hanging responses on slow models.
-        num_predict: 1600,
+        // Keep enough budget for full structured JSON responses.
+        num_predict: this.maxOutputTokens,
         temperature: this.config.temperature,
         top_p: this.config.top_p,
       },
