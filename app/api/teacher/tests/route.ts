@@ -74,6 +74,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Only admin can create public or teacher entrance tests" }, { status: 403 });
     }
 
+    if (kind === "TEACHER_ENTRANCE" && !languageId) {
+      return NextResponse.json({ error: "Teacher entrance test must be linked to a language" }, { status: 400 });
+    }
+
     const course = courseId
       ? await prisma.course.findUnique({
           where: { id: courseId },
@@ -120,6 +124,16 @@ export async function POST(request: NextRequest) {
       });
       if (!language) {
         return NextResponse.json({ error: "Invalid language" }, { status: 400 });
+      }
+    }
+
+    if (kind === "TEACHER_ENTRANCE" && languageId) {
+      const existingEntrance = await prisma.test.findFirst({
+        where: { kind: "TEACHER_ENTRANCE", languageId },
+        select: { id: true },
+      });
+      if (existingEntrance) {
+        return NextResponse.json({ error: "This language already has an entrance test" }, { status: 400 });
       }
     }
 

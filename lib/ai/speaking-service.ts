@@ -1,37 +1,93 @@
 import { ollamaService } from "./ollama-service";
 import { detectLanguageFromText, sanitizeEssay, validateEssay } from "./validators";
 import { validatePromptSafety } from "./prompt-builder";
-import { SpeakingEvaluationResponse } from "./types";
+import { SpeakingEvaluationResponse, SpeakingExamType } from "./types";
 
 const SPEAKING_SYSTEM_PROMPT = `You are a strict multilingual speaking examiner.
 
-Grade the response like a real certification examiner. Use IELTS speaking criteria for English, HSK-style spoken proficiency for Chinese, and a practical GENERAL level for other languages.
+Grade the response like a real certification examiner. Follow the requested exam rubric exactly.
 
-Score each criterion from 0-10:
-- fluency_coherence: flow, hesitation, coherence, linking words
-- pronunciation: clarity, likely pronunciation issues, stress, intonation
-- lexical_resource: range, precision, repetition, topic vocabulary
-- grammar: accuracy, sentence range, tense/control
+Be strict but constructive. Mention limitations if transcript is incomplete or acoustic analysis is unavailable.
+Return ONLY valid JSON.`;
 
-Return ONLY valid JSON. Be strict but constructive. Mention limitations if audio notes or transcript are incomplete.`;
+const LIVE_EXAMINER_SYSTEM_PROMPT = `You are a speaking examiner in a live oral test.
+Reply with ONLY one short follow-up question for the candidate, in the target test style.
+Do not provide feedback or scores during the exam.
+Do not output JSON.`;
+
+const IELTS_CRITERIA = ["fluency", "vocabulary", "grammar", "pronunciation"] as const;
+const HSK_CRITERIA = ["pronunciation", "vocabulary_grammar", "fluency", "content"] as const;
+
+function scoreScaleForExam(exam: "IELTS" | "HSK"): SpeakingEvaluationResponse["score_scale"] {
+  return exam === "IELTS" ? "BAND_0_9" : "SCORE_0_100";
+}
+
+function criterionMax(exam: "IELTS" | "HSK") {
+  return exam === "IELTS" ? 9 : 100;
+}
+
+function clampScore(value: unknown, max: number) {
+  const score = Number(value);
+  if (!Number.isFinite(score)) return 0;
+  return Math.max(0, Math.min(max, score));
+}
+
+function normalizeToTen(value: number, max: number) {
+  if (max <= 0) return 0;
+  return Math.max(0, Math.min(10, (value / max) * 10));
+}
+
+function examEvaluationGuide(exam: "IELTS" | "HSK") {
+  if (exam === "IELTS") {
+    return `
+Exam: IELTS Speaking
+Criteria and scale:
+- fluency: 0-9
+- vocabulary: 0-9
+- grammar: 0-9
+- pronunciation: 0-9
+Overall: 0-9 (band score)`;
+  }
+
+  return `
+Exam: HSKK Speaking
+Criteria and scale:
+- pronunciation: 0-100
+- vocabulary_grammar: 0-100
+- fluency: 0-100
+- content: 0-100
+Overall: 0-100`;
+}
 
 function speakingPrompt(input: {
+  exam: "IELTS" | "HSK";
   prompt?: string;
   transcript: string;
+  conversation?: string;
   durationSeconds?: number | null;
   audioAvailable: boolean;
 }) {
+  const expectedCriteria = input.exam === "IELTS" ? IELTS_CRITERIA.join(", ") : HSK_CRITERIA.join(", ");
+
   return `Evaluate this speaking submission and return ONLY valid JSON.
 
 <SPEAKING_TASK>
 ${input.prompt?.trim() || "No specific speaking task provided. Infer the speaking task from the transcript."}
 </SPEAKING_TASK>
 
+<EXAM_RUBRIC>
+${examEvaluationGuide(input.exam)}
+</EXAM_RUBRIC>
+
 <AUDIO_CONTEXT>
 Audio saved: ${input.audioAvailable ? "yes" : "no"}
 Duration seconds: ${input.durationSeconds ?? "unknown"}
 Important: if there is no speech-to-text confidence or audio acoustic analysis, infer pronunciation/fluency only from transcript and duration. Do not invent exact phonetic evidence.
 </AUDIO_CONTEXT>
+
+<CONVERSATION_LOG>
+${input.conversation?.trim() || "No detailed turn-by-turn log provided."}
+</CONVERSATION_LOG>
 
 <TRANSCRIPT>
 ${input.transcript}
@@ -40,14 +96,19 @@ ${input.transcript}
 Return JSON in exactly this format:
 {
   "language": "English|Japanese|Korean|Chinese|Vietnamese",
-  "fluency_coherence": <0-10>,
-  "pronunciation": <0-10>,
-  "lexical_resource": <0-10>,
-  "grammar": <0-10>,
-  "overall": <0-10>,
+  "exam": "${input.exam}",
+  "score_scale": "${scoreScaleForExam(input.exam)}",
+  "criteria_scores": {
+    "${expectedCriteria.split(", ")[0]}": <number>,
+    "${expectedCriteria.split(", ")[1]}": <number>,
+    "${expectedCriteria.split(", ")[2]}": <number>,
+    "${expectedCriteria.split(", ")[3]}": <number>
+  },
+  "overall": <number in exam scale>,
+  "normalized_overall": <0-10>,
   "band": {
-    "system": "IELTS|HSK|GENERAL",
-    "level": "<example: 6.5 | HSK 4 | Intermediate>",
+    "system": "${input.exam}",
+    "level": "<example: 6.5 or HSKK Intermediate>",
     "score": <numeric band score>,
     "rationale": "<why this band>"
   },
@@ -78,7 +139,7 @@ function normalizeScore(value: unknown) {
   return Number.isFinite(score) ? Math.max(0, Math.min(10, score)) : 0;
 }
 
-function parseSpeakingResponse(raw: string): SpeakingEvaluationResponse | null {
+function parseSpeakingResponse(raw: string, examType: "IELTS" | "HSK"): SpeakingEvaluationResponse | null {
   const cleaned = raw
     .trim()
     .replace(/^```json\s*/i, "")
@@ -92,23 +153,63 @@ function parseSpeakingResponse(raw: string): SpeakingEvaluationResponse | null {
 
   try {
     const source = JSON.parse(json) as Record<string, unknown>;
-    const fluency = normalizeScore(source.fluency_coherence);
-    const pronunciation = normalizeScore(source.pronunciation);
-    const lexical = normalizeScore(source.lexical_resource);
-    const grammar = normalizeScore(source.grammar);
-    const overall = normalizeScore(source.overall || (fluency + pronunciation + lexical + grammar) / 4);
+    const exam = examType;
+    const max = criterionMax(exam);
+    const expectedCriteria = exam === "IELTS" ? IELTS_CRITERIA : HSK_CRITERIA;
+    const rawCriteria = (source.criteria_scores || {}) as Record<string, unknown>;
+
+    const criteriaScores = Object.fromEntries(
+      expectedCriteria.map((criterion) => {
+        const legacyValue = (() => {
+          if (criterion === "fluency") return source.fluency_coherence;
+          if (criterion === "vocabulary") return source.lexical_resource;
+          if (criterion === "vocabulary_grammar") return source.lexical_resource ?? source.grammar;
+          if (criterion === "grammar") return source.grammar;
+          if (criterion === "pronunciation") return source.pronunciation;
+          if (criterion === "content") return source.task_response ?? source.content;
+          return 0;
+        })();
+        return [criterion, clampScore(rawCriteria[criterion] ?? legacyValue, max)];
+      }),
+    ) as Record<string, number>;
+
+    const criteriaValues = Object.values(criteriaScores);
+    const overallRaw = clampScore(
+      source.overall ?? (criteriaValues.length ? criteriaValues.reduce((sum, item) => sum + item, 0) / criteriaValues.length : 0),
+      max,
+    );
+    const normalizedOverall = normalizeScore(source.normalized_overall ?? normalizeToTen(overallRaw, max));
+
+    const fluencyValue = exam === "IELTS" ? criteriaScores.fluency ?? 0 : normalizeToTen(criteriaScores.fluency ?? 0, 100);
+    const pronunciationValue =
+      exam === "IELTS" ? criteriaScores.pronunciation ?? 0 : normalizeToTen(criteriaScores.pronunciation ?? 0, 100);
+    const lexicalValue =
+      exam === "IELTS"
+        ? criteriaScores.vocabulary ?? 0
+        : normalizeToTen(criteriaScores.vocabulary_grammar ?? 0, 100);
+    const grammarValue =
+      exam === "IELTS"
+        ? criteriaScores.grammar ?? 0
+        : normalizeToTen(criteriaScores.vocabulary_grammar ?? 0, 100);
 
     return {
+      exam,
+      score_scale: scoreScaleForExam(exam),
+      criteria_scores: criteriaScores,
       language: String(source.language || "English") as SpeakingEvaluationResponse["language"],
-      fluency_coherence: fluency,
-      pronunciation,
-      lexical_resource: lexical,
-      grammar,
-      overall,
+      fluency_coherence: normalizeScore(fluencyValue),
+      pronunciation: normalizeScore(pronunciationValue),
+      lexical_resource: normalizeScore(lexicalValue),
+      grammar: normalizeScore(grammarValue),
+      overall: overallRaw,
+      normalized_overall: normalizedOverall,
       band: {
-        system: (source.band as { system?: "IELTS" | "HSK" | "GENERAL" } | undefined)?.system || "GENERAL",
-        level: String((source.band as { level?: unknown } | undefined)?.level || "Intermediate"),
-        score: Number((source.band as { score?: unknown } | undefined)?.score ?? overall),
+        system: (source.band as { system?: "IELTS" | "HSK" } | undefined)?.system || exam,
+        level: String(
+          (source.band as { level?: unknown } | undefined)?.level ||
+            (exam === "IELTS" ? overallRaw.toFixed(1) : "HSKK Intermediate"),
+        ),
+        score: Number((source.band as { score?: unknown } | undefined)?.score ?? overallRaw),
         rationale: String((source.band as { rationale?: unknown } | undefined)?.rationale || ""),
       },
       summary: String(source.summary || "Speaking evaluation completed."),
@@ -126,11 +227,7 @@ function parseSpeakingResponse(raw: string): SpeakingEvaluationResponse | null {
         "Record and compare pronunciation for difficult words.",
         "Build topic vocabulary before answering.",
       ]),
-      practice_methods: normalizeArray(source.practice_methods, [
-        "shadowing",
-        "pronunciation drills",
-        "topic vocabulary expansion",
-      ]),
+      practice_methods: normalizeArray(source.practice_methods, ["shadowing", "pronunciation drills", "topic vocabulary expansion"]),
     };
   } catch (error) {
     console.error("Failed to parse speaking response:", error);
@@ -141,10 +238,16 @@ function parseSpeakingResponse(raw: string): SpeakingEvaluationResponse | null {
 export class SpeakingService {
   async evaluateSpeaking(input: {
     transcript: string;
+    examType: SpeakingExamType;
     prompt?: string;
+    conversation?: string;
     durationSeconds?: number | null;
     audioAvailable?: boolean;
   }): Promise<SpeakingEvaluationResponse> {
+    if (input.examType === "JLPT") {
+      throw new Error("JLPT does not include a speaking section.");
+    }
+
     const validation = validateEssay(input.transcript);
     if (!validation.valid) {
       throw new Error(validation.error || "Invalid speaking transcript");
@@ -161,20 +264,58 @@ export class SpeakingService {
       {
         role: "user",
         content: speakingPrompt({
+          exam: input.examType,
           prompt: input.prompt,
           transcript,
+          conversation: input.conversation,
           durationSeconds: input.durationSeconds,
           audioAvailable: Boolean(input.audioAvailable),
         }),
       },
     ]);
 
-    const parsed = parseSpeakingResponse(raw);
+    const parsed = parseSpeakingResponse(raw, input.examType);
     if (!parsed) {
       throw new Error("Failed to get valid speaking AI response");
     }
 
     return { ...parsed, language };
+  }
+
+  async generateFollowUpQuestion(input: {
+    examType: SpeakingExamType;
+    prompt?: string;
+    history: Array<{ role: "ai" | "student"; text: string }>;
+  }): Promise<string> {
+    if (input.examType === "JLPT") {
+      throw new Error("JLPT does not include a speaking section.");
+    }
+
+    const conversationHistory = input.history
+      .slice(-8)
+      .map((item) => `${item.role === "ai" ? "Examiner" : "Candidate"}: ${item.text}`)
+      .join("\n");
+
+    const raw = await ollamaService.chat([
+      { role: "system", content: LIVE_EXAMINER_SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: `Exam type: ${input.examType}
+Task: ${input.prompt?.trim() || "General speaking interview."}
+Recent turns:
+${conversationHistory || "No turns yet."}
+
+Generate the next examiner follow-up question in one sentence.`,
+      },
+    ]);
+
+    const cleaned = raw.replace(/^["'\s]+|["'\s]+$/g, "").replace(/\s+/g, " ").trim();
+    if (!cleaned) {
+      return input.examType === "IELTS"
+        ? "Can you give a specific example to support your answer?"
+        : "Please explain one concrete example in more detail.";
+    }
+    return cleaned.slice(0, 240);
   }
 }
 

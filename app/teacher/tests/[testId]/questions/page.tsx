@@ -19,13 +19,13 @@ export default function TeacherTestQuestionsPage() {
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [questionForm, setQuestionForm] = useState<QuestionForm>(createDefaultForm());
   const [pageError, setPageError] = useState<string | null>(null);
-  const isWritingCourse = (test?.course.category || "").trim().toLowerCase() === "writing";
+  const isWritingCourse = (test?.course?.category || "").trim().toLowerCase() === "writing";
 
   useEffect(() => {
     void fetchTestAndQuestions();
   }, [testId]);
 
-  const fetchTestAndQuestions = async () => {
+  async function fetchTestAndQuestions() {
     try {
       const [testRes, questionsRes] = await Promise.all([
         fetch(`/api/teacher/tests/${testId}`),
@@ -48,13 +48,13 @@ export default function TeacherTestQuestionsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   const resetForm = () => setQuestionForm(createDefaultForm());
 
   const openCreateModal = () => {
     if (!test) {
-      alert("Không tìm thấy bài test. Vui lòng quay lại danh sách bài test và mở lại.");
+      alert("Không tìm thấy bài test. Vui lòng thử lại.");
       return;
     }
     setEditingQuestion(null);
@@ -96,8 +96,8 @@ export default function TeacherTestQuestionsPage() {
     return null;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!test) {
       alert("Bài test không tồn tại hoặc bạn không có quyền truy cập.");
       return;
@@ -117,9 +117,7 @@ export default function TeacherTestQuestionsPage() {
     };
 
     try {
-      const url = editingQuestion
-        ? `/api/teacher/tests/${testId}/questions/${editingQuestion.id}`
-        : `/api/teacher/tests/${testId}/questions`;
+      const url = editingQuestion ? `/api/teacher/tests/${testId}/questions/${editingQuestion.id}` : `/api/teacher/tests/${testId}/questions`;
       const method = editingQuestion ? "PUT" : "POST";
 
       const res = await fetch(url, {
@@ -130,8 +128,10 @@ export default function TeacherTestQuestionsPage() {
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const message = data?.details ? `${data.error || "Không thể lưu câu hỏi"}: ${data.details}` : data?.error || "Không thể lưu câu hỏi. Vui lòng thử lại.";
-        alert(message);
+        const errorMessage = data?.details
+          ? `${data.error || "Không thể lưu câu hỏi"}: ${data.details}`
+          : data?.error || "Không thể lưu câu hỏi. Vui lòng thử lại.";
+        alert(errorMessage);
         return;
       }
 
@@ -141,7 +141,7 @@ export default function TeacherTestQuestionsPage() {
       await fetchTestAndQuestions();
     } catch (error) {
       console.error("Error saving question:", error);
-      alert("Lỗi khi lưu câu hỏi. Vui lòng kiểm tra console.");
+      alert("Lỗi khi lưu câu hỏi.");
     }
   };
 
@@ -167,9 +167,13 @@ export default function TeacherTestQuestionsPage() {
     <div className="min-h-screen bg-slate-50 py-8">
       <div className="mx-auto max-w-7xl px-4">
         <div className="mb-4 flex items-center justify-between">
-          <Link href={`/teacher/courses/${test?.course.id}`} className="text-sm text-slate-600 hover:text-slate-900">
-            Quay lại khóa học
-          </Link>
+          {test?.course?.id ? (
+            <Link href={`/teacher/courses/${test.course.id}`} className="text-sm text-slate-600 hover:text-slate-900">
+              Quay lại khóa học
+            </Link>
+          ) : (
+            <span className="text-sm text-slate-500">Đề test độc lập (không gắn khóa học)</span>
+          )}
           <Link href="/teacher/courses" className="text-sm text-slate-600 hover:text-slate-900">
             Danh sách khóa học
           </Link>
@@ -179,7 +183,9 @@ export default function TeacherTestQuestionsPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-slate-900">{test?.name}</h1>
-              <p className="mt-1 text-sm text-slate-600">Khóa học: {test?.course.name}</p>
+              <p className="mt-1 text-sm text-slate-600">
+                {test?.course?.name ? `Khóa học: ${test.course.name}` : "Loại đề: Public practice / Teacher entrance"}
+              </p>
             </div>
             <button onClick={openCreateModal} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white">
               Thêm câu hỏi
@@ -187,11 +193,11 @@ export default function TeacherTestQuestionsPage() {
           </div>
         </div>
 
-        {pageError && (
+        {pageError ? (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             {pageError}
           </div>
-        )}
+        ) : null}
 
         {questions.length === 0 ? (
           <div className="rounded-xl border border-slate-200 bg-white p-12 text-center text-slate-600">

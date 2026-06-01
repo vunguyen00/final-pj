@@ -3,14 +3,17 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { LANGUAGES, getCourseLanguage } from "@/app/components/learningMarketplace";
+import { getCourseLanguage } from "@/app/components/learningMarketplace";
+
+type TestKind = "COURSE" | "PUBLIC_PRACTICE" | "TEACHER_ENTRANCE";
 
 type Test = {
   id: string;
   name: string;
   description: string | null;
-  courseId: string;
+  courseId: string | null;
   courseName: string;
+  kind: TestKind;
   maxScore: number;
   passingScore: number;
   timeLimit: number | null;
@@ -22,7 +25,19 @@ type Test = {
   canAttempt: boolean;
 };
 
-const testTypes = ["Placement", "Skill diagnostic", "Certification estimate"];
+type FilterState = {
+  language: string;
+  kind: "ALL" | "TRAIN" | "COURSE";
+  availability: "ALL" | "UNLOCKED" | "LOCKED";
+  attempt: "ALL" | "ATTEMPTED" | "NOT_ATTEMPTED";
+};
+
+const defaultFilters: FilterState = {
+  language: "ALL",
+  kind: "ALL",
+  availability: "ALL",
+  attempt: "ALL",
+};
 
 export default function StudentTestsPage() {
   return (
@@ -36,10 +51,11 @@ function StudentTestsContent() {
   const searchParams = useSearchParams();
   const courseId = searchParams.get("courseId");
   const [tests, setTests] = useState<Test[]>([]);
-  const [language, setLanguage] = useState("All");
-  const [type, setType] = useState("Placement");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showFilter, setShowFilter] = useState(false);
+  const [appliedFilters, setAppliedFilters] = useState<FilterState>(defaultFilters);
+  const [draftFilters, setDraftFilters] = useState<FilterState>(defaultFilters);
 
   useEffect(() => {
     async function fetchTests() {
@@ -60,15 +76,32 @@ function StudentTestsContent() {
         setLoading(false);
       }
     }
+
     void fetchTests();
   }, [courseId]);
+
+  const languageOptions = useMemo(() => {
+    const values = new Set<string>();
+    for (const test of tests) {
+      values.add(getCourseLanguage({ name: `${test.courseName} ${test.name}`, description: test.description }));
+    }
+    return ["ALL", ...Array.from(values).sort((a, b) => a.localeCompare(b))];
+  }, [tests]);
 
   const filteredTests = useMemo(() => {
     return tests.filter((test) => {
       const testLanguage = getCourseLanguage({ name: `${test.courseName} ${test.name}`, description: test.description });
-      return language === "All" || testLanguage === language;
+
+      if (appliedFilters.language !== "ALL" && testLanguage !== appliedFilters.language) return false;
+      if (appliedFilters.kind === "TRAIN" && test.kind !== "PUBLIC_PRACTICE") return false;
+      if (appliedFilters.kind === "COURSE" && test.kind !== "COURSE") return false;
+      if (appliedFilters.availability === "UNLOCKED" && !test.canAttempt) return false;
+      if (appliedFilters.availability === "LOCKED" && test.canAttempt) return false;
+      if (appliedFilters.attempt === "ATTEMPTED" && !test.hasAttempt) return false;
+      if (appliedFilters.attempt === "NOT_ATTEMPTED" && test.hasAttempt) return false;
+      return true;
     });
-  }, [tests, language]);
+  }, [tests, appliedFilters]);
 
   const stats = {
     available: filteredTests.filter((test) => test.canAttempt).length,
@@ -76,9 +109,26 @@ function StudentTestsContent() {
     completed: filteredTests.filter((test) => test.hasAttempt).length,
   };
 
-  if (loading) {
-    return <TestsLoading />;
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (appliedFilters.language !== defaultFilters.language) count += 1;
+    if (appliedFilters.kind !== defaultFilters.kind) count += 1;
+    if (appliedFilters.availability !== defaultFilters.availability) count += 1;
+    if (appliedFilters.attempt !== defaultFilters.attempt) count += 1;
+    return count;
+  }, [appliedFilters]);
+
+  function applyFilters() {
+    setAppliedFilters(draftFilters);
+    setShowFilter(false);
   }
+
+  function clearFilters() {
+    setDraftFilters(defaultFilters);
+    setAppliedFilters(defaultFilters);
+  }
+
+  if (loading) return <TestsLoading />;
 
   return (
     <main className="min-h-screen bg-slate-50 py-8">
@@ -86,21 +136,28 @@ function StudentTestsContent() {
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Assessment center</p>
-              <h1 className="mt-2 text-3xl font-bold text-slate-950">Placement, diagnostics, and certification estimates</h1>
+              <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Assessment Center</p>
+              <h1 className="mt-2 text-3xl font-bold text-slate-950">Practice and course tests</h1>
               <p className="mt-2 max-w-2xl text-slate-600">
-                Choose a language and test type. Tests unlock from course progress where required by the existing learning rules.
+                Tất cả đề course test và đề train do admin tạo sẽ hiển thị tại đây.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setShowFilter(true)}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+              >
+                Filter {activeFilterCount > 0 ? `(${activeFilterCount})` : ""}
+              </button>
               <Link href="/student/tests/history" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-                Lich su lam bai
+                Lịch sử làm bài
               </Link>
               <Link href="/student/results" className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
-                Tat ca ket qua
+                Tất cả kết quả
               </Link>
               <Link href="/student" className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
-                Back to dashboard
+                Về dashboard
               </Link>
             </div>
           </div>
@@ -112,53 +169,27 @@ function StudentTestsContent() {
           <Stat label="Locked by progress" value={stats.locked} />
         </section>
 
-        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
-          <div className="flex flex-wrap gap-2">
-            {["All", ...LANGUAGES].map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => setLanguage(item)}
-                className={`rounded-full px-4 py-2 text-sm font-semibold ${language === item ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700"}`}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {testTypes.map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => setType(item)}
-                className={`rounded-lg px-4 py-2 text-sm font-semibold ${type === item ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700"}`}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-        </section>
-
         {error ? <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div> : null}
 
         <section className="mt-6 grid gap-4 lg:grid-cols-2">
           {filteredTests.map((test) => {
             const testLanguage = getCourseLanguage({ name: `${test.courseName} ${test.name}`, description: test.description });
             const scorePct = test.maxScore > 0 && test.lastAttempt ? Math.round((test.lastAttempt.score / test.maxScore) * 100) : 0;
+            const kindLabel = test.kind === "PUBLIC_PRACTICE" ? "Train" : "Course test";
             return (
               <article key={test.id} className="rounded-xl border border-slate-200 bg-white p-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <div className="flex flex-wrap gap-2">
                       <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">{testLanguage}</span>
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">{type}</span>
+                      <span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-700">{kindLabel}</span>
                       <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${test.isUnlocked ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
                         {test.isUnlocked ? "Unlocked" : "Locked"}
                       </span>
                     </div>
                     <h2 className="mt-3 text-lg font-bold text-slate-950">{test.name}</h2>
                     <p className="mt-1 text-sm text-slate-500">{test.courseName}</p>
-                    <p className="mt-3 line-clamp-2 text-sm text-slate-600">{test.description || "Adaptive assessment for level, skill gaps, and next-course recommendation."}</p>
+                    <p className="mt-3 line-clamp-2 text-sm text-slate-600">{test.description || "Adaptive assessment for level and skill gaps."}</p>
                   </div>
                   {test.canAttempt ? (
                     <Link href={`/student/tests/${test.id}`} className="rounded-lg bg-blue-600 px-4 py-2 text-center text-sm font-semibold text-white hover:bg-blue-700">
@@ -194,10 +225,102 @@ function StudentTestsContent() {
 
         {filteredTests.length === 0 ? (
           <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
-            No tests found for this language. Enrolled course tests and diagnostics will appear here.
+            Không có đề phù hợp với bộ lọc hiện tại.
           </div>
         ) : null}
       </div>
+
+      {showFilter ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-xl rounded-xl bg-white p-6 shadow-xl">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-slate-950">Filter tests</h2>
+              <button
+                type="button"
+                onClick={() => setShowFilter(false)}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-5 grid gap-4">
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-slate-700">Language</label>
+                <select
+                  value={draftFilters.language}
+                  onChange={(event) => setDraftFilters((prev) => ({ ...prev, language: event.target.value }))}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  {languageOptions.map((item) => (
+                    <option key={item} value={item}>
+                      {item === "ALL" ? "All languages" : item}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-slate-700">Test type</label>
+                <select
+                  value={draftFilters.kind}
+                  onChange={(event) => setDraftFilters((prev) => ({ ...prev, kind: event.target.value as FilterState["kind"] }))}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  <option value="ALL">All tests</option>
+                  <option value="TRAIN">Train tests</option>
+                  <option value="COURSE">Course tests</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-slate-700">Availability</label>
+                <select
+                  value={draftFilters.availability}
+                  onChange={(event) =>
+                    setDraftFilters((prev) => ({ ...prev, availability: event.target.value as FilterState["availability"] }))
+                  }
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  <option value="ALL">All</option>
+                  <option value="UNLOCKED">Can attempt</option>
+                  <option value="LOCKED">Locked</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-slate-700">Attempt status</label>
+                <select
+                  value={draftFilters.attempt}
+                  onChange={(event) => setDraftFilters((prev) => ({ ...prev, attempt: event.target.value as FilterState["attempt"] }))}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  <option value="ALL">All</option>
+                  <option value="ATTEMPTED">Attempted</option>
+                  <option value="NOT_ATTEMPTED">Not attempted</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700"
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                onClick={applyFilters}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+              >
+                Apply filter
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
@@ -217,7 +340,9 @@ function TestsLoading() {
       <div className="mx-auto max-w-7xl space-y-4 px-4">
         <div className="h-40 animate-pulse rounded-2xl bg-slate-200" />
         <div className="grid gap-4 md:grid-cols-3">
-          {[1, 2, 3].map((item) => <div key={item} className="h-36 animate-pulse rounded-xl bg-slate-200" />)}
+          {[1, 2, 3].map((item) => (
+            <div key={item} className="h-36 animate-pulse rounded-xl bg-slate-200" />
+          ))}
         </div>
       </div>
     </main>

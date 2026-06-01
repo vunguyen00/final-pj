@@ -6,6 +6,23 @@ type CourseHeaderProps = {
 };
 
 export function CourseHeader({ course }: CourseHeaderProps) {
+  const statusLabel =
+    course.status === "ACTIVE"
+      ? "Hoạt động"
+      : course.status === "LOCKED"
+        ? "Đã khóa"
+        : course.status === "PENDING_APPROVAL"
+          ? "Chờ duyệt"
+          : "Bị từ chối";
+  const statusClass =
+    course.status === "ACTIVE"
+      ? "bg-green-100 text-green-700"
+      : course.status === "LOCKED"
+        ? "bg-red-100 text-red-700"
+        : course.status === "PENDING_APPROVAL"
+          ? "bg-amber-100 text-amber-700"
+          : "bg-rose-100 text-rose-700";
+
   return (
     <>
       <Link
@@ -27,8 +44,8 @@ export function CourseHeader({ course }: CourseHeaderProps) {
               <span className="flex items-center gap-1">{course._count.enrollments} hoc vien</span>
               <span className="flex items-center gap-1">{course._count.modules} modules</span>
               <span className="flex items-center gap-1">{course._count.tests} bai test</span>
-              <span className={`rounded-full px-2 py-1 text-xs font-medium ${course.status === "ACTIVE" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                {course.status === "ACTIVE" ? "Hoat dong" : "Da khoa"}
+              <span className={`rounded-full px-2 py-1 text-xs font-medium ${statusClass}`}>
+                {statusLabel}
               </span>
             </div>
           </div>

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { getCourseAutoApprovalSetting } from "@/lib/course-approval";
+
+const COURSE_STATUSES = new Set(["ACTIVE", "LOCKED", "PENDING_APPROVAL", "REJECTED"]);
 
 export async function GET(
   request: NextRequest,
@@ -125,17 +128,45 @@ export async function PUT(
     const body = await request.json();
     const { name, description, price, category, duration, thumbnail, status } = body;
 
+    const updateData: Record<string, unknown> = {
+      ...(name && { name }),
+      ...(description && { description }),
+      ...(category !== undefined && { category }),
+      ...(duration !== undefined && { duration }),
+      ...(thumbnail !== undefined && { thumbnail }),
+    };
+
+    if (price !== undefined) {
+      const normalizedPrice = Number(price);
+      if (!Number.isFinite(normalizedPrice) || normalizedPrice < 0) {
+        return NextResponse.json(
+          { error: "Invalid price" },
+          { status: 400 }
+        );
+      }
+      updateData.price = normalizedPrice;
+    }
+
+    if (user.role === "ADMIN") {
+      if (status) {
+        if (!COURSE_STATUSES.has(status)) {
+          return NextResponse.json(
+            { error: "Invalid course status" },
+            { status: 400 }
+          );
+        }
+        updateData.status = status;
+      }
+    } else {
+      if (course.status !== "LOCKED") {
+        const autoApproval = await getCourseAutoApprovalSetting();
+        updateData.status = autoApproval.enabled ? "ACTIVE" : "PENDING_APPROVAL";
+      }
+    }
+
     const updatedCourse = await prisma.course.update({
       where: { id: courseId },
-      data: {
-        ...(name && { name }),
-        ...(description && { description }),
-        ...(price !== undefined && { price: parseFloat(price) }),
-        ...(category !== undefined && { category }),
-        ...(duration !== undefined && { duration }),
-        ...(thumbnail !== undefined && { thumbnail }),
-        ...(status && { status }),
-      },
+      data: updateData as never,
       include: {
         instructor: {
           select: {
@@ -147,7 +178,10 @@ export async function PUT(
       },
     });
 
-    return NextResponse.json({ course: updatedCourse });
+    return NextResponse.json({
+      course: updatedCourse,
+      requiresApproval: user.role === "TEACHER" && updatedCourse.status === "PENDING_APPROVAL",
+    });
   } catch (error) {
     console.error("Error updating course:", error);
     return NextResponse.json(
@@ -193,12 +227,77 @@ export async function PATCH(
     const body = await request.json();
     const { action } = body;
 
-    // Toggle lock/unlock
     if (action === "toggleLock") {
+      if (user.role !== "ADMIN") {
+        return NextResponse.json(
+          { error: "Only admin can lock/unlock courses" },
+          { status: 403 }
+        );
+      }
+      if (course.status !== "ACTIVE" && course.status !== "LOCKED") {
+        return NextResponse.json(
+          { error: "Can only lock or unlock active/locked courses" },
+          { status: 400 }
+        );
+      }
       const newStatus = course.status === "ACTIVE" ? "LOCKED" : "ACTIVE";
       const updatedCourse = await prisma.course.update({
         where: { id: courseId },
         data: { status: newStatus },
+      });
+      return NextResponse.json({ course: updatedCourse });
+    }
+
+    if (action === "reviewCourse") {
+      if (user.role !== "ADMIN") {
+        return NextResponse.json(
+          { error: "Only admin can review courses" },
+          { status: 403 }
+        );
+      }
+
+      const decision = body.decision === "APPROVE" ? "APPROVE" : body.decision === "REJECT" ? "REJECT" : null;
+      if (!decision) {
+        return NextResponse.json(
+          { error: "Invalid review decision" },
+          { status: 400 }
+        );
+      }
+
+      const updatedCourse = await prisma.course.update({
+        where: { id: courseId },
+        data: { status: decision === "APPROVE" ? "ACTIVE" : "REJECTED" },
+      });
+
+      if (course.instructorId) {
+        await prisma.notification.create({
+          data: {
+            userId: course.instructorId,
+            title: decision === "APPROVE" ? "Khóa học đã được duyệt" : "Khóa học chưa được duyệt",
+            body:
+              decision === "APPROVE"
+                ? `Khóa học "${course.name}" đã được duyệt và hiển thị công khai.`
+                : body.rejectionReason?.trim()
+                  ? `Khóa học "${course.name}" bị từ chối. Lý do: ${body.rejectionReason.trim()}`
+                  : `Khóa học "${course.name}" bị từ chối. Vui lòng chỉnh sửa và gửi lại.`,
+          },
+        });
+      }
+
+      return NextResponse.json({ course: updatedCourse });
+    }
+
+    if (action === "submitForApproval") {
+      if (user.role !== "TEACHER") {
+        return NextResponse.json(
+          { error: "Invalid action" },
+          { status: 400 }
+        );
+      }
+      const autoApproval = await getCourseAutoApprovalSetting();
+      const updatedCourse = await prisma.course.update({
+        where: { id: courseId },
+        data: { status: autoApproval.enabled ? "ACTIVE" : "PENDING_APPROVAL" },
       });
       return NextResponse.json({ course: updatedCourse });
     }

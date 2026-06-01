@@ -85,12 +85,9 @@ export default async function CoursesPage({
               <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Course marketplace</p>
               <h1 className="mt-2 text-3xl font-bold text-slate-950">Find your next language course</h1>
               <p className="mt-2 max-w-2xl text-slate-600">
-                Browse single courses, combo paths, skill training, certification prep, vocabulary packs, and mock tests.
+                Browse single courses, skill training, certification prep, vocabulary packs, and mock tests.
               </p>
             </div>
-            <Link href="/combos" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-              View combo bundles
-            </Link>
           </div>
         </section>
 

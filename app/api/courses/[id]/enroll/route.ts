@@ -25,6 +25,10 @@ export async function POST(
       return NextResponse.json({ error: "Khong tim thay khoa hoc." }, { status: 404 });
     }
 
+    if (course.status !== "ACTIVE" && course.instructorId !== user.id) {
+      return NextResponse.json({ error: "Khoa hoc chua duoc mo cong khai." }, { status: 400 });
+    }
+
     if (existing) {
       return NextResponse.json({ ok: true, alreadyEnrolled: true });
     }

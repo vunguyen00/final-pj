@@ -28,6 +28,8 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
   const [course, user] = await Promise.all([getCourse(id), authenticate()]);
 
   if (!course) notFound();
+  const canPreviewUnpublished = Boolean(user && (user.role === "ADMIN" || course.instructorId === user.id));
+  if (course.status !== "ACTIVE" && !canPreviewUnpublished) notFound();
 
   const totalLessons = course.modules.reduce((acc, module) => acc + module.lessons.length, 0);
   const canLearnDirectly = Boolean(user && user.role === "TEACHER" && course.instructorId === user.id);

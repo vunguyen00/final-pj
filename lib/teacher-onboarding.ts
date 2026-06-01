@@ -52,7 +52,7 @@ export async function findEntranceTest(languageId: string) {
   return prisma.test.findFirst({
     where: {
       kind: "TEACHER_ENTRANCE",
-      OR: [{ languageId }, { languageId: null }],
+      languageId,
     },
     include: {
       questions: {

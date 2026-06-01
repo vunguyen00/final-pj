@@ -30,7 +30,7 @@ export type Test = {
     id: string;
     name: string;
     category: string | null;
-  };
+  } | null;
 };
 
 export type QuestionForm = {

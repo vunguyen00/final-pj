@@ -81,11 +81,15 @@ export interface OllamaChatRequest {
 
 export interface SpeakingEvaluationResponse {
   language: SupportedLanguage;
+  exam: "IELTS" | "HSK";
+  score_scale: "BAND_0_9" | "SCORE_0_100";
+  criteria_scores: Record<string, number>;
   fluency_coherence: number;
   pronunciation: number;
   lexical_resource: number;
   grammar: number;
   overall: number;
+  normalized_overall: number;
   band: BandAssessment;
   summary: string;
   strengths: string[];
@@ -98,6 +102,8 @@ export interface SpeakingEvaluationResponse {
   suggestions: string[];
   practice_methods: string[];
 }
+
+export type SpeakingExamType = "IELTS" | "HSK" | "JLPT";
 
 export type AssessmentType = "SPEAKING" | "WRITING";
 

@@ -24,7 +24,6 @@ function hasMatch(item: MatchedNavItem | BasicNavItem): item is MatchedNavItem {
 const navItems = [
   { href: "/", label: "Marketplace", match: (path: string) => path === "/" },
   { href: "/courses", label: "Courses", match: (path: string) => path.startsWith("/courses") },
-  { href: "/combos", label: "Combos", match: (path: string) => path.startsWith("/combos") },
   { href: "/teachers", label: "Teachers", match: (path: string) => path.startsWith("/teachers") },
 ] satisfies MatchedNavItem[];
 
@@ -53,7 +52,6 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
     user?.role === "STUDENT" || user?.role === "TEACHER"
       ? [
           { href: "/student", label: "Dashboard" },
-          { href: "/student/lam-bai", label: "Practice" },
           { href: "/student/tests", label: "Tests" },
           { href: "/student/results", label: "Results" },
           { href: "/student/rewards", label: "Points" },

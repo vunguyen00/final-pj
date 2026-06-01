@@ -10,6 +10,8 @@ import {
 } from "@/lib/ai-points";
 import { prisma } from "@/lib/prisma";
 import { ollamaService, speakingService } from "@/lib/ai";
+import { SpeakingExamType } from "@/lib/ai/types";
+import { getSpeakingAiSetting } from "@/lib/speaking-ai-setting";
 
 function audioExtension(type: string) {
   if (type.includes("mpeg") || type.includes("mp3")) return "mp3";
@@ -47,8 +49,11 @@ export async function POST(request: NextRequest) {
     const prompt = String(form.get("prompt") || "").trim();
     const title = String(form.get("title") || "Speaking AI").trim();
     const courseId = String(form.get("courseId") || "").trim();
+    const conversation = String(form.get("conversation") || "").trim();
     const durationSeconds = Number(form.get("durationSeconds") || 0);
     const audio = form.get("audio");
+    const speakingSetting = await getSpeakingAiSetting();
+    const examType = speakingSetting.examType as SpeakingExamType;
 
     if (!transcript) {
       return NextResponse.json({ error: "Can co transcript de AI cham speaking." }, { status: 400 });
@@ -77,17 +82,18 @@ export async function POST(request: NextRequest) {
     const audioUrl = await saveSpeakingAudio(audioFile, user.id);
     const evaluation = await speakingService.evaluateSpeaking({
       transcript,
+      examType,
       prompt,
-      durationSeconds: Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : null,
+      conversation,
+      durationSeconds:
+        Number.isFinite(durationSeconds) && durationSeconds > 0
+          ? Math.min(Math.round(durationSeconds), speakingSetting.durationSeconds)
+          : null,
       audioAvailable: Boolean(audioUrl),
     });
 
-    const criteria = {
-      fluencyCoherence: evaluation.fluency_coherence,
-      pronunciation: evaluation.pronunciation,
-      lexicalResource: evaluation.lexical_resource,
-      grammar: evaluation.grammar,
-    };
+    const criteria = evaluation.criteria_scores;
+    const maxScore = evaluation.exam === "IELTS" ? 9 : 100;
 
     const assessment = await prisma.aiAssessment.create({
       data: {
@@ -98,9 +104,12 @@ export async function POST(request: NextRequest) {
         prompt: prompt || null,
         submissionText: transcript,
         audioUrl,
-        durationSeconds: Number.isFinite(durationSeconds) && durationSeconds > 0 ? Math.round(durationSeconds) : null,
+        durationSeconds:
+          Number.isFinite(durationSeconds) && durationSeconds > 0
+            ? Math.min(Math.round(durationSeconds), speakingSetting.durationSeconds)
+            : null,
         score: evaluation.overall,
-        maxScore: 10,
+        maxScore,
         bandSystem: evaluation.band.system,
         bandLevel: evaluation.band.level,
         bandScore: evaluation.band.score,
@@ -109,7 +118,10 @@ export async function POST(request: NextRequest) {
           evaluation: {
             scores: criteria,
             overall: evaluation.overall,
+            normalizedOverall: evaluation.normalized_overall,
             language: evaluation.language,
+            exam: evaluation.exam,
+            scoreScale: evaluation.score_scale,
             band: evaluation.band,
             summary: evaluation.summary,
           },
@@ -152,7 +164,10 @@ export async function POST(request: NextRequest) {
         evaluation: {
           scores: criteria,
           overall: evaluation.overall,
+          normalizedOverall: evaluation.normalized_overall,
           language: evaluation.language,
+          exam: evaluation.exam,
+          scoreScale: evaluation.score_scale,
           band: evaluation.band,
           summary: evaluation.summary,
         },

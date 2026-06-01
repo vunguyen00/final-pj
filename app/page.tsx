@@ -24,7 +24,6 @@ const testimonials = [
 
 export default async function HomePage() {
   const courses = await getHomeCourses();
-  const combos = courses.filter((course) => getCourseType(course) === "Combo course").slice(0, 3);
   const featured = courses.slice(0, 4);
 
   return (
@@ -69,20 +68,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="bg-white py-12">
-        <div className="mx-auto max-w-7xl px-4">
-          <div className="flex items-end justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-950">Combo bundles</h2>
-              <p className="mt-1 text-slate-600">Structured paths for learners who want a full plan.</p>
-            </div>
-            <Link href="/combos" className="text-sm font-semibold text-blue-600">Open combos</Link>
-          </div>
-          <div className="mt-6 grid gap-5 md:grid-cols-3">
-            {(combos.length ? combos : featured.slice(0, 3)).map((course) => <CourseCard key={course.id} course={course} />)}
-          </div>
-        </div>
-      </section>
+      {/* Combo bundles removed */}
 
       <section className="mx-auto grid max-w-7xl gap-6 px-4 py-12 lg:grid-cols-3">
         {["Adaptive learning", "Marketplace choice", "LMS tracking"].map((title, index) => (

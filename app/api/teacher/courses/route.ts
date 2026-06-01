@@ -1,8 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { getCourseAutoApprovalSetting } from "@/lib/course-approval";
 
-export async function GET(request: NextRequest) {
+const COURSE_STATUSES = new Set(["ACTIVE", "LOCKED", "PENDING_APPROVAL", "REJECTED"]);
+
+export async function GET() {
   try {
     const user = await getCurrentUser();
     
@@ -48,7 +51,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
     
@@ -69,15 +72,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const normalizedPrice = Number(price);
+    if (!Number.isFinite(normalizedPrice) || normalizedPrice < 0) {
+      return NextResponse.json(
+        { error: "Invalid price" },
+        { status: 400 }
+      );
+    }
+
+    const autoApproval = user.role === "TEACHER" ? await getCourseAutoApprovalSetting() : { enabled: true };
+    const nextStatus =
+      user.role === "ADMIN"
+        ? status || "ACTIVE"
+        : autoApproval.enabled
+          ? "ACTIVE"
+          : "PENDING_APPROVAL";
+
+    if (!COURSE_STATUSES.has(nextStatus)) {
+      return NextResponse.json(
+        { error: "Invalid course status" },
+        { status: 400 }
+      );
+    }
+
     const course = await prisma.course.create({
       data: {
         name,
         description,
-        price: parseFloat(price),
+        price: normalizedPrice,
         category: category || null,
         duration: duration || null,
         thumbnail: thumbnail || null,
-        status: status || "ACTIVE",
+        status: nextStatus,
         instructorId: user.id,
       },
       include: {
@@ -91,7 +117,14 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ course }, { status: 201 });
+    return NextResponse.json(
+      {
+        course,
+        requiresApproval: user.role === "TEACHER" && nextStatus === "PENDING_APPROVAL",
+        autoApproved: user.role === "TEACHER" && nextStatus === "ACTIVE",
+      },
+      { status: 201 },
+    );
   } catch (error) {
     console.error("Error creating course:", error);
     return NextResponse.json(

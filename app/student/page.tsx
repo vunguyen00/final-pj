@@ -74,8 +74,8 @@ export default async function StudentPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <Link href="/student/lam-bai" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-                Practice now
+              <Link href="/student/tests" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                Open tests
               </Link>
               <Link href="/courses" className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
                 Browse courses

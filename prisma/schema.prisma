@@ -96,6 +96,8 @@ model Course {
 enum CourseStatus {
   ACTIVE
   LOCKED
+  PENDING_APPROVAL
+  REJECTED
 }
 
 model Module {
