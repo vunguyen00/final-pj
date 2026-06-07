@@ -14,13 +14,17 @@ type Test = {
   courseId: string | null;
   courseName: string;
   kind: TestKind;
+  assessmentMode: "STANDARD" | "WRITING" | "SPEAKING";
+  language: { id: string; name: string; code: string } | null;
   maxScore: number;
   passingScore: number;
   timeLimit: number | null;
   questionCount: number;
+  totalQuestionScore: number;
   hasAttempt: boolean;
   progress: number;
   isUnlocked: boolean;
+  isReady: boolean;
   lastAttempt: { id: string; score: number; isPassed: boolean; submittedAt: string } | null;
   canAttempt: boolean;
 };
@@ -83,7 +87,7 @@ function StudentTestsContent() {
   const languageOptions = useMemo(() => {
     const values = new Set<string>();
     for (const test of tests) {
-      values.add(getCourseLanguage({ name: `${test.courseName} ${test.name}`, description: test.description }));
+      values.add(test.language?.name || getCourseLanguage({ name: `${test.courseName} ${test.name}`, description: test.description }));
     }
     return ["ALL", ...Array.from(values).sort((a, b) => a.localeCompare(b))];
   }, [tests]);
@@ -91,8 +95,9 @@ function StudentTestsContent() {
   const filteredTests = useMemo(() => {
     return tests.filter((test) => {
       const testLanguage = getCourseLanguage({ name: `${test.courseName} ${test.name}`, description: test.description });
+      const normalizedLanguage = test.language?.name || testLanguage;
 
-      if (appliedFilters.language !== "ALL" && testLanguage !== appliedFilters.language) return false;
+      if (appliedFilters.language !== "ALL" && normalizedLanguage !== appliedFilters.language) return false;
       if (appliedFilters.kind === "TRAIN" && test.kind !== "PUBLIC_PRACTICE") return false;
       if (appliedFilters.kind === "COURSE" && test.kind !== "COURSE") return false;
       if (appliedFilters.availability === "UNLOCKED" && !test.canAttempt) return false;
@@ -173,9 +178,10 @@ function StudentTestsContent() {
 
         <section className="mt-6 grid gap-4 lg:grid-cols-2">
           {filteredTests.map((test) => {
-            const testLanguage = getCourseLanguage({ name: `${test.courseName} ${test.name}`, description: test.description });
-            const scorePct = test.maxScore > 0 && test.lastAttempt ? Math.round((test.lastAttempt.score / test.maxScore) * 100) : 0;
-            const kindLabel = test.kind === "PUBLIC_PRACTICE" ? "Train" : "Course test";
+      const testLanguage = test.language?.name || getCourseLanguage({ name: `${test.courseName} ${test.name}`, description: test.description });
+      const scorePct = test.maxScore > 0 && test.lastAttempt ? Math.round((test.lastAttempt.score / test.maxScore) * 100) : 0;
+      const kindLabel = test.kind === "PUBLIC_PRACTICE" ? "Train" : "Course test";
+      const modeLabel = test.assessmentMode === "WRITING" ? "Writing AI" : test.assessmentMode === "SPEAKING" ? "Speaking AI" : "Standard";
             return (
               <article key={test.id} className="rounded-xl border border-slate-200 bg-white p-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -183,9 +189,11 @@ function StudentTestsContent() {
                     <div className="flex flex-wrap gap-2">
                       <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">{testLanguage}</span>
                       <span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-700">{kindLabel}</span>
+                      <span className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-bold text-orange-700">{modeLabel}</span>
                       <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${test.isUnlocked ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
                         {test.isUnlocked ? "Unlocked" : "Locked"}
                       </span>
+                      {!test.isReady ? <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700">Need 100 points</span> : null}
                     </div>
                     <h2 className="mt-3 text-lg font-bold text-slate-950">{test.name}</h2>
                     <p className="mt-1 text-sm text-slate-500">{test.courseName}</p>
@@ -197,13 +205,14 @@ function StudentTestsContent() {
                     </Link>
                   ) : (
                     <span className="rounded-lg bg-slate-100 px-4 py-2 text-center text-sm font-semibold text-slate-500">
-                      {!test.isUnlocked ? "Complete course" : "Unavailable"}
+                      {!test.isUnlocked ? "Complete course" : !test.isReady ? "Waiting for 100 points" : "Unavailable"}
                     </span>
                   )}
                 </div>
                 <div className="mt-5 grid gap-3 text-sm sm:grid-cols-4">
                   <Metric label="Progress" value={`${test.progress}%`} />
                   <Metric label="Questions" value={`${test.questionCount}`} />
+                  <Metric label="Point total" value={`${test.totalQuestionScore}/100`} />
                   <Metric label="Time" value={test.timeLimit ? `${test.timeLimit}m` : "Self-paced"} />
                   <Metric label="Pass score" value={`${test.passingScore}`} />
                 </div>

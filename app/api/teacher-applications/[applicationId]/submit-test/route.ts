@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { sendBasicEmail } from "@/lib/mailer";
 import { prisma } from "@/lib/prisma";
+import { evaluateSpeakingAnswer, evaluateWritingAnswer } from "@/lib/test-ai-evaluation";
 import { logTeacherApplication } from "@/lib/teacher-onboarding";
+import { FIXED_TEST_MAX_SCORE, isTestReady } from "@/lib/test-rules";
 
 export async function POST(
   request: Request,
@@ -17,6 +19,7 @@ export async function POST(
     const application = await prisma.teacherApplication.findUnique({
       where: { id: applicationId },
       include: {
+        language: true,
         entranceTest: {
           include: {
             questions: {
@@ -41,15 +44,23 @@ export async function POST(
       return NextResponse.json({ error: "Ho so khong co bai test dau vao." }, { status: 400 });
     }
 
+    const totalQuestionScore = test.questions.reduce((sum, question) => sum + Number(question.score || 0), 0);
+    if (!isTestReady(totalQuestionScore)) {
+      return NextResponse.json({ error: `Bai test dau vao chua hop le. Tong diem cau hoi phai bang ${FIXED_TEST_MAX_SCORE}.` }, { status: 400 });
+    }
+
     let earned = 0;
     let rawMax = 0;
-    const questionResults = test.questions.map((question) => {
+    const questionResults = [];
+
+    for (const question of test.questions) {
       rawMax += question.score;
       const rawAnswer = answers[question.id] ?? "";
       let isCorrect = false;
       let earnedScore = 0;
       let correctAnswer: string | null = null;
       let studentAnswer = String(rawAnswer);
+      let aiEvaluation: Record<string, unknown> | null = null;
 
       if (question.type === "MULTIPLE_CHOICE" || question.type === "TRUE_FALSE") {
         const selected = question.answers.find((answer) => answer.id === rawAnswer);
@@ -65,12 +76,32 @@ export async function POST(
         isCorrect = Boolean(correct && studentAnswer.trim().toLowerCase() === correct.content.trim().toLowerCase());
       }
 
-      if (isCorrect) {
+      if (question.type === "ESSAY" && studentAnswer.trim()) {
+        const aiResult = await evaluateWritingAnswer(studentAnswer, question.content);
+        earnedScore = Math.round(question.score * (aiResult.normalizedScore / 10));
+        isCorrect = aiResult.normalizedScore >= 7;
+        earned += earnedScore;
+        aiEvaluation = aiResult.aiEvaluation;
+      }
+
+      if (question.type === "SPEAKING" && studentAnswer.trim()) {
+        const aiResult = await evaluateSpeakingAnswer({
+          transcript: studentAnswer,
+          prompt: question.content,
+          languageCode: application.language.code,
+        });
+        earnedScore = Math.round(question.score * (aiResult.normalizedScore / 10));
+        isCorrect = aiResult.normalizedScore >= 7;
+        earned += earnedScore;
+        aiEvaluation = aiResult.aiEvaluation;
+      }
+
+      if (isCorrect && question.type !== "ESSAY" && question.type !== "SPEAKING") {
         earnedScore = question.score;
         earned += question.score;
       }
 
-      return {
+      questionResults.push({
         questionId: question.id,
         questionType: question.type,
         content: question.content,
@@ -80,10 +111,11 @@ export async function POST(
         isCorrect,
         score: question.score,
         earnedScore,
-      };
-    });
+        ...(aiEvaluation && { aiEvaluation }),
+      });
+    }
 
-    const finalScore = rawMax > 0 ? (earned / rawMax) * test.maxScore : 0;
+    const finalScore = rawMax > 0 ? (earned / rawMax) * FIXED_TEST_MAX_SCORE : 0;
     const isPassed = finalScore >= test.passingScore;
     const attemptNo = (await prisma.testAttempt.count({
       where: { testId: test.id, userId: user.id },
@@ -95,7 +127,7 @@ export async function POST(
         userId: user.id,
         attemptNo,
         score: finalScore,
-        maxScore: test.maxScore,
+        maxScore: FIXED_TEST_MAX_SCORE,
         answers,
         results: {
           totalQuestions: test.questions.length,
@@ -139,7 +171,7 @@ export async function POST(
     return NextResponse.json({
       attemptId: attempt.id,
       score: finalScore,
-      maxScore: test.maxScore,
+      maxScore: FIXED_TEST_MAX_SCORE,
       passingScore: test.passingScore,
       isPassed,
       underReview: true,

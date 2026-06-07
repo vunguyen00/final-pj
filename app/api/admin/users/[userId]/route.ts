@@ -18,9 +18,10 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const data: { isBanned?: boolean; email?: string } = {};
+    const data: { isBanned?: boolean; email?: string; role?: string } = {};
     if (typeof body.isBanned === "boolean") data.isBanned = body.isBanned;
     if (typeof body.email === "string" && body.email.trim()) data.email = body.email.trim().toLowerCase();
+    if (typeof body.role === "string" && ["USER", "TEACHER", "ADMIN"].includes(body.role)) data.role = body.role;
 
     const updated = await prisma.user.update({
       where: { id: userId },

@@ -9,6 +9,8 @@ type Props = {
 };
 
 export function QuestionCard({ question, index, onEdit, onDelete }: Props) {
+  const isAiQuestion = question.type === "ESSAY" || question.type === "SPEAKING" || Boolean(question.audioUrl);
+
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6">
       <div className="flex items-start justify-between">
@@ -20,7 +22,7 @@ export function QuestionCard({ question, index, onEdit, onDelete }: Props) {
             <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
               {getQuestionTypeLabel(question)}
             </span>
-            <span className="text-sm text-slate-500">{question.score} điểm</span>
+            <span className="text-sm text-slate-500">{question.score} diem</span>
           </div>
 
           {question.audioUrl && (
@@ -51,20 +53,20 @@ export function QuestionCard({ question, index, onEdit, onDelete }: Props) {
 
           {question.type === "FILL_IN_BLANK" && question.answers?.[0] && (
             <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3">
-              <span className="text-sm font-medium text-green-700">Đáp án: </span>
+              <span className="text-sm font-medium text-green-700">Dap an: </span>
               <span className="text-sm text-slate-700">{question.answers[0].content}</span>
             </div>
           )}
 
-          {(question.type === "ESSAY" || question.audioUrl) && (
+          {isAiQuestion && (
             <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-              Câu hỏi này được chấm bởi giáo viên hoặc AI, không có đáp án đúng/sai cố định.
+              Cau hoi nay duoc AI cham diem, khong co dap an dung/sai co dinh.
             </div>
           )}
 
           {question.explanation && (
             <div className="mt-3 rounded-lg border border-yellow-200 bg-yellow-50 p-3">
-              <span className="text-sm font-medium text-yellow-700">Giải thích: </span>
+              <span className="text-sm font-medium text-yellow-700">Giai thich: </span>
               <span className="text-sm text-slate-700">{question.explanation}</span>
             </div>
           )}
@@ -72,10 +74,10 @@ export function QuestionCard({ question, index, onEdit, onDelete }: Props) {
 
         <div className="ml-4 flex gap-2">
           <button onClick={() => onEdit(question)} className="rounded-lg p-2 text-slate-600 hover:bg-slate-100">
-            Sửa
+            Sua
           </button>
           <button onClick={() => onDelete(question.id)} className="rounded-lg p-2 text-red-600 hover:bg-red-50">
-            Xóa
+            Xoa
           </button>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { FIXED_TEST_MAX_SCORE } from "@/lib/test-rules";
 
 export async function GET(
   request: NextRequest,
@@ -9,7 +10,7 @@ export async function GET(
   try {
     const { testId } = await params;
     const user = await getCurrentUser();
-    
+
     if (!user || (user.role !== "TEACHER" && user.role !== "ADMIN")) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -20,7 +21,16 @@ export async function GET(
     const test = await prisma.test.findUnique({
       where: { id: testId },
       include: {
-        course: true,
+        course: {
+          include: {
+            language: {
+              select: { id: true, name: true, code: true },
+            },
+          },
+        },
+        language: {
+          select: { id: true, name: true, code: true },
+        },
         questions: {
           include: {
             answers: {
@@ -69,7 +79,7 @@ export async function PUT(
   try {
     const { testId } = await params;
     const user = await getCurrentUser();
-    
+
     if (!user || (user.role !== "TEACHER" && user.role !== "ADMIN")) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -99,17 +109,38 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, description, maxScore, passingScore, maxAttempts, timeLimit, shuffleQuestions } = body;
+    const { name, description, passingScore, maxAttempts, timeLimit, shuffleQuestions } = body;
+
+    if (passingScore !== undefined) {
+      const parsedPassingScore = Number(passingScore);
+      if (!Number.isFinite(parsedPassingScore) || parsedPassingScore < 0 || parsedPassingScore > FIXED_TEST_MAX_SCORE) {
+        return NextResponse.json({ error: "Passing score must be between 0 and 100" }, { status: 400 });
+      }
+    }
+
+    if (maxAttempts !== undefined) {
+      const parsedMaxAttempts = Number(maxAttempts);
+      if (!Number.isInteger(parsedMaxAttempts) || parsedMaxAttempts <= 0) {
+        return NextResponse.json({ error: "Max attempts must be a positive integer" }, { status: 400 });
+      }
+    }
+
+    if (timeLimit !== undefined && timeLimit !== null && timeLimit !== "") {
+      const parsedTimeLimit = Number(timeLimit);
+      if (!Number.isInteger(parsedTimeLimit) || parsedTimeLimit <= 0) {
+        return NextResponse.json({ error: "Time limit must be a positive integer" }, { status: 400 });
+      }
+    }
 
     const test = await prisma.test.update({
       where: { id: testId },
       data: {
         ...(name && { name }),
         ...(description !== undefined && { description }),
-        ...(maxScore !== undefined && { maxScore: parseFloat(maxScore) }),
+        maxScore: FIXED_TEST_MAX_SCORE,
         ...(passingScore !== undefined && { passingScore: parseFloat(passingScore) }),
-        ...(maxAttempts !== undefined && { maxAttempts }),
-        ...(timeLimit !== undefined && { timeLimit: timeLimit || null }),
+        ...(maxAttempts !== undefined && { maxAttempts: Number(maxAttempts) }),
+        ...(timeLimit !== undefined && { timeLimit: timeLimit ? Number(timeLimit) : null }),
         ...(shuffleQuestions !== undefined && { shuffleQuestions }),
       },
     });
@@ -131,7 +162,7 @@ export async function DELETE(
   try {
     const { testId } = await params;
     const user = await getCurrentUser();
-    
+
     if (!user || (user.role !== "TEACHER" && user.role !== "ADMIN")) {
       return NextResponse.json(
         { error: "Unauthorized" },

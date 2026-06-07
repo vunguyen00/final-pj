@@ -3,6 +3,9 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
+const labelClass = "mb-1 block text-sm font-medium text-foreground";
+const inputClass = "w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground outline-none ring-primary/20 focus:ring-2";
+
 export function RegisterForm() {
   const router = useRouter();
   const [username, setUsername] = useState("");
@@ -37,8 +40,6 @@ export function RegisterForm() {
       }
 
       router.push(data.redirectTo ?? "/");
-      // Sử dụng window.location để force full reload,
-      // đảm bảo useUser re-fetch và hiển thị đúng menu admin/teacher
       window.location.href = data.redirectTo ?? "/";
     } catch {
       setError("Loi mang. Vui long thu lai.");
@@ -50,13 +51,13 @@ export function RegisterForm() {
   return (
     <form className="space-y-4" onSubmit={onSubmit}>
       <div>
-        <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="username">
+        <label className={labelClass} htmlFor="username">
           Username
         </label>
         <input
           id="username"
           type="text"
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-200 focus:ring"
+          className={inputClass}
           value={username}
           onChange={(event) => setUsername(event.target.value)}
           required
@@ -64,13 +65,13 @@ export function RegisterForm() {
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="email">
+        <label className={labelClass} htmlFor="email">
           Email
         </label>
         <input
           id="email"
           type="email"
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-200 focus:ring"
+          className={inputClass}
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           required
@@ -78,49 +79,41 @@ export function RegisterForm() {
       </div>
 
       <div>
-        <label
-          className="mb-1 block text-sm font-medium text-slate-700"
-          htmlFor="password"
-        >
+        <label className={labelClass} htmlFor="password">
           Mat khau
         </label>
         <input
           id="password"
           type="password"
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-200 focus:ring"
+          className={inputClass}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           required
           minLength={8}
         />
-        <p className="mt-1 text-xs text-slate-500">
-          Toi thieu 8 ky tu, co chu thuong, chu hoa, so va ky tu dac biet.
-        </p>
+        <p className="mt-1 text-xs text-muted-foreground">Toi thieu 8 ky tu, co chu thuong, chu hoa, so va ky tu dac biet.</p>
       </div>
 
       <div>
-        <label
-          className="mb-1 block text-sm font-medium text-slate-700"
-          htmlFor="confirmPassword"
-        >
+        <label className={labelClass} htmlFor="confirmPassword">
           Nhap lai mat khau
         </label>
         <input
           id="confirmPassword"
           type="password"
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-200 focus:ring"
+          className={inputClass}
           value={confirmPassword}
           onChange={(event) => setConfirmPassword(event.target.value)}
           required
         />
       </div>
 
-      {error ? <p className="text-sm font-medium text-red-600">{error}</p> : null}
+      {error ? <p className="text-sm font-medium text-destructive">{error}</p> : null}
 
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+        className="w-full rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {loading ? "Dang xu ly..." : "Dang ky"}
       </button>

@@ -34,16 +34,14 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    function handleGlobalError(e: Event) {
-      const event = e as CustomEvent;
-      setGlobalError(event.detail || "Something went wrong");
+    function handleGlobalError(event: Event) {
+      const customEvent = event as CustomEvent;
+      setGlobalError(customEvent.detail || "Something went wrong");
       setTimeout(() => setGlobalError(""), 5000);
     }
     window.addEventListener("app-global-error", handleGlobalError);
     return () => window.removeEventListener("app-global-error", handleGlobalError);
   }, []);
-
-  useEffect(() => setOpen(false), [pathname]);
 
   const hideHeader = pathname.startsWith("/auth") || (pathname.startsWith("/admin") && !showOnAdmin);
   if (hideHeader) return null;
@@ -60,14 +58,12 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
       : [];
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/90 backdrop-blur">
-      {globalError ? <div className="bg-red-50 py-2 text-center text-sm font-semibold text-red-700">{globalError}</div> : null}
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/90 backdrop-blur">
+      {globalError ? <div className="bg-destructive/10 py-2 text-center text-sm font-semibold text-destructive">{globalError}</div> : null}
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white">
-            LH
-          </span>
-          <span className="text-lg font-bold tracking-tight text-slate-950">LearnHub</span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">LH</span>
+          <span className="text-lg font-semibold tracking-tight text-foreground">LearnHub</span>
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">
@@ -77,10 +73,9 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => setOpen(false)}
                 className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
-                  active
-                    ? "bg-slate-100 text-slate-950"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                  active ? "bg-secondary text-secondary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
               >
                 {item.label}
@@ -94,7 +89,7 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
           <button
             type="button"
             onClick={() => setOpen((value) => !value)}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-700 md:hidden"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border text-foreground md:hidden"
             aria-label="Open navigation"
           >
             <span className="text-lg">{open ? "x" : "="}</span>
@@ -103,9 +98,9 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
       </div>
 
       {open ? (
-        <nav className="border-t border-slate-200 bg-white px-4 py-3 md:hidden">
+        <nav className="border-t border-border bg-card px-4 py-3 md:hidden">
           {[...navItems, ...studentLinks].map((item) => (
-            <Link key={item.href} href={item.href} className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">
+            <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className="block rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted">
               {item.label}
             </Link>
           ))}

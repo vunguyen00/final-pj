@@ -1,7 +1,8 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { getCourseProgressPercent } from "@/lib/learning-progress";
+import { FIXED_TEST_MAX_SCORE, isTestReady } from "@/lib/test-rules";
 
 export async function GET(request: NextRequest) {
   try {
@@ -69,6 +70,9 @@ export async function GET(request: NextRequest) {
             ].filter(Boolean) as never,
           },
       include: {
+        language: { select: { id: true, name: true, code: true } },
+        course: { select: { language: { select: { id: true, name: true, code: true } } } },
+        questions: { select: { score: true } },
         _count: {
           select: {
             questions: true,
@@ -97,7 +101,10 @@ export async function GET(request: NextRequest) {
 
     const normalizedTests = tests.map((test) => {
       const progress = test.courseId ? progressByCourse.get(test.courseId) ?? 0 : 100;
-      const unlocked = test.kind === "PUBLIC_PRACTICE" || progress >= 100;
+      const unlockedByProgress = test.kind === "PUBLIC_PRACTICE" || progress >= 100;
+      const totalQuestionScore = test.questions.reduce((sum, question) => sum + Number(question.score || 0), 0);
+      const ready = isTestReady(totalQuestionScore);
+      const canAttempt = unlockedByProgress && ready;
 
       return {
         id: test.id,
@@ -106,10 +113,13 @@ export async function GET(request: NextRequest) {
         courseId: test.courseId,
         courseName: test.courseId ? courseNameMap.get(test.courseId) ?? "Unknown course" : "Public practice",
         kind: test.kind,
-        maxScore: test.maxScore,
+        assessmentMode: test.assessmentMode,
+        language: test.language ?? test.course?.language ?? null,
+        maxScore: FIXED_TEST_MAX_SCORE,
         passingScore: test.passingScore,
         timeLimit: test.timeLimit,
         questionCount: test._count.questions,
+        totalQuestionScore,
         hasAttempt: Boolean(test.attempts[0]),
         lastAttempt: test.attempts[0]
           ? {
@@ -120,8 +130,9 @@ export async function GET(request: NextRequest) {
             }
           : null,
         progress,
-        canAttempt: unlocked,
-        isUnlocked: unlocked,
+        canAttempt,
+        isUnlocked: unlockedByProgress,
+        isReady: ready,
       };
     });
 

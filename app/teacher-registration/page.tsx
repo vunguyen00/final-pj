@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SpeakingAnswerInput } from "@/app/components/SpeakingAnswerInput";
+import { getSpeechRecognitionLocale } from "@/lib/test-rules";
 
-type Language = { id: string; name: string };
+type Language = { id: string; name: string; code: string };
 type Question = {
   id: string;
   type: string;
@@ -129,6 +131,7 @@ export default function TeacherRegistrationPage() {
   }, [activeApplication]);
 
   const latestApplications = applications.slice(0, 5);
+  const speechLocale = getSpeechRecognitionLocale(activeApplication?.language.code);
 
   async function loadData() {
     const response = await fetch("/api/teacher-applications", { cache: "no-store" });
@@ -277,6 +280,14 @@ export default function TeacherRegistrationPage() {
                         value={answers[question.id] || ""}
                         onChange={(event) => setAnswers((prev) => ({ ...prev, [question.id]: event.target.value }))}
                         className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                      />
+                    ) : null}
+                    {question.type === "SPEAKING" ? (
+                      <SpeakingAnswerInput
+                        value={answers[question.id] || ""}
+                        onChange={(value) => setAnswers((prev) => ({ ...prev, [question.id]: value }))}
+                        languageLocale={speechLocale}
+                        disabled={submitting}
                       />
                     ) : null}
                   </div>

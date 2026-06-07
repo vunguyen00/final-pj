@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { authenticate } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Badge, BadgeGroup } from "@/components/base/badge";
+import { CardGrid } from "@/components/base/grid";
+import { Hero } from "@/components/base/hero";
+import { Section } from "@/components/base/section";
 import {
   LANGUAGES,
   LEVELS,
@@ -77,28 +81,23 @@ export default async function CoursesPage({
   if (activeTab === "cert") filteredCourses = filteredCourses.filter((course) => getCourseType(course) === "Certification prep");
 
   return (
-    <main className="min-h-screen bg-slate-50 py-8">
-      <div className="mx-auto max-w-7xl px-4">
-        <section className="rounded-2xl border border-slate-200 bg-white p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Course marketplace</p>
-              <h1 className="mt-2 text-3xl font-bold text-slate-950">Find your next language course</h1>
-              <p className="mt-2 max-w-2xl text-slate-600">
-                Browse single courses, skill training, certification prep, vocabulary packs, and mock tests.
-              </p>
-            </div>
-          </div>
-        </section>
+    <main className="min-h-screen bg-background">
+      <Hero
+        subtitle="Course marketplace"
+        title="Find your next language course"
+        description="Browse single courses, skill training, certification prep, vocabulary packs, and mock tests."
+        primaryAction={{ label: "Browse all", href: "/courses" }}
+      />
 
-        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
+      <Section padding="md">
+        <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex gap-2 overflow-x-auto pb-2">
             {tabs.map((tab) => (
               <Link
                 key={tab.key}
                 href={buildHref({ ...params, tab: tab.key })}
-                className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold ${
-                  activeTab === tab.key ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  activeTab === tab.key ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:opacity-90"
                 }`}
               >
                 {tab.label}
@@ -110,48 +109,49 @@ export default async function CoursesPage({
             <Filter label="Level" name="level" values={["all", ...LEVELS]} params={params} />
             <Filter label="Type" name="type" values={["all", ...PRODUCT_TYPES]} params={params} />
           </div>
-        </section>
+        </div>
+      </Section>
 
-        <section className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <Section background="muted" padding="md">
+        <CardGrid cols={3} gap="md">
           {filteredCourses.map((course) => {
             const isEnrolled = enrolledIds.has(course.id);
             const language = getCourseLanguage(course);
             const type = getCourseType(course);
             return (
-              <article key={course.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
+              <article key={course.id} className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
                 <Link href={`/courses/${course.id}`} className="block">
-                  <div className="relative aspect-video bg-slate-100">
+                  <div className="relative aspect-video bg-muted">
                     {course.thumbnail ? (
                       <img src={course.thumbnail} alt={course.name} className="h-full w-full object-cover" />
                     ) : (
-                      <div className="flex h-full items-center justify-center text-sm font-semibold text-slate-400">{language}</div>
+                      <div className="flex h-full items-center justify-center text-sm font-semibold text-muted-foreground">{language}</div>
                     )}
-                    <div className="absolute left-3 top-3 flex flex-wrap gap-2">
-                      <span className="rounded-full bg-white/90 px-2.5 py-1 text-xs font-bold text-blue-700">{language}</span>
-                      <span className="rounded-full bg-blue-600/90 px-2.5 py-1 text-xs font-bold text-white">{getCourseLevel(course)}</span>
-                    </div>
                   </div>
                 </Link>
                 <div className="p-5">
-                  <div className="flex flex-wrap gap-2">
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{type}</span>
-                    <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Certificate</span>
-                  </div>
+                  <BadgeGroup>
+                    <Badge>{language}</Badge>
+                    <Badge className="bg-muted text-muted-foreground">{getCourseLevel(course)}</Badge>
+                    <Badge className="bg-secondary text-secondary-foreground">{type}</Badge>
+                  </BadgeGroup>
                   <Link href={`/courses/${course.id}`}>
-                    <h3 className="mt-3 line-clamp-2 font-bold text-slate-950 hover:text-blue-600">{course.name}</h3>
+                    <h3 className="mt-3 line-clamp-2 text-lg font-semibold text-foreground hover:text-primary">{course.name}</h3>
                   </Link>
-                  <p className="mt-2 line-clamp-2 text-sm text-slate-500">{course.description}</p>
-                  <div className="mt-4 grid grid-cols-2 gap-2 text-sm text-slate-600">
+                  <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{course.description}</p>
+                  <div className="mt-4 grid grid-cols-2 gap-2 text-sm text-muted-foreground">
                     <span>Teacher: {course.instructor?.username || "Teacher"}</span>
                     <span>{getCourseDuration(course)}</span>
                     <span>{course.lessons} lessons</span>
                     <span>{course._count.enrollments} learners</span>
                   </div>
-                  <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
-                    <span className="text-lg font-bold text-slate-950">{priceLabel(course.price)}</span>
+                  <div className="mt-5 flex items-center justify-between border-t border-border pt-4">
+                    <span className="text-lg font-semibold text-foreground">{priceLabel(course.price)}</span>
                     <Link
                       href={isEnrolled ? `/student/hoc-bai?courseId=${course.id}` : `/courses/${course.id}`}
-                      className={`rounded-lg px-4 py-2 text-sm font-semibold ${isEnrolled ? "bg-emerald-50 text-emerald-700" : "bg-blue-600 text-white hover:bg-blue-700"}`}
+                      className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+                        isEnrolled ? "bg-accent/15 text-accent" : "bg-primary text-primary-foreground"
+                      }`}
                     >
                       {isEnrolled ? "Continue" : "View course"}
                     </Link>
@@ -160,13 +160,13 @@ export default async function CoursesPage({
               </article>
             );
           })}
-        </section>
+        </CardGrid>
         {filteredCourses.length === 0 ? (
-          <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
+          <div className="mt-6 rounded-xl border border-dashed border-border bg-card p-10 text-center text-muted-foreground">
             No courses match these filters. Try another language, level, or product type.
           </div>
         ) : null}
-      </div>
+      </Section>
     </main>
   );
 }
@@ -184,14 +184,14 @@ function Filter({
 }) {
   return (
     <div>
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
       <div className="flex gap-2 overflow-x-auto md:block">
         {values.map((value) => (
           <Link
             key={value}
             href={buildHref({ ...params, [name]: value })}
             className={`mb-2 inline-block whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold ${
-              (params[name] || "all") === value ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700"
+              (params[name] || "all") === value ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
             }`}
           >
             {value === "all" ? "All" : value}

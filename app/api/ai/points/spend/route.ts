@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
   try {
-    const user = await requireRole("STUDENT");
+    const user = await requireRole("STUDENT", "TEACHER", "ADMIN");
     const body = await request.json().catch(() => ({}));
 
     const points = Number(body?.points);

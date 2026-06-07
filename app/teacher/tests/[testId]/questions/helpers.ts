@@ -1,16 +1,13 @@
 import { Answer, Question, QuestionForm, QuestionKind, QuestionType } from "./types";
 
 export const QUESTION_KIND_OPTIONS: Array<{ value: QuestionKind; label: string }> = [
-  { value: "", label: "Hãy chọn dạng câu hỏi" },
-  { value: "MULTIPLE_CHOICE", label: "Trắc nghiệm" },
-  { value: "TRUE_FALSE", label: "Đúng/Sai" },
-  { value: "FILL_IN_BLANK", label: "Điền từ" },
-  { value: "LISTENING", label: "Nghe" },
-];
-
-export const WRITING_ONLY_QUESTION_KIND_OPTIONS: Array<{ value: QuestionKind; label: string }> = [
-  ...QUESTION_KIND_OPTIONS,
-  { value: "ESSAY", label: "Tự luận (Viết)" },
+  { value: "", label: "Hay chon dang cau hoi" },
+  { value: "MULTIPLE_CHOICE", label: "Trac nghiem" },
+  { value: "TRUE_FALSE", label: "Dung/Sai" },
+  { value: "FILL_IN_BLANK", label: "Dien tu" },
+  { value: "LISTENING", label: "Nghe + tra loi" },
+  { value: "ESSAY", label: "Writing AI" },
+  { value: "SPEAKING", label: "Speaking AI" },
 ];
 
 export const createDefaultForm = (): QuestionForm => ({
@@ -26,6 +23,7 @@ export const createDefaultForm = (): QuestionForm => ({
 });
 
 export const inferKindFromQuestion = (question: Question): QuestionKind => {
+  if (question.type === "SPEAKING") return "SPEAKING";
   if (question.audioUrl) return "LISTENING";
   if (question.type === "MULTIPLE_CHOICE") return "MULTIPLE_CHOICE";
   if (question.type === "TRUE_FALSE") return "TRUE_FALSE";
@@ -34,12 +32,14 @@ export const inferKindFromQuestion = (question: Question): QuestionKind => {
 };
 
 export const getQuestionTypeLabel = (question: Pick<Question, "type" | "audioUrl">): string => {
-  if (question.audioUrl) return "Nghe";
+  if (question.type === "SPEAKING") return "Speaking AI";
+  if (question.audioUrl) return "Listening";
   const labels: Record<QuestionType, string> = {
-    MULTIPLE_CHOICE: "Trắc nghiệm",
-    TRUE_FALSE: "Đúng/Sai",
-    FILL_IN_BLANK: "Điền từ",
-    ESSAY: "Tự luận",
+    MULTIPLE_CHOICE: "Trac nghiem",
+    TRUE_FALSE: "Dung/Sai",
+    FILL_IN_BLANK: "Dien tu",
+    ESSAY: "Writing AI",
+    SPEAKING: "Speaking AI",
   };
   return labels[question.type];
 };
@@ -56,7 +56,7 @@ export const buildAnswersForKind = (kind: QuestionKind): Answer[] => {
       }));
     case "TRUE_FALSE":
       return [
-        { id: "1", content: "Đúng", isCorrect: false, order: 1, feedback: "" },
+        { id: "1", content: "Dung", isCorrect: false, order: 1, feedback: "" },
         { id: "2", content: "Sai", isCorrect: false, order: 2, feedback: "" },
       ];
     case "FILL_IN_BLANK":
@@ -71,5 +71,6 @@ export const mapKindToPayload = (kind: QuestionKind): { type: QuestionType; hasL
   if (kind === "TRUE_FALSE") return { type: "TRUE_FALSE", hasListening: false };
   if (kind === "FILL_IN_BLANK") return { type: "FILL_IN_BLANK", hasListening: false };
   if (kind === "ESSAY") return { type: "ESSAY", hasListening: false };
+  if (kind === "SPEAKING") return { type: "SPEAKING", hasListening: false };
   return { type: "MULTIPLE_CHOICE", hasListening: false };
 };

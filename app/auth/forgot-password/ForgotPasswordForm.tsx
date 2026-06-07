@@ -4,6 +4,9 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+const labelClass = "mb-1 block text-sm font-medium text-foreground";
+const inputClass = "w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground outline-none ring-primary/20 focus:ring-2";
+
 export function ForgotPasswordForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -114,33 +117,33 @@ export function ForgotPasswordForm() {
     return (
       <form className="space-y-4" onSubmit={requestOtp}>
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="email">
+          <label className={labelClass} htmlFor="email">
             Email
           </label>
           <input
             id="email"
             type="email"
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-200 focus:ring"
+            className={inputClass}
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             required
           />
         </div>
 
-        {error ? <p className="text-sm font-medium text-red-600">{error}</p> : null}
-        {message ? <p className="text-sm font-medium text-emerald-700">{message}</p> : null}
+        {error ? <p className="text-sm font-medium text-destructive">{error}</p> : null}
+        {message ? <p className="text-sm font-medium text-accent">{message}</p> : null}
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+          className="w-full rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading ? "Dang xu ly..." : "Gui ma OTP"}
         </button>
 
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-muted-foreground">
           Nho lai mat khau?{" "}
-          <Link className="font-semibold text-slate-900 hover:underline" href="/auth/login">
+          <Link className="font-semibold text-foreground hover:underline" href="/auth/login">
             Quay ve dang nhap
           </Link>
         </p>
@@ -151,26 +154,20 @@ export function ForgotPasswordForm() {
   return (
     <form className="space-y-4" onSubmit={resetPassword}>
       <div>
-        <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="email-confirm">
+        <label className={labelClass} htmlFor="email-confirm">
           Email
         </label>
-        <input
-          id="email-confirm"
-          type="email"
-          className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-slate-600 outline-none"
-          value={email}
-          disabled
-        />
+        <input id="email-confirm" type="email" className={`${inputClass} bg-muted text-muted-foreground`} value={email} disabled />
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="otp">
+        <label className={labelClass} htmlFor="otp">
           OTP
         </label>
         <input
           id="otp"
           type="text"
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-200 focus:ring"
+          className={inputClass}
           value={otp}
           onChange={(event) => setOtp(event.target.value)}
           placeholder="Nhap ma 6 so"
@@ -179,13 +176,13 @@ export function ForgotPasswordForm() {
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="new-password">
+        <label className={labelClass} htmlFor="new-password">
           Mat khau moi
         </label>
         <input
           id="new-password"
           type="password"
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-200 focus:ring"
+          className={inputClass}
           value={newPassword}
           onChange={(event) => setNewPassword(event.target.value)}
           required
@@ -194,26 +191,26 @@ export function ForgotPasswordForm() {
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="confirm-password">
+        <label className={labelClass} htmlFor="confirm-password">
           Xac nhan mat khau moi
         </label>
         <input
           id="confirm-password"
           type="password"
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-200 focus:ring"
+          className={inputClass}
           value={confirmPassword}
           onChange={(event) => setConfirmPassword(event.target.value)}
           required
         />
       </div>
 
-      {error ? <p className="text-sm font-medium text-red-600">{error}</p> : null}
-      {message ? <p className="text-sm font-medium text-emerald-700">{message}</p> : null}
+      {error ? <p className="text-sm font-medium text-destructive">{error}</p> : null}
+      {message ? <p className="text-sm font-medium text-accent">{message}</p> : null}
 
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+        className="w-full rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {loading ? "Dang xu ly..." : "Dat lai mat khau"}
       </button>
@@ -221,7 +218,7 @@ export function ForgotPasswordForm() {
       <button
         type="button"
         disabled={loading}
-        className="w-full rounded-lg border border-slate-300 px-4 py-2 font-semibold text-slate-800 hover:bg-slate-100 disabled:cursor-not-allowed"
+        className="w-full rounded-lg border border-border px-4 py-2 font-semibold text-foreground hover:bg-muted disabled:cursor-not-allowed"
         onClick={() => {
           setPhase("request");
           setOtp("");

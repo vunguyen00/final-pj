@@ -8,14 +8,13 @@ import { ModulesTab } from "./_components/ModulesTab";
 import { TestsTab } from "./_components/TestsTab";
 import { ModuleModal } from "./_components/ModuleModal";
 import { TestModal } from "./_components/TestModal";
-import { Course, Module, Test, TestForm, User, initialTestForm } from "./types";
+import { Course, Module, TestForm, initialTestForm } from "./types";
 
 export default function CourseDetailPage() {
   const router = useRouter();
   const params = useParams();
   const courseId = params.courseId as string;
 
-  const [user, setUser] = useState<User | null>(null);
   const [course, setCourse] = useState<Course | null>(null);
   const [modules, setModules] = useState<Module[]>([]);
   const [tests, setTests] = useState<Test[]>([]);
@@ -27,14 +26,9 @@ export default function CourseDetailPage() {
   const [moduleName, setModuleName] = useState("");
 
   const [showTestModal, setShowTestModal] = useState(false);
-  const [editingTest, setEditingTest] = useState<Test | null>(null);
   const [testForm, setTestForm] = useState<TestForm>(initialTestForm);
 
-  useEffect(() => {
-    checkAuthAndFetchData();
-  }, [courseId]);
-
-  const checkAuthAndFetchData = async () => {
+  async function checkAuthAndFetchData() {
     try {
       const res = await fetch("/api/auth/me");
       if (!res.ok) {
@@ -42,19 +36,18 @@ export default function CourseDetailPage() {
         return;
       }
       const data = await res.json();
-      setUser(data.user);
       if (data.user.role !== "TEACHER" && data.user.role !== "ADMIN") {
         router.push("/");
         return;
       }
-      fetchCourseData();
+      void fetchCourseData();
     } catch (error) {
       console.error("Auth check failed:", error);
       router.push("/auth/login");
     }
-  };
+  }
 
-  const fetchCourseData = async () => {
+  async function fetchCourseData() {
     try {
       const res = await fetch(`/api/teacher/courses/${courseId}`);
       if (res.ok) {
@@ -68,7 +61,11 @@ export default function CourseDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    void checkAuthAndFetchData();
+  }, [courseId]);
 
   const handleCreateModule = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -117,7 +114,6 @@ export default function CourseDetailPage() {
         body: JSON.stringify({
           ...testForm,
           courseId,
-          maxScore: parseFloat(testForm.maxScore),
           passingScore: parseFloat(testForm.passingScore),
           maxAttempts: parseInt(testForm.maxAttempts),
           timeLimit: testForm.timeLimit ? parseInt(testForm.timeLimit) : null,
@@ -156,7 +152,6 @@ export default function CourseDetailPage() {
   };
 
   const openTestCreateModal = () => {
-    setEditingTest(null);
     setTestForm(initialTestForm);
     setShowTestModal(true);
   };

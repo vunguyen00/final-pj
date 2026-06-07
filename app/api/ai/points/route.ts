@@ -4,7 +4,7 @@ import { getAiPointsSummary } from "@/lib/ai-points";
 
 export async function GET() {
   try {
-    const user = await requireRole("STUDENT");
+    const user = await requireRole("STUDENT", "TEACHER", "ADMIN");
     const summary = await getAiPointsSummary(user.id);
     return NextResponse.json(summary);
   } catch {

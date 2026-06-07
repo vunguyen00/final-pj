@@ -13,9 +13,8 @@ export function LogoutButton() {
       await fetch("/api/auth/logout", {
         method: "POST",
       });
-      // Sử dụng window.location để force full reload,
-      // đảm bảo useUser re-fetch và cập nhật UI với user = null
       window.location.href = "/auth/login";
+      router.refresh();
     } finally {
       setLoading(false);
     }
@@ -26,7 +25,7 @@ export function LogoutButton() {
       type="button"
       onClick={handleLogout}
       disabled={loading}
-      className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-70"
+      className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-70"
     >
       {loading ? "Dang xuat..." : "Dang xuat"}
     </button>

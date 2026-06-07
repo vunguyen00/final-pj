@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { FIXED_TEST_MAX_SCORE } from "@/lib/test-rules";
+
+const ALLOWED_TYPES = new Set(["MULTIPLE_CHOICE", "FILL_IN_BLANK", "ESSAY", "TRUE_FALSE", "SPEAKING"]);
+
+type QuestionAnswerInput = {
+  content: string;
+  isCorrect?: boolean;
+  order?: number;
+  feedback?: string | null;
+};
 
 export async function GET(
   request: NextRequest,
@@ -9,7 +19,7 @@ export async function GET(
   try {
     const { testId, questionId } = await params;
     const user = await getCurrentUser();
-    
+
     if (!user || (user.role !== "TEACHER" && user.role !== "ADMIN")) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -50,7 +60,7 @@ export async function PUT(
   try {
     const { testId, questionId } = await params;
     const user = await getCurrentUser();
-    
+
     if (!user || (user.role !== "TEACHER" && user.role !== "ADMIN")) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -76,7 +86,6 @@ export async function PUT(
       );
     }
 
-    // Check permission
     if (user.role !== "ADMIN" && existingQuestion.test.course?.instructorId !== user.id) {
       return NextResponse.json(
         { error: "Forbidden" },
@@ -85,96 +94,89 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { 
-      type, 
-      content,
-      audioUrl,
-      hasListening,
-      order, 
-      score, 
-      explanation, 
-      hint,
-      answers 
-    } = body;
+    const { type, content, audioUrl, hasListening, order, score, explanation, hint, answers } = body;
 
-    const isWritingCourse = (existingQuestion.test.course?.category || "").trim().toLowerCase() === "writing";
     const nextType = type ?? existingQuestion.type;
     const nextHasListening = hasListening ?? Boolean(existingQuestion.audioUrl);
-    if (nextType === "ESSAY" && !nextHasListening && !isWritingCourse) {
+
+    if (!ALLOWED_TYPES.has(nextType)) {
+      return NextResponse.json({ error: "Loai cau hoi khong hop le" }, { status: 400 });
+    }
+
+    let parsedScore = existingQuestion.score;
+    if (score !== undefined) {
+      parsedScore = parseFloat(score);
+      if (!Number.isFinite(parsedScore) || parsedScore <= 0) {
+        return NextResponse.json(
+          { error: "Diem so phai lon hon 0" },
+          { status: 400 }
+        );
+      }
+    }
+
+    const scoreAggregate = await prisma.question.aggregate({
+      where: { testId },
+      _sum: { score: true },
+    });
+    const currentTotal = Number(scoreAggregate._sum.score || 0);
+    const nextTotalScore = currentTotal - Number(existingQuestion.score || 0) + parsedScore;
+    if (nextTotalScore > FIXED_TEST_MAX_SCORE) {
       return NextResponse.json(
-        { error: "Khóa học không phải Writing nên không được lưu câu hỏi tự luận" },
+        { error: `Tong diem cau hoi khong duoc vuot ${FIXED_TEST_MAX_SCORE}` },
         { status: 400 }
       );
     }
 
-    // Validate score
-    if (score !== undefined) {
-      const parsedScore = parseFloat(score);
-      if (parsedScore <= 0) {
-        return NextResponse.json(
-          { error: "Điểm số phải lớn hơn 0" },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Validate audio if has listening
-    let finalAudioUrl: any = audioUrl;
-    if (hasListening && audioUrl?.trim()) {
+    let finalAudioUrl: string | null | undefined = audioUrl;
+    if (nextType === "SPEAKING") {
+      finalAudioUrl = null;
+    } else if (nextHasListening && audioUrl?.trim()) {
       try {
         new URL(audioUrl);
         finalAudioUrl = audioUrl;
-      } catch (e) {
+      } catch {
         return NextResponse.json(
-          { error: "URL audio không hợp lệ" },
+          { error: "URL audio khong hop le" },
           { status: 400 }
         );
       }
-    } else if (!hasListening) {
+    } else if (!nextHasListening) {
       finalAudioUrl = null;
     }
 
-    // Validate answers
-    if (answers && Array.isArray(answers)) {
-      const hasEmptyAnswer = answers.some((a: any) => !a.content || !a.content.trim());
+    const normalizedAnswers: QuestionAnswerInput[] = Array.isArray(answers) ? (answers as QuestionAnswerInput[]) : [];
+
+    if (normalizedAnswers.length > 0) {
+      const hasEmptyAnswer = normalizedAnswers.some((answer) => !answer.content || !answer.content.trim());
       if (hasEmptyAnswer) {
         return NextResponse.json(
-          { error: "Tất cả đáp án phải có nội dung" },
+          { error: "Tat ca dap an phai co noi dung" },
           { status: 400 }
         );
       }
     }
 
-    // Update question
-    const question = await prisma.question.update({
+    await prisma.question.update({
       where: { id: questionId },
       data: {
         ...(type && { type }),
         ...(content && { content }),
         ...(finalAudioUrl !== undefined && { audioUrl: finalAudioUrl }),
         ...(order !== undefined && { order }),
-        ...(score !== undefined && { score: parseFloat(score) }),
+        ...(score !== undefined && { score: parsedScore }),
         ...(explanation !== undefined && { explanation }),
         ...(hint !== undefined && { hint }),
       },
-      include: {
-        answers: {
-          orderBy: { order: "asc" },
-        },
-      },
     });
 
-    // Update answers if provided
-    if (answers && Array.isArray(answers)) {
-      // Delete existing answers
+    if (Array.isArray(answers)) {
       await prisma.answer.deleteMany({
         where: { questionId },
       });
 
-      // Create new answers
-      if (answers.length > 0) {
+      if (normalizedAnswers.length > 0 && nextType !== "SPEAKING") {
         await prisma.answer.createMany({
-          data: answers.map((answer: any, index: number) => ({
+          data: normalizedAnswers.map((answer, index) => ({
             questionId,
             content: answer.content,
             isCorrect: answer.isCorrect || false,
@@ -185,7 +187,6 @@ export async function PUT(
       }
     }
 
-    // Fetch updated question with answers
     const updatedQuestion = await prisma.question.findUnique({
       where: { id: questionId },
       include: {
@@ -212,7 +213,7 @@ export async function DELETE(
   try {
     const { testId, questionId } = await params;
     const user = await getCurrentUser();
-    
+
     if (!user || (user.role !== "TEACHER" && user.role !== "ADMIN")) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -238,7 +239,6 @@ export async function DELETE(
       );
     }
 
-    // Check permission
     if (user.role !== "ADMIN" && existingQuestion.test.course?.instructorId !== user.id) {
       return NextResponse.json(
         { error: "Forbidden" },

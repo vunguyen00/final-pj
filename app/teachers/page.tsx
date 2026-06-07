@@ -1,24 +1,26 @@
 import Link from "next/link";
+import { Badge, BadgeGroup } from "@/components/base/badge";
+import { CardGrid } from "@/components/base/grid";
+import { Section, SectionHeader } from "@/components/base/section";
 
-// Mock teachers data
 const teachers = [
   {
     id: "1",
-    name: "Nguyễn Văn A",
+    name: "Nguyen Van A",
     avatar: "NVA",
-    title: "Thạc sĩ Ngôn ngữ học",
-    bio: "10 năm kinh nghiệm giảng dạy tiếng Anh. Chuyên gia về Speaking và Giao tiếp.",
-    specialties: ["Speaking", "Giao tiếp"],
+    title: "Thac si Ngon ngu hoc",
+    bio: "10 nam kinh nghiem giang day tieng Anh. Chuyen gia ve Speaking va Giao tiep.",
+    specialties: ["Speaking", "Giao tiep"],
     students: 5000,
     rating: 4.9,
     courses: 5,
   },
   {
     id: "2",
-    name: "Trần Thị B",
+    name: "Tran Thi B",
     avatar: "TTB",
-    title: "Giảng viên IELTS",
-    bio: "12 năm kinh nghiệm luyện thi IELTS. Chuyên gia Writing và Speaking.",
+    title: "Giang vien IELTS",
+    bio: "12 nam kinh nghiem luyen thi IELTS. Chuyen gia Writing va Speaking.",
     specialties: ["IELTS Writing", "IELTS Speaking"],
     students: 4200,
     rating: 4.8,
@@ -26,44 +28,44 @@ const teachers = [
   },
   {
     id: "3",
-    name: "Lê Văn C",
+    name: "Le Van C",
     avatar: "LVC",
-    title: "Thạc sĩ Sư phạm Anh",
-    bio: "Chuyên gia về Reading và Vocabulary. Phương pháp giảng dạy hiệu quả.",
-    specialties: ["Reading", "Từ vựng"],
+    title: "Thac si Su pham Anh",
+    bio: "Chuyen gia ve Reading va Vocabulary. Phuong phap giang day de hieu, hieu qua.",
+    specialties: ["Reading", "Tu vung"],
     students: 3800,
     rating: 4.7,
     courses: 3,
   },
   {
     id: "4",
-    name: "Phạm Thị D",
+    name: "Pham Thi D",
     avatar: "PTD",
-    title: "Giảng viên Listening",
-    bio: "Chuyên gia về Listening và Pronunciation. Giúp học viên cải thiện kỹ năng nghe.",
-    specialties: ["Listening", "Phát âm"],
+    title: "Giang vien Listening",
+    bio: "Chuyen gia ve Listening va Pronunciation.",
+    specialties: ["Listening", "Phat am"],
     students: 2900,
     rating: 4.8,
     courses: 3,
   },
   {
     id: "5",
-    name: "Hoàng Văn E",
+    name: "Hoang Van E",
     avatar: "HVE",
-    title: "Giảng viên Business English",
-    bio: "Chuyên gia tiếng Anh thương mại. Kinh nghiệm 8 năm đào tạo doanh nghiệp.",
-    specialties: ["Business English", "Giao tiếp công sở"],
+    title: "Giang vien Business English",
+    bio: "Kinh nghiem 8 nam dao tao doanh nghiep.",
+    specialties: ["Business English", "Cong so"],
     students: 2100,
     rating: 4.9,
     courses: 2,
   },
   {
     id: "6",
-    name: "Vũ Thị F",
+    name: "Vu Thi F",
     avatar: "VTF",
-    title: "Giảng viên Grammar",
-    bio: "Chuyên gia ngữ pháp tiếng Anh. Phương pháp giảng dạy dễ hiểu, sinh động.",
-    specialties: ["Ngữ pháp", "Writing cơ bản"],
+    title: "Giang vien Grammar",
+    bio: "Chuyen gia ngu phap tieng Anh voi cach day he thong, de ap dung.",
+    specialties: ["Ngu phap", "Writing co ban"],
     students: 3500,
     rating: 4.6,
     courses: 4,
@@ -72,66 +74,50 @@ const teachers = [
 
 export default function TeachersPage() {
   return (
-    <main className="min-h-screen bg-slate-50 py-8">
-      <div className="mx-auto max-w-7xl px-4">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">Đội ngũ giảng viên</h1>
-          <p className="mt-2 text-slate-600">Gặp gỡ các giảng viên giàu kinh nghiệm của LearnHub</p>
-        </div>
+    <main className="min-h-screen bg-background">
+      <Section background="muted" padding="md">
+        <SectionHeader
+          title="Doi ngu giang vien"
+          subtitle="Gap go cac giang vien giau kinh nghiem cua LearnHub."
+        />
 
-        {/* Teachers Grid */}
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <CardGrid cols={3} gap="md">
           {teachers.map((teacher) => (
             <Link
               key={teacher.id}
               href={`/teachers/${teacher.id}`}
-              className="group overflow-hidden rounded-xl border border-slate-200 bg-white p-6 transition-all hover:shadow-lg"
+              className="group block rounded-xl border border-border bg-card p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
             >
               <div className="flex items-start gap-4">
-                <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-xl font-bold text-white">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
                   {teacher.avatar}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-slate-900 group-hover:text-blue-600">
-                    {teacher.name}
-                  </h3>
-                  <p className="text-sm text-slate-500">{teacher.title}</p>
-                  <div className="mt-2 flex flex-wrap gap-1">
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-semibold text-foreground group-hover:text-primary">{teacher.name}</h3>
+                  <p className="text-sm text-muted-foreground">{teacher.title}</p>
+                  <BadgeGroup className="mt-2">
                     {teacher.specialties.map((spec) => (
-                      <span
-                        key={spec}
-                        className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600"
-                      >
+                      <Badge key={spec} className="bg-secondary text-secondary-foreground">
                         {spec}
-                      </span>
+                      </Badge>
                     ))}
-                  </div>
+                  </BadgeGroup>
                 </div>
               </div>
-              
-              <p className="mt-4 text-sm text-slate-600 line-clamp-2">
-                {teacher.bio}
-              </p>
-              
-              <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4 text-sm">
-                <div className="flex items-center gap-4">
-                  <span className="flex items-center gap-1 text-slate-500">
-                    <span className="text-yellow-500">★</span>
-                    {teacher.rating}
-                  </span>
-                  <span className="text-slate-500">
-                    {teacher.students.toLocaleString()} học viên
-                  </span>
+
+              <p className="mt-4 line-clamp-2 text-sm text-muted-foreground">{teacher.bio}</p>
+
+              <div className="mt-4 flex items-center justify-between border-t border-border pt-4 text-sm">
+                <div className="flex items-center gap-4 text-muted-foreground">
+                  <span>{teacher.rating} rating</span>
+                  <span>{teacher.students.toLocaleString()} hoc vien</span>
                 </div>
-                <span className="font-medium text-blue-600">
-                  {teacher.courses} khóa học
-                </span>
+                <span className="font-medium text-primary">{teacher.courses} khoa hoc</span>
               </div>
             </Link>
           ))}
-        </div>
-      </div>
+        </CardGrid>
+      </Section>
     </main>
   );
 }

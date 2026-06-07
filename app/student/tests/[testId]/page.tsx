@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { SpeakingAnswerInput } from "@/app/components/SpeakingAnswerInput";
+import { getSpeechRecognitionLocale } from "@/lib/test-rules";
 
 type Question = {
   id: string;
@@ -19,6 +21,8 @@ type TestInfo = {
   name: string;
   description: string | null;
   courseName: string;
+  assessmentMode: "STANDARD" | "WRITING" | "SPEAKING";
+  language: { id: string; name: string; code: string } | null;
   maxScore: number;
   passingScore: number;
   timeLimit: number | null;
@@ -36,8 +40,9 @@ type AttemptHistoryItem = {
 const QUESTION_TYPES = [
   { value: "MULTIPLE_CHOICE", label: "Trac nghiem" },
   { value: "FILL_IN_BLANK", label: "Dien tu" },
-  { value: "ESSAY", label: "Viet bai van" },
+  { value: "ESSAY", label: "Writing AI" },
   { value: "TRUE_FALSE", label: "Dung/Sai" },
+  { value: "SPEAKING", label: "Speaking AI" },
 ];
 
 export default function StudentTakeTestPage() {
@@ -55,56 +60,10 @@ export default function StudentTakeTestPage() {
   const [attemptHistory, setAttemptHistory] = useState<AttemptHistoryItem[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    void fetchTest();
-  }, [testId]);
-
-  useEffect(() => {
-    if (timeLeft !== null && timeLeft > 0) {
-      timerRef.current = setTimeout(() => {
-        setTimeLeft(timeLeft - 1);
-      }, 1000);
-    } else if (timeLeft === 0) {
-      void handleSubmit();
-    }
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [timeLeft]);
-
-  const fetchTest = async () => {
-    try {
-      const res = await fetch(`/api/student/tests/${testId}`, { cache: "no-store" });
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || "Failed to load test");
-        return;
-      }
-
-      setTest(data.test);
-      setQuestions(data.questions);
-      setAttemptHistory(data.attempts || []);
-
-      if (data.test.timeLimit) {
-        setTimeLeft(data.test.timeLimit * 60);
-      }
-    } catch (fetchError) {
-      console.error("Error fetching test:", fetchError);
-      setError("Failed to load test");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAnswerChange = (questionId: string, answer: string) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: answer }));
-  };
-
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     if (submitting) return;
 
-    const unanswered = questions.filter((q) => !answers[q.id]);
+    const unanswered = questions.filter((q) => !String(answers[q.id] || "").trim());
     if (unanswered.length > 0) {
       if (!confirm(`Con ${unanswered.length} cau chua tra loi. Ban co chac muon nop bai?`)) {
         return;
@@ -134,6 +93,63 @@ export default function StudentTakeTestPage() {
       alert("Failed to submit test");
       setSubmitting(false);
     }
+  }, [answers, questions, router, submitting, testId]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadTest() {
+      try {
+        const res = await fetch(`/api/student/tests/${testId}`, { cache: "no-store" });
+        const data = await res.json();
+
+        if (!active) return;
+
+        if (!res.ok) {
+          setError(data.error || "Failed to load test");
+          return;
+        }
+
+        setTest(data.test);
+        setQuestions(data.questions);
+        setAttemptHistory(data.attempts || []);
+
+        if (data.test.timeLimit) {
+          setTimeLeft(data.test.timeLimit * 60);
+        }
+      } catch (fetchError) {
+        if (!active) return;
+        console.error("Error fetching test:", fetchError);
+        setError("Failed to load test");
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    void loadTest();
+
+    return () => {
+      active = false;
+    };
+  }, [testId]);
+
+  useEffect(() => {
+    if (timeLeft !== null && timeLeft > 0) {
+      timerRef.current = setTimeout(() => {
+        setTimeLeft(timeLeft - 1);
+      }, 1000);
+    } else if (timeLeft === 0) {
+      timerRef.current = setTimeout(() => {
+        void handleSubmit();
+      }, 0);
+    }
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [handleSubmit, timeLeft]);
+
+  const handleAnswerChange = (questionId: string, answer: string) => {
+    setAnswers((prev) => ({ ...prev, [questionId]: answer }));
   };
 
   const formatTime = (seconds: number) => {
@@ -145,6 +161,8 @@ export default function StudentTakeTestPage() {
   const getQuestionTypeLabel = (type: string) => {
     return QUESTION_TYPES.find((t) => t.value === type)?.label || type;
   };
+
+  const speechLocale = getSpeechRecognitionLocale(test?.language?.code);
 
   if (loading) {
     return (
@@ -174,6 +192,9 @@ export default function StudentTakeTestPage() {
           <div>
             <h1 className="text-xl font-bold text-emerald-900">{test?.name}</h1>
             <p className="mt-1 text-sm text-emerald-600">Khoa hoc: {test?.courseName}</p>
+            <p className="mt-1 text-xs text-emerald-700">
+              Mode: {test?.assessmentMode} - Language: {test?.language?.name || "General"}
+            </p>
           </div>
           <div className="flex items-center gap-4">
             {timeLeft !== null && (
@@ -261,6 +282,15 @@ export default function StudentTakeTestPage() {
                     placeholder="Viet cau tra loi..."
                     rows={6}
                     className="w-full rounded-lg border border-slate-300 px-4 py-3 text-emerald-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                  />
+                )}
+
+                {question.type === "SPEAKING" && (
+                  <SpeakingAnswerInput
+                    value={answers[question.id] || ""}
+                    onChange={(value) => handleAnswerChange(question.id, value)}
+                    languageLocale={speechLocale}
+                    disabled={submitting}
                   />
                 )}
               </div>

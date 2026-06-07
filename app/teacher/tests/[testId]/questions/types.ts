@@ -1,6 +1,6 @@
-export type QuestionType = "MULTIPLE_CHOICE" | "FILL_IN_BLANK" | "ESSAY" | "TRUE_FALSE";
+export type QuestionType = "MULTIPLE_CHOICE" | "FILL_IN_BLANK" | "ESSAY" | "TRUE_FALSE" | "SPEAKING";
 
-export type QuestionKind = "" | "MULTIPLE_CHOICE" | "TRUE_FALSE" | "FILL_IN_BLANK" | "ESSAY" | "LISTENING";
+export type QuestionKind = "" | "MULTIPLE_CHOICE" | "TRUE_FALSE" | "FILL_IN_BLANK" | "ESSAY" | "LISTENING" | "SPEAKING";
 
 export type Answer = {
   id: string;
@@ -26,10 +26,22 @@ export type Test = {
   id: string;
   name: string;
   description: string | null;
+  maxScore: number;
+  assessmentMode: "STANDARD" | "WRITING" | "SPEAKING";
+  language: {
+    id: string;
+    name: string;
+    code: string;
+  } | null;
   course: {
     id: string;
     name: string;
     category: string | null;
+    language: {
+      id: string;
+      name: string;
+      code: string;
+    } | null;
   } | null;
 };
 

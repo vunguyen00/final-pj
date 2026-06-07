@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { FIXED_TEST_MAX_SCORE, normalizeTestAssessmentMode, requiresLanguageForTest, type TestKind } from "@/lib/test-rules";
 
 export async function GET(request: NextRequest) {
   try {
@@ -63,8 +64,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, description, courseId, languageId, maxScore, passingScore, maxAttempts, timeLimit, shuffleQuestions } = body;
-    const kind = body.kind === "PUBLIC_PRACTICE" || body.kind === "TEACHER_ENTRANCE" ? body.kind : "COURSE";
+    const { name, description, courseId, languageId, passingScore, maxAttempts, timeLimit, shuffleQuestions } = body;
+    const kind: TestKind = body.kind === "PUBLIC_PRACTICE" || body.kind === "TEACHER_ENTRANCE" ? body.kind : "COURSE";
+    const assessmentMode = normalizeTestAssessmentMode(body.assessmentMode);
 
     if (!name || (kind === "COURSE" && !courseId)) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -74,8 +76,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Only admin can create public or teacher entrance tests" }, { status: 403 });
     }
 
-    if (kind === "TEACHER_ENTRANCE" && !languageId) {
-      return NextResponse.json({ error: "Teacher entrance test must be linked to a language" }, { status: 400 });
+    if (requiresLanguageForTest(kind) && !languageId) {
+      return NextResponse.json({ error: "Language is required for this test" }, { status: 400 });
+    }
+
+    if (kind === "TEACHER_ENTRANCE" && assessmentMode === "STANDARD") {
+      return NextResponse.json({ error: "Teacher entrance tests must use Writing AI or Speaking AI" }, { status: 400 });
     }
 
     const course = courseId
@@ -129,25 +135,20 @@ export async function POST(request: NextRequest) {
 
     if (kind === "TEACHER_ENTRANCE" && languageId) {
       const existingEntrance = await prisma.test.findFirst({
-        where: { kind: "TEACHER_ENTRANCE", languageId },
+        where: { kind: "TEACHER_ENTRANCE", languageId, assessmentMode },
         select: { id: true },
       });
       if (existingEntrance) {
-        return NextResponse.json({ error: "This language already has an entrance test" }, { status: 400 });
+        return NextResponse.json({ error: "This language already has this entrance test mode" }, { status: 400 });
       }
     }
 
-    const parsedMaxScore = Number(maxScore ?? 100);
     const parsedPassingScore = Number(passingScore ?? 50);
     const parsedMaxAttempts = Number(maxAttempts ?? 3);
     const parsedTimeLimit = timeLimit === null || timeLimit === undefined || timeLimit === "" ? null : Number(timeLimit);
 
-    if (!Number.isFinite(parsedMaxScore) || parsedMaxScore <= 0) {
-      return NextResponse.json({ error: "Invalid max score" }, { status: 400 });
-    }
-
-    if (!Number.isFinite(parsedPassingScore) || parsedPassingScore < 0 || parsedPassingScore > parsedMaxScore) {
-      return NextResponse.json({ error: "Passing score must be between 0 and max score" }, { status: 400 });
+    if (!Number.isFinite(parsedPassingScore) || parsedPassingScore < 0 || parsedPassingScore > FIXED_TEST_MAX_SCORE) {
+      return NextResponse.json({ error: "Passing score must be between 0 and 100" }, { status: 400 });
     }
 
     if (!Number.isInteger(parsedMaxAttempts) || parsedMaxAttempts <= 0) {
@@ -164,7 +165,8 @@ export async function POST(request: NextRequest) {
         description: description || null,
         courseId: kind === "COURSE" ? courseId : null,
         languageId: languageId || null,
-        maxScore: parsedMaxScore,
+        assessmentMode,
+        maxScore: FIXED_TEST_MAX_SCORE,
         passingScore: parsedPassingScore,
         maxAttempts: parsedMaxAttempts,
         timeLimit: parsedTimeLimit,

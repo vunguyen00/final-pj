@@ -49,6 +49,9 @@ export default function AdminDashboard({
   const [selectedCertificates, setSelectedCertificates] = useState<
     { id: string; fileName: string; fileUrl: string; expiryDate: string | null }[]
   >([]);
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [selectedUserForRole, setSelectedUserForRole] = useState<UserRow | null>(null);
+  const [selectedRole, setSelectedRole] = useState<string | null>(null);
 
   const pendingCourses = useMemo(
     () => courses.filter((course) => course.status === "PENDING_APPROVAL"),
@@ -135,6 +138,31 @@ export default function AdminDashboard({
       setUsers((prev) => prev.map((item) => (item.id === user.id ? { ...item, isBanned: data.user.isBanned } : item)));
     } else {
       setMessage(data?.error || "Không thể cập nhật user.");
+    }
+  }
+
+  async function saveRole() {
+    if (!selectedUserForRole || !selectedRole) return;
+    setMessage("");
+    try {
+      const res = await fetch(`/api/admin/users/${selectedUserForRole.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: selectedRole }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setUsers((prev) => prev.map((u) => (u.id === selectedUserForRole.id ? { ...u, role: data.user.role } : u)));
+        setShowRoleModal(false);
+        setSelectedUserForRole(null);
+        setSelectedRole(null);
+        setMessage("Da cap nhat role.");
+      } else {
+        setMessage(data?.error || "Khong the cap nhat role.");
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage("Loi khi cap nhat role.");
     }
   }
 
@@ -422,6 +450,16 @@ export default function AdminDashboard({
                           Xem cert
                         </button>
                       ) : null}
+                      <button
+                        onClick={() => {
+                          setSelectedUserForRole(user);
+                          setSelectedRole(user.role ?? "USER");
+                          setShowRoleModal(true);
+                        }}
+                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700"
+                      >
+                        Chỉnh role
+                      </button>
                       <button onClick={() => void toggleBan(user)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700">
                         {user.isBanned ? "Unban" : "Ban"}
                       </button>
@@ -456,6 +494,36 @@ export default function AdminDashboard({
                   );
                 })
               )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showRoleModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
+            <div className="flex items-start justify-between">
+              <h3 className="text-lg font-semibold text-slate-900">Chỉnh role người dùng</h3>
+              <button onClick={() => setShowRoleModal(false)} className="ml-4 rounded-md px-3 py-1 text-sm font-medium text-slate-600 hover:bg-slate-100">
+                Close
+              </button>
+            </div>
+            <div className="mt-4">
+              <p className="text-sm text-slate-700">{selectedUserForRole?.username} — {selectedUserForRole?.email}</p>
+              <label className="mt-4 block text-sm font-semibold text-slate-700">Role</label>
+              <select
+                value={selectedRole ?? "USER"}
+                onChange={(e) => setSelectedRole(e.target.value)}
+                className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              >
+                <option value="USER">USER</option>
+                <option value="TEACHER">TEACHER</option>
+                <option value="ADMIN">ADMIN</option>
+              </select>
+              <div className="mt-4 flex justify-end gap-2">
+                <button onClick={() => setShowRoleModal(false)} className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 border border-slate-200">Hủy</button>
+                <button onClick={() => void saveRole()} className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white">Lưu</button>
+              </div>
             </div>
           </div>
         </div>

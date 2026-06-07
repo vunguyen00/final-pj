@@ -34,25 +34,25 @@ export default function AdminShell({
     <div>
       <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Admin Panel</h1>
-          <p className="text-sm text-slate-500">Quản lý người dùng và thống kê hệ thống</p>
+          <h1 className="text-2xl font-bold text-foreground">Admin Panel</h1>
+          <p className="text-sm text-muted-foreground">Quản lý người dùng và thống kê hệ thống</p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => setTab("users")}
-            className={`rounded-md px-3 py-2 text-sm font-medium ${tab === "users" ? "bg-slate-900 text-white" : "border border-slate-200 bg-white text-slate-700"}`}
+            className={`rounded-md px-3 py-2 text-sm font-medium ${tab === "users" ? "bg-primary text-primary-foreground" : "border border-border bg-card text-foreground"}`}
           >
             Quản lý người dùng
           </button>
           <button
             onClick={() => setTab("tests")}
-            className={`rounded-md px-3 py-2 text-sm font-medium ${tab === "tests" ? "bg-indigo-600 text-white" : "border border-slate-200 bg-white text-slate-700"}`}
+            className={`rounded-md px-3 py-2 text-sm font-medium ${tab === "tests" ? "bg-primary text-primary-foreground" : "border border-border bg-card text-foreground"}`}
           >
             Quản lý test
           </button>
           <button
             onClick={() => setTab("analytics")}
-            className={`rounded-md px-3 py-2 text-sm font-medium ${tab === "analytics" ? "bg-cyan-600 text-white" : "border border-slate-200 bg-white text-slate-700"}`}
+            className={`rounded-md px-3 py-2 text-sm font-medium ${tab === "analytics" ? "bg-primary text-primary-foreground" : "border border-border bg-card text-foreground"}`}
           >
             Thống kê
           </button>
@@ -81,3 +81,4 @@ export default function AdminShell({
     </div>
   );
 }
+

@@ -1,12 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { QuestionCard } from "./components/QuestionCard";
 import { QuestionModal } from "./components/QuestionModal";
 import { createDefaultForm, inferKindFromQuestion, mapKindToPayload } from "./helpers";
 import { Question, QuestionForm, QuestionKind, Test } from "./types";
+import {
+  FIXED_TEST_MAX_SCORE,
+  getAssessmentModeLabel,
+  getRemainingQuestionScore,
+  isTestReady,
+} from "@/lib/test-rules";
 
 export default function TeacherTestQuestionsPage() {
   const params = useParams();
@@ -19,8 +25,9 @@ export default function TeacherTestQuestionsPage() {
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [questionForm, setQuestionForm] = useState<QuestionForm>(createDefaultForm());
   const [pageError, setPageError] = useState<string | null>(null);
-  const isWritingCourse = (test?.course?.category || "").trim().toLowerCase() === "writing";
 
+  const totalQuestionScore = useMemo(() => questions.reduce((sum, question) => sum + Number(question.score || 0), 0), [questions]);
+  const remainingScore = getRemainingQuestionScore(totalQuestionScore);
   useEffect(() => {
     void fetchTestAndQuestions();
   }, [testId]);
@@ -37,7 +44,7 @@ export default function TeacherTestQuestionsPage() {
         setPageError(null);
       } else {
         const data = await testRes.json().catch(() => ({}));
-        setPageError(data?.error || "Không thể tải thông tin bài test.");
+        setPageError(data?.error || "Khong the tai thong tin bai test.");
       }
       if (questionsRes.ok) {
         const data = await questionsRes.json();
@@ -54,11 +61,15 @@ export default function TeacherTestQuestionsPage() {
 
   const openCreateModal = () => {
     if (!test) {
-      alert("Không tìm thấy bài test. Vui lòng thử lại.");
+      alert("Khong tim thay bai test. Vui long thu lai.");
+      return;
+    }
+    if (remainingScore <= 0) {
+      alert("Tong diem cau hoi da dat 100. Hay sua hoac xoa cau hoi truoc khi them moi.");
       return;
     }
     setEditingQuestion(null);
-    resetForm();
+    setQuestionForm(createDefaultForm());
     setShowModal(true);
   };
 
@@ -80,26 +91,25 @@ export default function TeacherTestQuestionsPage() {
   };
 
   const validateForm = (form: QuestionForm): string | null => {
-    if (!form.kind) return "Vui lòng chọn dạng câu hỏi";
-    if (!form.content.trim()) return "Vui lòng nhập nội dung câu hỏi";
-    if (!form.score || Number(form.score) <= 0) return "Điểm số phải lớn hơn 0";
-    if (form.kind === "ESSAY" && !isWritingCourse) return "Dạng tự luận chỉ áp dụng cho khóa học Writing";
-    if (form.kind === "LISTENING" && !form.audioUrl.trim()) return "Vui lòng nhập URL audio";
+    if (!form.kind) return "Vui long chon dang cau hoi";
+    if (!form.content.trim()) return "Vui long nhap noi dung cau hoi";
+    if (!form.score || Number(form.score) <= 0) return "Diem so phai lon hon 0";
+    if (form.kind === "LISTENING" && !form.audioUrl.trim()) return "Vui long nhap URL audio";
 
     if ((form.kind === "MULTIPLE_CHOICE" || form.kind === "TRUE_FALSE") && form.answers.some((a) => !a.content.trim())) {
-      return "Vui lòng điền đủ nội dung cho tất cả đáp án";
+      return "Vui long dien du noi dung cho tat ca dap an";
     }
     if ((form.kind === "MULTIPLE_CHOICE" || form.kind === "TRUE_FALSE") && !form.answers.some((a) => a.isCorrect)) {
-      return "Vui lòng chọn đáp án đúng";
+      return "Vui long chon dap an dung";
     }
-    if (form.kind === "FILL_IN_BLANK" && !form.answers[0]?.content?.trim()) return "Vui lòng nhập đáp án đúng";
+    if (form.kind === "FILL_IN_BLANK" && !form.answers[0]?.content?.trim()) return "Vui long nhap dap an dung";
     return null;
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!test) {
-      alert("Bài test không tồn tại hoặc bạn không có quyền truy cập.");
+      alert("Bai test khong ton tai hoac ban khong co quyen truy cap.");
       return;
     }
     const validationError = validateForm(questionForm);
@@ -113,7 +123,10 @@ export default function TeacherTestQuestionsPage() {
       ...questionForm,
       ...kindPayload,
       audioUrl: kindPayload.hasListening ? questionForm.audioUrl : null,
-      answers: questionForm.kind === "ESSAY" || questionForm.kind === "LISTENING" ? [] : questionForm.answers,
+      answers:
+        questionForm.kind === "ESSAY" || questionForm.kind === "LISTENING" || questionForm.kind === "SPEAKING"
+          ? []
+          : questionForm.answers,
     };
 
     try {
@@ -129,8 +142,8 @@ export default function TeacherTestQuestionsPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         const errorMessage = data?.details
-          ? `${data.error || "Không thể lưu câu hỏi"}: ${data.details}`
-          : data?.error || "Không thể lưu câu hỏi. Vui lòng thử lại.";
+          ? `${data.error || "Khong the luu cau hoi"}: ${data.details}`
+          : data?.error || "Khong the luu cau hoi. Vui long thu lai.";
         alert(errorMessage);
         return;
       }
@@ -141,12 +154,12 @@ export default function TeacherTestQuestionsPage() {
       await fetchTestAndQuestions();
     } catch (error) {
       console.error("Error saving question:", error);
-      alert("Lỗi khi lưu câu hỏi.");
+      alert("Loi khi luu cau hoi.");
     }
   };
 
   const handleDelete = async (questionId: string) => {
-    if (!confirm("Bạn có chắc chắn muốn xóa câu hỏi này?")) return;
+    if (!confirm("Ban co chac chan muon xoa cau hoi nay?")) return;
     try {
       const res = await fetch(`/api/teacher/tests/${testId}/questions/${questionId}`, { method: "DELETE" });
       if (res.ok) await fetchTestAndQuestions();
@@ -169,27 +182,34 @@ export default function TeacherTestQuestionsPage() {
         <div className="mb-4 flex items-center justify-between">
           {test?.course?.id ? (
             <Link href={`/teacher/courses/${test.course.id}`} className="text-sm text-slate-600 hover:text-slate-900">
-              Quay lại khóa học
+              Quay lai khoa hoc
             </Link>
           ) : (
-            <span className="text-sm text-slate-500">Đề test độc lập (không gắn khóa học)</span>
+            <span className="text-sm text-slate-500">De test doc lap</span>
           )}
           <Link href="/teacher/courses" className="text-sm text-slate-600 hover:text-slate-900">
-            Danh sách khóa học
+            Danh sach khoa hoc
           </Link>
         </div>
 
         <div className="mb-8 rounded-xl border border-slate-200 bg-white p-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h1 className="text-2xl font-bold text-slate-900">{test?.name}</h1>
               <p className="mt-1 text-sm text-slate-600">
-                {test?.course?.name ? `Khóa học: ${test.course.name}` : "Loại đề: Public practice / Teacher entrance"}
+                {test?.course?.name ? `Khoa hoc: ${test.course.name}` : `Loai de: ${getAssessmentModeLabel(test?.assessmentMode || "STANDARD")}`}
+              </p>
+              <p className="mt-1 text-sm text-slate-500">
+                Ngon ngu: {test?.language?.name || test?.course?.language?.name || "Chua gan"}
               </p>
             </div>
             <button onClick={openCreateModal} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white">
-              Thêm câu hỏi
+              Them cau hoi
             </button>
+          </div>
+
+          <div className={`mt-4 rounded-lg border p-4 text-sm ${isTestReady(totalQuestionScore) ? "border-emerald-200 bg-emerald-50 text-emerald-700" : remainingScore > 0 ? "border-amber-200 bg-amber-50 text-amber-700" : "border-red-200 bg-red-50 text-red-700"}`}>
+            Tong diem hien tai: <strong>{totalQuestionScore}</strong> / {FIXED_TEST_MAX_SCORE}. {isTestReady(totalQuestionScore) ? "De da hop le de su dung." : remainingScore > 0 ? `Con thieu ${remainingScore} diem.` : `Vuot ${Math.abs(remainingScore)} diem, can giam xuong ${FIXED_TEST_MAX_SCORE}.`}
           </div>
         </div>
 
@@ -201,7 +221,7 @@ export default function TeacherTestQuestionsPage() {
 
         {questions.length === 0 ? (
           <div className="rounded-xl border border-slate-200 bg-white p-12 text-center text-slate-600">
-            Chưa có câu hỏi nào
+            Chua co cau hoi nao
           </div>
         ) : (
           <div className="space-y-4">
@@ -222,7 +242,6 @@ export default function TeacherTestQuestionsPage() {
         }}
         onSubmit={handleSubmit}
         setForm={(updater) => setQuestionForm((prev) => updater(prev))}
-        canUseEssay={isWritingCourse}
       />
     </div>
   );

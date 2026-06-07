@@ -1,8 +1,15 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { FIXED_TEST_MAX_SCORE } from "@/lib/test-rules";
 
-const ALLOWED_TYPES = new Set(["MULTIPLE_CHOICE", "FILL_IN_BLANK", "ESSAY", "TRUE_FALSE"]);
+const ALLOWED_TYPES = new Set(["MULTIPLE_CHOICE", "FILL_IN_BLANK", "ESSAY", "TRUE_FALSE", "SPEAKING"]);
+type QuestionAnswerInput = {
+  content: string;
+  isCorrect?: boolean;
+  order?: number;
+  feedback?: string | null;
+};
 
 export async function GET(
   request: NextRequest,
@@ -25,7 +32,9 @@ export async function GET(
       return NextResponse.json({ error: "Test not found" }, { status: 404 });
     }
 
-    if (user.role !== "ADMIN" && test.course?.instructorId !== user.id) {
+    // Allow if: user is ADMIN (any test), OR user is TEACHER and owns the course
+    const canManage = user.role === "ADMIN" || test.course?.instructorId === user.id;
+    if (!canManage) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -67,7 +76,9 @@ export async function POST(
       return NextResponse.json({ error: "Test not found" }, { status: 404 });
     }
 
-    if (user.role !== "ADMIN" && test.course?.instructorId !== user.id) {
+    // Allow if: user is ADMIN (any test), OR user is TEACHER and owns the course
+    const canManage = user.role === "ADMIN" || test.course?.instructorId === user.id;
+    if (!canManage) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -79,36 +90,48 @@ export async function POST(
     }
 
     if (!ALLOWED_TYPES.has(type)) {
-      return NextResponse.json({ error: "Loại câu hỏi không hợp lệ" }, { status: 400 });
-    }
-    const isWritingCourse = (test.course?.category || "").trim().toLowerCase() === "writing";
-    if (type === "ESSAY" && !hasListening && !isWritingCourse) {
-      return NextResponse.json({ error: "Khóa học không phải Writing nên không được tạo câu hỏi tự luận" }, { status: 400 });
+      return NextResponse.json({ error: "Loai cau hoi khong hop le" }, { status: 400 });
     }
 
     const parsedScore = score ? parseFloat(score) : 10;
     if (!Number.isFinite(parsedScore) || parsedScore <= 0) {
-      return NextResponse.json({ error: "Điểm số phải lớn hơn 0" }, { status: 400 });
+      return NextResponse.json({ error: "Diem so phai lon hon 0" }, { status: 400 });
+    }
+
+    const scoreAggregate = await prisma.question.aggregate({
+      where: { testId },
+      _sum: { score: true },
+    });
+    const nextTotalScore = Number(scoreAggregate._sum.score || 0) + parsedScore;
+    if (nextTotalScore > FIXED_TEST_MAX_SCORE) {
+      return NextResponse.json(
+        { error: `Tong diem cau hoi khong duoc vuot ${FIXED_TEST_MAX_SCORE}` },
+        { status: 400 }
+      );
     }
 
     let finalAudioUrl: string | null = null;
     if (hasListening && !audioUrl?.trim()) {
-      return NextResponse.json({ error: "Thiếu URL audio cho dạng nghe" }, { status: 400 });
+      return NextResponse.json({ error: "Thieu URL audio cho dang nghe" }, { status: 400 });
     }
 
-    if (hasListening && audioUrl?.trim()) {
+    if (type === "SPEAKING") {
+      finalAudioUrl = null;
+    } else if (hasListening && audioUrl?.trim()) {
       try {
         new URL(audioUrl);
         finalAudioUrl = audioUrl;
       } catch {
-        return NextResponse.json({ error: "URL audio không hợp lệ" }, { status: 400 });
+        return NextResponse.json({ error: "URL audio khong hop le" }, { status: 400 });
       }
     }
 
-    if (answers && Array.isArray(answers)) {
-      const hasEmptyAnswer = answers.some((a: any) => !a.content || !a.content.trim());
+    const normalizedAnswers: QuestionAnswerInput[] = Array.isArray(answers) ? (answers as QuestionAnswerInput[]) : [];
+
+    if (normalizedAnswers.length > 0) {
+      const hasEmptyAnswer = normalizedAnswers.some((answer) => !answer.content || !answer.content.trim());
       if (hasEmptyAnswer) {
-        return NextResponse.json({ error: "Tất cả đáp án phải có nội dung" }, { status: 400 });
+        return NextResponse.json({ error: "Tat ca dap an phai co noi dung" }, { status: 400 });
       }
     }
 
@@ -129,9 +152,9 @@ export async function POST(
         score: parsedScore,
         explanation: explanation || null,
         hint: hint || null,
-        ...(answers && answers.length > 0 && {
+        ...(normalizedAnswers.length > 0 && type !== "SPEAKING" && {
           answers: {
-            create: answers.map((answer: any, index: number) => ({
+            create: normalizedAnswers.map((answer, index) => ({
               content: answer.content,
               isCorrect: answer.isCorrect || false,
               order: answer.order ?? index + 1,

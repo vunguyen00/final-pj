@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { isTestReady } from "@/lib/test-rules";
 
 export const TEACHER_ENTRANCE_SETTING_KEY = "teacher_entrance_registration";
 
@@ -49,7 +50,7 @@ export async function getActiveLanguages() {
 }
 
 export async function findEntranceTest(languageId: string) {
-  return prisma.test.findFirst({
+  const tests = await prisma.test.findMany({
     where: {
       kind: "TEACHER_ENTRANCE",
       languageId,
@@ -62,6 +63,7 @@ export async function findEntranceTest(languageId: string) {
     },
     orderBy: { createdAt: "desc" },
   });
+  return tests.find((test) => isTestReady(test.questions.reduce((sum, question) => sum + Number(question.score || 0), 0))) ?? null;
 }
 
 export async function logTeacherApplication(params: {

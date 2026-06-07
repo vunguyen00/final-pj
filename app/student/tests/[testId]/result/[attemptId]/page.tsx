@@ -47,6 +47,7 @@ const questionTypes: Record<string, string> = {
   FILL_IN_BLANK: "Fill in blank",
   ESSAY: "Writing response",
   TRUE_FALSE: "True or false",
+  SPEAKING: "Speaking response",
 };
 
 const ratingOptions = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
@@ -92,7 +93,14 @@ export default function StudentTestResultPage() {
     if (!result) return [];
     const groups = new Map<string, { earned: number; max: number }>();
     for (const question of result.questionResults) {
-      const key = question.questionType === "ESSAY" ? "Writing" : question.questionType === "FILL_IN_BLANK" ? "Vocabulary" : "Comprehension";
+      const key =
+        question.questionType === "ESSAY"
+          ? "Writing"
+          : question.questionType === "SPEAKING"
+            ? "Speaking"
+            : question.questionType === "FILL_IN_BLANK"
+              ? "Vocabulary"
+              : "Comprehension";
       const current = groups.get(key) ?? { earned: 0, max: 0 };
       current.earned += question.earnedScore;
       current.max += question.score;

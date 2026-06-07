@@ -11,16 +11,14 @@ export default async function RegisterPage() {
 
   return (
     <>
-      <h1 className="text-2xl font-bold text-slate-900">Dang ky</h1>
-      <p className="mt-1 text-sm text-slate-600">
-        Tai khoan dang ky moi se mac dinh role STUDENT.
-      </p>
+      <h1 className="text-2xl font-semibold text-foreground">Dang ky</h1>
+      <p className="mt-1 text-sm text-muted-foreground">Tai khoan dang ky moi se mac dinh role STUDENT.</p>
       <div className="mt-5">
         <RegisterForm />
       </div>
-      <p className="mt-4 text-sm text-slate-600">
+      <p className="mt-4 text-sm text-muted-foreground">
         Da co tai khoan?{" "}
-        <Link className="font-semibold text-slate-900 hover:underline" href="/auth/login">
+        <Link className="font-semibold text-foreground hover:underline" href="/auth/login">
           Dang nhap
         </Link>
       </p>

@@ -226,9 +226,9 @@ export async function requireUser() {
   return user;
 }
 
-export async function requireRole(role: AppRole) {
+export async function requireRole(...roles: AppRole[]) {
   const user = await requireUser();
-  if (user.role !== role) {
+  if (!roles.includes(user.role)) {
     redirect(ROLE_HOME[user.role]);
   }
 

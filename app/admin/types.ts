@@ -40,6 +40,7 @@ export type AdminManagedTest = {
   id: string;
   name: string;
   kind: "TEACHER_ENTRANCE" | "PUBLIC_PRACTICE";
+  assessmentMode: "STANDARD" | "WRITING" | "SPEAKING";
   language: { id: string; name: string; code: string } | null;
   createdAt: string;
   _count: { questions: number; attempts: number };

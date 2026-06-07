@@ -1,5 +1,6 @@
 import { FormEvent } from "react";
 import { TestForm } from "../types";
+import { FIXED_TEST_MAX_SCORE } from "@/lib/test-rules";
 
 type TestModalProps = {
   isOpen: boolean;
@@ -19,12 +20,14 @@ export function TestModal({ isOpen, form, onChangeForm, onClose, onSubmit }: Tes
         <form onSubmit={onSubmit} className="mt-4 space-y-4">
           <input type="text" required value={form.name} onChange={(e) => onChangeForm({ ...form, name: e.target.value })} placeholder="Vi du: Test Unit 1" className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
           <textarea rows={2} value={form.description} onChange={(e) => onChangeForm({ ...form, description: e.target.value })} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-          <div className="grid grid-cols-2 gap-4">
-            <input type="number" required value={form.maxScore} onChange={(e) => onChangeForm({ ...form, maxScore: e.target.value })} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <input type="number" required value={form.passingScore} onChange={(e) => onChangeForm({ ...form, passingScore: e.target.value })} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+            Diem toi da cua de duoc khoa co dinh la <strong>{FIXED_TEST_MAX_SCORE}</strong>. Tong diem cac cau hoi phai bang {FIXED_TEST_MAX_SCORE}.
           </div>
           <div className="grid grid-cols-2 gap-4">
+            <input type="number" required value={form.passingScore} onChange={(e) => onChangeForm({ ...form, passingScore: e.target.value })} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             <input type="number" required value={form.maxAttempts} onChange={(e) => onChangeForm({ ...form, maxAttempts: e.target.value })} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+          </div>
+          <div className="grid grid-cols-1 gap-4">
             <input type="number" value={form.timeLimit} onChange={(e) => onChangeForm({ ...form, timeLimit: e.target.value })} placeholder="De trong neu khong gioi han" className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
           </div>
           <div className="flex items-center gap-2">

@@ -46,7 +46,6 @@ export type User = {
 export type TestForm = {
   name: string;
   description: string;
-  maxScore: string;
   passingScore: string;
   maxAttempts: string;
   timeLimit: string;
@@ -56,7 +55,6 @@ export type TestForm = {
 export const initialTestForm: TestForm = {
   name: "",
   description: "",
-  maxScore: "100",
   passingScore: "50",
   maxAttempts: "3",
   timeLimit: "",

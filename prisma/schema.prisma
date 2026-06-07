@@ -137,6 +137,7 @@ model Test {
   courseId     String?
   languageId   String?
   kind         TestKind @default(COURSE)
+  assessmentMode TestAssessmentMode @default(STANDARD)
   name         String
   description String?
   maxScore     Float
@@ -160,11 +161,18 @@ enum TestKind {
   TEACHER_ENTRANCE
 }
 
+enum TestAssessmentMode {
+  STANDARD
+  WRITING
+  SPEAKING
+}
+
 enum QuestionType {
   MULTIPLE_CHOICE  // Trắc nghiệm
   FILL_IN_BLANK    // Điền từ
   ESSAY            // Viết bài văn
   TRUE_FALSE       // Đúng/Sai
+  SPEAKING         // Nói với AI
 }
 
 model Question {

@@ -1,7 +1,8 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { getCourseProgressPercent } from "@/lib/learning-progress";
+import { FIXED_TEST_MAX_SCORE, isTestReady } from "@/lib/test-rules";
 
 export async function GET(
   _request: NextRequest,
@@ -18,7 +19,16 @@ export async function GET(
     const test = await prisma.test.findUnique({
       where: { id: testId },
       include: {
-        course: true,
+        course: {
+          include: {
+            language: {
+              select: { id: true, name: true, code: true },
+            },
+          },
+        },
+        language: {
+          select: { id: true, name: true, code: true },
+        },
         questions: {
           include: {
             answers: {
@@ -32,6 +42,14 @@ export async function GET(
 
     if (!test) {
       return NextResponse.json({ error: "Test not found" }, { status: 404 });
+    }
+
+    const totalQuestionScore = test.questions.reduce((sum, question) => sum + Number(question.score || 0), 0);
+    if (!isTestReady(totalQuestionScore)) {
+      return NextResponse.json(
+        { error: `Bai test chua hop le. Tong diem cau hoi phai bang ${FIXED_TEST_MAX_SCORE}.`, totalQuestionScore },
+        { status: 400 },
+      );
     }
 
     if (test.kind === "TEACHER_ENTRANCE") {
@@ -65,7 +83,6 @@ export async function GET(
           { status: 403 },
         );
       }
-
     }
 
     const attempts = await prisma.testAttempt.findMany({
@@ -106,7 +123,9 @@ export async function GET(
         description: test.description,
         courseName: test.course?.name ?? "Public practice",
         kind: test.kind,
-        maxScore: test.maxScore,
+        assessmentMode: test.assessmentMode,
+        language: test.language ?? test.course?.language ?? null,
+        maxScore: FIXED_TEST_MAX_SCORE,
         passingScore: test.passingScore,
         timeLimit: test.timeLimit,
         shuffleQuestions: test.shuffleQuestions,
