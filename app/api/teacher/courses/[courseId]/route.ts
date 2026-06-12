@@ -30,6 +30,13 @@ export async function GET(
             email: true,
           },
         },
+        language: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
         modules: {
           include: {
             lessons: {
@@ -126,7 +133,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, description, price, category, duration, thumbnail, status } = body;
+    const { name, description, price, category, duration, thumbnail, status, languageId } = body;
 
     const updateData: Record<string, unknown> = {
       ...(name && { name }),
@@ -148,6 +155,9 @@ export async function PUT(
     }
 
     if (user.role === "ADMIN") {
+      if (typeof languageId === "string" && languageId) {
+        updateData.languageId = languageId;
+      }
       if (status) {
         if (!COURSE_STATUSES.has(status)) {
           return NextResponse.json(
@@ -158,6 +168,16 @@ export async function PUT(
         updateData.status = status;
       }
     } else {
+      if (!course.languageId) {
+        const approvedApplication = await prisma.teacherApplication.findFirst({
+          where: { userId: user.id, status: "APPROVED" },
+          select: { languageId: true },
+          orderBy: { reviewedAt: "desc" },
+        });
+        if (approvedApplication) {
+          updateData.languageId = approvedApplication.languageId;
+        }
+      }
       if (course.status !== "LOCKED") {
         const autoApproval = await getCourseAutoApprovalSetting();
         updateData.status = autoApproval.enabled ? "ACTIVE" : "PENDING_APPROVAL";
@@ -173,6 +193,13 @@ export async function PUT(
             id: true,
             username: true,
             email: true,
+          },
+        },
+        language: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
           },
         },
       },
@@ -264,9 +291,22 @@ export async function PATCH(
         );
       }
 
+      const approvedApplication =
+        !course.languageId && course.instructorId
+          ? await prisma.teacherApplication.findFirst({
+              where: { userId: course.instructorId, status: "APPROVED" },
+              select: { languageId: true },
+              orderBy: { reviewedAt: "desc" },
+            })
+          : null;
       const updatedCourse = await prisma.course.update({
         where: { id: courseId },
-        data: { status: decision === "APPROVE" ? "ACTIVE" : "REJECTED" },
+        data: {
+          status: decision === "APPROVE" ? "ACTIVE" : "REJECTED",
+          ...(approvedApplication
+            ? { languageId: approvedApplication.languageId }
+            : {}),
+        },
       });
 
       if (course.instructorId) {
@@ -295,9 +335,21 @@ export async function PATCH(
         );
       }
       const autoApproval = await getCourseAutoApprovalSetting();
+      const approvedApplication = !course.languageId
+        ? await prisma.teacherApplication.findFirst({
+            where: { userId: user.id, status: "APPROVED" },
+            select: { languageId: true },
+            orderBy: { reviewedAt: "desc" },
+          })
+        : null;
       const updatedCourse = await prisma.course.update({
         where: { id: courseId },
-        data: { status: autoApproval.enabled ? "ACTIVE" : "PENDING_APPROVAL" },
+        data: {
+          status: autoApproval.enabled ? "ACTIVE" : "PENDING_APPROVAL",
+          ...(approvedApplication
+            ? { languageId: approvedApplication.languageId }
+            : {}),
+        },
       });
       return NextResponse.json({ course: updatedCourse });
     }

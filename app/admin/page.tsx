@@ -4,7 +4,6 @@ import AdminShell from "./AdminShell";
 import { getDashboardAnalytics } from "@/lib/admin-analytics";
 import { getTeacherEntranceSetting, getActiveLanguages } from "@/lib/teacher-onboarding";
 import { getCourseAutoApprovalSetting } from "@/lib/course-approval";
-import { getSpeakingAiSetting } from "@/lib/speaking-ai-setting";
 import type { AdminManagedTest } from "./types";
 
 export default async function AdminPage() {
@@ -12,14 +11,7 @@ export default async function AdminPage() {
 
   const setting = await getTeacherEntranceSetting();
   const courseApprovalSetting = await getCourseAutoApprovalSetting();
-  const speakingAiSetting = await getSpeakingAiSetting();
   const languages = await getActiveLanguages();
-
-  const users = await prisma.user.findMany({
-    select: { id: true, username: true, email: true, role: true, isBanned: true },
-    orderBy: { username: "asc" },
-    take: 200,
-  });
 
   const applicationsRaw = await prisma.teacherApplication.findMany({
     include: {
@@ -53,7 +45,22 @@ export default async function AdminPage() {
   const analyticsInitialData = await getDashboardAnalytics({ preset: "LAST_30_DAYS" });
   const courses = await prisma.course.findMany({
     include: {
-      instructor: { select: { id: true, username: true, email: true } },
+      language: { select: { id: true, name: true, code: true } },
+      instructor: {
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          teacherApplications: {
+            where: { status: "APPROVED" },
+            select: {
+              language: { select: { id: true, name: true, code: true } },
+            },
+            orderBy: { reviewedAt: "desc" },
+            take: 1,
+          },
+        },
+      },
       _count: { select: { modules: true, tests: true, enrollments: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -81,13 +88,24 @@ export default async function AdminPage() {
       <AdminShell
         initialEnabled={Boolean(setting.enabled)}
         initialCourseAutoApproval={Boolean(courseApprovalSetting.enabled)}
-        initialSpeakingConfig={speakingAiSetting}
-        initialUsers={users}
         initialLanguages={languages}
         initialApplications={applications}
         initialCourses={courses.map((course) => ({
-          ...course,
+          id: course.id,
+          name: course.name,
+          description: course.description,
+          status: course.status,
           createdAt: course.createdAt.toISOString(),
+          instructor: course.instructor
+            ? {
+                id: course.instructor.id,
+                username: course.instructor.username,
+                email: course.instructor.email,
+              }
+            : null,
+          language: course.language,
+          registeredLanguage: course.instructor?.teacherApplications[0]?.language ?? null,
+          _count: course._count,
         }))}
         initialAdminManagedTests={adminManagedTests.map((test) => ({
           ...test,

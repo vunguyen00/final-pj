@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import type { Application, Course, Language, SpeakingAiConfig, UserRow } from "./types";
+import type { Application, Course } from "./types";
 
 function statusLabel(status: Course["status"]) {
   if (status === "ACTIVE") return "Đang hoạt động";
@@ -18,45 +18,55 @@ function statusClass(status: Course["status"]) {
   return "bg-red-100 text-red-700";
 }
 
+function applicationStatusLabel(status: string) {
+  if (status === "APPROVED") return "Đã duyệt";
+  if (status === "REJECTED") return "Từ chối";
+  if (status === "UNDER_REVIEW") return "Đang xem xét";
+  if (status === "SUBMITTED") return "Đã nộp";
+  if (status === "EXPIRED") return "Hết hạn";
+  return "Bản nháp";
+}
+
 export default function AdminDashboard({
   initialEnabled,
   initialCourseAutoApproval,
-  initialSpeakingConfig,
-  initialUsers,
-  initialLanguages,
   initialApplications,
   initialCourses,
 }: {
   initialEnabled: boolean;
   initialCourseAutoApproval: boolean;
-  initialSpeakingConfig: SpeakingAiConfig;
-  initialUsers: UserRow[];
-  initialLanguages: Language[];
   initialApplications: Application[];
   initialCourses: Course[];
 }) {
   const [enabled, setEnabled] = useState(initialEnabled);
   const [courseAutoApproval, setCourseAutoApproval] = useState(initialCourseAutoApproval);
-  const [speakingConfig, setSpeakingConfig] = useState<SpeakingAiConfig>(initialSpeakingConfig);
-  const [users, setUsers] = useState(initialUsers);
-  const [languages, setLanguages] = useState(initialLanguages);
   const [applications, setApplications] = useState(initialApplications);
   const [courses, setCourses] = useState(initialCourses);
-  const [languageForm, setLanguageForm] = useState({ name: "", code: "" });
   const [message, setMessage] = useState("");
+  const [showApplications, setShowApplications] = useState(false);
+  const [applicationSearch, setApplicationSearch] = useState("");
   const [currentTs] = useState(() => Date.now());
-  const [showCerts, setShowCerts] = useState(false);
-  const [selectedCertificates, setSelectedCertificates] = useState<
-    { id: string; fileName: string; fileUrl: string; expiryDate: string | null }[]
-  >([]);
-  const [showRoleModal, setShowRoleModal] = useState(false);
-  const [selectedUserForRole, setSelectedUserForRole] = useState<UserRow | null>(null);
-  const [selectedRole, setSelectedRole] = useState<string | null>(null);
 
   const pendingCourses = useMemo(
     () => courses.filter((course) => course.status === "PENDING_APPROVAL"),
     [courses],
   );
+
+  const pendingApplications = useMemo(
+    () => applications.filter((application) => !["APPROVED", "REJECTED", "EXPIRED"].includes(application.status)),
+    [applications],
+  );
+
+  const filteredApplications = useMemo(() => {
+    const keyword = applicationSearch.trim().toLocaleLowerCase("vi");
+    if (!keyword) return applications;
+
+    return applications.filter((application) =>
+      `${application.user.username} ${application.user.email}`
+        .toLocaleLowerCase("vi")
+        .includes(keyword),
+    );
+  }, [applicationSearch, applications]);
 
   async function toggleTeacherEntrance(nextEnabled: boolean) {
     setMessage("");
@@ -66,11 +76,16 @@ export default function AdminDashboard({
       body: JSON.stringify({ enabled: nextEnabled }),
     });
     const data = await response.json().catch(() => ({}));
+
     if (response.ok) {
       setEnabled(nextEnabled);
-      setMessage(nextEnabled ? `Đã bật đăng ký. Email gửi thành công: ${data.notified ?? 0}.` : "Đã tắt đăng ký.");
+      setMessage(
+        nextEnabled
+          ? `Đã bật đăng ký. Email gửi thành công: ${data.notified ?? 0}.`
+          : "Đã tắt đăng ký giảng viên.",
+      );
     } else {
-      setMessage(data?.error || "Không thể cập nhật setting.");
+      setMessage(data?.error || "Không thể cập nhật cài đặt.");
     }
   }
 
@@ -82,459 +97,398 @@ export default function AdminDashboard({
       body: JSON.stringify({ enabled: nextEnabled }),
     });
     const data = await response.json().catch(() => ({}));
+
     if (response.ok) {
       setCourseAutoApproval(nextEnabled);
-      setMessage(nextEnabled ? "Đã bật tự động duyệt khóa học." : "Đã tắt tự động duyệt khóa học.");
-    } else {
-      setMessage(data?.error || "Không thể cập nhật chế độ auto duyệt.");
-    }
-  }
-
-  async function saveSpeakingConfig(event: React.FormEvent) {
-    event.preventDefault();
-    setMessage("");
-    const response = await fetch("/api/admin/speaking-config", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(speakingConfig),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (response.ok) {
-      setSpeakingConfig({
-        examType: data.examType === "HSK" ? "HSK" : "IELTS",
-        durationSeconds: Number(data.durationSeconds || speakingConfig.durationSeconds),
-      });
-      setMessage("Da cap nhat cau hinh speaking AI.");
-    } else {
-      setMessage(data?.error || "Khong the cap nhat speaking AI setting.");
-    }
-  }
-
-  async function addLanguage(event: React.FormEvent) {
-    event.preventDefault();
-    const response = await fetch("/api/languages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(languageForm),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (response.ok) {
-      setLanguages((prev) => [...prev, data.language].sort((a, b) => a.name.localeCompare(b.name)));
-      setLanguageForm({ name: "", code: "" });
-      setMessage("Đã thêm ngôn ngữ.");
-    } else {
-      setMessage(data?.error || "Không thể thêm ngôn ngữ.");
-    }
-  }
-
-  async function toggleBan(user: UserRow) {
-    const response = await fetch(`/api/admin/users/${user.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isBanned: !user.isBanned }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (response.ok) {
-      setUsers((prev) => prev.map((item) => (item.id === user.id ? { ...item, isBanned: data.user.isBanned } : item)));
-    } else {
-      setMessage(data?.error || "Không thể cập nhật user.");
-    }
-  }
-
-  async function saveRole() {
-    if (!selectedUserForRole || !selectedRole) return;
-    setMessage("");
-    try {
-      const res = await fetch(`/api/admin/users/${selectedUserForRole.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: selectedRole }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        setUsers((prev) => prev.map((u) => (u.id === selectedUserForRole.id ? { ...u, role: data.user.role } : u)));
-        setShowRoleModal(false);
-        setSelectedUserForRole(null);
-        setSelectedRole(null);
-        setMessage("Da cap nhat role.");
-      } else {
-        setMessage(data?.error || "Khong the cap nhat role.");
-      }
-    } catch (err) {
-      console.error(err);
-      setMessage("Loi khi cap nhat role.");
-    }
-  }
-
-  async function reviewTeacherApplication(application: Application, action: "APPROVE" | "REJECT") {
-    const rejectionReason = action === "REJECT" ? window.prompt("Lý do từ chối?") || "" : "";
-    const response = await fetch(`/api/admin/teacher-applications/${application.id}/review`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, rejectionReason }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (response.ok) {
-      setApplications((prev) =>
-        prev.map((item) => (item.id === application.id ? { ...item, status: data.status, rejectionReason } : item)),
+      setMessage(
+        nextEnabled
+          ? "Đã bật tự động duyệt khóa học."
+          : "Đã tắt tự động duyệt khóa học.",
       );
-      setMessage(action === "APPROVE" ? "Đã duyệt hồ sơ giảng viên." : "Đã từ chối hồ sơ giảng viên.");
     } else {
-      setMessage(data?.error || "Không thể review hồ sơ.");
+      setMessage(data?.error || "Không thể cập nhật chế độ tự động duyệt.");
+    }
+  }
+
+  async function reviewTeacherApplication(
+    application: Application,
+    action: "APPROVE" | "REJECT",
+  ) {
+    const rejectionReason =
+      action === "REJECT" ? window.prompt("Lý do từ chối?") || "" : "";
+    const response = await fetch(
+      `/api/admin/teacher-applications/${application.id}/review`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, rejectionReason }),
+      },
+    );
+    const data = await response.json().catch(() => ({}));
+
+    if (response.ok) {
+      setApplications((previous) =>
+        previous.map((item) =>
+          item.id === application.id
+            ? { ...item, status: data.status, rejectionReason }
+            : item,
+        ),
+      );
+      setMessage(
+        action === "APPROVE"
+          ? "Đã duyệt hồ sơ giảng viên."
+          : "Đã từ chối hồ sơ giảng viên.",
+      );
+    } else {
+      setMessage(data?.error || "Không thể duyệt hồ sơ.");
     }
   }
 
   async function reviewCourse(course: Course, decision: "APPROVE" | "REJECT") {
-    const rejectionReason = decision === "REJECT" ? window.prompt("Lý do từ chối khóa học?") || "" : "";
+    const rejectionReason =
+      decision === "REJECT"
+        ? window.prompt("Lý do từ chối khóa học?") || ""
+        : "";
     const response = await fetch(`/api/teacher/courses/${course.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "reviewCourse", decision, rejectionReason }),
     });
     const data = await response.json().catch(() => ({}));
+
     if (response.ok) {
-      setCourses((prev) => prev.map((item) => (item.id === course.id ? { ...item, status: data.course.status } : item)));
-      setMessage(decision === "APPROVE" ? "Đã duyệt khóa học." : "Đã từ chối khóa học.");
+      setCourses((previous) =>
+        previous.map((item) =>
+          item.id === course.id ? { ...item, status: data.course.status } : item,
+        ),
+      );
+      setMessage(
+        decision === "APPROVE"
+          ? "Đã duyệt khóa học."
+          : "Đã từ chối khóa học.",
+      );
     } else {
       setMessage(data?.error || "Không thể duyệt khóa học.");
     }
   }
 
   return (
-    <div className="space-y-6">
-      {message ? <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">{message}</div> : null}
-
-      <section className="rounded-xl border border-slate-200 bg-white p-6">
-        <h2 className="text-lg font-bold text-slate-950">Cong cu hoc tap va AI</h2>
-        <p className="mt-1 text-sm text-slate-500">Admin co the dung AI va xem lich su ket qua cua chinh minh, khong bi tru diem.</p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Link href="/student/speaking-ai" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Speaking AI</Link>
-          <Link href="/student/writing-ai" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white">Writing AI</Link>
-          <Link href="/student/tests" className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Lam test</Link>
-          <Link href="/student/results" className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Lich su cua toi</Link>
+    <div className="space-y-5">
+      {message ? (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+          {message}
         </div>
-      </section>
+      ) : null}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-6">
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className="rounded-lg border border-slate-200 p-4">
-            <h2 className="text-lg font-bold text-slate-950">Bật/tắt đăng ký giảng viên</h2>
-            <p className="mt-1 text-sm text-slate-500">Bật để student có thể nộp hồ sơ trở thành giảng viên.</p>
+      <section className="grid gap-4 md:grid-cols-3">
+        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-sm font-semibold text-slate-500">Đăng ký giảng viên</p>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-lg font-bold text-slate-950">
+                {enabled ? "Đang bật" : "Đang tắt"}
+              </p>
+              <p className="text-xs text-slate-500">Cho phép học viên nộp hồ sơ</p>
+            </div>
             <button
               onClick={() => void toggleTeacherEntrance(!enabled)}
-              className={`mt-3 rounded-lg px-4 py-2 text-sm font-semibold text-white ${enabled ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-700"}`}
+              className={`rounded-lg px-3 py-2 text-sm font-semibold text-white ${
+                enabled
+                  ? "bg-red-600 hover:bg-red-700"
+                  : "bg-blue-600 hover:bg-blue-700"
+              }`}
             >
-              {enabled ? "Tắt đăng ký" : "Bật đăng ký"}
+              {enabled ? "Tắt" : "Bật"}
             </button>
           </div>
+        </article>
 
-          <div className="rounded-lg border border-slate-200 p-4">
-            <h2 className="text-lg font-bold text-slate-950">Tự động duyệt khóa học</h2>
-            <p className="mt-1 text-sm text-slate-500">Khi bật, khóa học mới của giảng viên sẽ tự chuyển ACTIVE.</p>
+        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-sm font-semibold text-slate-500">Tự động duyệt khóa học</p>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-lg font-bold text-slate-950">
+                {courseAutoApproval ? "Đang bật" : "Đang tắt"}
+              </p>
+              <p className="text-xs text-slate-500">Khóa mới chuyển thẳng sang hoạt động</p>
+            </div>
             <button
               onClick={() => void toggleCourseAutoApproval(!courseAutoApproval)}
-              className={`mt-3 rounded-lg px-4 py-2 text-sm font-semibold text-white ${courseAutoApproval ? "bg-red-600 hover:bg-red-700" : "bg-emerald-600 hover:bg-emerald-700"}`}
+              className={`rounded-lg px-3 py-2 text-sm font-semibold text-white ${
+                courseAutoApproval
+                  ? "bg-red-600 hover:bg-red-700"
+                  : "bg-emerald-600 hover:bg-emerald-700"
+              }`}
             >
-              {courseAutoApproval ? "Tắt auto duyệt" : "Bật auto duyệt"}
+              {courseAutoApproval ? "Tắt" : "Bật"}
             </button>
           </div>
-        </div>
-      </section>
+        </article>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-6">
-        <h2 className="text-lg font-bold text-slate-950">Cau hinh Speaking AI</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Hoc vien se dung co dinh ky thi va thoi gian theo cau hinh admin.
-        </p>
-        <form onSubmit={saveSpeakingConfig} className="mt-4 grid gap-3 md:grid-cols-3 md:items-end">
-          <label className="text-sm font-semibold text-slate-700">
-            Ky thi speaking
-            <select
-              value={speakingConfig.examType}
-              onChange={(event) =>
-                setSpeakingConfig((prev) => ({ ...prev, examType: event.target.value === "HSK" ? "HSK" : "IELTS" }))
-              }
-              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-sm font-semibold text-slate-500">Hồ sơ giảng viên</p>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-lg font-bold text-slate-950">
+                {pendingApplications.length} chờ xử lý
+              </p>
+              <p className="text-xs text-slate-500">{applications.length} hồ sơ tất cả</p>
+            </div>
+            <button
+              onClick={() => setShowApplications(true)}
+              className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
             >
-              <option value="IELTS">IELTS</option>
-              <option value="HSK">HSK (HSKK)</option>
-            </select>
-          </label>
-          <label className="text-sm font-semibold text-slate-700">
-            Thoi gian (giay)
-            <input
-              type="number"
-              min={30}
-              max={900}
-              value={speakingConfig.durationSeconds}
-              onChange={(event) =>
-                setSpeakingConfig((prev) => ({
-                  ...prev,
-                  durationSeconds: Number(event.target.value || prev.durationSeconds),
-                }))
-              }
-              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            />
-          </label>
-          <button className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Luu cau hinh</button>
-        </form>
+              Xem hồ sơ
+            </button>
+          </div>
+        </article>
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-6">
-        <h2 className="text-xl font-bold text-slate-950">Duyệt khóa học giảng viên</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Hiện có <strong>{pendingCourses.length}</strong> khóa học đang chờ duyệt.
-        </p>
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-slate-950">
+              Duyệt khóa học giảng viên
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Hiện có <strong>{pendingCourses.length}</strong> khóa học đang chờ duyệt.
+            </p>
+          </div>
+          <Link
+            href="/teacher/courses"
+            className="text-sm font-semibold text-blue-700 hover:text-blue-800"
+          >
+            Xem tất cả khóa học
+          </Link>
+        </div>
+
         <div className="mt-4 space-y-3">
           {pendingCourses.length === 0 ? (
-            <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">Không có khóa học chờ duyệt.</p>
+            <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
+              Không có khóa học chờ duyệt.
+            </p>
           ) : (
-            pendingCourses.map((course) => (
-              <article key={course.id} className="rounded-lg border border-slate-200 p-4">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-bold text-slate-950">{course.name}</h3>
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusClass(course.status)}`}>{statusLabel(course.status)}</span>
+            pendingCourses.map((course) => {
+              const language = course.language ?? course.registeredLanguage;
+
+              return (
+                <article
+                  key={course.id}
+                  className="rounded-xl border border-slate-200 p-4"
+                >
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-bold text-slate-950">{course.name}</h3>
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusClass(course.status)}`}
+                        >
+                          {statusLabel(course.status)}
+                        </span>
+                        <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
+                          Ngôn ngữ: {language?.name || "Chưa xác định"}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm text-slate-600">
+                        GV: {course.instructor?.username || "Không rõ"} -{" "}
+                        {course.instructor?.email || "Không có email"}
+                      </p>
+                      <p className="mt-1 line-clamp-2 text-sm text-slate-500">
+                        {course.description}
+                      </p>
+                      <p className="mt-2 text-xs text-slate-500">
+                        {course._count.modules} modules - {course._count.tests} tests -{" "}
+                        {course._count.enrollments} học viên
+                      </p>
                     </div>
-                    <p className="mt-1 text-sm text-slate-600">
-                      GV: {course.instructor?.username || "Không rõ"} - {course.instructor?.email || "Không có email"}
-                    </p>
-                    <p className="mt-1 text-sm text-slate-500">{course.description}</p>
-                    <p className="mt-2 text-xs text-slate-500">
-                      Modules: {course._count.modules} - Tests: {course._count.tests} - Enrollments: {course._count.enrollments}
-                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <Link
+                        href={`/teacher/courses/${course.id}`}
+                        className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        Xem chi tiết
+                      </Link>
+                      <button
+                        onClick={() => void reviewCourse(course, "APPROVE")}
+                        className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                      >
+                        Duyệt
+                      </button>
+                      <button
+                        onClick={() => void reviewCourse(course, "REJECT")}
+                        className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                      >
+                        Từ chối
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Link href={`/teacher/courses/${course.id}`} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700">
-                      Xem chi tiết
-                    </Link>
-                    <button
-                      onClick={() => void reviewCourse(course, "APPROVE")}
-                      className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white"
-                    >
-                      Duyệt
-                    </button>
-                    <button
-                      onClick={() => void reviewCourse(course, "REJECT")}
-                      className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white"
-                    >
-                      Từ chối
-                    </button>
-                  </div>
-                </div>
-              </article>
-            ))
+                </article>
+              );
+            })
           )}
         </div>
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-6">
-        <h2 className="text-xl font-bold text-slate-950">Ngôn ngữ học</h2>
-        <form onSubmit={addLanguage} className="mt-4 flex flex-col gap-3 sm:flex-row">
-          <input
-            value={languageForm.name}
-            onChange={(event) => setLanguageForm((prev) => ({ ...prev, name: event.target.value }))}
-            placeholder="English"
-            className="rounded-lg border border-slate-300 px-3 py-2"
-          />
-          <input
-            value={languageForm.code}
-            onChange={(event) => setLanguageForm((prev) => ({ ...prev, code: event.target.value }))}
-            placeholder="en"
-            className="rounded-lg border border-slate-300 px-3 py-2"
-          />
-          <button className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Thêm</button>
-        </form>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {languages.map((language) => (
-            <span key={language.id} className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">
-              {language.name}
-            </span>
-          ))}
-        </div>
-      </section>
-
-      <section className="rounded-xl border border-slate-200 bg-white p-6">
-        <h2 className="text-xl font-bold text-slate-950">Teacher applications</h2>
-        <div className="mt-4 space-y-4">
-          {applications.map((application) => {
-            const suspicious = application.suspiciousEvents.length > 0 || application.antiCheatLogs.length > 0;
-            return (
-              <article key={application.id} className="rounded-lg border border-slate-200 p-4">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-bold text-slate-950">{application.user.username}</h3>
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">{application.status}</span>
-                      {suspicious ? <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">Suspicious Activity</span> : null}
-                    </div>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {application.user.email} - {application.language.name} - lần #{application.attemptNo}
-                    </p>
-                    {application.entranceAttempt ? (
-                      <p className="mt-2 text-sm text-slate-700">
-                        Test: {application.entranceAttempt.score.toFixed(1)} / {application.entranceAttempt.maxScore}
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="flex gap-2">
-                    {application.status !== "APPROVED" && application.status !== "REJECTED" ? (
-                      <>
-                        <button
-                          onClick={() => void reviewTeacherApplication(application, "APPROVE")}
-                          className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => void reviewTeacherApplication(application, "REJECT")}
-                          className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white"
-                        >
-                          Reject
-                        </button>
-                      </>
-                    ) : (
-                      <span className="inline-block rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">{application.status}</span>
-                    )}
-                  </div>
+      {showApplications ? (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/50 p-3 backdrop-blur-sm md:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Hồ sơ đăng ký giảng viên"
+        >
+          <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="border-b border-slate-200 p-4 md:p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-950">
+                    Hồ sơ đăng ký giảng viên
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Tìm kiếm, kiểm tra chứng chỉ và Cheat logs trước khi duyệt.
+                  </p>
                 </div>
-                <div className="mt-3 grid gap-3 md:grid-cols-2">
-                  <div className="rounded-lg bg-slate-50 p-3">
-                    <p className="text-sm font-semibold text-slate-700">Certificates</p>
-                    {application.certificates.map((certificate) => {
-                      const expired = certificate.expiryDate ? new Date(certificate.expiryDate).getTime() < currentTs : false;
-                      return (
-                        <a key={certificate.id} href={certificate.fileUrl} className="mt-2 block text-sm text-blue-700 hover:underline" target="_blank">
-                          {certificate.fileName} {expired ? "(expired)" : ""}
-                        </a>
-                      );
-                    })}
-                  </div>
-                  <div className="rounded-lg bg-slate-50 p-3">
-                    <p className="text-sm font-semibold text-slate-700">Cheat logs</p>
-                    {application.suspiciousEvents.length === 0 ? <p className="mt-2 text-sm text-slate-500">No suspicious events.</p> : null}
-                    {application.suspiciousEvents.map((event) => (
-                      <p key={event.eventType} className="mt-2 text-sm text-slate-700">
-                        {event.eventType}: {event.count} lần, {event.totalDurationSeconds}s
-                      </p>
-                    ))}
-                  </div>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="rounded-xl border border-slate-200 bg-white p-6">
-        <h2 className="text-xl font-bold text-slate-950">Người dùng</h2>
-        <div className="mt-4 overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-slate-200 text-slate-500">
-              <tr>
-                <th className="py-2">Username</th>
-                <th className="py-2">Email</th>
-                <th className="py-2">Role</th>
-                <th className="py-2">Trạng thái</th>
-                <th className="py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user.id} className="border-b border-slate-100">
-                  <td className="py-2 font-medium text-slate-900">{user.username}</td>
-                  <td className="py-2 text-slate-600">{user.email}</td>
-                  <td className="py-2 text-slate-600">{user.role}</td>
-                  <td className="py-2 text-slate-600">{user.isBanned ? "Banned" : "Active"}</td>
-                  <td className="py-2 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      {user.role && (user.role.toLowerCase() === "teacher" || user.role === "TEACHER") ? (
-                        <button
-                          onClick={() => {
-                            const app = applications.find((a) => a.user.email === user.email || a.user.username === user.username);
-                            setSelectedCertificates(app?.certificates ?? []);
-                            setShowCerts(true);
-                          }}
-                          className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700"
-                        >
-                          Xem cert
-                        </button>
-                      ) : null}
-                      <button
-                        onClick={() => {
-                          setSelectedUserForRole(user);
-                          setSelectedRole(user.role ?? "STUDENT");
-                          setShowRoleModal(true);
-                        }}
-                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700"
-                      >
-                        Chỉnh role
-                      </button>
-                      <button onClick={() => void toggleBan(user)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700">
-                        {user.isBanned ? "Unban" : "Ban"}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {showCerts ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-lg">
-            <div className="flex items-start justify-between">
-              <h3 className="text-lg font-semibold text-slate-900">Certificates</h3>
-              <button onClick={() => setShowCerts(false)} className="ml-4 rounded-md px-3 py-1 text-sm font-medium text-slate-600 hover:bg-slate-100">
-                Close
-              </button>
+                <button
+                  onClick={() => setShowApplications(false)}
+                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Đóng
+                </button>
+              </div>
+              <input
+                type="search"
+                value={applicationSearch}
+                onChange={(event) => setApplicationSearch(event.target.value)}
+                placeholder="Tìm theo tên người dùng hoặc email..."
+                className="mt-4 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
             </div>
-            <div className="mt-4 space-y-2">
-              {selectedCertificates.length === 0 ? (
-                <p className="text-sm text-slate-500">No certificates found for this user.</p>
+
+            <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50 p-4 md:p-5">
+              {filteredApplications.length === 0 ? (
+                <p className="rounded-xl bg-white p-6 text-center text-sm text-slate-500">
+                  Không tìm thấy hồ sơ phù hợp.
+                </p>
               ) : (
-                selectedCertificates.map((certificate) => {
-                  const expired = certificate.expiryDate ? new Date(certificate.expiryDate).getTime() < currentTs : false;
+                filteredApplications.map((application) => {
+                  const suspicious =
+                    application.suspiciousEvents.length > 0 ||
+                    application.antiCheatLogs.length > 0;
+
                   return (
-                    <a key={certificate.id} href={certificate.fileUrl} target="_blank" className="block text-sm text-blue-700 hover:underline">
-                      {certificate.fileName} {expired ? "(expired)" : ""}
-                    </a>
+                    <article
+                      key={application.id}
+                      className="rounded-xl border border-slate-200 bg-white p-4"
+                    >
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="font-bold text-slate-950">
+                              {application.user.username}
+                            </h3>
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
+                              {applicationStatusLabel(application.status)}
+                            </span>
+                            {suspicious ? (
+                              <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">
+                                Có cảnh báo
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className="mt-1 text-sm text-slate-500">
+                            {application.user.email} - {application.language.name} - lần #
+                            {application.attemptNo}
+                          </p>
+                          {application.entranceAttempt ? (
+                            <p className="mt-2 text-sm font-semibold text-slate-700">
+                              Điểm thi: {application.entranceAttempt.score.toFixed(1)} /{" "}
+                              {application.entranceAttempt.maxScore}
+                            </p>
+                          ) : null}
+                        </div>
+                        <div className="flex gap-2">
+                          {!["APPROVED", "REJECTED"].includes(application.status) ? (
+                            <>
+                              <button
+                                onClick={() =>
+                                  void reviewTeacherApplication(application, "APPROVE")
+                                }
+                                className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                              >
+                                Duyệt
+                              </button>
+                              <button
+                                onClick={() =>
+                                  void reviewTeacherApplication(application, "REJECT")
+                                }
+                                className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                              >
+                                Từ chối
+                              </button>
+                            </>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        <div className="rounded-xl bg-slate-50 p-3">
+                          <p className="text-sm font-semibold text-slate-700">
+                            Chứng chỉ
+                          </p>
+                          {application.certificates.length === 0 ? (
+                            <p className="mt-2 text-sm text-slate-500">
+                              Chưa có chứng chỉ.
+                            </p>
+                          ) : (
+                            application.certificates.map((certificate) => {
+                              const expired = certificate.expiryDate
+                                ? new Date(certificate.expiryDate).getTime() < currentTs
+                                : false;
+                              return (
+                                <a
+                                  key={certificate.id}
+                                  href={certificate.fileUrl}
+                                  className="mt-2 block text-sm font-medium text-blue-700 hover:underline"
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  {certificate.fileName} {expired ? "(đã hết hạn)" : ""}
+                                </a>
+                              );
+                            })
+                          )}
+                        </div>
+
+                        <div className="rounded-xl bg-slate-50 p-3">
+                          <p className="text-sm font-semibold text-slate-700">
+                            Cheat logs
+                          </p>
+                          {application.suspiciousEvents.length === 0 &&
+                          application.antiCheatLogs.length === 0 ? (
+                            <p className="mt-2 text-sm text-slate-500">
+                              Không có sự kiện đáng ngờ.
+                            </p>
+                          ) : null}
+                          {application.suspiciousEvents.map((event) => (
+                            <p
+                              key={event.eventType}
+                              className="mt-2 text-sm text-slate-700"
+                            >
+                              {event.eventType}: {event.count} lần,{" "}
+                              {event.totalDurationSeconds}s
+                            </p>
+                          ))}
+                          {application.antiCheatLogs.slice(0, 5).map((log) => (
+                            <p key={log.id} className="mt-2 text-xs text-slate-500">
+                              {log.eventType}
+                              {log.detail ? ` - ${log.detail}` : ""}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    </article>
                   );
                 })
               )}
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {showRoleModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
-            <div className="flex items-start justify-between">
-              <h3 className="text-lg font-semibold text-slate-900">Chỉnh role người dùng</h3>
-              <button onClick={() => setShowRoleModal(false)} className="ml-4 rounded-md px-3 py-1 text-sm font-medium text-slate-600 hover:bg-slate-100">
-                Close
-              </button>
-            </div>
-            <div className="mt-4">
-              <p className="text-sm text-slate-700">{selectedUserForRole?.username} — {selectedUserForRole?.email}</p>
-              <label className="mt-4 block text-sm font-semibold text-slate-700">Role</label>
-              <select
-                value={selectedRole ?? "STUDENT"}
-                onChange={(e) => setSelectedRole(e.target.value)}
-                className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              >
-                <option value="STUDENT">STUDENT</option>
-                <option value="TEACHER">TEACHER</option>
-                <option value="ADMIN">ADMIN</option>
-              </select>
-              <div className="mt-4 flex justify-end gap-2">
-                <button onClick={() => setShowRoleModal(false)} className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 border border-slate-200">Hủy</button>
-                <button onClick={() => void saveRole()} className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white">Lưu</button>
-              </div>
             </div>
           </div>
         </div>

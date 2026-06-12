@@ -5,13 +5,11 @@ import AdminDashboard from "./AdminDashboard";
 import AnalyticsDashboard from "./AnalyticsDashboard";
 import AdminTestsManagement from "./AdminTestsManagement";
 import type { AnalyticsPayload } from "@/lib/admin-analytics";
-import type { AdminManagedTest, Application, Course, Language, SpeakingAiConfig, UserRow } from "./types";
+import type { AdminManagedTest, Application, Course, Language } from "./types";
 
 export default function AdminShell({
   initialEnabled,
   initialCourseAutoApproval,
-  initialSpeakingConfig,
-  initialUsers,
   initialLanguages,
   initialApplications,
   initialCourses,
@@ -20,29 +18,27 @@ export default function AdminShell({
 }: {
   initialEnabled: boolean;
   initialCourseAutoApproval: boolean;
-  initialSpeakingConfig: SpeakingAiConfig;
-  initialUsers: UserRow[];
   initialLanguages: Language[];
   initialApplications: Application[];
   initialCourses: Course[];
   initialAdminManagedTests: AdminManagedTest[];
   analyticsInitialData: AnalyticsPayload;
 }) {
-  const [tab, setTab] = useState<"users" | "tests" | "analytics">("users");
+  const [tab, setTab] = useState<"overview" | "tests" | "analytics">("overview");
 
   return (
     <div>
       <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Admin Panel</h1>
-          <p className="text-sm text-muted-foreground">Quản lý người dùng và thống kê hệ thống</p>
+          <p className="text-sm text-muted-foreground">Duyệt nội dung và theo dõi hệ thống</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
-            onClick={() => setTab("users")}
-            className={`rounded-md px-3 py-2 text-sm font-medium ${tab === "users" ? "bg-primary text-primary-foreground" : "border border-border bg-card text-foreground"}`}
+            onClick={() => setTab("overview")}
+            className={`rounded-md px-3 py-2 text-sm font-medium ${tab === "overview" ? "bg-primary text-primary-foreground" : "border border-border bg-card text-foreground"}`}
           >
-            Quản lý người dùng
+            Tổng quan
           </button>
           <button
             onClick={() => setTab("tests")}
@@ -59,13 +55,10 @@ export default function AdminShell({
         </div>
       </div>
 
-      {tab === "users" ? (
+      {tab === "overview" ? (
         <AdminDashboard
           initialEnabled={initialEnabled}
           initialCourseAutoApproval={initialCourseAutoApproval}
-          initialSpeakingConfig={initialSpeakingConfig}
-          initialUsers={initialUsers}
-          initialLanguages={initialLanguages}
           initialApplications={initialApplications}
           initialCourses={initialCourses}
         />

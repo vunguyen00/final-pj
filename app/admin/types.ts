@@ -1,11 +1,3 @@
-export type UserRow = {
-  id: string;
-  username: string;
-  email: string;
-  role: string;
-  isBanned: boolean;
-};
-
 export type Language = {
   id: string;
   name: string;
@@ -33,6 +25,8 @@ export type Course = {
   status: "ACTIVE" | "LOCKED" | "PENDING_APPROVAL" | "REJECTED";
   createdAt: string;
   instructor: { id: string; username: string; email: string } | null;
+  language: { id: string; name: string; code: string } | null;
+  registeredLanguage: { id: string; name: string; code: string } | null;
   _count: { modules: number; tests: number; enrollments: number };
 };
 
@@ -44,9 +38,4 @@ export type AdminManagedTest = {
   language: { id: string; name: string; code: string } | null;
   createdAt: string;
   _count: { questions: number; attempts: number };
-};
-
-export type SpeakingAiConfig = {
-  examType: "IELTS" | "HSK";
-  durationSeconds: number;
 };

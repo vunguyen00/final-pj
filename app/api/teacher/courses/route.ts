@@ -28,6 +28,13 @@ export async function GET() {
             email: true,
           },
         },
+        language: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
         _count: {
           select: {
             enrollments: true,
@@ -63,7 +70,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { name, description, price, category, duration, thumbnail, status } = body;
+    const { name, description, price, category, duration, thumbnail, status, languageId } = body;
 
     if (!name || !description || price === undefined) {
       return NextResponse.json(
@@ -80,7 +87,18 @@ export async function POST(request: Request) {
       );
     }
 
-    const autoApproval = user.role === "TEACHER" ? await getCourseAutoApprovalSetting() : { enabled: true };
+    const [autoApproval, approvedApplication] = await Promise.all([
+      user.role === "TEACHER"
+        ? getCourseAutoApprovalSetting()
+        : Promise.resolve({ enabled: true }),
+      user.role === "TEACHER"
+        ? prisma.teacherApplication.findFirst({
+            where: { userId: user.id, status: "APPROVED" },
+            select: { languageId: true },
+            orderBy: { reviewedAt: "desc" },
+          })
+        : Promise.resolve(null),
+    ]);
     const nextStatus =
       user.role === "ADMIN"
         ? status || "ACTIVE"
@@ -105,6 +123,12 @@ export async function POST(request: Request) {
         thumbnail: thumbnail || null,
         status: nextStatus,
         instructorId: user.id,
+        languageId:
+          user.role === "TEACHER"
+            ? approvedApplication?.languageId ?? null
+            : typeof languageId === "string" && languageId
+              ? languageId
+              : null,
       },
       include: {
         instructor: {
@@ -112,6 +136,13 @@ export async function POST(request: Request) {
             id: true,
             username: true,
             email: true,
+          },
+        },
+        language: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
           },
         },
       },
