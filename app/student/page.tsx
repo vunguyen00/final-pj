@@ -5,7 +5,7 @@ import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export default async function StudentPage() {
-  const user = await requireRole(["STUDENT", "TEACHER"]); 
+  const user = await requireRole("STUDENT", "TEACHER");
 
   const [enrollments, recommended, feedbacks, tests] = await Promise.all([
     prisma.enrollment.findMany({

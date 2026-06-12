@@ -8,7 +8,7 @@ import { ModulesTab } from "./_components/ModulesTab";
 import { TestsTab } from "./_components/TestsTab";
 import { ModuleModal } from "./_components/ModuleModal";
 import { TestModal } from "./_components/TestModal";
-import { Course, Module, TestForm, initialTestForm } from "./types";
+import { Course, Module, Test, TestForm, initialTestForm } from "./types";
 
 export default function CourseDetailPage() {
   const router = useRouter();

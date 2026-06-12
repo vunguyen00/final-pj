@@ -8,6 +8,7 @@ const SPEAKING_SYSTEM_PROMPT = `You are a strict multilingual speaking examiner.
 Grade the response like a real certification examiner. Follow the requested exam rubric exactly.
 
 Be strict but constructive. Mention limitations if transcript is incomplete or acoustic analysis is unavailable.
+Treat task relevance as a hard scoring requirement. A fluent answer that does not answer the speaking task must receive a low overall score.
 Return ONLY valid JSON.`;
 
 const LIVE_EXAMINER_SYSTEM_PROMPT = `You are a speaking examiner in a live oral test.
@@ -93,6 +94,12 @@ ${input.conversation?.trim() || "No detailed turn-by-turn log provided."}
 ${input.transcript}
 </TRANSCRIPT>
 
+Relevance rules:
+- task_relevance is 0-100 and measures whether the response directly answers the requested topic and required points.
+- A clearly unrelated, memorized, evasive, or random answer must have task_relevance <= 20.
+- A mostly unrelated answer with only a superficial topic mention must have task_relevance <= 40.
+- Do not reward fluency, grammar, or vocabulary enough to produce a high overall score when task relevance is low.
+
 Return JSON in exactly this format:
 {
   "language": "English|Japanese|Korean|Chinese|Vietnamese",
@@ -106,6 +113,7 @@ Return JSON in exactly this format:
   },
   "overall": <number in exam scale>,
   "normalized_overall": <0-10>,
+  "task_relevance": <0-100>,
   "band": {
     "system": "${input.exam}",
     "level": "<example: 6.5 or HSKK Intermediate>",
@@ -139,6 +147,13 @@ function normalizeScore(value: unknown) {
   return Number.isFinite(score) ? Math.max(0, Math.min(10, score)) : 0;
 }
 
+function relevanceScoreCap(exam: "IELTS" | "HSK", relevance: number) {
+  if (relevance <= 20) return exam === "IELTS" ? 2.5 : 25;
+  if (relevance <= 40) return exam === "IELTS" ? 4 : 45;
+  if (relevance <= 60) return exam === "IELTS" ? 5.5 : 65;
+  return criterionMax(exam);
+}
+
 function parseSpeakingResponse(raw: string, examType: "IELTS" | "HSK"): SpeakingEvaluationResponse | null {
   const cleaned = raw
     .trim()
@@ -158,7 +173,7 @@ function parseSpeakingResponse(raw: string, examType: "IELTS" | "HSK"): Speaking
     const expectedCriteria = exam === "IELTS" ? IELTS_CRITERIA : HSK_CRITERIA;
     const rawCriteria = (source.criteria_scores || {}) as Record<string, unknown>;
 
-    const criteriaScores = Object.fromEntries(
+    const parsedCriteriaScores = Object.fromEntries(
       expectedCriteria.map((criterion) => {
         const legacyValue = (() => {
           if (criterion === "fluency") return source.fluency_coherence;
@@ -173,12 +188,21 @@ function parseSpeakingResponse(raw: string, examType: "IELTS" | "HSK"): Speaking
       }),
     ) as Record<string, number>;
 
+    const taskRelevance = clampScore(source.task_relevance ?? source.relevance ?? 100, 100);
+    const scoreCap = relevanceScoreCap(exam, taskRelevance);
+    const criteriaScores = Object.fromEntries(
+      Object.entries(parsedCriteriaScores).map(([criterion, score]) => [criterion, Math.min(score, scoreCap)]),
+    ) as Record<string, number>;
     const criteriaValues = Object.values(criteriaScores);
-    const overallRaw = clampScore(
+    const uncappedOverall = clampScore(
       source.overall ?? (criteriaValues.length ? criteriaValues.reduce((sum, item) => sum + item, 0) / criteriaValues.length : 0),
       max,
     );
-    const normalizedOverall = normalizeScore(source.normalized_overall ?? normalizeToTen(overallRaw, max));
+    const overallRaw = Math.min(uncappedOverall, scoreCap);
+    const normalizedOverall = Math.min(
+      normalizeScore(source.normalized_overall ?? normalizeToTen(overallRaw, max)),
+      normalizeToTen(scoreCap, max),
+    );
 
     const fluencyValue = exam === "IELTS" ? criteriaScores.fluency ?? 0 : normalizeToTen(criteriaScores.fluency ?? 0, 100);
     const pronunciationValue =
@@ -203,14 +227,23 @@ function parseSpeakingResponse(raw: string, examType: "IELTS" | "HSK"): Speaking
       grammar: normalizeScore(grammarValue),
       overall: overallRaw,
       normalized_overall: normalizedOverall,
+      task_relevance: taskRelevance,
       band: {
         system: (source.band as { system?: "IELTS" | "HSK" } | undefined)?.system || exam,
-        level: String(
-          (source.band as { level?: unknown } | undefined)?.level ||
-            (exam === "IELTS" ? overallRaw.toFixed(1) : "HSKK Intermediate"),
-        ),
-        score: Number((source.band as { score?: unknown } | undefined)?.score ?? overallRaw),
-        rationale: String((source.band as { rationale?: unknown } | undefined)?.rationale || ""),
+        level:
+          taskRelevance <= 60
+            ? exam === "IELTS"
+              ? overallRaw.toFixed(1)
+              : `HSKK ${Math.round(overallRaw)}`
+            : String(
+                (source.band as { level?: unknown } | undefined)?.level ||
+                  (exam === "IELTS" ? overallRaw.toFixed(1) : "HSKK Intermediate"),
+              ),
+        score: Math.min(clampScore((source.band as { score?: unknown } | undefined)?.score ?? overallRaw, max), scoreCap),
+        rationale:
+          taskRelevance <= 60
+            ? `Score capped because task relevance was ${Math.round(taskRelevance)}/100.`
+            : String((source.band as { rationale?: unknown } | undefined)?.rationale || ""),
       },
       summary: String(source.summary || "Speaking evaluation completed."),
       strengths: normalizeArray(source.strengths, ["The answer communicates a relevant message."]),

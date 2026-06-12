@@ -57,6 +57,8 @@ export default function TeacherCoursesPage() {
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [message, setMessage] = useState("");
   const [formData, setFormData] = useState(defaultForm);
+  const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
+  const [thumbnailUploadError, setThumbnailUploadError] = useState("");
 
   useEffect(() => {
     void checkAuthAndFetchCourses();
@@ -95,6 +97,38 @@ export default function TeacherCoursesPage() {
       setLoading(false);
     }
   }
+
+  const handleThumbnailUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setUploadingThumbnail(true);
+    setThumbnailUploadError("");
+
+    try {
+      const uploadData = new FormData();
+      uploadData.append("file", file);
+
+      const res = await fetch("/api/teacher/upload-thumbnail", {
+        method: "POST",
+        body: uploadData,
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data?.url) {
+        setThumbnailUploadError(data?.error || "Không thể tải ảnh lên.");
+        return;
+      }
+
+      setFormData((current) => ({ ...current, thumbnail: data.url }));
+    } catch (error) {
+      console.error("Error uploading thumbnail:", error);
+      setThumbnailUploadError("Lỗi khi tải ảnh lên.");
+    } finally {
+      setUploadingThumbnail(false);
+    }
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -135,6 +169,7 @@ export default function TeacherCoursesPage() {
 
   const handleEdit = (course: Course) => {
     setEditingCourse(course);
+    setThumbnailUploadError("");
     setFormData({
       name: course.name,
       description: course.description,
@@ -188,6 +223,7 @@ export default function TeacherCoursesPage() {
 
   const resetForm = () => {
     setFormData(defaultForm);
+    setThumbnailUploadError("");
   };
 
   const openCreateModal = () => {
@@ -364,8 +400,36 @@ export default function TeacherCoursesPage() {
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-900">URL ảnh thumbnail</label>
-                <input type="url" value={formData.thumbnail} onChange={(event) => setFormData({ ...formData, thumbnail: event.target.value })} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                <label className="block text-sm font-medium text-slate-900">Ảnh thumbnail</label>
+                <input
+                  type="text"
+                  value={formData.thumbnail}
+                  onChange={(event) => {
+                    setFormData({ ...formData, thumbnail: event.target.value });
+                    setThumbnailUploadError("");
+                  }}
+                  placeholder="Nhập URL ảnh hoặc tải ảnh lên bên dưới"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                />
+                <div className="mt-2 flex items-center gap-3">
+                  <label className={`inline-flex cursor-pointer items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 ${uploadingThumbnail ? "pointer-events-none opacity-60" : ""}`}>
+                    {uploadingThumbnail ? "Đang tải ảnh..." : "Chọn ảnh từ máy"}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      disabled={uploadingThumbnail}
+                      onChange={handleThumbnailUpload}
+                      className="hidden"
+                    />
+                  </label>
+                  <span className="text-xs text-slate-500">JPEG, PNG, WebP hoặc GIF, tối đa 5 MB</span>
+                </div>
+                {thumbnailUploadError ? <p className="mt-2 text-xs text-red-600">{thumbnailUploadError}</p> : null}
+                {formData.thumbnail ? (
+                  <div className="mt-3 h-32 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                    <img src={formData.thumbnail} alt="Xem trước thumbnail" className="h-full w-full object-cover" />
+                  </div>
+                ) : null}
               </div>
               <div className="flex justify-end gap-3 pt-4">
                 <button
@@ -378,8 +442,12 @@ export default function TeacherCoursesPage() {
                 >
                   Hủy
                 </button>
-                <button type="submit" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
-                  {editingCourse ? "Lưu thay đổi" : "Tạo khóa học"}
+                <button
+                  type="submit"
+                  disabled={uploadingThumbnail}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {uploadingThumbnail ? "Đang tải ảnh..." : editingCourse ? "Lưu thay đổi" : "Tạo khóa học"}
                 </button>
               </div>
             </form>

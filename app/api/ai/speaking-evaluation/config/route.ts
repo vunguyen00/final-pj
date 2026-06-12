@@ -9,5 +9,5 @@ export async function GET() {
   }
 
   const setting = await getSpeakingAiSetting();
-  return NextResponse.json(setting);
+  return NextResponse.json({ ...setting, role: user.role });
 }

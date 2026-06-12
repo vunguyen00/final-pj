@@ -32,6 +32,28 @@ type Application = {
   createdAt: string;
   submittedAt: string | null;
 };
+type SubmittedAiEvaluation = {
+  language: string;
+  overallScore: number;
+  taskRelevance?: number;
+  onTopic?: boolean;
+  offTopicReason?: string;
+  detailedComment?: string;
+  sampleAnswer?: string;
+  summary: string;
+  strengths: string[];
+  weaknesses: string[];
+  suggestions: string[];
+};
+type SubmittedQuestionResult = {
+  questionId: string;
+  questionType: string;
+  content: string;
+  studentAnswer: string;
+  earnedScore: number;
+  score: number;
+  aiEvaluation?: SubmittedAiEvaluation;
+};
 
 export default function TeacherRegistrationPage() {
   const [enabled, setEnabled] = useState(false);
@@ -44,6 +66,7 @@ export default function TeacherRegistrationPage() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [message, setMessage] = useState("");
+  const [submittedQuestionResults, setSubmittedQuestionResults] = useState<SubmittedQuestionResult[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const lastHiddenAt = useRef<number | null>(null);
 
@@ -157,6 +180,7 @@ export default function TeacherRegistrationPage() {
     event.preventDefault();
     setMessage("");
     setSubmitting(true);
+    setSubmittedQuestionResults([]);
     const formData = new FormData();
     formData.set("languageId", languageId);
     formData.set("expiryDates", JSON.stringify(expiryDates));
@@ -198,6 +222,7 @@ export default function TeacherRegistrationPage() {
       return;
     }
     setMessage("Da nop bai test. Ho so dang cho admin review.");
+    setSubmittedQuestionResults(data.questionResults || []);
     setActiveApplication(null);
     setTimeLeft(null);
     await loadData();
@@ -240,6 +265,45 @@ export default function TeacherRegistrationPage() {
         </section>
 
         {message ? <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">{message}</div> : null}
+
+        {submittedQuestionResults.some((item) => item.aiEvaluation) ? (
+          <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
+            <h2 className="text-xl font-bold text-slate-950">Nhan xet AI sau khi cham</h2>
+            <div className="mt-4 space-y-4">
+              {submittedQuestionResults.filter((item) => item.aiEvaluation).map((item) => {
+                const evaluation = item.aiEvaluation!;
+                return (
+                  <article key={item.questionId} className="rounded-lg border border-slate-200 p-4">
+                    <p className="font-semibold text-slate-900">{item.content}</p>
+                    <p className="mt-2 text-sm font-semibold text-blue-700">
+                      {item.earnedScore}/{item.score} diem - AI {evaluation.overallScore}/10 - Bam de {Math.round(evaluation.taskRelevance ?? 0)}/100
+                    </p>
+                    {evaluation.onTopic === false ? (
+                      <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">
+                        Lac de: {evaluation.offTopicReason || "Cau tra loi chua dung trong tam de bai."}
+                      </p>
+                    ) : null}
+                    <p className="mt-3 text-sm leading-6 text-slate-700">
+                      {evaluation.detailedComment || evaluation.summary}
+                    </p>
+                    {evaluation.weaknesses.length ? (
+                      <p className="mt-2 text-sm text-slate-700">Can cai thien: {evaluation.weaknesses.join("; ")}</p>
+                    ) : null}
+                    {evaluation.suggestions.length ? (
+                      <p className="mt-2 text-sm text-slate-700">Goi y: {evaluation.suggestions.join("; ")}</p>
+                    ) : null}
+                    {evaluation.sampleAnswer ? (
+                      <div className="mt-4 rounded-lg bg-slate-50 p-4">
+                        <p className="text-sm font-semibold text-slate-900">Bai mau dung de</p>
+                        <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-700">{evaluation.sampleAnswer}</p>
+                      </div>
+                    ) : null}
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
 
         {activeApplication?.entranceTest ? (
           <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">

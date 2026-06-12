@@ -90,6 +90,7 @@ export interface SpeakingEvaluationResponse {
   grammar: number;
   overall: number;
   normalized_overall: number;
+  task_relevance: number;
   band: BandAssessment;
   summary: string;
   strengths: string[];

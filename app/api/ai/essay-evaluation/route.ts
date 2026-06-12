@@ -4,10 +4,24 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { scoringService, validateRequestBody, formatResponseForClient } from "@/lib/ai";
+import { sanitizeEssay, validateEssay, validatePromptSafety, validateRequestBody } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
 import { getAiPointsSummary, recordLearningActivity, spendAiPoints, WRITING_AI_COST } from "@/lib/ai-points";
 import { prisma } from "@/lib/prisma";
+import { canUseAiForCourse, shouldChargeAiPoints } from "@/lib/ai-access";
+import { evaluateTestAiAnswers } from "@/lib/test-ai-evaluation";
+
+function applyCorrections(
+  essay: string,
+  corrections: Array<{ original: string; improved: string; reason: string }>,
+) {
+  return corrections.reduce((result, correction) => {
+    if (!correction.original || !correction.improved || !result.includes(correction.original)) {
+      return result;
+    }
+    return result.replace(correction.original, correction.improved);
+  }, essay);
+}
 
 /**
  * Health check before evaluation
@@ -77,19 +91,20 @@ export async function POST(request: NextRequest) {
       courseId?: string;
       title?: string;
     };
+    const chargePoints = shouldChargeAiPoints(user.role);
 
     if (courseId) {
-      const enrollment = await prisma.enrollment.findUnique({
-        where: { userId_courseId: { userId: user.id, courseId } },
-      });
-      if (!enrollment) {
+      const canUseCourse = await canUseAiForCourse(user, courseId);
+      if (!canUseCourse) {
         return NextResponse.json({ error: "Ban khong co quyen tren khoa hoc nay." }, { status: 403 });
       }
     }
 
-    const pointsBefore = await getAiPointsSummary(user.id);
-    if (pointsBefore.available < WRITING_AI_COST) {
-      return NextResponse.json({ error: "Khong du diem de cham writing AI." }, { status: 400 });
+    if (chargePoints) {
+      const pointsBefore = await getAiPointsSummary(user.id);
+      if (pointsBefore.available < WRITING_AI_COST) {
+        return NextResponse.json({ error: "Khong du diem de cham writing AI." }, { status: 400 });
+      }
     }
 
     // Check if Ollama is available
@@ -104,11 +119,70 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Evaluate essay
-    const evaluation = await scoringService.evaluateEssay({ essay, taskPrompt });
+    const validation = validateEssay(essay);
+    if (!validation.valid) {
+      return NextResponse.json({ error: validation.error || "Invalid essay" }, { status: 400 });
+    }
+    const sanitizedEssay = sanitizeEssay(essay);
+    if (!validatePromptSafety(sanitizedEssay)) {
+      return NextResponse.json({ error: "Invalid request content" }, { status: 400 });
+    }
 
-    // Format response
-    const formattedResponse = formatResponseForClient(evaluation);
+    const evaluationResult = (await evaluateTestAiAnswers([
+      {
+        questionId: "writing",
+        mode: "WRITING",
+        answer: sanitizedEssay,
+        prompt: taskPrompt,
+      },
+    ])).get("writing");
+    if (!evaluationResult || evaluationResult.failed) {
+      throw new Error("AI_EVALUATION_FAILED");
+    }
+
+    const evaluation = evaluationResult.aiEvaluation;
+    const criteria = evaluation.criteria || {};
+    const grammar = Number(criteria.grammar ?? evaluationResult.normalizedScore);
+    const vocabulary = Number(criteria.vocabulary ?? evaluationResult.normalizedScore);
+    const coherence = Number(criteria.coherence ?? evaluationResult.normalizedScore);
+    const taskResponse = Number(criteria.task_response ?? evaluationResult.normalizedScore);
+    const overall = evaluationResult.normalizedScore;
+    const corrections = evaluation.corrections || [];
+    const improvedVersion = applyCorrections(sanitizedEssay, corrections);
+    const formattedResponse = {
+      evaluation: {
+        scores: {
+          grammar,
+          vocabulary,
+          coherence,
+          task_response: taskResponse,
+          overall,
+        },
+        summary: evaluation.summary,
+        language: evaluation.language,
+        band: evaluation.band,
+        taskRelevance: evaluation.taskRelevance ?? 0,
+        onTopic: evaluation.onTopic ?? true,
+        offTopicReason: evaluation.offTopicReason || "",
+        detailedComment: evaluation.detailedComment || evaluation.summary,
+        task_requirements: {
+          prompt_understanding: taskPrompt?.trim() || "General writing task",
+          addressed_points: evaluation.strengths,
+          missing_points: evaluation.weaknesses,
+        },
+      },
+      analysis: {
+        strengths: evaluation.strengths,
+        weaknesses: evaluation.weaknesses,
+        feedback: evaluation.feedback || [],
+        suggestions: evaluation.suggestions,
+      },
+      improvements: {
+        corrections,
+        improved_version: improvedVersion,
+        sample_answer: evaluation.sampleAnswer || "",
+      },
+    };
     const assessment = await prisma.aiAssessment.create({
       data: {
         userId: user.id,
@@ -117,38 +191,41 @@ export async function POST(request: NextRequest) {
         title: title?.trim() || "Writing AI",
         prompt: taskPrompt || null,
         submissionText: essay,
-        score: evaluation.overall,
+        score: overall,
         maxScore: 10,
         bandSystem: evaluation.band?.system || "GENERAL",
         bandLevel: evaluation.band?.level || "Intermediate",
-        bandScore: Number(evaluation.band?.score ?? evaluation.overall),
+        bandScore: Number(evaluation.band?.score ?? overall),
         criteria: {
-          taskAchievement: evaluation.task_response,
-          coherenceCohesion: evaluation.coherence,
-          lexicalResource: evaluation.vocabulary,
-          grammarRangeAccuracy: evaluation.grammar,
+          taskAchievement: taskResponse,
+          coherenceCohesion: coherence,
+          lexicalResource: vocabulary,
+          grammarRangeAccuracy: grammar,
+          taskRelevance: evaluation.taskRelevance ?? 0,
         },
         feedback: formattedResponse,
         mistakes: {
-          grammar: evaluation.corrections,
-          vocabulary: evaluation.feedback,
-          weakSentences: evaluation.corrections?.map((item) => item.original) ?? [],
+          grammar: corrections,
+          vocabulary: evaluation.vocabularyErrors || evaluation.feedback || [],
+          weakSentences: corrections.map((item) => item.original),
         },
         improvements: {
           suggestions: evaluation.suggestions,
-          improvedVersion: evaluation.improved_version,
+          improvedVersion,
           practiceMethods: [
             "Rewrite weak sentences, then compare with the improved version.",
             "Build a topic vocabulary bank before writing.",
             "Review grammar patterns from repeated corrections.",
           ],
         },
-        sampleAnswer: evaluation.improved_version || null,
+        sampleAnswer: evaluation.sampleAnswer || improvedVersion || null,
         submittedAt: new Date(),
       } as never,
     }) as unknown as { id: string };
 
-    const pointResult = await spendAiPoints(user.id, courseId || null, WRITING_AI_COST, "WRITING_AI", assessment.id);
+    const pointResult = chargePoints
+      ? await spendAiPoints(user.id, courseId || null, WRITING_AI_COST, "WRITING_AI", assessment.id)
+      : { spent: 0, available: (await getAiPointsSummary(user.id)).available };
     const activity = await recordLearningActivity({
       userId: user.id,
       courseId: courseId || null,
@@ -167,7 +244,7 @@ export async function POST(request: NextRequest) {
         duration,
         status: 200,
         language: evaluation.language,
-        overall_score: evaluation.overall,
+        overall_score: overall,
       })
     );
 
@@ -201,6 +278,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Request timeout. Ollama took too long to respond." },
         { status: 504 }
+      );
+    }
+
+    if (errorMessage === "AI_EVALUATION_FAILED") {
+      return NextResponse.json(
+        { error: "AI dang tam thoi qua tai. Vui long thu lai sau." },
+        { status: 503 },
       );
     }
 

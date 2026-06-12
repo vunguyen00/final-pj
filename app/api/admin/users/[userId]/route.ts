@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import type { Role } from "@/app/generated/prisma/enums";
 
 export async function PATCH(
   request: Request,
@@ -18,10 +19,12 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const data: { isBanned?: boolean; email?: string; role?: string } = {};
+    const data: { isBanned?: boolean; email?: string; role?: Role } = {};
     if (typeof body.isBanned === "boolean") data.isBanned = body.isBanned;
     if (typeof body.email === "string" && body.email.trim()) data.email = body.email.trim().toLowerCase();
-    if (typeof body.role === "string" && ["USER", "TEACHER", "ADMIN"].includes(body.role)) data.role = body.role;
+    if (body.role === "STUDENT" || body.role === "TEACHER" || body.role === "ADMIN") {
+      data.role = body.role;
+    }
 
     const updated = await prisma.user.update({
       where: { id: userId },

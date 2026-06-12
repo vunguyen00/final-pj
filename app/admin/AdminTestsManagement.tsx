@@ -8,12 +8,19 @@ type TestForm = {
   name: string;
   description: string;
   languageId: string;
+  assessmentMode: "STANDARD" | "WRITING" | "SPEAKING";
 };
 
 const defaultTestForm: TestForm = {
   name: "",
   description: "",
   languageId: "",
+  assessmentMode: "WRITING",
+};
+
+const defaultPublicPracticeForm: TestForm = {
+  ...defaultTestForm,
+  assessmentMode: "STANDARD",
 };
 
 function labelForKind(kind: AdminManagedTest["kind"]) {
@@ -32,7 +39,7 @@ export default function AdminTestsManagement({
   const [languages] = useState(initialLanguages);
   const [adminManagedTests, setAdminManagedTests] = useState(initialAdminManagedTests);
   const [teacherEntranceForm, setTeacherEntranceForm] = useState<TestForm>(defaultTestForm);
-  const [publicPracticeForm, setPublicPracticeForm] = useState<TestForm>(defaultTestForm);
+  const [publicPracticeForm, setPublicPracticeForm] = useState<TestForm>(defaultPublicPracticeForm);
   const [message, setMessage] = useState("");
 
   if (!isAdmin) return null;
@@ -43,7 +50,7 @@ export default function AdminTestsManagement({
       description: form.description.trim() || null,
       kind,
       languageId: form.languageId,
-      assessmentMode: kind === "TEACHER_ENTRANCE" ? "WRITING" : "STANDARD",
+      assessmentMode: form.assessmentMode,
       passingScore: 60,
       maxAttempts: 3,
       timeLimit: null,
@@ -117,7 +124,9 @@ export default function AdminTestsManagement({
             className="rounded-lg border border-slate-200 p-4"
           >
             <h3 className="font-semibold text-slate-900">De dau vao giang vien</h3>
-            <p className="mt-1 text-sm text-slate-500">Tao de dau vao de giang vien. Bat buoc chon ngon ngu.</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Co the tao nhieu de cho cung mot ngon ngu. He thong se chon ngau nhien mot de hop le khi bat dau thi.
+            </p>
             <div className="mt-3 space-y-3">
               <input
                 value={teacherEntranceForm.name}
@@ -146,6 +155,19 @@ export default function AdminTestsManagement({
                   </option>
                 ))}
               </select>
+              <select
+                value={teacherEntranceForm.assessmentMode}
+                onChange={(event) =>
+                  setTeacherEntranceForm((prev) => ({
+                    ...prev,
+                    assessmentMode: event.target.value === "SPEAKING" ? "SPEAKING" : "WRITING",
+                  }))
+                }
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              >
+                <option value="WRITING">Writing AI</option>
+                <option value="SPEAKING">Speaking AI</option>
+              </select>
             </div>
             <button className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
               Tao de dau vao
@@ -158,7 +180,7 @@ export default function AdminTestsManagement({
                 event,
                 publicPracticeForm,
                 "PUBLIC_PRACTICE",
-                () => setPublicPracticeForm(defaultTestForm),
+                () => setPublicPracticeForm(defaultPublicPracticeForm),
                 "Da tao de luyen tap.",
                 "Khong the tao de luyen tap.",
               )
@@ -195,6 +217,25 @@ export default function AdminTestsManagement({
                   </option>
                 ))}
               </select>
+              <select
+                value={publicPracticeForm.assessmentMode}
+                onChange={(event) =>
+                  setPublicPracticeForm((prev) => ({
+                    ...prev,
+                    assessmentMode:
+                      event.target.value === "WRITING"
+                        ? "WRITING"
+                        : event.target.value === "SPEAKING"
+                          ? "SPEAKING"
+                          : "STANDARD",
+                  }))
+                }
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              >
+                <option value="STANDARD">Cham dap an thong thuong</option>
+                <option value="WRITING">Writing AI</option>
+                <option value="SPEAKING">Speaking AI</option>
+              </select>
             </div>
             <button className="mt-4 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
               Tao de luyen tap
@@ -217,7 +258,7 @@ export default function AdminTestsManagement({
                     <p className="font-medium text-slate-900">{test.name}</p>
                     <p className="text-sm text-slate-600">{labelForKind(test.kind)}</p>
                     <p className="text-xs text-slate-500">
-                      {test.language?.name || "Chua gan ngon ngu"} - {test._count.questions} cau hoi - {test._count.attempts} lan thi
+                      {test.language?.name || "Chua gan ngon ngu"} - {test.assessmentMode} - {test._count.questions} cau hoi - {test._count.attempts} lan thi
                     </p>
                   </div>
                   <div className="flex gap-2">

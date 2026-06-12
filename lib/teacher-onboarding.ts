@@ -1,3 +1,4 @@
+import { randomInt } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { isTestReady } from "@/lib/test-rules";
 
@@ -63,7 +64,11 @@ export async function findEntranceTest(languageId: string) {
     },
     orderBy: { createdAt: "desc" },
   });
-  return tests.find((test) => isTestReady(test.questions.reduce((sum, question) => sum + Number(question.score || 0), 0))) ?? null;
+  const readyTests = tests.filter((test) =>
+    isTestReady(test.questions.reduce((sum, question) => sum + Number(question.score || 0), 0)),
+  );
+  if (readyTests.length === 0) return null;
+  return readyTests[randomInt(readyTests.length)];
 }
 
 export async function logTeacherApplication(params: {

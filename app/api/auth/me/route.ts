@@ -11,10 +11,10 @@ export async function GET() {
       return NextResponse.json({ user: null });
     }
 
-    const [balance, aiPoints] =
-      user.role === "STUDENT" || user.role === "TEACHER"
-        ? await Promise.all([getUserBalance(user.id), getAiPointsSummary(user.id)])
-        : [0, { earned: 0, spent: 0, available: 0 }];
+    const [balance, aiPoints] = await Promise.all([
+      user.role === "ADMIN" ? Promise.resolve(0) : getUserBalance(user.id),
+      getAiPointsSummary(user.id),
+    ]);
 
     return NextResponse.json({
       user: {

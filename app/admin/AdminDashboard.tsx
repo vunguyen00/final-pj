@@ -205,6 +205,17 @@ export default function AdminDashboard({
       {message ? <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">{message}</div> : null}
 
       <section className="rounded-xl border border-slate-200 bg-white p-6">
+        <h2 className="text-lg font-bold text-slate-950">Cong cu hoc tap va AI</h2>
+        <p className="mt-1 text-sm text-slate-500">Admin co the dung AI va xem lich su ket qua cua chinh minh, khong bi tru diem.</p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link href="/student/speaking-ai" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Speaking AI</Link>
+          <Link href="/student/writing-ai" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white">Writing AI</Link>
+          <Link href="/student/tests" className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Lam test</Link>
+          <Link href="/student/results" className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Lich su cua toi</Link>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-6">
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-lg border border-slate-200 p-4">
             <h2 className="text-lg font-bold text-slate-950">Bật/tắt đăng ký giảng viên</h2>
@@ -453,7 +464,7 @@ export default function AdminDashboard({
                       <button
                         onClick={() => {
                           setSelectedUserForRole(user);
-                          setSelectedRole(user.role ?? "USER");
+                          setSelectedRole(user.role ?? "STUDENT");
                           setShowRoleModal(true);
                         }}
                         className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700"
@@ -512,11 +523,11 @@ export default function AdminDashboard({
               <p className="text-sm text-slate-700">{selectedUserForRole?.username} — {selectedUserForRole?.email}</p>
               <label className="mt-4 block text-sm font-semibold text-slate-700">Role</label>
               <select
-                value={selectedRole ?? "USER"}
+                value={selectedRole ?? "STUDENT"}
                 onChange={(e) => setSelectedRole(e.target.value)}
                 className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
               >
-                <option value="USER">USER</option>
+                <option value="STUDENT">STUDENT</option>
                 <option value="TEACHER">TEACHER</option>
                 <option value="ADMIN">ADMIN</option>
               </select>

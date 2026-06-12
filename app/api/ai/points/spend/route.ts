@@ -1,7 +1,7 @@
 ﻿import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
 import { spendAiPoints } from "@/lib/ai-points";
-import { prisma } from "@/lib/prisma";
+import { canUseAiForCourse, shouldChargeAiPoints } from "@/lib/ai-access";
 
 export async function POST(request: Request) {
   try {
@@ -14,13 +14,14 @@ export async function POST(request: Request) {
     const sourceId = typeof body?.sourceId === "string" ? body.sourceId.trim() : undefined;
 
     if (courseId) {
-      const enrollment = await prisma.enrollment.findUnique({
-        where: { userId_courseId: { userId: user.id, courseId } },
-      });
-
-      if (!enrollment) {
+      const canUseCourse = await canUseAiForCourse(user, courseId);
+      if (!canUseCourse) {
         return NextResponse.json({ error: "Ban khong co quyen tren khoa hoc nay." }, { status: 403 });
       }
+    }
+
+    if (!shouldChargeAiPoints(user.role)) {
+      return NextResponse.json({ ok: true, spent: 0, available: 0 });
     }
 
     const result = await spendAiPoints(user.id, courseId || null, points, feature, sourceId);

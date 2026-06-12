@@ -47,13 +47,15 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
   if (hideHeader) return null;
 
   const studentLinks =
-    user?.role === "STUDENT" || user?.role === "TEACHER"
+    user
       ? [
-          { href: "/student", label: "Dashboard" },
+          { href: user.role === "ADMIN" ? "/admin" : "/student", label: "Dashboard" },
           { href: "/student/tests", label: "Tests" },
           { href: "/student/results", label: "Results" },
+          { href: "/student/speaking-ai", label: "Speaking AI" },
+          { href: "/student/writing-ai", label: "Writing AI" },
           { href: "/student/rewards", label: "Points" },
-          { href: "/student/wallet", label: "Wallet" },
+          ...(user.role === "ADMIN" ? [] : [{ href: "/student/wallet", label: "Wallet" }]),
         ] satisfies BasicNavItem[]
       : [];
 

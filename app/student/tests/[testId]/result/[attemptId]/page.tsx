@@ -7,6 +7,11 @@ import Link from "next/link";
 type AiEvaluation = {
   language: string;
   overallScore: number;
+  taskRelevance?: number;
+  onTopic?: boolean;
+  offTopicReason?: string;
+  detailedComment?: string;
+  sampleAnswer?: string;
   band?: { system: string; level: string; score: number; rationale: string };
   summary: string;
   strengths: string[];
@@ -222,8 +227,25 @@ export default function StudentTestResultPage() {
                       {question.aiEvaluation.band ? ` - ${question.aiEvaluation.band.system} ${question.aiEvaluation.band.level}` : ""}
                     </p>
                     <p className="mt-2">{question.aiEvaluation.summary}</p>
+                    <p className="mt-2 font-semibold">
+                      Do bam de: {Math.round(question.aiEvaluation.taskRelevance ?? 0)}/100
+                    </p>
+                    {question.aiEvaluation.onTopic === false ? (
+                      <p className="mt-2 rounded-lg bg-red-100 p-3 font-semibold text-red-800">
+                        Lac de: {question.aiEvaluation.offTopicReason || "Cau tra loi chua dung trong tam de bai."}
+                      </p>
+                    ) : null}
+                    {question.aiEvaluation.detailedComment ? (
+                      <p className="mt-2 leading-6">{question.aiEvaluation.detailedComment}</p>
+                    ) : null}
                     {question.aiEvaluation.weaknesses.length ? <p className="mt-2">Focus: {question.aiEvaluation.weaknesses.join(", ")}</p> : null}
                     {question.aiEvaluation.suggestions.length ? <p className="mt-2">Next: {question.aiEvaluation.suggestions.slice(0, 3).join("; ")}</p> : null}
+                    {question.aiEvaluation.sampleAnswer ? (
+                      <div className="mt-3 rounded-lg border border-blue-200 bg-white p-3 text-slate-800">
+                        <p className="font-semibold">Bai mau dung de</p>
+                        <p className="mt-2 whitespace-pre-line leading-6">{question.aiEvaluation.sampleAnswer}</p>
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </article>

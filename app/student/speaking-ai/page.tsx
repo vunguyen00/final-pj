@@ -22,11 +22,15 @@ type SpeakingResult = {
       scores: Record<string, number>;
       overall: number;
       normalizedOverall?: number;
+      taskRelevance?: number;
       language: string;
       exam?: "IELTS" | "HSK";
       scoreScale?: "BAND_0_9" | "SCORE_0_100";
       band: { system: string; level: string; score: number; rationale: string };
       summary: string;
+      onTopic?: boolean;
+      offTopicReason?: string;
+      detailedComment?: string;
     };
     analysis: {
       strengths: string[];
@@ -42,6 +46,7 @@ type SpeakingResult = {
     };
     improvements: {
       practiceMethods: string[];
+      sampleAnswer?: string;
     };
   };
 };
@@ -74,6 +79,7 @@ type SpeechRecognitionInstance = {
   continuous: boolean;
   interimResults: boolean;
   lang: string;
+  onstart: (() => void) | null;
   onresult: ((event: SpeechRecognitionEventLike) => void) | null;
   onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
   onend: (() => void) | null;
@@ -105,6 +111,7 @@ function nowIso() {
 
 export default function SpeakingAiPage() {
   const [configLoading, setConfigLoading] = useState(true);
+  const [userRole, setUserRole] = useState("");
   const [examType, setExamType] = useState<ExamType>("IELTS");
   const [durationSeconds, setDurationSeconds] = useState(180);
   const [prompt, setPrompt] = useState(EXAM_DEFAULT_PROMPTS.IELTS);
@@ -115,6 +122,7 @@ export default function SpeakingAiPage() {
   const [conversation, setConversation] = useState<ConversationTurn[]>([]);
   const [recording, setRecording] = useState(false);
   const [recognitionEnabled, setRecognitionEnabled] = useState(false);
+  const [preparingSession, setPreparingSession] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioPreview, setAudioPreview] = useState("");
   const [loading, setLoading] = useState(false);
@@ -124,10 +132,13 @@ export default function SpeakingAiPage() {
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const audioBlobRef = useRef<Blob | null>(null);
+  const audioPreviewRef = useRef("");
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const keepRecognitionAliveRef = useRef(false);
+  const transcriptDraftRef = useRef("");
+  const interimTranscriptRef = useRef("");
   const submittingRef = useRef(false);
   const finishAndSubmitRef = useRef<(autoSubmit: boolean) => Promise<void>>(async () => undefined);
 
@@ -142,6 +153,7 @@ export default function SpeakingAiPage() {
         const data = (await response.json().catch(() => ({}))) as {
           examType?: string;
           durationSeconds?: number;
+          role?: string;
           error?: string;
         };
 
@@ -156,6 +168,7 @@ export default function SpeakingAiPage() {
           : 180;
 
         setExamType(nextExam);
+        setUserRole(data.role || "");
         setDurationSeconds(nextDuration);
         setTimeLeft(nextDuration);
         setPrompt(EXAM_DEFAULT_PROMPTS[nextExam]);
@@ -187,9 +200,9 @@ export default function SpeakingAiPage() {
     return () => {
       stopSpeechRecognition();
       stopAudioCapture();
-      if (audioPreview) URL.revokeObjectURL(audioPreview);
+      if (audioPreviewRef.current) URL.revokeObjectURL(audioPreviewRef.current);
     };
-  }, [audioPreview]);
+  }, []);
 
   async function startAudioCapture() {
     try {
@@ -204,16 +217,20 @@ export default function SpeakingAiPage() {
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
         audioBlobRef.current = blob;
         setAudioBlob(blob);
-        if (audioPreview) URL.revokeObjectURL(audioPreview);
-        setAudioPreview(URL.createObjectURL(blob));
+        if (audioPreviewRef.current) URL.revokeObjectURL(audioPreviewRef.current);
+        const previewUrl = URL.createObjectURL(blob);
+        audioPreviewRef.current = previewUrl;
+        setAudioPreview(previewUrl);
         stream.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
       };
       recorderRef.current = recorder;
-      recorder.start();
+      recorder.start(500);
       setRecording(true);
+      return true;
     } catch {
       setError("Khong mo duoc micro de ghi am.");
+      return false;
     }
   }
 
@@ -271,13 +288,14 @@ export default function SpeakingAiPage() {
     }
     setRecognitionEnabled(false);
     setInterimTranscript("");
+    interimTranscriptRef.current = "";
   }
 
-  function startSpeechRecognition() {
+  async function startSpeechRecognition() {
     const Constructor = resolveSpeechRecognitionConstructor();
     if (!Constructor) {
       setError("Trinh duyet chua ho tro SpeechRecognition. Hay dung Chrome/Edge de thi speaking.");
-      return;
+      return false;
     }
 
     const recognizer = new Constructor();
@@ -299,8 +317,11 @@ export default function SpeakingAiPage() {
       }
 
       if (finalChunk.trim()) {
-        setTranscriptDraft((prev) => `${prev}${prev.endsWith(" ") || prev.length === 0 ? "" : " "}${finalChunk.trim()} `);
+        const nextTranscript = `${transcriptDraftRef.current}${transcriptDraftRef.current.endsWith(" ") || transcriptDraftRef.current.length === 0 ? "" : " "}${finalChunk.trim()} `;
+        transcriptDraftRef.current = nextTranscript;
+        setTranscriptDraft(nextTranscript);
       }
+      interimTranscriptRef.current = interimChunk;
       setInterimTranscript(interimChunk);
     };
 
@@ -322,12 +343,41 @@ export default function SpeakingAiPage() {
 
     recognitionRef.current = recognizer;
     keepRecognitionAliveRef.current = true;
-    try {
-      recognizer.start();
-      setRecognitionEnabled(true);
-    } catch {
-      setRecognitionEnabled(false);
-    }
+    return new Promise<boolean>((resolve) => {
+      let settled = false;
+      const finish = (ready: boolean) => {
+        if (settled) return;
+        settled = true;
+        if (!ready) {
+          keepRecognitionAliveRef.current = false;
+          recognitionRef.current = null;
+          recognizer.onend = null;
+          try {
+            recognizer.stop();
+          } catch {
+            // noop
+          }
+        }
+        setRecognitionEnabled(ready);
+        resolve(ready);
+      };
+
+      recognizer.onstart = () => finish(true);
+      const originalErrorHandler = recognizer.onerror;
+      recognizer.onerror = (event) => {
+        originalErrorHandler?.(event);
+        if (event.error === "not-allowed" || event.error === "service-not-allowed" || event.error === "audio-capture") {
+          finish(false);
+        }
+      };
+
+      try {
+        recognizer.start();
+        window.setTimeout(() => finish(false), 3000);
+      } catch {
+        finish(false);
+      }
+    });
   }
 
   async function requestFollowUpQuestion(history: ConversationTurn[]) {
@@ -366,7 +416,7 @@ export default function SpeakingAiPage() {
   }
 
   async function startSession() {
-    if (configLoading) return;
+    if (configLoading || preparingSession) return;
 
     setError("");
     setResult(null);
@@ -375,18 +425,35 @@ export default function SpeakingAiPage() {
       return;
     }
 
-    if (audioPreview) URL.revokeObjectURL(audioPreview);
+    if (audioPreviewRef.current) URL.revokeObjectURL(audioPreviewRef.current);
+    audioPreviewRef.current = "";
     setAudioPreview("");
     setAudioBlob(null);
     audioBlobRef.current = null;
     setConversation([]);
     setTranscriptDraft("");
     setInterimTranscript("");
+    transcriptDraftRef.current = "";
+    interimTranscriptRef.current = "";
     setTimeLeft(durationSeconds);
-    setSessionRunning(true);
+    setPreparingSession(true);
 
-    await startAudioCapture();
-    startSpeechRecognition();
+    const audioReady = await startAudioCapture();
+    if (!audioReady) {
+      setPreparingSession(false);
+      return;
+    }
+
+    const recognitionReady = await startSpeechRecognition();
+    if (!recognitionReady) {
+      stopAudioCapture();
+      setPreparingSession(false);
+      setError("Khong khoi dong duoc nhan dien giong noi. Hay kiem tra quyen micro va thu lai.");
+      return;
+    }
+
+    setSessionRunning(true);
+    setPreparingSession(false);
 
     const openingQuestion =
       examType === "HSK"
@@ -400,7 +467,7 @@ export default function SpeakingAiPage() {
   async function submitCurrentTurn() {
     if (!sessionRunning || loading || requestingQuestion) return;
 
-    const text = currentTurnTranscript;
+    const text = `${transcriptDraftRef.current} ${interimTranscriptRef.current}`.trim();
     if (!text) {
       setError("Chua co transcript cho luot tra loi nay.");
       return;
@@ -411,6 +478,8 @@ export default function SpeakingAiPage() {
     setConversation(nextHistory);
     setTranscriptDraft("");
     setInterimTranscript("");
+    transcriptDraftRef.current = "";
+    interimTranscriptRef.current = "";
     await requestFollowUpQuestion(nextHistory);
   }
 
@@ -418,17 +487,19 @@ export default function SpeakingAiPage() {
     if (!sessionRunning || submittingRef.current) return;
     submittingRef.current = true;
 
+    const finalTranscript = `${transcriptDraftRef.current} ${interimTranscriptRef.current}`.trim();
     setSessionRunning(false);
     stopSpeechRecognition();
     await stopAudioCaptureAndWait();
 
     const finalTurns = [...conversation];
-    const text = currentTurnTranscript;
-    if (text) {
-      finalTurns.push({ role: "student", text, timestamp: nowIso() });
+    if (finalTranscript) {
+      finalTurns.push({ role: "student", text: finalTranscript, timestamp: nowIso() });
       setConversation(finalTurns);
       setTranscriptDraft("");
       setInterimTranscript("");
+      transcriptDraftRef.current = "";
+      interimTranscriptRef.current = "";
     }
 
     const studentTranscript = finalTurns
@@ -491,7 +562,9 @@ export default function SpeakingAiPage() {
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Speaking AI - 7 points</p>
+              <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
+                Speaking AI - {userRole === "STUDENT" ? "7 points" : "mien phi cho giao vien/admin"}
+              </p>
               <h1 className="mt-2 text-3xl font-bold text-slate-950">Speaking thi truc tiep voi AI</h1>
               <p className="mt-2 max-w-3xl text-slate-600">
                 Ky thi va thoi gian duoc admin cau hinh co dinh. He thong tu dong ket thuc khi het gio va cham diem ngay.
@@ -525,7 +598,7 @@ export default function SpeakingAiPage() {
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
             rows={3}
-            disabled={sessionRunning || loading || configLoading}
+            disabled={sessionRunning || preparingSession || loading || configLoading}
             className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100"
           />
 
@@ -534,10 +607,10 @@ export default function SpeakingAiPage() {
               <button
                 type="button"
                 onClick={() => void startSession()}
-                disabled={loading || configLoading}
+                disabled={loading || configLoading || preparingSession}
                 className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
               >
-                Bat dau thi noi
+                {preparingSession ? "Dang khoi dong micro..." : "Bat dau thi noi"}
               </button>
             ) : (
               <button
@@ -558,6 +631,7 @@ export default function SpeakingAiPage() {
               {formatClock(timeLeft)}
             </span>
 
+            {preparingSession ? <span className="text-sm text-slate-500">Hay doi den khi he thong bao san sang roi moi bat dau noi.</span> : null}
             {requestingQuestion ? <span className="text-sm text-slate-500">AI dang dat cau hoi tiep theo...</span> : null}
           </div>
         </section>
@@ -619,13 +693,23 @@ export default function SpeakingAiPage() {
                   </p>
                   <h2 className="mt-1 text-2xl font-bold text-slate-950">Band/Level {result.data.evaluation.band.level}</h2>
                   <p className="mt-2 text-sm text-slate-600">{result.data.evaluation.summary}</p>
+                  {result.data.evaluation.onTopic === false ? (
+                    <p className="mt-2 rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">
+                      Cau tra loi bi lac de: {result.data.evaluation.offTopicReason || "Noi dung chua tra loi dung speaking prompt."}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="text-left sm:text-right">
                   <p className="text-5xl font-bold text-slate-950">{result.data.evaluation.overall.toFixed(1)}</p>
                   <p className="text-sm font-semibold text-slate-600">
                     / {scoreMax} (normalized {result.data.evaluation.normalizedOverall?.toFixed(1) ?? "-"}/10)
                   </p>
-                  <p className="text-sm font-semibold text-red-600">-{result.points?.spent ?? 7} diem</p>
+                  <p className="text-sm font-semibold text-red-600">
+                    {userRole === "STUDENT" ? `-${result.points?.spent ?? 7} diem` : "Khong tru diem"}
+                  </p>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">
+                    Bam de: {Math.round(result.data.evaluation.taskRelevance ?? 0)}/100
+                  </p>
                 </div>
               </div>
               <Link href={`/student/results/${result.assessmentId}`} className="mt-4 inline-block rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">
@@ -643,6 +727,12 @@ export default function SpeakingAiPage() {
             </div>
 
             <FeedbackBlock title="Feedback chi tiet" items={result.data.analysis.feedback} />
+            {result.data.evaluation.detailedComment ? (
+              <section className="rounded-xl border border-blue-200 bg-blue-50 p-5">
+                <h2 className="text-lg font-bold text-blue-950">Nhan xet tong hop</h2>
+                <p className="mt-3 text-sm leading-6 text-blue-900">{result.data.evaluation.detailedComment}</p>
+              </section>
+            ) : null}
             <FeedbackBlock
               title="Phat am / grammar / tu vung / fluency"
               items={[
@@ -656,6 +746,14 @@ export default function SpeakingAiPage() {
               title="Phuong phap cai thien"
               items={[...result.data.analysis.suggestions, ...result.data.improvements.practiceMethods]}
             />
+            {result.data.improvements.sampleAnswer ? (
+              <section className="rounded-xl border border-slate-200 bg-white p-5">
+                <h2 className="text-lg font-bold text-slate-950">Cau tra loi mau dung de</h2>
+                <p className="mt-4 whitespace-pre-line text-sm leading-6 text-slate-700">
+                  {result.data.improvements.sampleAnswer}
+                </p>
+              </section>
+            ) : null}
           </section>
         ) : null}
       </div>

@@ -111,6 +111,10 @@ export async function PUT(
     const body = await request.json();
     const { name, description, passingScore, maxAttempts, timeLimit, shuffleQuestions } = body;
 
+    if (name !== undefined && !String(name).trim()) {
+      return NextResponse.json({ error: "Test name is required" }, { status: 400 });
+    }
+
     if (passingScore !== undefined) {
       const parsedPassingScore = Number(passingScore);
       if (!Number.isFinite(parsedPassingScore) || parsedPassingScore < 0 || parsedPassingScore > FIXED_TEST_MAX_SCORE) {
@@ -135,7 +139,7 @@ export async function PUT(
     const test = await prisma.test.update({
       where: { id: testId },
       data: {
-        ...(name && { name }),
+        ...(name !== undefined && { name: String(name).trim() }),
         ...(description !== undefined && { description }),
         maxScore: FIXED_TEST_MAX_SCORE,
         ...(passingScore !== undefined && { passingScore: parseFloat(passingScore) }),

@@ -9,9 +9,11 @@ import {
   spendAiPoints,
 } from "@/lib/ai-points";
 import { prisma } from "@/lib/prisma";
-import { ollamaService, speakingService } from "@/lib/ai";
+import { ollamaService, sanitizeEssay, validateEssay, validatePromptSafety } from "@/lib/ai";
 import { SpeakingExamType } from "@/lib/ai/types";
 import { getSpeakingAiSetting } from "@/lib/speaking-ai-setting";
+import { canUseAiForCourse, shouldChargeAiPoints } from "@/lib/ai-access";
+import { evaluateTestAiAnswers } from "@/lib/test-ai-evaluation";
 
 function audioExtension(type: string) {
   if (type.includes("mpeg") || type.includes("mp3")) return "mp3";
@@ -54,23 +56,32 @@ export async function POST(request: NextRequest) {
     const audio = form.get("audio");
     const speakingSetting = await getSpeakingAiSetting();
     const examType = speakingSetting.examType as SpeakingExamType;
+    const chargePoints = shouldChargeAiPoints(user.role);
 
     if (!transcript) {
       return NextResponse.json({ error: "Can co transcript de AI cham speaking." }, { status: 400 });
     }
+    const validation = validateEssay(transcript);
+    if (!validation.valid) {
+      return NextResponse.json({ error: validation.error || "Invalid speaking transcript" }, { status: 400 });
+    }
+    const sanitizedTranscript = sanitizeEssay(transcript);
+    if (!validatePromptSafety(sanitizedTranscript)) {
+      return NextResponse.json({ error: "Invalid request content" }, { status: 400 });
+    }
 
     if (courseId) {
-      const enrollment = await prisma.enrollment.findUnique({
-        where: { userId_courseId: { userId: user.id, courseId } },
-      });
-      if (!enrollment) {
+      const canUseCourse = await canUseAiForCourse(user, courseId);
+      if (!canUseCourse) {
         return NextResponse.json({ error: "Ban khong co quyen tren khoa hoc nay." }, { status: 403 });
       }
     }
 
-    const pointsBefore = await getAiPointsSummary(user.id);
-    if (pointsBefore.available < SPEAKING_AI_COST) {
-      return NextResponse.json({ error: "Khong du diem de dung speaking AI." }, { status: 400 });
+    if (chargePoints) {
+      const pointsBefore = await getAiPointsSummary(user.id);
+      if (pointsBefore.available < SPEAKING_AI_COST) {
+        return NextResponse.json({ error: "Khong du diem de dung speaking AI." }, { status: 400 });
+      }
     }
 
     const healthy = await ollamaService.healthCheck();
@@ -80,20 +91,40 @@ export async function POST(request: NextRequest) {
 
     const audioFile = audio instanceof File ? audio : null;
     const audioUrl = await saveSpeakingAudio(audioFile, user.id);
-    const evaluation = await speakingService.evaluateSpeaking({
-      transcript,
-      examType,
-      prompt,
-      conversation,
-      durationSeconds:
-        Number.isFinite(durationSeconds) && durationSeconds > 0
-          ? Math.min(Math.round(durationSeconds), speakingSetting.durationSeconds)
-          : null,
-      audioAvailable: Boolean(audioUrl),
-    });
+    const evaluationResult = (await evaluateTestAiAnswers([
+      {
+        questionId: "speaking",
+        mode: "SPEAKING",
+        answer: sanitizedTranscript,
+        prompt: `${prompt}\nConversation context: ${conversation.slice(0, 1500)}`,
+        examType: examType === "HSK" ? "HSK" : "IELTS",
+      },
+    ])).get("speaking");
+    if (!evaluationResult || evaluationResult.failed) {
+      throw new Error("AI_EVALUATION_FAILED");
+    }
 
-    const criteria = evaluation.criteria_scores;
-    const maxScore = evaluation.exam === "IELTS" ? 9 : 100;
+    const evaluation = evaluationResult.aiEvaluation;
+    const normalizedOverall = evaluationResult.normalizedScore;
+    const taskRelevance = evaluation.taskRelevance ?? 0;
+    const normalizedCriteria = evaluation.criteria || {};
+    const exam = examType === "HSK" ? "HSK" : "IELTS";
+    const maxScore = exam === "IELTS" ? 9 : 100;
+    const toExamScore = (score: number) =>
+      exam === "IELTS" ? Math.round(score * 0.9 * 2) / 2 : Math.round(score * 10);
+    const criteria = Object.fromEntries(
+      Object.entries(normalizedCriteria)
+        .filter(([key]) => ["fluency", "vocabulary", "grammar", "pronunciation"].includes(key))
+        .map(([key, value]) => [key, toExamScore(Number(value))]),
+    );
+    const overall = toExamScore(normalizedOverall);
+    const band = {
+      system: exam,
+      level: exam === "IELTS" ? overall.toFixed(1) : `HSKK ${Math.round(overall)}`,
+      score: overall,
+      rationale: evaluation.band?.rationale || "",
+    };
+    const sampleAnswer = evaluation.sampleAnswer || "";
 
     const assessment = await prisma.aiAssessment.create({
       data: {
@@ -102,51 +133,62 @@ export async function POST(request: NextRequest) {
         type: "SPEAKING",
         title,
         prompt: prompt || null,
-        submissionText: transcript,
+        submissionText: sanitizedTranscript,
         audioUrl,
         durationSeconds:
           Number.isFinite(durationSeconds) && durationSeconds > 0
             ? Math.min(Math.round(durationSeconds), speakingSetting.durationSeconds)
             : null,
-        score: evaluation.overall,
+        score: overall,
         maxScore,
-        bandSystem: evaluation.band.system,
-        bandLevel: evaluation.band.level,
-        bandScore: evaluation.band.score,
-        criteria,
+        bandSystem: band.system,
+        bandLevel: band.level,
+        bandScore: band.score,
+        criteria: {
+          ...criteria,
+          taskRelevance,
+        },
         feedback: {
           evaluation: {
             scores: criteria,
-            overall: evaluation.overall,
-            normalizedOverall: evaluation.normalized_overall,
+            overall,
+            normalizedOverall,
+            taskRelevance,
             language: evaluation.language,
-            exam: evaluation.exam,
-            scoreScale: evaluation.score_scale,
-            band: evaluation.band,
+            exam,
+            scoreScale: exam === "IELTS" ? "BAND_0_9" : "SCORE_0_100",
+            band,
             summary: evaluation.summary,
+            onTopic: evaluation.onTopic ?? true,
+            offTopicReason: evaluation.offTopicReason || "",
+            detailedComment: evaluation.detailedComment || evaluation.summary,
           },
           analysis: {
             strengths: evaluation.strengths,
             weaknesses: evaluation.weaknesses,
-            feedback: evaluation.feedback,
+            feedback: evaluation.feedback || [],
             suggestions: evaluation.suggestions,
           },
         },
         mistakes: {
-          pronunciation: evaluation.pronunciation_errors,
-          grammar: evaluation.grammar_errors,
-          vocabulary: evaluation.vocabulary_errors,
-          fluency: evaluation.fluency_issues,
+          pronunciation: evaluation.pronunciationErrors || [],
+          grammar: evaluation.grammarErrors || [],
+          vocabulary: evaluation.vocabularyErrors || [],
+          fluency: evaluation.fluencyIssues || [],
         },
         improvements: {
           suggestions: evaluation.suggestions,
-          practiceMethods: evaluation.practice_methods,
+          practiceMethods: evaluation.practiceMethods || [],
+          sampleAnswer,
         },
+        sampleAnswer: sampleAnswer || null,
         submittedAt: new Date(),
       } as never,
     }) as unknown as { id: string };
 
-    const pointResult = await spendAiPoints(user.id, courseId || null, SPEAKING_AI_COST, "SPEAKING_AI", assessment.id);
+    const pointResult = chargePoints
+      ? await spendAiPoints(user.id, courseId || null, SPEAKING_AI_COST, "SPEAKING_AI", assessment.id)
+      : { spent: 0, available: (await getAiPointsSummary(user.id)).available };
     const activity = await recordLearningActivity({
       userId: user.id,
       courseId: courseId || null,
@@ -163,28 +205,33 @@ export async function POST(request: NextRequest) {
       data: {
         evaluation: {
           scores: criteria,
-          overall: evaluation.overall,
-          normalizedOverall: evaluation.normalized_overall,
+          overall,
+          normalizedOverall,
+          taskRelevance,
           language: evaluation.language,
-          exam: evaluation.exam,
-          scoreScale: evaluation.score_scale,
-          band: evaluation.band,
+          exam,
+          scoreScale: exam === "IELTS" ? "BAND_0_9" : "SCORE_0_100",
+          band,
           summary: evaluation.summary,
+          onTopic: evaluation.onTopic ?? true,
+          offTopicReason: evaluation.offTopicReason || "",
+          detailedComment: evaluation.detailedComment || evaluation.summary,
         },
         analysis: {
           strengths: evaluation.strengths,
           weaknesses: evaluation.weaknesses,
-          feedback: evaluation.feedback,
+          feedback: evaluation.feedback || [],
           suggestions: evaluation.suggestions,
         },
         mistakes: {
-          pronunciation: evaluation.pronunciation_errors,
-          grammar: evaluation.grammar_errors,
-          vocabulary: evaluation.vocabulary_errors,
-          fluency: evaluation.fluency_issues,
+          pronunciation: evaluation.pronunciationErrors || [],
+          grammar: evaluation.grammarErrors || [],
+          vocabulary: evaluation.vocabularyErrors || [],
+          fluency: evaluation.fluencyIssues || [],
         },
         improvements: {
-          practiceMethods: evaluation.practice_methods,
+          practiceMethods: evaluation.practiceMethods || [],
+          sampleAnswer,
         },
       },
       durationMs: Date.now() - startTime,
@@ -192,6 +239,12 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Error evaluating speaking:", error);
     const message = error instanceof Error ? error.message : "Failed to evaluate speaking.";
+    if (message === "AI_EVALUATION_FAILED") {
+      return NextResponse.json(
+        { error: "AI dang tam thoi qua tai. Vui long thu lai sau." },
+        { status: 503 },
+      );
+    }
     const status = message.includes("too short") || message.includes("Invalid") ? 400 : 500;
     return NextResponse.json({ error: message }, { status });
   }

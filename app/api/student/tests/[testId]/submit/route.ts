@@ -9,7 +9,7 @@ import {
 } from "@/lib/learning-progress";
 import { sendCourseCertificateEmail } from "@/lib/mailer";
 import { getAiPointsSummary, grantCourseCompletionPoints, recordLearningActivity } from "@/lib/ai-points";
-import { evaluateSpeakingAnswer, evaluateWritingAnswer } from "@/lib/test-ai-evaluation";
+import { evaluateTestAiAnswers } from "@/lib/test-ai-evaluation";
 import { FIXED_TEST_MAX_SCORE, isTestReady } from "@/lib/test-rules";
 
 export async function POST(
@@ -89,6 +89,24 @@ export async function POST(
     const questionResults: Array<Record<string, unknown>> = [];
     const answerSnapshots: Array<Record<string, unknown>> = [];
     const languageCode = test.language?.code || test.course?.language?.code || null;
+    const aiInputs = test.questions
+        .filter((question) => question.type === "ESSAY" || question.type === "SPEAKING")
+        .map((question) => ({
+          questionId: question.id,
+          mode: question.type === "SPEAKING" ? "SPEAKING" as const : "WRITING" as const,
+          answer: String(answers[question.id] || "").trim(),
+          prompt: question.content,
+          languageCode,
+        }))
+        .filter((item) => item.answer);
+    const aiResults = await evaluateTestAiAnswers(aiInputs);
+    const failedAiResult = aiInputs.some((input) => aiResults.get(input.questionId)?.failed);
+    if (failedAiResult) {
+      return NextResponse.json(
+        { error: "AI dang tam thoi qua tai. Bai test chua duoc nop, vui long thu lai." },
+        { status: 503 },
+      );
+    }
 
     for (const question of test.questions) {
       maxScore += question.score;
@@ -117,25 +135,25 @@ export async function POST(
       } else if (question.type === "ESSAY") {
         correctAnswer = question.answers[0]?.content || "";
         if (studentAnswerDisplay.trim()) {
-          const aiResult = await evaluateWritingAnswer(studentAnswerDisplay, question.content);
-          const scorePercentage = aiResult.normalizedScore / 10;
-          earnedScore = Math.round(question.score * scorePercentage);
-          isCorrect = aiResult.normalizedScore >= 7;
-          totalScore += earnedScore;
-          aiEvaluation = aiResult.aiEvaluation;
+          const aiResult = aiResults.get(question.id);
+          if (aiResult) {
+            const scorePercentage = aiResult.normalizedScore / 10;
+            earnedScore = Math.round(question.score * scorePercentage);
+            isCorrect = aiResult.normalizedScore >= 7;
+            totalScore += earnedScore;
+            aiEvaluation = aiResult.aiEvaluation;
+          }
         }
       } else if (question.type === "SPEAKING") {
         if (studentAnswerDisplay.trim()) {
-          const aiResult = await evaluateSpeakingAnswer({
-            transcript: studentAnswerDisplay,
-            prompt: question.content,
-            languageCode,
-          });
-          const scorePercentage = aiResult.normalizedScore / 10;
-          earnedScore = Math.round(question.score * scorePercentage);
-          isCorrect = aiResult.normalizedScore >= 7;
-          totalScore += earnedScore;
-          aiEvaluation = aiResult.aiEvaluation;
+          const aiResult = aiResults.get(question.id);
+          if (aiResult) {
+            const scorePercentage = aiResult.normalizedScore / 10;
+            earnedScore = Math.round(question.score * scorePercentage);
+            isCorrect = aiResult.normalizedScore >= 7;
+            totalScore += earnedScore;
+            aiEvaluation = aiResult.aiEvaluation;
+          }
         }
       }
 

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { sendBasicEmail } from "@/lib/mailer";
 import { prisma } from "@/lib/prisma";
-import { evaluateSpeakingAnswer, evaluateWritingAnswer } from "@/lib/test-ai-evaluation";
+import { evaluateTestAiAnswers } from "@/lib/test-ai-evaluation";
 import { logTeacherApplication } from "@/lib/teacher-onboarding";
 import { FIXED_TEST_MAX_SCORE, isTestReady } from "@/lib/test-rules";
 
@@ -52,6 +52,24 @@ export async function POST(
     let earned = 0;
     let rawMax = 0;
     const questionResults = [];
+    const aiInputs = test.questions
+      .filter((question) => question.type === "ESSAY" || question.type === "SPEAKING")
+      .map((question) => ({
+        questionId: question.id,
+        mode: question.type === "SPEAKING" ? "SPEAKING" as const : "WRITING" as const,
+        answer: String(answers[question.id] || "").trim(),
+        prompt: question.content,
+        languageCode: application.language.code,
+      }))
+      .filter((input) => input.answer);
+    const aiResults = await evaluateTestAiAnswers(aiInputs);
+    const failedAiResult = aiInputs.some((input) => aiResults.get(input.questionId)?.failed);
+    if (failedAiResult) {
+      return NextResponse.json(
+        { error: "AI dang tam thoi qua tai. Bai thi chua duoc nop, vui long thu lai." },
+        { status: 503 },
+      );
+    }
 
     for (const question of test.questions) {
       rawMax += question.score;
@@ -77,23 +95,23 @@ export async function POST(
       }
 
       if (question.type === "ESSAY" && studentAnswer.trim()) {
-        const aiResult = await evaluateWritingAnswer(studentAnswer, question.content);
-        earnedScore = Math.round(question.score * (aiResult.normalizedScore / 10));
-        isCorrect = aiResult.normalizedScore >= 7;
-        earned += earnedScore;
-        aiEvaluation = aiResult.aiEvaluation;
+        const aiResult = aiResults.get(question.id);
+        if (aiResult) {
+          earnedScore = Math.round(question.score * (aiResult.normalizedScore / 10));
+          isCorrect = aiResult.normalizedScore >= 7;
+          earned += earnedScore;
+          aiEvaluation = aiResult.aiEvaluation;
+        }
       }
 
       if (question.type === "SPEAKING" && studentAnswer.trim()) {
-        const aiResult = await evaluateSpeakingAnswer({
-          transcript: studentAnswer,
-          prompt: question.content,
-          languageCode: application.language.code,
-        });
-        earnedScore = Math.round(question.score * (aiResult.normalizedScore / 10));
-        isCorrect = aiResult.normalizedScore >= 7;
-        earned += earnedScore;
-        aiEvaluation = aiResult.aiEvaluation;
+        const aiResult = aiResults.get(question.id);
+        if (aiResult) {
+          earnedScore = Math.round(question.score * (aiResult.normalizedScore / 10));
+          isCorrect = aiResult.normalizedScore >= 7;
+          earned += earnedScore;
+          aiEvaluation = aiResult.aiEvaluation;
+        }
       }
 
       if (isCorrect && question.type !== "ESSAY" && question.type !== "SPEAKING") {

@@ -133,16 +133,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (kind === "TEACHER_ENTRANCE" && languageId) {
-      const existingEntrance = await prisma.test.findFirst({
-        where: { kind: "TEACHER_ENTRANCE", languageId, assessmentMode },
-        select: { id: true },
-      });
-      if (existingEntrance) {
-        return NextResponse.json({ error: "This language already has this entrance test mode" }, { status: 400 });
-      }
-    }
-
     const parsedPassingScore = Number(passingScore ?? 50);
     const parsedMaxAttempts = Number(maxAttempts ?? 3);
     const parsedTimeLimit = timeLimit === null || timeLimit === undefined || timeLimit === "" ? null : Number(timeLimit);

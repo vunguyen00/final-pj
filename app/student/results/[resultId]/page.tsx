@@ -25,6 +25,27 @@ type ResultDetail = {
   submittedAt: string;
   testId?: string;
 };
+type TestAiEvaluation = {
+  language?: string;
+  overallScore?: number;
+  taskRelevance?: number;
+  onTopic?: boolean;
+  offTopicReason?: string;
+  detailedComment?: string;
+  sampleAnswer?: string;
+  summary?: string;
+  weaknesses?: string[];
+  suggestions?: string[];
+};
+type TestQuestionResult = {
+  questionId?: string;
+  questionType?: string;
+  content?: string;
+  studentAnswer?: string;
+  earnedScore?: number;
+  score?: number;
+  aiEvaluation?: TestAiEvaluation;
+};
 
 function asStringArray(value: unknown): string[] {
   if (Array.isArray(value)) return value.map((item) => String(item)).filter(Boolean);
@@ -38,6 +59,9 @@ function flattenFeedback(detail: ResultDetail) {
   const evaluation = (feedback.evaluation || {}) as Record<string, unknown>;
   return {
     summary: String(feedback.summary || evaluation.summary || ""),
+    detailedComment: String(evaluation.detailedComment || ""),
+    onTopic: evaluation.onTopic !== false,
+    offTopicReason: String(evaluation.offTopicReason || ""),
     strengths: asStringArray(analysis.strengths),
     weaknesses: asStringArray(analysis.weaknesses),
     feedback: asStringArray(analysis.feedback || feedback.feedback),
@@ -80,6 +104,11 @@ export default function ResultDetailPage() {
   }, [resultId]);
 
   const parsed = useMemo(() => (detail ? flattenFeedback(detail) : null), [detail]);
+  const testQuestionResults = useMemo(() => {
+    if (!detail || detail.type !== "TEST") return [];
+    const questionResults = detail.feedback?.questionResults;
+    return Array.isArray(questionResults) ? questionResults as TestQuestionResult[] : [];
+  }, [detail]);
   const percent = detail && detail.maxScore > 0 ? Math.round((detail.score / detail.maxScore) * 100) : 0;
 
   if (loading) {
@@ -132,6 +161,12 @@ export default function ResultDetailPage() {
         <section className="grid gap-6 lg:grid-cols-2">
           <Panel title="Nhan xet AI">
             {parsed.summary ? <p className="text-sm leading-6 text-slate-700">{parsed.summary}</p> : null}
+            {parsed.onTopic === false ? (
+              <p className="rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">
+                Lac de: {parsed.offTopicReason || "Bai lam chua dung trong tam de bai."}
+              </p>
+            ) : null}
+            {parsed.detailedComment ? <p className="text-sm leading-6 text-slate-700">{parsed.detailedComment}</p> : null}
             <List title="Diem manh" items={parsed.strengths} />
             <List title="Diem yeu" items={parsed.weaknesses} />
             <List title="Feedback chi tiet" items={parsed.feedback} />
@@ -143,6 +178,45 @@ export default function ResultDetailPage() {
             <ObjectList data={detail.improvements} fallback="Chua co goi y bo sung." />
           </Panel>
         </section>
+
+        {testQuestionResults.some((item) => item.aiEvaluation) ? (
+          <section className="rounded-xl border border-slate-200 bg-white p-5">
+            <h2 className="text-lg font-bold text-slate-950">Nhan xet AI theo tung cau</h2>
+            <div className="mt-4 space-y-4">
+              {testQuestionResults.filter((item) => item.aiEvaluation).map((item, index) => {
+                const evaluation = item.aiEvaluation!;
+                return (
+                  <article key={item.questionId || index} className="rounded-lg border border-slate-200 p-4">
+                    <p className="font-semibold text-slate-900">{item.content || `Cau ${index + 1}`}</p>
+                    <p className="mt-2 text-sm font-semibold text-blue-700">
+                      {Number(item.earnedScore || 0)}/{Number(item.score || 0)} diem - AI {Number(evaluation.overallScore || 0)}/10 - Bam de {Math.round(evaluation.taskRelevance || 0)}/100
+                    </p>
+                    {evaluation.onTopic === false ? (
+                      <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">
+                        Lac de: {evaluation.offTopicReason || "Cau tra loi chua dung trong tam de bai."}
+                      </p>
+                    ) : null}
+                    <p className="mt-3 text-sm leading-6 text-slate-700">
+                      {evaluation.detailedComment || evaluation.summary || "AI da cham cau tra loi."}
+                    </p>
+                    {evaluation.weaknesses?.length ? (
+                      <p className="mt-2 text-sm text-slate-700">Can cai thien: {evaluation.weaknesses.join("; ")}</p>
+                    ) : null}
+                    {evaluation.suggestions?.length ? (
+                      <p className="mt-2 text-sm text-slate-700">Goi y: {evaluation.suggestions.join("; ")}</p>
+                    ) : null}
+                    {evaluation.sampleAnswer ? (
+                      <div className="mt-4 rounded-lg bg-slate-50 p-4">
+                        <p className="text-sm font-semibold text-slate-900">Bai mau dung de</p>
+                        <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-700">{evaluation.sampleAnswer}</p>
+                      </div>
+                    ) : null}
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
 
         {(detail.submissionText || detail.audioUrl || detail.prompt) ? (
           <section className="rounded-xl border border-slate-200 bg-white p-5">

@@ -97,7 +97,7 @@ export default function StudentTestHistoryPage() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Test history</p>
-              <h1 className="mt-2 text-3xl font-bold text-slate-950">Lich su lam bai cua hoc vien</h1>
+              <h1 className="mt-2 text-3xl font-bold text-slate-950">Lich su lam bai cua toi</h1>
               <p className="mt-2 text-slate-600">
                 Xem lai toan bo ket qua, cau tra loi va phan hoi AI cho tung lan nop bai.
               </p>
