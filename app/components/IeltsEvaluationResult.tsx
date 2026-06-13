@@ -12,8 +12,10 @@ import type { ReactNode } from "react";
 
 export function IeltsEvaluationResult({
   evaluation,
+  scoreOnly = false,
 }: {
   evaluation: IeltsEvaluation;
+  scoreOnly?: boolean;
 }) {
   const labels =
     evaluation.skill === "writing"
@@ -55,9 +57,15 @@ export function IeltsEvaluationResult({
         <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-3xl font-bold">Overall band</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-100">
-              {evaluation.final_feedback}
-            </p>
+            {scoreOnly ? (
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-100">
+                Khóa học đã hoàn thành. AI chỉ trả về điểm số cho lần chấm này.
+              </p>
+            ) : (
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-100">
+                {evaluation.final_feedback}
+              </p>
+            )}
           </div>
           <p className="text-6xl font-black">{evaluation.overall_band.toFixed(1)}</p>
         </div>
@@ -69,11 +77,14 @@ export function IeltsEvaluationResult({
             key={key}
             title={(labels as Record<string, string>)[key] || key}
             criterion={criterion}
+            scoreOnly={scoreOnly}
           />
         ))}
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-2">
+      {!scoreOnly ? (
+        <>
+          <section className="grid gap-6 lg:grid-cols-2">
         <ResultSection title="Lỗi cụ thể trong bài">
           {specificErrors.length ? (
             <ul className="space-y-3 text-sm text-slate-700">
@@ -96,20 +107,22 @@ export function IeltsEvaluationResult({
         <ResultSection title="Ưu tiên cải thiện">
           <FeedbackList items={evaluation.priority_to_improve} />
         </ResultSection>
-      </section>
+          </section>
 
-      <ResultSection title="Examiner-style comment">
-        <p className="whitespace-pre-line text-sm leading-7 text-slate-700">
-          {evaluation.estimated_examiner_comment}
-        </p>
-      </ResultSection>
+          <ResultSection title="Examiner-style comment">
+            <p className="whitespace-pre-line text-sm leading-7 text-slate-700">
+              {evaluation.estimated_examiner_comment}
+            </p>
+          </ResultSection>
 
-      {evaluation.skill === "writing" && evaluation.model_answer ? (
-        <ResultSection title="Model answer">
-          <p className="whitespace-pre-line text-sm leading-7 text-slate-700">
-            {evaluation.model_answer}
-          </p>
-        </ResultSection>
+          {evaluation.skill === "writing" && evaluation.model_answer ? (
+            <ResultSection title="Model answer">
+              <p className="whitespace-pre-line text-sm leading-7 text-slate-700">
+                {evaluation.model_answer}
+              </p>
+            </ResultSection>
+          ) : null}
+        </>
       ) : null}
     </div>
   );
@@ -118,12 +131,14 @@ export function IeltsEvaluationResult({
 function CriterionCard({
   title,
   criterion,
+  scoreOnly,
 }: {
   title: string;
   criterion:
     | IeltsCriterionFeedback
     | IeltsWritingCriterionFeedback
     | IeltsPronunciationFeedback;
+  scoreOnly: boolean;
 }) {
   const pronunciation = isPronunciationCriterion(criterion)
     ? criterion
@@ -134,45 +149,51 @@ function CriterionCard({
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="font-bold text-slate-950">{title}</h3>
-          <p className="mt-2 text-sm font-medium text-slate-600">
-            {criterion.short_comment}
-          </p>
+          {!scoreOnly ? (
+            <p className="mt-2 text-sm font-medium text-slate-600">
+              {criterion.short_comment}
+            </p>
+          ) : null}
         </div>
         <span className="rounded-xl bg-blue-50 px-3 py-2 text-2xl font-black text-blue-700">
           {criterion.score.toFixed(1)}
         </span>
       </div>
 
-      <p className="mt-4 text-sm leading-6 text-slate-700">
-        {criterion.detailed_feedback}
-      </p>
+      {!scoreOnly ? (
+        <>
+          <p className="mt-4 text-sm leading-6 text-slate-700">
+            {criterion.detailed_feedback}
+          </p>
 
-      <div className="mt-5 grid gap-4 sm:grid-cols-3">
-        <MiniList
-          title="Điểm mạnh"
-          items={criterion.strengths}
-          tone="emerald"
-        />
-        <MiniList
-          title="Điểm yếu"
-          items={criterion.weaknesses}
-          tone="red"
-        />
-        <MiniList
-          title="Cách cải thiện"
-          items={criterion.improvement_suggestions}
-          tone="blue"
-        />
-      </div>
+          <div className="mt-5 grid gap-4 sm:grid-cols-3">
+            <MiniList
+              title="Điểm mạnh"
+              items={criterion.strengths}
+              tone="emerald"
+            />
+            <MiniList
+              title="Điểm yếu"
+              items={criterion.weaknesses}
+              tone="red"
+            />
+            <MiniList
+              title="Cách cải thiện"
+              items={criterion.improvement_suggestions}
+              tone="blue"
+            />
+          </div>
 
-      {pronunciation ? (
-        <div className="mt-5 grid gap-3 border-t border-slate-100 pt-5 sm:grid-cols-2">
-          <Detail label="Intelligibility" value={pronunciation.intelligibility} />
-          <Detail label="Word stress" value={pronunciation.word_stress} />
-          <Detail label="Sentence stress" value={pronunciation.sentence_stress} />
-          <Detail label="Rhythm" value={pronunciation.rhythm} />
-          <Detail label="Connected speech" value={pronunciation.connected_speech} />
-        </div>
+          {pronunciation ? (
+            <div className="mt-5 grid gap-3 border-t border-slate-100 pt-5 sm:grid-cols-2">
+              <Detail label="Intelligibility" value={pronunciation.intelligibility} />
+              <Detail label="Word stress" value={pronunciation.word_stress} />
+              <Detail label="Sentence stress" value={pronunciation.sentence_stress} />
+              <Detail label="Rhythm" value={pronunciation.rhythm} />
+              <Detail label="Connected speech" value={pronunciation.connected_speech} />
+            </div>
+          ) : null}
+        </>
       ) : null}
     </article>
   );

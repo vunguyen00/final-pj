@@ -19,6 +19,7 @@ function collectCriterionField(
 
 export function buildWritingAssessmentPayload(
   evaluation: IeltsWritingEvaluation,
+  scoreOnly = false,
 ) {
   const criteria = Object.values(evaluation.criteria);
   const strengths = collectCriterionField(criteria, "strengths");
@@ -48,6 +49,7 @@ export function buildWritingAssessmentPayload(
     },
     feedback: {
       schemaVersion: 2,
+      scoreOnly,
       ielts: evaluation,
       evaluation: {
         scores: {
@@ -104,6 +106,7 @@ export function buildWritingAssessmentPayload(
 
 export function buildSpeakingAssessmentPayload(
   evaluation: IeltsSpeakingEvaluation,
+  scoreOnly = false,
 ) {
   const criteria = Object.values(evaluation.criteria);
   const strengths = collectCriterionField(criteria, "strengths");
@@ -121,6 +124,7 @@ export function buildSpeakingAssessmentPayload(
     },
     feedback: {
       schemaVersion: 2,
+      scoreOnly,
       ielts: evaluation,
       evaluation: {
         scores: getIeltsCriteriaScores(evaluation),
@@ -168,4 +172,3 @@ export function buildSpeakingAssessmentPayload(
     },
   };
 }
-

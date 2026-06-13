@@ -33,6 +33,10 @@ export async function GET(
         return NextResponse.json({ error: "Bạn không có quyền xem kết quả này." }, { status: 403 });
       }
 
+      const assessmentFeedback = aiAssessment.feedback as Record<
+        string,
+        unknown
+      >;
       return NextResponse.json({
         id: aiAssessment.id,
         type: aiAssessment.type,
@@ -48,6 +52,7 @@ export async function GET(
         },
         criteria: aiAssessment.criteria,
         feedback: aiAssessment.feedback,
+        scoreOnly: assessmentFeedback.scoreOnly === true,
         mistakes: aiAssessment.mistakes,
         improvements: aiAssessment.improvements,
         sampleAnswer: aiAssessment.sampleAnswer,
@@ -81,6 +86,7 @@ export async function GET(
     }
 
     const stored = (attempt.results ?? {}) as Record<string, unknown>;
+    const scoreOnly = stored.scoreOnlyAiFeedback === true;
     const durationSeconds = Math.max(0, Math.round((attempt.submittedAt.getTime() - attempt.startedAt.getTime()) / 1000));
 
     return NextResponse.json({
@@ -102,21 +108,33 @@ export async function GET(
         correctAnswers: Number(stored.correctAnswers ?? 0),
       },
       feedback: {
-        summary: attempt.isPassed ? "Bạn đã đạt bài test." : "Bạn cần ôn lại các kỹ năng còn yếu.",
+        summary: scoreOnly
+          ? ""
+          : attempt.isPassed
+            ? "Bạn đã đạt bài test."
+            : "Bạn cần ôn lại các kỹ năng còn yếu.",
         questionResults: Array.isArray(stored.questionResults) ? stored.questionResults : [],
+        scoreOnly,
       },
-      mistakes: {
-        wrongAnswers: Array.isArray(stored.questionResults)
-          ? stored.questionResults.filter((item) => (item as Record<string, unknown>).isCorrect === false)
-          : [],
-      },
-      improvements: {
-        suggestions: [
-          "Xem lại các câu sai và đọc phần giải thích.",
-          "Làm lại bài sau khi ôn tập các kỹ năng còn yếu.",
-          "Theo dõi lịch sử kết quả để đánh giá tiến bộ theo thời gian.",
-        ],
-      },
+      scoreOnly,
+      mistakes: scoreOnly
+        ? null
+        : {
+            wrongAnswers: Array.isArray(stored.questionResults)
+              ? stored.questionResults.filter(
+                  (item) => (item as Record<string, unknown>).isCorrect === false,
+                )
+              : [],
+          },
+      improvements: scoreOnly
+        ? null
+        : {
+            suggestions: [
+              "Xem lại các câu sai và đọc phần giải thích.",
+              "Làm lại bài sau khi ôn tập các kỹ năng còn yếu.",
+              "Theo dõi lịch sử kết quả để đánh giá tiến bộ theo thời gian.",
+            ],
+          },
       durationSeconds,
       submittedAt: attempt.submittedAt,
       testId: attempt.testId,

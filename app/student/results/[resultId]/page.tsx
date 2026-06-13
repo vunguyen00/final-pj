@@ -28,8 +28,10 @@ type ResultDetail = {
   durationSeconds?: number | null;
   submittedAt: string;
   testId?: string;
+  scoreOnly?: boolean;
 };
 type TestAiEvaluation = {
+  scoreOnly?: boolean;
   language?: string;
   overallScore?: number;
   taskRelevance?: number;
@@ -142,6 +144,8 @@ export default function ResultDetailPage() {
     return Array.isArray(questionResults) ? questionResults as TestQuestionResult[] : [];
   }, [detail]);
   const percent = detail && detail.maxScore > 0 ? Math.round((detail.score / detail.maxScore) * 100) : 0;
+  const scoreOnly =
+    detail?.scoreOnly === true || detail?.feedback?.scoreOnly === true;
 
   if (loading) {
     return (
@@ -184,7 +188,10 @@ export default function ResultDetailPage() {
         </section>
 
         {ieltsEvaluation ? (
-          <IeltsEvaluationResult evaluation={ieltsEvaluation} />
+          <IeltsEvaluationResult
+            evaluation={ieltsEvaluation}
+            scoreOnly={scoreOnly}
+          />
         ) : (
           <section className="grid gap-4 md:grid-cols-4">
             {Object.entries(detail.criteria || {}).map(([key, value]) => (
@@ -196,7 +203,7 @@ export default function ResultDetailPage() {
           </section>
         )}
 
-        {!ieltsEvaluation ? (
+        {!ieltsEvaluation && !scoreOnly ? (
           <section className="grid gap-6 lg:grid-cols-2">
             <Panel title="Nhận xét của AI">
               {parsed.summary ? <p className="text-sm leading-6 text-slate-700">{parsed.summary}</p> : null}
@@ -221,7 +228,9 @@ export default function ResultDetailPage() {
 
         {testQuestionResults.some((item) => item.aiEvaluation) ? (
           <section className="rounded-xl border border-slate-200 bg-white p-5">
-            <h2 className="text-lg font-bold text-slate-950">Nhận xét AI theo từng câu</h2>
+            <h2 className="text-lg font-bold text-slate-950">
+              {scoreOnly ? "Điểm AI theo từng câu" : "Nhận xét AI theo từng câu"}
+            </h2>
             <div className="mt-4 space-y-4">
               {testQuestionResults.filter((item) => item.aiEvaluation).map((item, index) => {
                 const evaluation = item.aiEvaluation!;
@@ -229,23 +238,28 @@ export default function ResultDetailPage() {
                   <article key={item.questionId || index} className="rounded-lg border border-slate-200 p-4">
                     <p className="font-semibold text-slate-900">{item.content || `Câu ${index + 1}`}</p>
                     <p className="mt-2 text-sm font-semibold text-blue-700">
-                      {Number(item.earnedScore || 0)}/{Number(item.score || 0)} điểm - AI {Number(evaluation.overallScore || 0)}/10 - Bám đề {Math.round(evaluation.taskRelevance || 0)}/100
+                      {Number(item.earnedScore || 0)}/{Number(item.score || 0)} điểm - AI {Number(evaluation.overallScore || 0)}/10
+                      {!scoreOnly
+                        ? ` - Bám đề ${Math.round(evaluation.taskRelevance || 0)}/100`
+                        : ""}
                     </p>
-                    {evaluation.onTopic === false ? (
+                    {!scoreOnly && evaluation.onTopic === false ? (
                       <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">
                         Lạc đề: {evaluation.offTopicReason || "Câu trả lời chưa đúng trọng tâm đề bài."}
                       </p>
                     ) : null}
-                    <p className="mt-3 text-sm leading-6 text-slate-700">
-                      {evaluation.detailedComment || evaluation.summary || "AI đã chấm câu trả lời."}
-                    </p>
-                    {evaluation.weaknesses?.length ? (
+                    {!scoreOnly ? (
+                      <p className="mt-3 text-sm leading-6 text-slate-700">
+                        {evaluation.detailedComment || evaluation.summary || "AI đã chấm câu trả lời."}
+                      </p>
+                    ) : null}
+                    {!scoreOnly && evaluation.weaknesses?.length ? (
                       <p className="mt-2 text-sm text-slate-700">Cần cải thiện: {evaluation.weaknesses.join("; ")}</p>
                     ) : null}
-                    {evaluation.suggestions?.length ? (
+                    {!scoreOnly && evaluation.suggestions?.length ? (
                       <p className="mt-2 text-sm text-slate-700">Gợi ý: {evaluation.suggestions.join("; ")}</p>
                     ) : null}
-                    {evaluation.sampleAnswer ? (
+                    {!scoreOnly && evaluation.sampleAnswer ? (
                       <div className="mt-4 rounded-lg bg-slate-50 p-4">
                         <p className="text-sm font-semibold text-slate-900">Bài mẫu đúng đề</p>
                         <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-700">{evaluation.sampleAnswer}</p>

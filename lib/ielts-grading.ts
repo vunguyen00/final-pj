@@ -458,6 +458,90 @@ function normalizeSpeakingEvaluation(
   };
 }
 
+function toScoreOnlyWritingEvaluation(
+  evaluation: IeltsWritingEvaluation,
+): IeltsWritingEvaluation {
+  const scoreOnlyCriterion = (
+    criterion: IeltsWritingCriterionFeedback,
+  ): IeltsWritingCriterionFeedback => ({
+    score: criterion.score,
+    short_comment: "",
+    detailed_feedback: "",
+    strengths: [],
+    weaknesses: [],
+    improvement_suggestions: [],
+    examples_from_answer: [],
+    corrected_examples: [],
+  });
+
+  return {
+    skill: "writing",
+    task_type: evaluation.task_type,
+    overall_band: evaluation.overall_band,
+    criteria: {
+      task_achievement_or_response: scoreOnlyCriterion(
+        evaluation.criteria.task_achievement_or_response,
+      ),
+      coherence_and_cohesion: scoreOnlyCriterion(
+        evaluation.criteria.coherence_and_cohesion,
+      ),
+      lexical_resource: scoreOnlyCriterion(
+        evaluation.criteria.lexical_resource,
+      ),
+      grammatical_range_and_accuracy: scoreOnlyCriterion(
+        evaluation.criteria.grammatical_range_and_accuracy,
+      ),
+    },
+    final_feedback: "",
+    estimated_examiner_comment: "",
+    priority_to_improve: [],
+    model_answer: "",
+  };
+}
+
+function toScoreOnlySpeakingEvaluation(
+  evaluation: IeltsSpeakingEvaluation,
+): IeltsSpeakingEvaluation {
+  const scoreOnlyCriterion = (
+    criterion: IeltsCriterionFeedback,
+  ): IeltsCriterionFeedback => ({
+    score: criterion.score,
+    short_comment: "",
+    detailed_feedback: "",
+    strengths: [],
+    weaknesses: [],
+    improvement_suggestions: [],
+  });
+
+  return {
+    skill: "speaking",
+    overall_band: evaluation.overall_band,
+    criteria: {
+      fluency_and_coherence: scoreOnlyCriterion(
+        evaluation.criteria.fluency_and_coherence,
+      ),
+      lexical_resource: scoreOnlyCriterion(
+        evaluation.criteria.lexical_resource,
+      ),
+      grammatical_range_and_accuracy: scoreOnlyCriterion(
+        evaluation.criteria.grammatical_range_and_accuracy,
+      ),
+      pronunciation: {
+        ...scoreOnlyCriterion(evaluation.criteria.pronunciation),
+        intelligibility: "",
+        word_stress: "",
+        sentence_stress: "",
+        rhythm: "",
+        connected_speech: "",
+        pronunciation_errors: [],
+      },
+    },
+    final_feedback: "",
+    estimated_examiner_comment: "",
+    priority_to_improve: [],
+  };
+}
+
 function containsAny(value: string, signals: string[]) {
   return signals.some((signal) => value.includes(signal));
 }
@@ -500,6 +584,7 @@ export async function evaluateIeltsWriting(input: {
   prompt: string;
   answer: string;
   taskType?: IeltsWritingTaskType | null;
+  scoreOnly?: boolean;
 }) {
   const taskType = detectIeltsWritingTaskType(input.prompt, input.taskType);
   const taskSpecificRules =
@@ -528,6 +613,7 @@ Every comment must cite concrete evidence from the submitted answer. Do not use 
 Keep each short_comment under 140 characters, each detailed_feedback under 700 characters, and each array at no more than 3 concise items. Avoid double quotation marks inside JSON string values; use single quotation marks for quoted words or sentences.
 Write all feedback in Vietnamese. Keep quoted learner sentences and corrected English examples in English.
 The model answer must directly answer the prompt and be appropriate for ${taskType === "task_1" ? "Task 1" : "Task 2"}.
+${input.scoreOnly ? "This is score-only mode. Calculate all scores normally, but return empty strings for every comment and model_answer, and empty arrays for strengths, weaknesses, suggestions, examples, corrections, and priority_to_improve." : ""}
 Return only valid compact JSON matching the exact schema. Do not add keys or markdown.${attempt > 1 ? "\nThe previous response was invalid. Regenerate the complete JSON from scratch, shorten every text field, avoid double quotation marks inside values, and correctly escape line breaks." : ""}${attempt === 3 ? "\nThis is the final retry. Use at most 2 items in each array and keep detailed_feedback under 400 characters." : ""}`,
       },
       {
@@ -551,7 +637,14 @@ ${WRITING_SCHEMA}`,
     isIeltsWritingEvaluation,
   );
 
-  return normalizeWritingEvaluation(evaluation, taskType, input.answer);
+  const normalized = normalizeWritingEvaluation(
+    evaluation,
+    taskType,
+    input.answer,
+  );
+  return input.scoreOnly
+    ? toScoreOnlyWritingEvaluation(normalized)
+    : normalized;
 }
 
 export async function evaluateIeltsSpeaking(input: {
@@ -560,6 +653,7 @@ export async function evaluateIeltsSpeaking(input: {
   conversation?: string;
   durationSeconds?: number | null;
   audioAnalysisAvailable?: boolean;
+  scoreOnly?: boolean;
 }) {
   const evaluation = await requestValidatedEvaluation(
     (attempt) => [
@@ -581,6 +675,7 @@ Pronunciation evidence must be honest. If acoustic audio analysis is unavailable
 Every comment must be specific. Do not use vague praise such as "good job" or unexplained statements such as "needs improvement".
 Keep each short_comment under 140 characters, each detailed_feedback under 700 characters, and each array at no more than 3 concise items. Avoid double quotation marks inside JSON string values; use single quotation marks for quoted words or sentences.
 Write all feedback in Vietnamese. Keep quoted English examples in English.
+${input.scoreOnly ? "This is score-only mode. Calculate all scores normally, but return empty strings for every comment and pronunciation description, and empty arrays for strengths, weaknesses, suggestions, pronunciation errors, and priority_to_improve." : ""}
 Return only valid compact JSON matching the exact schema. Do not add keys or markdown.${attempt > 1 ? "\nThe previous response was invalid. Regenerate the complete JSON from scratch, shorten every text field, avoid double quotation marks inside values, and correctly escape line breaks." : ""}${attempt === 3 ? "\nThis is the final retry. Use at most 2 items in each array and keep detailed_feedback under 400 characters." : ""}`,
       },
       {
@@ -609,10 +704,13 @@ ${SPEAKING_SCHEMA}`,
     isIeltsSpeakingEvaluation,
   );
 
-  return normalizeSpeakingEvaluation(
+  const normalized = normalizeSpeakingEvaluation(
     evaluation,
     input.transcript,
     input.durationSeconds,
     input.audioAnalysisAvailable,
   );
+  return input.scoreOnly
+    ? toScoreOnlySpeakingEvaluation(normalized)
+    : normalized;
 }

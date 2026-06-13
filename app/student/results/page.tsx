@@ -17,6 +17,7 @@ type ResultItem = {
   submittedAt: string;
   durationSeconds: number | null;
   summary: string;
+  scoreOnly?: boolean;
 };
 
 const filters = ["all", "TEST", "SPEAKING", "WRITING"] as const;
@@ -128,7 +129,13 @@ export default function StudentResultsPage() {
                       <p className="mt-1 text-sm text-slate-500">
                         {item.course?.name || "Luyện tập độc lập"} - {new Date(item.submittedAt).toLocaleString("vi-VN")}
                       </p>
-                      {item.summary ? <p className="mt-2 text-sm text-slate-600">{item.summary}</p> : null}
+                      {item.scoreOnly ? (
+                        <p className="mt-2 text-sm font-medium text-slate-600">
+                          Khóa học đã hoàn thành. Kết quả này chỉ gồm điểm số.
+                        </p>
+                      ) : item.summary ? (
+                        <p className="mt-2 text-sm text-slate-600">{item.summary}</p>
+                      ) : null}
                     </div>
                     <div className="md:text-right">
                       <p className="text-2xl font-bold text-slate-950">{item.score.toFixed(1)} / {item.maxScore}</p>

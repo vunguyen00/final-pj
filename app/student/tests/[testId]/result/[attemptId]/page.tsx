@@ -6,6 +6,7 @@ import Link from "next/link";
 import StarRatingInput from "@/app/components/StarRatingInput";
 
 type AiEvaluation = {
+  scoreOnly?: boolean;
   language: string;
   overallScore: number;
   taskRelevance?: number;
@@ -46,6 +47,7 @@ type ResultData = {
   totalQuestions: number;
   correctAnswers: number;
   questionResults: QuestionResult[];
+  scoreOnlyAiFeedback?: boolean;
 };
 
 const questionTypes: Record<string, string> = {
@@ -240,24 +242,32 @@ export default function StudentTestResultPage() {
                   {question.aiEvaluation ? (
                     <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
                       <p className="font-semibold">
-                        Phản hồi AI - {question.aiEvaluation.language} - {question.aiEvaluation.overallScore}/10
+                        {question.aiEvaluation.scoreOnly ? "Điểm AI" : "Phản hồi AI"} - {question.aiEvaluation.language} - {question.aiEvaluation.overallScore}/10
                         {question.aiEvaluation.band ? ` - ${question.aiEvaluation.band.system} ${question.aiEvaluation.band.level}` : ""}
                       </p>
-                      <p className="mt-2">{question.aiEvaluation.summary}</p>
-                      <p className="mt-2 font-semibold">
-                        Độ bám đề: {Math.round(question.aiEvaluation.taskRelevance ?? 0)}/100
-                      </p>
-                      {question.aiEvaluation.onTopic === false ? (
+                      {question.aiEvaluation.scoreOnly ? (
+                        <p className="mt-2 text-blue-800">
+                          Khóa học đã hoàn thành. AI chỉ trả về điểm số cho lần chấm này.
+                        </p>
+                      ) : (
+                        <>
+                          <p className="mt-2">{question.aiEvaluation.summary}</p>
+                          <p className="mt-2 font-semibold">
+                            Độ bám đề: {Math.round(question.aiEvaluation.taskRelevance ?? 0)}/100
+                          </p>
+                        </>
+                      )}
+                      {!question.aiEvaluation.scoreOnly && question.aiEvaluation.onTopic === false ? (
                         <p className="mt-2 rounded-lg bg-red-100 p-3 font-semibold text-red-800">
                           Lạc đề: {question.aiEvaluation.offTopicReason || "Câu trả lời chưa đúng trọng tâm đề bài."}
                         </p>
                       ) : null}
-                      {question.aiEvaluation.detailedComment ? (
+                      {!question.aiEvaluation.scoreOnly && question.aiEvaluation.detailedComment ? (
                         <p className="mt-2 leading-6">{question.aiEvaluation.detailedComment}</p>
                       ) : null}
-                      {question.aiEvaluation.weaknesses.length ? <p className="mt-2">Cần cải thiện: {question.aiEvaluation.weaknesses.join(", ")}</p> : null}
-                      {question.aiEvaluation.suggestions.length ? <p className="mt-2">Đề xuất: {question.aiEvaluation.suggestions.slice(0, 3).join("; ")}</p> : null}
-                      {question.aiEvaluation.sampleAnswer ? (
+                      {!question.aiEvaluation.scoreOnly && question.aiEvaluation.weaknesses.length ? <p className="mt-2">Cần cải thiện: {question.aiEvaluation.weaknesses.join(", ")}</p> : null}
+                      {!question.aiEvaluation.scoreOnly && question.aiEvaluation.suggestions.length ? <p className="mt-2">Đề xuất: {question.aiEvaluation.suggestions.slice(0, 3).join("; ")}</p> : null}
+                      {!question.aiEvaluation.scoreOnly && question.aiEvaluation.sampleAnswer ? (
                         <div className="mt-3 rounded-lg border border-blue-200 bg-white p-3 text-slate-800">
                           <p className="font-semibold">Bài mẫu đúng đề</p>
                           <p className="mt-2 whitespace-pre-line leading-6">{question.aiEvaluation.sampleAnswer}</p>

@@ -18,6 +18,7 @@ import { evaluateIeltsSpeaking } from "@/lib/ielts-grading";
 import { buildSpeakingAssessmentPayload } from "@/lib/ielts-assessment";
 import type { IeltsSpeakingEvaluation } from "@/lib/ielts-rubric";
 import type { Prisma } from "@/app/generated/prisma/client";
+import { isCourseMarkedCompleted } from "@/lib/learning-progress";
 
 function audioExtension(type: string) {
   if (type.includes("mpeg") || type.includes("mp3")) return "mp3";
@@ -80,6 +81,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Bạn không có quyền trên khóa học này." }, { status: 403 });
       }
     }
+    const scoreOnly =
+      user.role === "STUDENT" && Boolean(courseId)
+        ? await isCourseMarkedCompleted(user.id, courseId)
+        : false;
 
     if (chargePoints) {
       const pointsBefore = await getAiPointsSummary(user.id);
@@ -117,13 +122,17 @@ export async function POST(request: NextRequest) {
               ? durationSeconds
               : null,
           audioAnalysisAvailable: false,
+          scoreOnly,
         });
       } catch (evaluationError) {
         console.error("IELTS speaking grading failed:", evaluationError);
         throw new Error("AI_EVALUATION_FAILED");
       }
 
-      const storedPayload = buildSpeakingAssessmentPayload(evaluation);
+      const storedPayload = buildSpeakingAssessmentPayload(
+        evaluation,
+        scoreOnly,
+      );
       overall = evaluation.overall_band;
       maxScore = 9;
       bandLevel = overall.toFixed(1);
@@ -139,6 +148,7 @@ export async function POST(request: NextRequest) {
           answer: sanitizedTranscript,
           prompt: `${prompt}\nConversation context: ${conversation.slice(0, 1500)}`,
           examType: "HSK",
+          scoreOnly,
         },
       ])).get("speaking");
       if (!evaluationResult || evaluationResult.failed) {
@@ -163,6 +173,7 @@ export async function POST(request: NextRequest) {
       sampleAnswer = evaluation.sampleAnswer || null;
       criteriaPayload = { ...criteria, taskRelevance };
       feedbackPayload = {
+        scoreOnly,
         evaluation: {
           scores: criteria,
           overall,
@@ -257,6 +268,7 @@ export async function POST(request: NextRequest) {
       points: pointResult,
       streak: activity.streak,
       data: feedbackPayload,
+      scoreOnly,
       durationMs: Date.now() - startTime,
     });
   } catch (error) {

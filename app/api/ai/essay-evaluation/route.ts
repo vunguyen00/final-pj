@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { canUseAiForCourse, shouldChargeAiPoints } from "@/lib/ai-access";
 import { evaluateIeltsWriting } from "@/lib/ielts-grading";
 import { buildWritingAssessmentPayload } from "@/lib/ielts-assessment";
+import { isCourseMarkedCompleted } from "@/lib/learning-progress";
 import type {
   IeltsWritingEvaluation,
   IeltsWritingTaskType,
@@ -93,6 +94,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Bạn không có quyền trên khóa học này." }, { status: 403 });
       }
     }
+    const scoreOnly =
+      user.role === "STUDENT" && Boolean(courseId)
+        ? await isCourseMarkedCompleted(user.id, courseId!)
+        : false;
 
     if (chargePoints) {
       const pointsBefore = await getAiPointsSummary(user.id);
@@ -128,13 +133,14 @@ export async function POST(request: NextRequest) {
         prompt: taskPrompt?.trim() || "General IELTS Writing Task 2",
         answer: sanitizedEssay,
         taskType,
+        scoreOnly,
       });
     } catch (evaluationError) {
       console.error("IELTS writing grading failed:", evaluationError);
       throw new Error("AI_EVALUATION_FAILED");
     }
 
-    const storedPayload = buildWritingAssessmentPayload(evaluation);
+    const storedPayload = buildWritingAssessmentPayload(evaluation, scoreOnly);
     const overall = evaluation.overall_band;
     const assessment = await prisma.aiAssessment.create({
       data: {
@@ -154,7 +160,7 @@ export async function POST(request: NextRequest) {
         feedback: storedPayload.feedback,
         mistakes: storedPayload.mistakes,
         improvements: storedPayload.improvements,
-        sampleAnswer: evaluation.model_answer || null,
+        sampleAnswer: scoreOnly ? null : evaluation.model_answer || null,
         submittedAt: new Date(),
       },
     });
@@ -191,6 +197,7 @@ export async function POST(request: NextRequest) {
         assessmentId: assessment.id,
         points: pointResult,
         streak: activity.streak,
+        scoreOnly,
       },
       { status: 200 }
     );

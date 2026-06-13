@@ -13,6 +13,7 @@ import {
 
 export type TestAiFeedback = {
   mode: "WRITING" | "SPEAKING";
+  scoreOnly?: boolean;
   language: string;
   overallScore: number;
   taskRelevance?: number;
@@ -42,6 +43,7 @@ export type TestAiAnswerInput = {
   prompt?: string;
   languageCode?: string | null;
   examType?: "IELTS" | "HSK";
+  scoreOnly?: boolean;
 };
 
 export type TestAiAnswerResult = {
@@ -101,6 +103,35 @@ function booleanValue(value: unknown, fallback: boolean) {
     if (value.toLowerCase() === "false") return false;
   }
   return fallback;
+}
+
+function toScoreOnlyFeedback(feedback: TestAiFeedback): TestAiFeedback {
+  return {
+    mode: feedback.mode,
+    scoreOnly: true,
+    language: feedback.language,
+    overallScore: feedback.overallScore,
+    taskRelevance: feedback.taskRelevance,
+    onTopic: feedback.onTopic,
+    offTopicReason: "",
+    detailedComment: "",
+    sampleAnswer: "",
+    criteria: feedback.criteria,
+    band: feedback.band
+      ? { ...feedback.band, rationale: "" }
+      : undefined,
+    summary: "",
+    strengths: [],
+    weaknesses: [],
+    feedback: [],
+    suggestions: [],
+    corrections: [],
+    pronunciationErrors: [],
+    grammarErrors: [],
+    vocabularyErrors: [],
+    fluencyIssues: [],
+    practiceMethods: [],
+  };
 }
 
 function sourceFeedbackText(source: Record<string, unknown>) {
@@ -298,40 +329,44 @@ function parseBatchResponse(raw: string, inputs: TestAiAnswerInput[]) {
     const reportedOnTopic = booleanValue(source.onTopic ?? source.on_topic, relevance >= 60);
     const onTopic = reportedOnTopic && relevance >= 60;
 
+    const aiEvaluation: TestAiFeedback = {
+      mode,
+      language: String(source.language || "Unknown"),
+      overallScore: normalizedScore,
+      taskRelevance: relevance,
+      onTopic,
+      offTopicReason: String(
+        source.offTopicReason ??
+        source.off_topic_reason ??
+        (onTopic ? "" : "The answer does not sufficiently address the original prompt."),
+      ),
+      detailedComment: String(source.detailedComment ?? source.detailed_comment ?? source.summary ?? ""),
+      sampleAnswer: String(source.sampleAnswer ?? source.sample_answer ?? ""),
+      criteria,
+      band: {
+        system: String(rawBand.system || (mode === "SPEAKING" ? "GENERAL_SPEAKING" : "GENERAL_WRITING")),
+        level: `${normalizedScore.toFixed(1)}/10`,
+        score: normalizedScore,
+        rationale: String(rawBand.rationale || ""),
+      },
+      summary: String(source.summary || "AI evaluation completed."),
+      strengths: stringArray(source.strengths),
+      weaknesses: stringArray(source.weaknesses),
+      feedback: stringArray(source.feedback),
+      suggestions: stringArray(source.suggestions),
+      corrections: correctionArray(source.corrections),
+      pronunciationErrors: stringArray(source.pronunciationErrors ?? source.pronunciation_errors),
+      grammarErrors: stringArray(source.grammarErrors ?? source.grammar_errors),
+      vocabularyErrors: stringArray(source.vocabularyErrors ?? source.vocabulary_errors),
+      fluencyIssues: stringArray(source.fluencyIssues ?? source.fluency_issues),
+      practiceMethods: stringArray(source.practiceMethods ?? source.practice_methods),
+    };
+
     results.set(input.questionId, {
       normalizedScore,
-      aiEvaluation: {
-        mode,
-        language: String(source.language || "Unknown"),
-        overallScore: normalizedScore,
-        taskRelevance: relevance,
-        onTopic,
-        offTopicReason: String(
-          source.offTopicReason ??
-          source.off_topic_reason ??
-          (onTopic ? "" : "The answer does not sufficiently address the original prompt."),
-        ),
-        detailedComment: String(source.detailedComment ?? source.detailed_comment ?? source.summary ?? ""),
-        sampleAnswer: String(source.sampleAnswer ?? source.sample_answer ?? ""),
-        criteria,
-        band: {
-          system: String(rawBand.system || (mode === "SPEAKING" ? "GENERAL_SPEAKING" : "GENERAL_WRITING")),
-          level: `${normalizedScore.toFixed(1)}/10`,
-          score: normalizedScore,
-          rationale: String(rawBand.rationale || ""),
-        },
-        summary: String(source.summary || "AI evaluation completed."),
-        strengths: stringArray(source.strengths),
-        weaknesses: stringArray(source.weaknesses),
-        feedback: stringArray(source.feedback),
-        suggestions: stringArray(source.suggestions),
-        corrections: correctionArray(source.corrections),
-        pronunciationErrors: stringArray(source.pronunciationErrors ?? source.pronunciation_errors),
-        grammarErrors: stringArray(source.grammarErrors ?? source.grammar_errors),
-        vocabularyErrors: stringArray(source.vocabularyErrors ?? source.vocabulary_errors),
-        fluencyIssues: stringArray(source.fluencyIssues ?? source.fluency_issues),
-        practiceMethods: stringArray(source.practiceMethods ?? source.practice_methods),
-      },
+      aiEvaluation: input.scoreOnly
+        ? toScoreOnlyFeedback(aiEvaluation)
+        : aiEvaluation,
     });
   }
 
@@ -357,8 +392,8 @@ Calibrate conservatively. A score of 5 is limited, 6 is competent with noticeabl
 For writing, calculate overallScore from task_response, coherence, vocabulary, and grammar. IELTS-like Task 2 responses below 250 words must not exceed 6.5. A missing conclusion or unclear position limits task_response to 5.
 For speaking transcripts, calculate overallScore from fluency, vocabulary, grammar, and pronunciation. A basic or repetitive response should normally remain at 6 or below. A transcript below 150 words must not exceed 6.5. Without acoustic audio analysis, pronunciation must not exceed 6.
 For speaking, set onTopic=true whenever the answer addresses the requested topic, even if grammar, pronunciation, fluency, or the overall score is weak.
-Always provide a detailedComment with actionable feedback after grading.
-Always provide a sampleAnswer that correctly answers the original prompt in the expected language. For WRITING use about 120-180 words. For SPEAKING use a natural model response of about 80-120 words.
+When an input has scoreOnly=true, calculate all numeric scores normally but set every comment string, sampleAnswer, correction, and feedback array to empty. Do not provide explanations or improvement advice.
+Unless scoreOnly=true, always provide a detailedComment with actionable feedback and a sampleAnswer that correctly answers the original prompt. For WRITING use about 120-180 words. For SPEAKING use a natural model response of about 80-120 words.
 Use at most two items per feedback array and at most one correction. Keep the JSON concise.${retryInstruction}`,
     },
     {
@@ -388,6 +423,7 @@ export async function evaluateTestAiAnswers(inputs: TestAiAnswerInput[]) {
             : "GENERAL_WRITING",
           prompt: input.prompt || "",
           answer: input.answer,
+          scoreOnly: Boolean(input.scoreOnly),
         }));
       let parsedResults: Map<string, TestAiAnswerResult> | null = null;
       let lastResponseError: AiEvaluationResponseError | null = null;

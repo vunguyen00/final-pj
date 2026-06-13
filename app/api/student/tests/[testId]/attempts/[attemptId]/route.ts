@@ -62,6 +62,7 @@ export async function GET(
       correctAnswers: Number(stored.correctAnswers ?? 0),
       submittedAnswers: Array.isArray(stored.submittedAnswers) ? stored.submittedAnswers : [],
       questionResults: Array.isArray(stored.questionResults) ? stored.questionResults : [],
+      scoreOnlyAiFeedback: stored.scoreOnlyAiFeedback === true,
       submittedAt: attempt.submittedAt,
     });
   } catch (error) {

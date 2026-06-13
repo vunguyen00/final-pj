@@ -11,6 +11,7 @@ import type {
 
 type EvaluationResponse = {
   assessmentId: string;
+  scoreOnly?: boolean;
   points?: { spent: number; available: number };
   streak?: number;
   data: {
@@ -48,6 +49,9 @@ export default function WritingAiPage() {
           essay,
           taskPrompt,
           taskType,
+          courseId:
+            new URLSearchParams(window.location.search).get("courseId") ||
+            undefined,
           title: `Writing AI - ${taskType === "task_1" ? "Task 1" : "Task 2"}`,
         }),
       });
@@ -141,7 +145,10 @@ export default function WritingAiPage() {
                 Xem chi tiết đã lưu
               </Link>
             </div>
-            <IeltsEvaluationResult evaluation={result.data.ielts} />
+            <IeltsEvaluationResult
+              evaluation={result.data.ielts}
+              scoreOnly={Boolean(result.scoreOnly)}
+            />
           </section>
         ) : null}
       </div>

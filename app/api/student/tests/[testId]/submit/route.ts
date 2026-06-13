@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import {
   getCourseProgressPercent,
   hasCertificateSent,
+  isCourseMarkedCompleted,
   markCertificateSent,
   markCourseCompleted,
 } from "@/lib/learning-progress";
@@ -92,6 +93,10 @@ export async function POST(
     const questionResults: Array<Record<string, unknown>> = [];
     const answerSnapshots: Array<Record<string, unknown>> = [];
     const languageCode = test.language?.code || test.course?.language?.code || null;
+    const scoreOnlyAiFeedback =
+      user.role === "STUDENT" && test.courseId
+        ? await isCourseMarkedCompleted(user.id, test.courseId)
+        : false;
     const aiInputs = test.questions
         .filter((question) => question.type === "ESSAY" || question.type === "SPEAKING")
         .map((question) => ({
@@ -100,6 +105,7 @@ export async function POST(
           answer: String(answers[question.id] || "").trim(),
           prompt: question.content,
           languageCode,
+          scoreOnly: scoreOnlyAiFeedback,
         }))
         .filter((item) => item.answer);
     const aiResults = await evaluateTestAiAnswers(aiInputs);
@@ -143,7 +149,7 @@ export async function POST(
           correctAnswer = correctAns.content;
         }
       } else if (question.type === "ESSAY") {
-        correctAnswer = question.answers[0]?.content || "";
+        correctAnswer = scoreOnlyAiFeedback ? "" : question.answers[0]?.content || "";
         if (studentAnswerDisplay.trim()) {
           const aiResult = aiResults.get(question.id);
           if (aiResult) {
@@ -214,6 +220,7 @@ export async function POST(
         totalQuestions: test.questions.length,
         correctAnswers: questionResults.filter((q) => q.isCorrect === true).length,
         questionResults,
+        scoreOnlyAiFeedback,
       });
     }
 
@@ -235,6 +242,7 @@ export async function POST(
           correctAnswers: questionResults.filter((q) => q.isCorrect === true).length,
           submittedAnswers: answerSnapshots,
           questionResults,
+          scoreOnlyAiFeedback,
         },
         startedAt: new Date(
           Date.now() - (test.timeLimit ? test.timeLimit * 60 * 1000 : 0),
@@ -287,6 +295,7 @@ export async function POST(
       totalQuestions: test.questions.length,
       correctAnswers: questionResults.filter((q) => q.isCorrect === true).length,
       questionResults,
+      scoreOnlyAiFeedback,
     });
   } catch (error) {
     console.error("Error submitting test:", error);

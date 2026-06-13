@@ -88,8 +88,11 @@ export async function GET(request: NextRequest) {
         submittedAt: item.submittedAt,
         durationSeconds: item.durationSeconds,
         summary: String(
-          ielts?.final_feedback || legacyEvaluation?.summary || "",
+          feedback.scoreOnly === true
+            ? ""
+            : ielts?.final_feedback || legacyEvaluation?.summary || "",
         ),
+        scoreOnly: feedback.scoreOnly === true,
       };
     });
 

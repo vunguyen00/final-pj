@@ -16,10 +16,12 @@ type ConversationTurn = {
 
 type SpeakingResult = {
   assessmentId: string;
+  scoreOnly?: boolean;
   audioUrl: string | null;
   points?: { spent: number; available: number };
   streak?: number;
   data: {
+    scoreOnly?: boolean;
     ielts?: IeltsSpeakingEvaluation;
     evaluation: {
       scores: Record<string, number>;
@@ -538,6 +540,10 @@ export default function SpeakingAiPage() {
       form.set("conversation", JSON.stringify(finalTurns));
       form.set("durationSeconds", String(Math.max(1, spentSeconds || durationSeconds)));
       form.set("title", `Speaking AI - ${examType}`);
+      const courseId = new URLSearchParams(window.location.search).get(
+        "courseId",
+      );
+      if (courseId) form.set("courseId", courseId);
       const finalAudioBlob = audioBlobRef.current || audioBlob;
       if (finalAudioBlob) {
         form.set("audio", finalAudioBlob, "speaking.webm");
@@ -568,6 +574,7 @@ export default function SpeakingAiPage() {
 
   finishAndSubmitRef.current = finishAndSubmit;
   const scoreMax = result?.data.evaluation.exam === "IELTS" ? 9 : 100;
+  const scoreOnly = Boolean(result?.scoreOnly || result?.data.scoreOnly);
 
   return (
     <main className="min-h-screen bg-slate-50 py-8">
@@ -711,7 +718,10 @@ export default function SpeakingAiPage() {
                 Xem chi tiết đã lưu
               </Link>
             </div>
-            <IeltsEvaluationResult evaluation={result.data.ielts} />
+            <IeltsEvaluationResult
+              evaluation={result.data.ielts}
+              scoreOnly={scoreOnly}
+            />
           </section>
         ) : null}
 
@@ -724,8 +734,14 @@ export default function SpeakingAiPage() {
                     {result.data.evaluation.language} - {result.data.evaluation.band.system}
                   </p>
                   <h2 className="mt-1 text-2xl font-bold text-slate-950">Cấp độ {result.data.evaluation.band.level}</h2>
-                  <p className="mt-2 text-sm text-slate-600">{result.data.evaluation.summary}</p>
-                  {result.data.evaluation.onTopic === false ? (
+                  {scoreOnly ? (
+                    <p className="mt-2 text-sm text-slate-600">
+                      Khóa học đã hoàn thành. AI chỉ trả về điểm số cho lần chấm này.
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-sm text-slate-600">{result.data.evaluation.summary}</p>
+                  )}
+                  {!scoreOnly && result.data.evaluation.onTopic === false ? (
                     <p className="mt-2 rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">
                       Câu trả lời bị lạc đề: {result.data.evaluation.offTopicReason || "Nội dung chưa trả lời đúng yêu cầu của đề nói."}
                     </p>
@@ -739,9 +755,11 @@ export default function SpeakingAiPage() {
                   <p className="text-sm font-semibold text-red-600">
                     {userRole === "STUDENT" ? `-${result.points?.spent ?? 7} điểm` : "Không trừ điểm"}
                   </p>
-                  <p className="mt-1 text-xs font-semibold text-slate-500">
-                    Bám đề: {Math.round(result.data.evaluation.taskRelevance ?? 0)}/100
-                  </p>
+                  {!scoreOnly ? (
+                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                      Bám đề: {Math.round(result.data.evaluation.taskRelevance ?? 0)}/100
+                    </p>
+                  ) : null}
                 </div>
               </div>
               <Link href={`/student/results/${result.assessmentId}`} className="mt-4 inline-block rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">
@@ -758,33 +776,37 @@ export default function SpeakingAiPage() {
               ))}
             </div>
 
-            <FeedbackBlock title="Phản hồi chi tiết" items={result.data.analysis.feedback} />
-            {result.data.evaluation.detailedComment ? (
+            {!scoreOnly ? (
+              <>
+                <FeedbackBlock title="Phản hồi chi tiết" items={result.data.analysis.feedback} />
+                {result.data.evaluation.detailedComment ? (
               <section className="rounded-xl border border-blue-200 bg-blue-50 p-5">
                 <h2 className="text-lg font-bold text-blue-950">Nhận xét tổng hợp</h2>
                 <p className="mt-3 text-sm leading-6 text-blue-900">{result.data.evaluation.detailedComment}</p>
               </section>
-            ) : null}
-            <FeedbackBlock
-              title="Phát âm, ngữ pháp, từ vựng và độ trôi chảy"
-              items={[
-                ...result.data.mistakes.pronunciation,
-                ...result.data.mistakes.grammar,
-                ...result.data.mistakes.vocabulary,
-                ...result.data.mistakes.fluency,
-              ]}
-            />
-            <FeedbackBlock
-              title="Phương pháp cải thiện"
-              items={[...result.data.analysis.suggestions, ...result.data.improvements.practiceMethods]}
-            />
-            {result.data.improvements.sampleAnswer ? (
-              <section className="rounded-xl border border-slate-200 bg-white p-5">
-                <h2 className="text-lg font-bold text-slate-950">Câu trả lời mẫu đúng đề</h2>
-                <p className="mt-4 whitespace-pre-line text-sm leading-6 text-slate-700">
-                  {result.data.improvements.sampleAnswer}
-                </p>
-              </section>
+                ) : null}
+                <FeedbackBlock
+                  title="Phát âm, ngữ pháp, từ vựng và độ trôi chảy"
+                  items={[
+                    ...result.data.mistakes.pronunciation,
+                    ...result.data.mistakes.grammar,
+                    ...result.data.mistakes.vocabulary,
+                    ...result.data.mistakes.fluency,
+                  ]}
+                />
+                <FeedbackBlock
+                  title="Phương pháp cải thiện"
+                  items={[...result.data.analysis.suggestions, ...result.data.improvements.practiceMethods]}
+                />
+                {result.data.improvements.sampleAnswer ? (
+                  <section className="rounded-xl border border-slate-200 bg-white p-5">
+                    <h2 className="text-lg font-bold text-slate-950">Câu trả lời mẫu đúng đề</h2>
+                    <p className="mt-4 whitespace-pre-line text-sm leading-6 text-slate-700">
+                      {result.data.improvements.sampleAnswer}
+                    </p>
+                  </section>
+                ) : null}
+              </>
             ) : null}
           </section>
         ) : null}

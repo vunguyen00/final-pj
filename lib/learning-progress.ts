@@ -125,6 +125,22 @@ export async function markCourseCompleted(userId: string, courseId: string) {
   });
 }
 
+export async function isCourseMarkedCompleted(
+  userId: string,
+  courseId: string,
+) {
+  const existing = await prisma.feedback.findFirst({
+    where: {
+      userId,
+      courseId,
+      content: courseCompletedContent(courseId),
+    },
+    select: { id: true },
+  });
+
+  return Boolean(existing);
+}
+
 export async function hasCertificateSent(userId: string, courseId: string) {
   const existing = await prisma.feedback.findFirst({
     where: {
