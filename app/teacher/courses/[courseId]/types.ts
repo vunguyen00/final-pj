@@ -10,7 +10,6 @@ export type Test = {
   name: string;
   maxScore: number;
   passingScore: number;
-  maxAttempts: number;
   timeLimit: number | null;
   _count: {
     questions: number;
@@ -47,7 +46,6 @@ export type TestForm = {
   name: string;
   description: string;
   passingScore: string;
-  maxAttempts: string;
   timeLimit: string;
   shuffleQuestions: boolean;
 };
@@ -56,7 +54,6 @@ export const initialTestForm: TestForm = {
   name: "",
   description: "",
   passingScore: "50",
-  maxAttempts: "3",
   timeLimit: "",
   shuffleQuestions: false,
 };

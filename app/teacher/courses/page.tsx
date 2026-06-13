@@ -388,9 +388,7 @@ export default function TeacherCoursesPage() {
                     <label className="block text-sm font-medium text-slate-900">Trạng thái</label>
                     <select value={formData.status} onChange={(event) => setFormData({ ...formData, status: event.target.value })} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
                       <option value="ACTIVE">Hoạt động</option>
-                      <option value="LOCKED">Đã khóa</option>
-                      <option value="PENDING_APPROVAL">Chờ duyệt</option>
-                      <option value="REJECTED">Bị từ chối</option>
+                      <option value="LOCKED">Khóa</option>
                     </select>
                   </div>
                 ) : (

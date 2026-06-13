@@ -1,6 +1,7 @@
 import type { SpeakingExamType } from "@/lib/ai/types";
 
 export const FIXED_TEST_MAX_SCORE = 100;
+export const UNLIMITED_TEST_ATTEMPTS = 2147483647;
 
 export type TestAssessmentMode = "STANDARD" | "WRITING" | "SPEAKING";
 export type SupportedQuestionType = "MULTIPLE_CHOICE" | "FILL_IN_BLANK" | "ESSAY" | "TRUE_FALSE" | "SPEAKING";

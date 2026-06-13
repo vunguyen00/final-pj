@@ -9,22 +9,29 @@ type TestForm = {
   description: string;
   languageId: string;
   assessmentMode: "STANDARD" | "WRITING" | "SPEAKING";
+  timeLimit: string;
 };
 
-const defaultTestForm: TestForm = {
+const defaultTeacherEntranceForm: TestForm = {
   name: "",
   description: "",
   languageId: "",
   assessmentMode: "WRITING",
+  timeLimit: "60",
 };
 
 const defaultPublicPracticeForm: TestForm = {
-  ...defaultTestForm,
+  name: "",
+  description: "",
+  languageId: "",
   assessmentMode: "STANDARD",
+  timeLimit: "30",
 };
 
 function labelForKind(kind: AdminManagedTest["kind"]) {
-  return kind === "TEACHER_ENTRANCE" ? "De dau vao giang vien" : "De luyen tap cong khai";
+  return kind === "TEACHER_ENTRANCE"
+    ? "Đề đầu vào giảng viên"
+    : "Đề luyện tập công khai";
 }
 
 export default function AdminTestsManagement({
@@ -37,14 +44,23 @@ export default function AdminTestsManagement({
   isAdmin: boolean;
 }) {
   const [languages] = useState(initialLanguages);
-  const [adminManagedTests, setAdminManagedTests] = useState(initialAdminManagedTests);
-  const [teacherEntranceForm, setTeacherEntranceForm] = useState<TestForm>(defaultTestForm);
-  const [publicPracticeForm, setPublicPracticeForm] = useState<TestForm>(defaultPublicPracticeForm);
+  const [adminManagedTests, setAdminManagedTests] = useState(
+    initialAdminManagedTests,
+  );
+  const [teacherEntranceForm, setTeacherEntranceForm] = useState<TestForm>(
+    defaultTeacherEntranceForm,
+  );
+  const [publicPracticeForm, setPublicPracticeForm] = useState<TestForm>(
+    defaultPublicPracticeForm,
+  );
   const [message, setMessage] = useState("");
 
   if (!isAdmin) return null;
 
-  function buildTestPayload(form: TestForm, kind: "TEACHER_ENTRANCE" | "PUBLIC_PRACTICE") {
+  function buildTestPayload(
+    form: TestForm,
+    kind: "TEACHER_ENTRANCE" | "PUBLIC_PRACTICE",
+  ) {
     return {
       name: form.name.trim(),
       description: form.description.trim() || null,
@@ -52,8 +68,7 @@ export default function AdminTestsManagement({
       languageId: form.languageId,
       assessmentMode: form.assessmentMode,
       passingScore: 60,
-      maxAttempts: 3,
-      timeLimit: null,
+      timeLimit: form.timeLimit ? Number(form.timeLimit) : null,
     };
   }
 
@@ -62,13 +77,12 @@ export default function AdminTestsManagement({
     form: TestForm,
     kind: "TEACHER_ENTRANCE" | "PUBLIC_PRACTICE",
     reset: () => void,
-    successMessage: string,
-    errorMessage: string,
   ) {
     event.preventDefault();
+    setMessage("");
 
     if (!form.languageId) {
-      setMessage("Vui long chon ngon ngu bat buoc truoc khi tao de.");
+      setMessage("Vui lòng chọn ngôn ngữ trước khi tạo đề.");
       return;
     }
 
@@ -79,197 +93,272 @@ export default function AdminTestsManagement({
     });
     const data = await response.json().catch(() => ({}));
 
-    if (response.ok) {
-      const language = languages.find((item) => item.id === form.languageId) ?? null;
-      setAdminManagedTests((prev) => [
-        {
-          id: data.test.id,
-          name: data.test.name,
-          kind: data.test.kind,
-          assessmentMode: data.test.assessmentMode,
-          language: language ? { id: language.id, name: language.name, code: language.code } : null,
-          createdAt: new Date().toISOString(),
-          _count: { questions: 0, attempts: 0 },
-        },
-        ...prev,
-      ]);
-      reset();
-      setMessage(successMessage);
+    if (!response.ok) {
+      setMessage(data?.error || "Không thể tạo đề test.");
       return;
     }
 
-    setMessage(data?.error || errorMessage);
+    const language =
+      languages.find((item) => item.id === form.languageId) ?? null;
+    setAdminManagedTests((previous) => [
+      {
+        id: data.test.id,
+        name: data.test.name,
+        kind: data.test.kind,
+        assessmentMode: data.test.assessmentMode,
+        timeLimit: data.test.timeLimit,
+        language: language
+          ? {
+              id: language.id,
+              name: language.name,
+              code: language.code,
+            }
+          : null,
+        createdAt: new Date().toISOString(),
+        _count: { questions: 0, attempts: 0 },
+      },
+      ...previous,
+    ]);
+    reset();
+    setMessage(
+      kind === "TEACHER_ENTRANCE"
+        ? "Đã tạo đề đầu vào giảng viên."
+        : "Đã tạo đề luyện tập.",
+    );
+  }
+
+  async function deleteTest(testId: string) {
+    if (!window.confirm("Bạn chắc chắn muốn xóa đề này?")) return;
+
+    try {
+      const response = await fetch(`/api/teacher/tests/${testId}`, {
+        method: "DELETE",
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setMessage(data?.error || "Không thể xóa đề.");
+        return;
+      }
+
+      setAdminManagedTests((previous) =>
+        previous.filter((test) => test.id !== testId),
+      );
+      setMessage("Đã xóa đề.");
+    } catch {
+      setMessage("Lỗi khi xóa đề.");
+    }
   }
 
   return (
     <div className="space-y-6">
-      {message ? <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">{message}</div> : null}
+      {message ? (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+          {message}
+        </div>
+      ) : null}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-6">
-        <h2 className="text-xl font-bold text-slate-950">Quan ly de test</h2>
-        <p className="mt-1 text-sm text-slate-500">Admin co the tao de dau vao va de luyen tap tai day.</p>
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div>
+          <h2 className="text-xl font-bold text-slate-950">Quản lý đề test</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Tạo đề đầu vào giảng viên và đề luyện tập theo từng ngôn ngữ.
+          </p>
+        </div>
 
-        <div className="mt-4 grid gap-6 lg:grid-cols-2">
-          <form
+        <div className="mt-5 grid gap-5 xl:grid-cols-2">
+          <ManagedTestForm
+            title="Đề đầu vào giảng viên"
+            description="Hệ thống chọn ngẫu nhiên một đề hợp lệ theo ngôn ngữ khi ứng viên bắt đầu thi."
+            accent="blue"
+            form={teacherEntranceForm}
+            languages={languages}
+            onChange={setTeacherEntranceForm}
             onSubmit={(event) =>
               void createManagedTest(
                 event,
                 teacherEntranceForm,
                 "TEACHER_ENTRANCE",
-                () => setTeacherEntranceForm(defaultTestForm),
-                "Da tao de dau vao.",
-                "Khong the tao de dau vao.",
+                () => setTeacherEntranceForm(defaultTeacherEntranceForm),
               )
             }
-            className="rounded-lg border border-slate-200 p-4"
-          >
-            <h3 className="font-semibold text-slate-900">De dau vao giang vien</h3>
-            <p className="mt-1 text-sm text-slate-500">
-              Co the tao nhieu de cho cung mot ngon ngu. He thong se chon ngau nhien mot de hop le khi bat dau thi.
-            </p>
-            <div className="mt-3 space-y-3">
-              <input
-                value={teacherEntranceForm.name}
-                onChange={(event) => setTeacherEntranceForm((prev) => ({ ...prev, name: event.target.value }))}
-                required
-                placeholder="Vi du: English Teacher Entrance Test"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              />
-              <textarea
-                value={teacherEntranceForm.description}
-                onChange={(event) => setTeacherEntranceForm((prev) => ({ ...prev, description: event.target.value }))}
-                rows={2}
-                placeholder="Mo ta de test"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              />
-              <select
-                value={teacherEntranceForm.languageId}
-                onChange={(event) => setTeacherEntranceForm((prev) => ({ ...prev, languageId: event.target.value }))}
-                required
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              >
-                <option value="">Chon ngon ngu bat buoc</option>
-                {languages.map((language) => (
-                  <option key={language.id} value={language.id}>
-                    {language.name} ({language.code})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-              Tao de dau vao
-            </button>
-          </form>
+          />
 
-          <form
+          <ManagedTestForm
+            title="Đề luyện tập công khai"
+            description="Tạo đề luyện tập cho học viên và gắn đúng ngôn ngữ."
+            accent="emerald"
+            form={publicPracticeForm}
+            languages={languages}
+            onChange={setPublicPracticeForm}
             onSubmit={(event) =>
               void createManagedTest(
                 event,
                 publicPracticeForm,
                 "PUBLIC_PRACTICE",
                 () => setPublicPracticeForm(defaultPublicPracticeForm),
-                "Da tao de luyen tap.",
-                "Khong the tao de luyen tap.",
               )
             }
-            className="rounded-lg border border-slate-200 p-4"
-          >
-            <h3 className="font-semibold text-slate-900">De luyen tap cong khai</h3>
-            <p className="mt-1 text-sm text-slate-500">Tao de luyen tap cho hoc sinh. Bat buoc chon ngon ngu.</p>
-            <div className="mt-3 space-y-3">
-              <input
-                value={publicPracticeForm.name}
-                onChange={(event) => setPublicPracticeForm((prev) => ({ ...prev, name: event.target.value }))}
-                required
-                placeholder="Vi du: English Practice Test - Intermediate"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              />
-              <textarea
-                value={publicPracticeForm.description}
-                onChange={(event) => setPublicPracticeForm((prev) => ({ ...prev, description: event.target.value }))}
-                rows={2}
-                placeholder="Mo ta de luyen tap"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              />
-              <select
-                value={publicPracticeForm.languageId}
-                onChange={(event) => setPublicPracticeForm((prev) => ({ ...prev, languageId: event.target.value }))}
-                required
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              >
-                <option value="">Chon ngon ngu bat buoc</option>
-                {languages.map((language) => (
-                  <option key={language.id} value={language.id}>
-                    {language.name} ({language.code})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button className="mt-4 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-              Tao de luyen tap
-            </button>
-          </form>
+          />
         </div>
 
-        <div className="mt-8 space-y-3">
-          <h3 className="font-semibold text-slate-900">Danh sach cac de</h3>
+        <div className="mt-8">
+          <h3 className="font-bold text-slate-900">Danh sách các đề</h3>
           {adminManagedTests.length === 0 ? (
-            <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">Chua co de nao.</p>
+            <p className="mt-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
+              Chưa có đề nào.
+            </p>
           ) : (
-            <div className="space-y-2">
+            <div className="mt-3 space-y-3">
               {adminManagedTests.map((test) => (
-                <div
+                <article
                   key={test.id}
-                  className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 lg:flex-row lg:items-center lg:justify-between"
                 >
-                  <div className="flex-1">
-                    <p className="font-medium text-slate-900">{test.name}</p>
-                    <p className="text-sm text-slate-600">{labelForKind(test.kind)}</p>
-                    <p className="text-xs text-slate-500">
-                      {test.language?.name || "Chua gan ngon ngu"} - {test._count.questions} cau hoi - {test._count.attempts} lan thi
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-bold text-slate-950">{test.name}</p>
+                      <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                        {labelForKind(test.kind)}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-slate-600">
+                      {test.language?.name || "Chưa gán ngôn ngữ"} -{" "}
+                      {test._count.questions} câu hỏi - {test._count.attempts} lần
+                      thi
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-slate-500">
+                      Thời gian:{" "}
+                      {test.timeLimit
+                        ? `${test.timeLimit} phút`
+                        : "Không giới hạn"}
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Link
                       href={`/teacher/tests/${test.id}/questions`}
                       className="rounded-lg bg-slate-900 px-3 py-2 text-center text-sm font-semibold text-white hover:bg-slate-800"
                     >
-                      Them cau hoi
+                      Thêm câu hỏi
                     </Link>
                     <Link
                       href={`/teacher/tests/${test.id}`}
-                      className="rounded-lg border border-slate-200 px-3 py-2 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
                     >
                       Chỉnh sửa
                     </Link>
                     <button
-                      onClick={async () => {
-                        if (!confirm("Ban chac chan muon xoa de nay?")) return;
-                        try {
-                          const res = await fetch(`/api/teacher/tests/${test.id}`, { method: "DELETE" });
-                          if (res.ok) {
-                            setAdminManagedTests((prev) => prev.filter((t) => t.id !== test.id));
-                            setMessage("Da xoa de.");
-                          } else {
-                            const data = await res.json().catch(() => ({}));
-                            setMessage(data?.error || "Khong the xoa de.");
-                          }
-                        } catch (err) {
-                          console.error(err);
-                          setMessage("Loi khi xoa de.");
-                        }
-                      }}
+                      type="button"
+                      onClick={() => void deleteTest(test.id)}
                       className="rounded-lg px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
                     >
-                      Xoa
+                      Xóa
                     </button>
                   </div>
-                </div>
+                </article>
               ))}
             </div>
           )}
         </div>
       </section>
     </div>
+  );
+}
+
+function ManagedTestForm({
+  title,
+  description,
+  accent,
+  form,
+  languages,
+  onChange,
+  onSubmit,
+}: {
+  title: string;
+  description: string;
+  accent: "blue" | "emerald";
+  form: TestForm;
+  languages: Language[];
+  onChange: (form: TestForm) => void;
+  onSubmit: (event: React.FormEvent) => void;
+}) {
+  const fieldClass =
+    "w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+
+  return (
+    <form
+      onSubmit={onSubmit}
+      className="rounded-2xl border border-slate-200 p-5"
+    >
+      <h3 className="font-bold text-slate-900">{title}</h3>
+      <p className="mt-1 min-h-10 text-sm leading-5 text-slate-500">
+        {description}
+      </p>
+
+      <div className="mt-4 space-y-3">
+        <input
+          value={form.name}
+          onChange={(event) => onChange({ ...form, name: event.target.value })}
+          required
+          placeholder="Tên đề test"
+          className={fieldClass}
+        />
+        <textarea
+          value={form.description}
+          onChange={(event) =>
+            onChange({ ...form, description: event.target.value })
+          }
+          rows={3}
+          placeholder="Mô tả hoặc hướng dẫn làm bài"
+          className={fieldClass}
+        />
+        <select
+          value={form.languageId}
+          onChange={(event) =>
+            onChange({ ...form, languageId: event.target.value })
+          }
+          required
+          className={fieldClass}
+        >
+          <option value="">Chọn ngôn ngữ bắt buộc</option>
+          {languages.map((language) => (
+            <option key={language.id} value={language.id}>
+              {language.name} ({language.code})
+            </option>
+          ))}
+        </select>
+        <label className="block text-sm font-semibold text-slate-700">
+          Giới hạn thời gian
+          <div className="relative">
+            <input
+              type="number"
+              min={1}
+              value={form.timeLimit}
+              onChange={(event) =>
+                onChange({ ...form, timeLimit: event.target.value })
+              }
+              placeholder="Để trống nếu không giới hạn"
+              className={`${fieldClass} mt-2 pr-14`}
+            />
+            <span className="pointer-events-none absolute bottom-2.5 right-3 text-sm font-normal text-slate-500">
+              phút
+            </span>
+          </div>
+          <span className="mt-1 block text-xs font-normal text-slate-500">
+            Hết giờ, bài sẽ tự động nộp và toàn bộ đáp án bị khóa.
+          </span>
+        </label>
+      </div>
+
+      <button
+        className={`mt-5 rounded-xl px-4 py-2.5 text-sm font-semibold text-white ${
+          accent === "blue"
+            ? "bg-blue-600 hover:bg-blue-700"
+            : "bg-emerald-600 hover:bg-emerald-700"
+        }`}
+      >
+        Tạo đề
+      </button>
+    </form>
   );
 }

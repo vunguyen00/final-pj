@@ -31,13 +31,13 @@ export async function POST(
     const user = await getCurrentUser();
 
     if (!user || user.role !== "STUDENT") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Bạn cần đăng nhập bằng tài khoản học viên." }, { status: 401 });
     }
 
     const allowed = await canReviewCourse(user.id, id);
     if (!allowed) {
       return NextResponse.json(
-        { error: "Ban can hoan thanh khoa hoc va pass bai test truoc khi danh gia." },
+        { error: "Bạn cần hoàn thành khóa học và đạt bài test trước khi đánh giá." },
         { status: 403 },
       );
     }
@@ -54,13 +54,13 @@ export async function POST(
     return NextResponse.json({ ok: true, reviews });
   } catch (error) {
     if (error instanceof Error && error.message === "INVALID_RATING") {
-      return NextResponse.json({ error: "Diem danh gia phai tu 1 den 5." }, { status: 400 });
+      return NextResponse.json({ error: "Điểm đánh giá phải từ 1 đến 5." }, { status: 400 });
     }
     if (error instanceof Error && error.message === "INVALID_COMMENT") {
-      return NextResponse.json({ error: "Binh luan toi da 1000 ky tu." }, { status: 400 });
+      return NextResponse.json({ error: "Bình luận tối đa 1.000 ký tự." }, { status: 400 });
     }
 
     console.error("Error saving course review:", error);
-    return NextResponse.json({ error: "Khong luu duoc danh gia." }, { status: 500 });
+    return NextResponse.json({ error: "Không lưu được đánh giá." }, { status: 500 });
   }
 }

@@ -16,7 +16,7 @@ export async function GET(
     });
 
     if (!course) {
-      return NextResponse.json({ error: "Khong tim thay khoa hoc." }, { status: 404 });
+      return NextResponse.json({ error: "Không tìm thấy khóa học." }, { status: 404 });
     }
 
     const isOwner = course.instructorId === user.id;

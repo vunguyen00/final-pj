@@ -5,42 +5,42 @@ import { usePathname } from "next/navigation";
 
 const footerGroups = [
   {
-    title: "Courses",
+    title: "Khóa học",
     links: [
-      { label: "English", href: "/courses" },
-      { label: "Japanese", href: "/courses" },
-      { label: "Korean", href: "/courses" },
-      { label: "Chinese", href: "/courses" },
-      { label: "Exam Prep", href: "/courses" },
+      { label: "Tiếng Anh", href: "/courses" },
+      { label: "Tiếng Nhật", href: "/courses" },
+      { label: "Tiếng Hàn", href: "/courses" },
+      { label: "Tiếng Trung", href: "/courses" },
+      { label: "Luyện thi", href: "/courses" },
     ],
   },
   {
-    title: "Resources",
+    title: "Tài nguyên",
     links: [
-      { label: "Blog", href: "#" },
-      { label: "Podcasts", href: "#" },
-      { label: "Free Lessons", href: "#" },
-      { label: "Language Tests", href: "/student/tests" },
-      { label: "Study Guides", href: "#" },
+      { label: "Bài viết", href: "#" },
+      { label: "Podcast", href: "#" },
+      { label: "Bài học miễn phí", href: "#" },
+      { label: "Bài kiểm tra ngôn ngữ", href: "/student/tests" },
+      { label: "Hướng dẫn học tập", href: "#" },
     ],
   },
   {
-    title: "Company",
+    title: "LearnHub",
     links: [
-      { label: "About Us", href: "/about" },
-      { label: "Teachers", href: "/teachers" },
-      { label: "Top Students", href: "/top-students" },
-      { label: "Contact", href: "#" },
+      { label: "Về chúng tôi", href: "/about" },
+      { label: "Giảng viên", href: "/teachers" },
+      { label: "Học viên xuất sắc", href: "/top-students" },
+      { label: "Liên hệ", href: "#" },
     ],
   },
   {
-    title: "Support",
+    title: "Hỗ trợ",
     links: [
-      { label: "Help Center", href: "#" },
-      { label: "FAQ", href: "#" },
-      { label: "Community", href: "#" },
-      { label: "Privacy Policy", href: "#" },
-      { label: "Terms of Service", href: "#" },
+      { label: "Trung tâm trợ giúp", href: "#" },
+      { label: "Câu hỏi thường gặp", href: "#" },
+      { label: "Cộng đồng", href: "#" },
+      { label: "Chính sách bảo mật", href: "#" },
+      { label: "Điều khoản dịch vụ", href: "#" },
     ],
   },
 ];
@@ -69,7 +69,7 @@ export default function Footer() {
               <span className="text-3xl font-semibold tracking-tight">LearnHub</span>
             </Link>
             <p className="text-base leading-8 text-slate-300">
-              Your gateway to fluency. Expert-led language courses designed to help you achieve your language goals faster and more effectively.
+              Nền tảng học ngoại ngữ cùng giảng viên giàu kinh nghiệm, giúp bạn đạt mục tiêu nhanh chóng và hiệu quả hơn.
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-300">
               {socialLinks.map((item) => (
@@ -97,9 +97,9 @@ export default function Footer() {
         </div>
 
         <div className="mt-12 flex flex-col gap-4 border-t border-slate-800 pt-7 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-          <p>© 2026 LearnHub. All rights reserved.</p>
+          <p>© 2026 LearnHub. Bảo lưu mọi quyền.</p>
           <div className="flex items-center gap-5">
-            <span>Made in Vietnam</span>
+            <span>Phát triển tại Việt Nam</span>
             <span className="text-slate-500">EN VI JA KO ZH</span>
           </div>
         </div>

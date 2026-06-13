@@ -1,13 +1,13 @@
 import { Answer, Question, QuestionForm, QuestionKind, QuestionType } from "./types";
 
 export const QUESTION_KIND_OPTIONS: Array<{ value: QuestionKind; label: string }> = [
-  { value: "", label: "Hay chon dang cau hoi" },
-  { value: "MULTIPLE_CHOICE", label: "Trac nghiem" },
-  { value: "TRUE_FALSE", label: "Dung/Sai" },
-  { value: "FILL_IN_BLANK", label: "Dien tu" },
-  { value: "LISTENING", label: "Nghe + tra loi" },
-  { value: "ESSAY", label: "Writing AI" },
-  { value: "SPEAKING", label: "Speaking AI" },
+  { value: "", label: "Hãy chọn dạng câu hỏi" },
+  { value: "MULTIPLE_CHOICE", label: "Trắc nghiệm" },
+  { value: "TRUE_FALSE", label: "Đúng/Sai" },
+  { value: "FILL_IN_BLANK", label: "Điền từ" },
+  { value: "LISTENING", label: "Nghe và trả lời" },
+  { value: "ESSAY", label: "Bài viết AI" },
+  { value: "SPEAKING", label: "Bài nói AI" },
 ];
 
 export const createDefaultForm = (): QuestionForm => ({
@@ -35,11 +35,11 @@ export const getQuestionTypeLabel = (question: Pick<Question, "type" | "audioUrl
   if (question.type === "SPEAKING") return "Speaking AI";
   if (question.audioUrl) return "Listening";
   const labels: Record<QuestionType, string> = {
-    MULTIPLE_CHOICE: "Trac nghiem",
-    TRUE_FALSE: "Dung/Sai",
-    FILL_IN_BLANK: "Dien tu",
-    ESSAY: "Writing AI",
-    SPEAKING: "Speaking AI",
+    MULTIPLE_CHOICE: "Trắc nghiệm",
+    TRUE_FALSE: "Đúng/Sai",
+    FILL_IN_BLANK: "Điền từ",
+    ESSAY: "Bài viết AI",
+    SPEAKING: "Bài nói AI",
   };
   return labels[question.type];
 };
@@ -56,7 +56,7 @@ export const buildAnswersForKind = (kind: QuestionKind): Answer[] => {
       }));
     case "TRUE_FALSE":
       return [
-        { id: "1", content: "Dung", isCorrect: false, order: 1, feedback: "" },
+        { id: "1", content: "Đúng", isCorrect: false, order: 1, feedback: "" },
         { id: "2", content: "Sai", isCorrect: false, order: 2, feedback: "" },
       ];
     case "FILL_IN_BLANK":

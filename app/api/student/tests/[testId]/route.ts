@@ -104,6 +104,7 @@ export async function GET(
       type: q.type,
       content: q.content,
       audioUrl: q.audioUrl,
+      hint: q.hint,
       order: q.order,
       score: q.score,
       answers:

@@ -36,12 +36,15 @@ export function QuestionModal({ show, isEditing, form, onClose, onSubmit, setFor
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="mx-4 max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6">
-        <h2 className="text-xl font-bold text-slate-900">{isEditing ? "Chinh sua cau hoi" : "Them cau hoi moi"}</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
+      <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
+        <h2 className="text-xl font-bold text-slate-900">{isEditing ? "Chỉnh sửa câu hỏi" : "Thêm câu hỏi mới"}</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Nội dung câu hỏi và gợi ý sẽ giữ nguyên định dạng xuống dòng.
+        </p>
         <form onSubmit={onSubmit} className="mt-4 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700">Dang cau hoi</label>
+            <label className="block text-sm font-medium text-slate-700">Dạng câu hỏi</label>
             <select
               value={form.kind}
               onChange={(e) => handleTypeSelect(e.target.value as QuestionKind)}
@@ -56,7 +59,7 @@ export function QuestionModal({ show, isEditing, form, onClose, onSubmit, setFor
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700">Noi dung cau hoi *</label>
+            <label className="block text-sm font-medium text-slate-700">Nội dung câu hỏi *</label>
             <textarea
               required
               rows={3}
@@ -80,7 +83,7 @@ export function QuestionModal({ show, isEditing, form, onClose, onSubmit, setFor
           )}
 
           <div>
-            <label className="block text-sm font-medium text-slate-700">Diem so</label>
+            <label className="block text-sm font-medium text-slate-700">Điểm số</label>
             <input
               type="number"
               value={form.score}
@@ -91,7 +94,7 @@ export function QuestionModal({ show, isEditing, form, onClose, onSubmit, setFor
 
           {needsObjectiveAnswers(form.kind) && (
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-slate-700">Dap an (chon dap an dung)</label>
+              <label className="block text-sm font-medium text-slate-700">Đáp án (chọn đáp án đúng)</label>
               {form.answers.map((answer, index) => (
                 <div key={index} className="flex items-center gap-2">
                   <button
@@ -103,7 +106,7 @@ export function QuestionModal({ show, isEditing, form, onClose, onSubmit, setFor
                     type="text"
                     value={answer.content}
                     onChange={(e) => handleAnswerChange(index, "content", e.target.value)}
-                    placeholder={`Dap an ${index + 1}`}
+                    placeholder={`Đáp án ${index + 1}`}
                     className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
                   />
                 </div>
@@ -113,7 +116,7 @@ export function QuestionModal({ show, isEditing, form, onClose, onSubmit, setFor
 
           {form.kind === "FILL_IN_BLANK" && (
             <div>
-              <label className="block text-sm font-medium text-slate-700">Dap an dung *</label>
+              <label className="block text-sm font-medium text-slate-700">Đáp án đúng *</label>
               <textarea
                 rows={3}
                 value={form.answers[0]?.content || ""}
@@ -125,12 +128,12 @@ export function QuestionModal({ show, isEditing, form, onClose, onSubmit, setFor
 
           {(form.kind === "ESSAY" || form.kind === "LISTENING" || form.kind === "SPEAKING") && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-              Cau hoi nay duoc AI cham diem. Nguoi lam bai se nop bai viet hoac transcript noi thay vi chon dap an co dinh.
+              Câu hỏi này được AI chấm điểm. Người làm bài sẽ nộp bài viết hoặc transcript giọng nói thay vì chọn đáp án cố định.
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-slate-700">Giai thich</label>
+            <label className="block text-sm font-medium text-slate-700">Giải thích</label>
             <textarea
               rows={2}
               value={form.explanation}
@@ -140,21 +143,25 @@ export function QuestionModal({ show, isEditing, form, onClose, onSubmit, setFor
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700">Goi y</label>
-            <input
-              type="text"
+            <label className="block text-sm font-medium text-slate-700">Gợi ý</label>
+            <textarea
+              rows={4}
               value={form.hint}
               onChange={(e) => setForm((prev) => ({ ...prev, hint: e.target.value }))}
+              placeholder={"Nhập mỗi ý trên một dòng, ví dụ:\n- Xác định từ khóa chính\n- Chú ý thì của động từ"}
               className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
             />
+            <p className="mt-1 text-xs text-slate-500">
+              Mỗi dòng sẽ được hiển thị thành một gạch đầu dòng cho người làm bài.
+            </p>
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
             <button type="button" onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-sm">
-              Huy
+              Hủy
             </button>
             <button type="submit" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white">
-              {isEditing ? "Luu thay doi" : "Them cau hoi"}
+              {isEditing ? "Lưu thay đổi" : "Thêm câu hỏi"}
             </button>
           </div>
         </form>

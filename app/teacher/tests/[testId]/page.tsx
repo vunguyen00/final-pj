@@ -11,7 +11,6 @@ type EditableTest = {
   description: string | null;
   assessmentMode: "STANDARD" | "WRITING" | "SPEAKING";
   passingScore: number;
-  maxAttempts: number;
   timeLimit: number | null;
   shuffleQuestions: boolean;
   language: { name: string } | null;
@@ -22,7 +21,6 @@ type TestForm = {
   name: string;
   description: string;
   passingScore: string;
-  maxAttempts: string;
   timeLimit: string;
   shuffleQuestions: boolean;
 };
@@ -43,7 +41,7 @@ export default function EditTestPage() {
         const response = await fetch(`/api/teacher/tests/${testId}`, { cache: "no-store" });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
-          setError(data?.error || "Khong the tai thong tin de test.");
+          setError(data?.error || "Không thể tải thông tin đề test.");
           return;
         }
 
@@ -53,12 +51,11 @@ export default function EditTestPage() {
           name: loaded.name,
           description: loaded.description || "",
           passingScore: String(loaded.passingScore),
-          maxAttempts: String(loaded.maxAttempts),
           timeLimit: loaded.timeLimit ? String(loaded.timeLimit) : "",
           shuffleQuestions: loaded.shuffleQuestions,
         });
       } catch {
-        setError("Khong the tai thong tin de test.");
+        setError("Không thể tải thông tin đề test.");
       } finally {
         setLoading(false);
       }
@@ -82,62 +79,61 @@ export default function EditTestPage() {
           name: form.name.trim(),
           description: form.description.trim() || null,
           passingScore: Number(form.passingScore),
-          maxAttempts: Number(form.maxAttempts),
           timeLimit: form.timeLimit ? Number(form.timeLimit) : null,
           shuffleQuestions: form.shuffleQuestions,
         }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setError(data?.error || "Khong the cap nhat de test.");
+        setError(data?.error || "Không thể cập nhật đề test.");
         return;
       }
 
       setTest((current) => (current ? { ...current, ...data.test } : current));
-      setMessage("Da cap nhat thong tin de test.");
+      setMessage("Đã cập nhật thông tin đề test.");
     } catch {
-      setError("Khong the cap nhat de test.");
+      setError("Không thể cập nhật đề test.");
     } finally {
       setSaving(false);
     }
   }
 
   if (loading) {
-    return <main className="min-h-screen bg-slate-50 p-8 text-center text-slate-600">Dang tai...</main>;
+    return <main className="min-h-screen bg-slate-50 p-8 text-center text-slate-600">Đang tải...</main>;
   }
 
   if (!test || !form) {
     return (
       <main className="min-h-screen bg-slate-50 p-8">
         <div className="mx-auto max-w-2xl rounded-xl border border-red-200 bg-white p-6 text-red-700">
-          {error || "Khong tim thay de test."}
+          {error || "Không tìm thấy đề test."}
         </div>
       </main>
     );
   }
 
   const backHref = test.course?.id ? `/teacher/courses/${test.course.id}` : "/admin";
-  const languageName = test.language?.name || test.course?.language?.name || "Chua gan";
+  const languageName = test.language?.name || test.course?.language?.name || "Chưa gán";
 
   return (
     <main className="min-h-screen bg-slate-50 py-8">
       <div className="mx-auto max-w-3xl px-4">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <Link href={backHref} className="text-sm font-semibold text-slate-600 hover:text-slate-900">
-            Quay lai
+            Quay lại
           </Link>
           <Link
             href={`/teacher/tests/${test.id}/questions`}
             className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
           >
-            Quan ly cau hoi
+            Quản lý câu hỏi
           </Link>
         </div>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-6">
-          <h1 className="text-2xl font-bold text-slate-950">Chinh sua thong tin de test</h1>
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h1 className="text-2xl font-bold text-slate-950">Chỉnh sửa thông tin đề test</h1>
           <p className="mt-2 text-sm text-slate-500">
-            {languageName} - {getAssessmentModeLabel(test.assessmentMode)} - Tong diem co dinh {FIXED_TEST_MAX_SCORE}
+            {languageName} - {getAssessmentModeLabel(test.assessmentMode)} - Tổng điểm cố định {FIXED_TEST_MAX_SCORE}
           </p>
 
           {message ? <p className="mt-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">{message}</p> : null}
@@ -145,7 +141,7 @@ export default function EditTestPage() {
 
           <form onSubmit={saveTest} className="mt-6 space-y-4">
             <label className="block text-sm font-semibold text-slate-700">
-              Ten de
+              Tên đề
               <input
                 required
                 value={form.name}
@@ -154,7 +150,7 @@ export default function EditTestPage() {
               />
             </label>
             <label className="block text-sm font-semibold text-slate-700">
-              Mo ta
+              Mô tả
               <textarea
                 rows={3}
                 value={form.description}
@@ -162,9 +158,9 @@ export default function EditTestPage() {
                 className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
               />
             </label>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2">
               <label className="text-sm font-semibold text-slate-700">
-                Diem dat
+                Điểm đạt
                 <input
                   type="number"
                   min={0}
@@ -176,24 +172,13 @@ export default function EditTestPage() {
                 />
               </label>
               <label className="text-sm font-semibold text-slate-700">
-                So lan lam
-                <input
-                  type="number"
-                  min={1}
-                  required
-                  value={form.maxAttempts}
-                  onChange={(event) => setForm((current) => current && { ...current, maxAttempts: event.target.value })}
-                  className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
-                />
-              </label>
-              <label className="text-sm font-semibold text-slate-700">
-                Thoi gian (phut)
+                Giới hạn thời gian (phút)
                 <input
                   type="number"
                   min={1}
                   value={form.timeLimit}
                   onChange={(event) => setForm((current) => current && { ...current, timeLimit: event.target.value })}
-                  placeholder="Khong gioi han"
+                  placeholder="Để trống nếu không giới hạn"
                   className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
                 />
               </label>
@@ -206,13 +191,13 @@ export default function EditTestPage() {
                   setForm((current) => current && { ...current, shuffleQuestions: event.target.checked })
                 }
               />
-              Xao tron cau hoi khi lam bai
+              Xáo trộn câu hỏi khi làm bài
             </label>
             <button
               disabled={saving}
               className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
             >
-              {saving ? "Dang luu..." : "Luu thay doi"}
+              {saving ? "Đang lưu..." : "Lưu thay đổi"}
             </button>
           </form>
         </section>

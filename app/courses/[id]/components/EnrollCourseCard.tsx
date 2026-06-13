@@ -34,22 +34,22 @@ export default function EnrollCourseCard({
 
       if (!response.ok) {
         if (data.requiresTopUp) {
-          setError(`So du ${Math.round(data.balance).toLocaleString("vi-VN")}d khong du. Can nap them.`);
+          setError(`Số dư ${Math.round(data.balance).toLocaleString("vi-VN")}đ không đủ. Cần nạp thêm.`);
           return;
         }
 
-        setError(data.error ?? "Dang ky that bai.");
+        setError(data.error ?? "Đăng ký thất bại.");
         return;
       }
 
       setEnrolled(true);
       const remainingBalance =
         typeof data?.balance === "number"
-          ? ` So du con lai: ${Math.round(data.balance).toLocaleString("vi-VN")}d.`
+          ? ` Số dư còn lại: ${Math.round(data.balance).toLocaleString("vi-VN")}đ.`
           : "";
-      setInfo(`Dang ky khoa hoc thanh cong.${remainingBalance} Ban co the vao hoc ngay.`);
+      setInfo(`Đăng ký khóa học thành công.${remainingBalance} Bạn có thể vào học ngay.`);
     } catch {
-      setError("Loi mang. Vui long thu lai.");
+      setError("Lỗi mạng. Vui lòng thử lại.");
     } finally {
       setLoading(false);
     }
@@ -69,18 +69,18 @@ export default function EnrollCourseCard({
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error ?? "Nap tien that bai.");
+        setError(data.error ?? "Nạp tiền thất bại.");
         return;
       }
 
       if (!data?.paymentUrl) {
-        setError("Khong tao duoc URL thanh toan.");
+        setError("Không tạo được đường dẫn thanh toán.");
         return;
       }
 
       window.location.href = data.paymentUrl;
     } catch {
-      setError("Loi mang. Vui long thu lai.");
+      setError("Lỗi mạng. Vui lòng thử lại.");
     } finally {
       setLoading(false);
     }
@@ -88,18 +88,18 @@ export default function EnrollCourseCard({
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6">
-      <div className="text-3xl font-bold text-slate-900">{price.toLocaleString("vi-VN")}d</div>
+      <div className="text-3xl font-bold text-slate-900">{price.toLocaleString("vi-VN")}đ</div>
       {!canLearnDirectly ? (
         <button
           disabled={loading || enrolled}
           onClick={handleEnroll}
           className="mt-4 w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
         >
-          {enrolled ? "Da dang ky" : loading ? "Dang xu ly..." : "Dang ky ngay"}
+          {enrolled ? "Đã đăng ký" : loading ? "Đang xử lý..." : "Đăng ký ngay"}
         </button>
       ) : (
         <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          Ban la giang vien cua khoa hoc nay. Co the vao hoc ngay.
+          Bạn là giảng viên của khóa học này. Có thể vào học ngay.
         </p>
       )}
 
@@ -108,7 +108,7 @@ export default function EnrollCourseCard({
           href={`/student/hoc-bai?courseId=${courseId}`}
           className="mt-3 block w-full rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 text-center text-sm font-medium text-emerald-700 hover:bg-emerald-100"
         >
-          Vao hoc
+          Vào học
         </Link>
       ) : null}
 
@@ -121,13 +121,13 @@ export default function EnrollCourseCard({
             onClick={handleTopUp}
             className="mt-2 rounded-md bg-amber-600 px-3 py-1.5 text-white hover:bg-amber-700 disabled:bg-amber-300"
           >
-            Nap tien nhanh
+            Nạp tiền nhanh
           </button>
           <Link
             href="/student/wallet"
             className="ml-2 inline-block rounded-md border border-amber-400 px-3 py-1.5 text-amber-800 hover:bg-amber-100"
           >
-            Mo vi
+            Mở ví
           </Link>
         </div>
       ) : null}

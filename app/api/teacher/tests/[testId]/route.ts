@@ -109,7 +109,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, description, passingScore, maxAttempts, timeLimit, shuffleQuestions } = body;
+    const { name, description, passingScore, timeLimit, shuffleQuestions } = body;
 
     if (name !== undefined && !String(name).trim()) {
       return NextResponse.json({ error: "Test name is required" }, { status: 400 });
@@ -119,13 +119,6 @@ export async function PUT(
       const parsedPassingScore = Number(passingScore);
       if (!Number.isFinite(parsedPassingScore) || parsedPassingScore < 0 || parsedPassingScore > FIXED_TEST_MAX_SCORE) {
         return NextResponse.json({ error: "Passing score must be between 0 and 100" }, { status: 400 });
-      }
-    }
-
-    if (maxAttempts !== undefined) {
-      const parsedMaxAttempts = Number(maxAttempts);
-      if (!Number.isInteger(parsedMaxAttempts) || parsedMaxAttempts <= 0) {
-        return NextResponse.json({ error: "Max attempts must be a positive integer" }, { status: 400 });
       }
     }
 
@@ -143,7 +136,6 @@ export async function PUT(
         ...(description !== undefined && { description }),
         maxScore: FIXED_TEST_MAX_SCORE,
         ...(passingScore !== undefined && { passingScore: parseFloat(passingScore) }),
-        ...(maxAttempts !== undefined && { maxAttempts: Number(maxAttempts) }),
         ...(timeLimit !== undefined && { timeLimit: timeLimit ? Number(timeLimit) : null }),
         ...(shuffleQuestions !== undefined && { shuffleQuestions }),
       },

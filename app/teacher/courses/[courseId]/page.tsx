@@ -1,9 +1,10 @@
 ﻿"use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { CourseHeader } from "./_components/CourseHeader";
-import { CourseTabs } from "./_components/CourseTabs";
+import { CourseTabs, type CourseTab } from "./_components/CourseTabs";
+import { CourseInfoTab } from "./_components/CourseInfoTab";
 import { ModulesTab } from "./_components/ModulesTab";
 import { TestsTab } from "./_components/TestsTab";
 import { ModuleModal } from "./_components/ModuleModal";
@@ -19,7 +20,7 @@ export default function CourseDetailPage() {
   const [modules, setModules] = useState<Module[]>([]);
   const [tests, setTests] = useState<Test[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"modules" | "tests">("modules");
+  const [activeTab, setActiveTab] = useState<CourseTab>("modules");
 
   const [showModuleModal, setShowModuleModal] = useState(false);
   const [editingModule, setEditingModule] = useState<Module | null>(null);
@@ -28,26 +29,7 @@ export default function CourseDetailPage() {
   const [showTestModal, setShowTestModal] = useState(false);
   const [testForm, setTestForm] = useState<TestForm>(initialTestForm);
 
-  async function checkAuthAndFetchData() {
-    try {
-      const res = await fetch("/api/auth/me");
-      if (!res.ok) {
-        router.push("/auth/login");
-        return;
-      }
-      const data = await res.json();
-      if (data.user.role !== "TEACHER" && data.user.role !== "ADMIN") {
-        router.push("/");
-        return;
-      }
-      void fetchCourseData();
-    } catch (error) {
-      console.error("Auth check failed:", error);
-      router.push("/auth/login");
-    }
-  }
-
-  async function fetchCourseData() {
+  const fetchCourseData = useCallback(async () => {
     try {
       const res = await fetch(`/api/teacher/courses/${courseId}`);
       if (res.ok) {
@@ -61,37 +43,63 @@ export default function CourseDetailPage() {
     } finally {
       setLoading(false);
     }
-  }
-
-  useEffect(() => {
-    void checkAuthAndFetchData();
   }, [courseId]);
 
-  const handleCreateModule = async (e: FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    async function checkAuthAndFetchData() {
+      try {
+        const res = await fetch("/api/auth/me");
+        if (!res.ok) {
+          router.push("/auth/login");
+          return;
+        }
+        const data = await res.json();
+        if (data.user.role !== "TEACHER" && data.user.role !== "ADMIN") {
+          router.push("/");
+          return;
+        }
+        await fetchCourseData();
+      } catch (error) {
+        console.error("Auth check failed:", error);
+        router.push("/auth/login");
+      }
+    }
+
+    void checkAuthAndFetchData();
+  }, [fetchCourseData, router]);
+
+  const handleSaveModule = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const trimmedName = moduleName.trim();
     if (!trimmedName) {
-      alert("Vui long nhap ten module");
+      alert("Vui lòng nhập tên chương.");
       return;
     }
 
     try {
-      const res = await fetch(`/api/teacher/courses/${courseId}/modules`, {
-        method: "POST",
+      const url = editingModule
+        ? `/api/teacher/courses/${courseId}/modules/${editingModule.id}`
+        : `/api/teacher/courses/${courseId}/modules`;
+      const res = await fetch(url, {
+        method: editingModule ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: trimmedName }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setShowModuleModal(false);
+        setEditingModule(null);
         setModuleName("");
-        fetchCourseData();
+        await fetchCourseData();
       } else {
-        alert(data?.error || "Khong the tao module");
+        alert(
+          data?.error ||
+            (editingModule ? "Không thể cập nhật chương." : "Không thể tạo chương."),
+        );
       }
     } catch (error) {
-      console.error("Error creating module:", error);
-      alert("Loi khi tao module");
+      console.error("Error saving module:", error);
+      alert(editingModule ? "Lỗi khi cập nhật chương." : "Lỗi khi tạo chương.");
     }
   };
 
@@ -115,7 +123,6 @@ export default function CourseDetailPage() {
           ...testForm,
           courseId,
           passingScore: parseFloat(testForm.passingScore),
-          maxAttempts: parseInt(testForm.maxAttempts),
           timeLimit: testForm.timeLimit ? parseInt(testForm.timeLimit) : null,
         }),
       });
@@ -151,6 +158,18 @@ export default function CourseDetailPage() {
     setShowModuleModal(true);
   };
 
+  const openModuleEditModal = (module: Module) => {
+    setEditingModule(module);
+    setModuleName(module.name);
+    setShowModuleModal(true);
+  };
+
+  const closeModuleModal = () => {
+    setShowModuleModal(false);
+    setEditingModule(null);
+    setModuleName("");
+  };
+
   const openTestCreateModal = () => {
     setTestForm(initialTestForm);
     setShowTestModal(true);
@@ -178,8 +197,23 @@ export default function CourseDetailPage() {
         <CourseHeader course={course} />
         <CourseTabs activeTab={activeTab} moduleCount={modules.length} testCount={tests.length} onTabChange={setActiveTab} />
 
+        {activeTab === "information" && (
+          <CourseInfoTab
+            course={course}
+            onUpdated={(updatedCourse) =>
+              setCourse((current) => (current ? { ...current, ...updatedCourse } : current))
+            }
+          />
+        )}
+
         {activeTab === "modules" && (
-          <ModulesTab courseId={courseId} modules={modules} onOpenCreateModal={openModuleCreateModal} onDeleteModule={handleDeleteModule} />
+          <ModulesTab
+            courseId={courseId}
+            modules={modules}
+            onOpenCreateModal={openModuleCreateModal}
+            onEditModule={openModuleEditModal}
+            onDeleteModule={handleDeleteModule}
+          />
         )}
 
         {activeTab === "tests" && (
@@ -192,8 +226,8 @@ export default function CourseDetailPage() {
         moduleName={moduleName}
         isEditing={Boolean(editingModule)}
         onChangeName={setModuleName}
-        onClose={() => setShowModuleModal(false)}
-        onSubmit={handleCreateModule}
+        onClose={closeModuleModal}
+        onSubmit={handleSaveModule}
       />
 
       <TestModal

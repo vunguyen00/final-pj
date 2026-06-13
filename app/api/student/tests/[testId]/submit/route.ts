@@ -9,7 +9,10 @@ import {
 } from "@/lib/learning-progress";
 import { sendCourseCertificateEmail } from "@/lib/mailer";
 import { getAiPointsSummary, grantCourseCompletionPoints, recordLearningActivity } from "@/lib/ai-points";
-import { evaluateTestAiAnswers } from "@/lib/test-ai-evaluation";
+import {
+  evaluateTestAiAnswers,
+  isTestAiAnswerCorrect,
+} from "@/lib/test-ai-evaluation";
 import { FIXED_TEST_MAX_SCORE, isTestReady } from "@/lib/test-rules";
 
 export async function POST(
@@ -100,11 +103,18 @@ export async function POST(
         }))
         .filter((item) => item.answer);
     const aiResults = await evaluateTestAiAnswers(aiInputs);
-    const failedAiResult = aiInputs.some((input) => aiResults.get(input.questionId)?.failed);
+    const failedAiResult = aiInputs
+      .map((input) => aiResults.get(input.questionId))
+      .find((result) => result?.failed);
     if (failedAiResult) {
+      const invalidResponse = failedAiResult.failureReason === "invalid_response";
       return NextResponse.json(
-        { error: "AI dang tam thoi qua tai. Bai test chua duoc nop, vui long thu lai." },
-        { status: 503 },
+        {
+          error: invalidResponse
+            ? "AI tra ve ket qua cham bai khong hop le. Bai test chua duoc nop, vui long thu lai."
+            : "AI dang tam thoi khong kha dung. Bai test chua duoc nop, vui long thu lai.",
+        },
+        { status: invalidResponse ? 502 : 503 },
       );
     }
 
@@ -139,7 +149,7 @@ export async function POST(
           if (aiResult) {
             const scorePercentage = aiResult.normalizedScore / 10;
             earnedScore = Math.round(question.score * scorePercentage);
-            isCorrect = aiResult.normalizedScore >= 7;
+            isCorrect = isTestAiAnswerCorrect(aiResult);
             totalScore += earnedScore;
             aiEvaluation = aiResult.aiEvaluation;
           }
@@ -150,7 +160,7 @@ export async function POST(
           if (aiResult) {
             const scorePercentage = aiResult.normalizedScore / 10;
             earnedScore = Math.round(question.score * scorePercentage);
-            isCorrect = aiResult.normalizedScore >= 7;
+            isCorrect = isTestAiAnswerCorrect(aiResult);
             totalScore += earnedScore;
             aiEvaluation = aiResult.aiEvaluation;
           }
@@ -226,7 +236,9 @@ export async function POST(
           submittedAnswers: answerSnapshots,
           questionResults,
         },
-        startedAt: new Date(Date.now() - (test.timeLimit ? test.timeLimit * 1000 : 0)),
+        startedAt: new Date(
+          Date.now() - (test.timeLimit ? test.timeLimit * 60 * 1000 : 0),
+        ),
         submittedAt: new Date(),
         isPassed,
       } as never,

@@ -54,7 +54,6 @@ export async function GET(
             name: true,
             maxScore: true,
             passingScore: true,
-            maxAttempts: true,
             timeLimit: true,
             _count: {
               select: {

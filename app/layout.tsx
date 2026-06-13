@@ -15,9 +15,9 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "LearnHub - Multi-language learning marketplace",
+  title: "LearnHub - Nền tảng học ngoại ngữ",
   description:
-    "Marketplace and LMS for English, Chinese, Japanese, Korean, certification prep, vocabulary, and mock tests.",
+    "Nền tảng học tiếng Anh, tiếng Trung, tiếng Nhật, tiếng Hàn, luyện thi chứng chỉ, học từ vựng và làm đề thi thử.",
 };
 
 export default function RootLayout({

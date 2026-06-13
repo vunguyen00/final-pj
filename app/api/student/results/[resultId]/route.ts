@@ -18,7 +18,7 @@ export async function GET(
   try {
     const user = await getCurrentUser();
     if (!user || (user.role !== "STUDENT" && user.role !== "TEACHER" && user.role !== "ADMIN")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Bạn chưa đăng nhập." }, { status: 401 });
     }
 
     const { resultId } = await params;
@@ -30,7 +30,7 @@ export async function GET(
 
     if (aiAssessment) {
       if (aiAssessment.userId !== user.id) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        return NextResponse.json({ error: "Bạn không có quyền xem kết quả này." }, { status: 403 });
       }
 
       return NextResponse.json({
@@ -38,6 +38,7 @@ export async function GET(
         type: aiAssessment.type,
         title: aiAssessment.title || (aiAssessment.type === "SPEAKING" ? "Speaking AI" : "Writing AI"),
         course: aiAssessment.course,
+        taskType: aiAssessment.taskType,
         score: aiAssessment.score,
         maxScore: aiAssessment.maxScore,
         band: {
@@ -54,6 +55,8 @@ export async function GET(
         submissionText: aiAssessment.submissionText,
         audioUrl: aiAssessment.audioUrl,
         durationSeconds: aiAssessment.durationSeconds,
+        createdAt: aiAssessment.createdAt,
+        updatedAt: aiAssessment.updatedAt,
         submittedAt: aiAssessment.submittedAt,
       });
     }
@@ -70,11 +73,11 @@ export async function GET(
     });
 
     if (!attempt) {
-      return NextResponse.json({ error: "Result not found" }, { status: 404 });
+      return NextResponse.json({ error: "Không tìm thấy kết quả." }, { status: 404 });
     }
 
     if (attempt.userId !== user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "Bạn không có quyền xem kết quả này." }, { status: 403 });
     }
 
     const stored = (attempt.results ?? {}) as Record<string, unknown>;
@@ -99,7 +102,7 @@ export async function GET(
         correctAnswers: Number(stored.correctAnswers ?? 0),
       },
       feedback: {
-        summary: attempt.isPassed ? "Ban da dat bai test." : "Ban can on lai cac ky nang con yeu.",
+        summary: attempt.isPassed ? "Bạn đã đạt bài test." : "Bạn cần ôn lại các kỹ năng còn yếu.",
         questionResults: Array.isArray(stored.questionResults) ? stored.questionResults : [],
       },
       mistakes: {
@@ -109,9 +112,9 @@ export async function GET(
       },
       improvements: {
         suggestions: [
-          "Xem lai cac cau sai va doc phan giai thich.",
-          "Lam lai bai sau khi on tap cac ky nang yeu.",
-          "Theo doi lich su ket qua de nhin tien bo theo thoi gian.",
+          "Xem lại các câu sai và đọc phần giải thích.",
+          "Làm lại bài sau khi ôn tập các kỹ năng còn yếu.",
+          "Theo dõi lịch sử kết quả để đánh giá tiến bộ theo thời gian.",
         ],
       },
       durationSeconds,
@@ -120,6 +123,6 @@ export async function GET(
     });
   } catch (error) {
     console.error("Error fetching result detail:", error);
-    return NextResponse.json({ error: "Failed to fetch result detail" }, { status: 500 });
+    return NextResponse.json({ error: "Không tải được chi tiết kết quả." }, { status: 500 });
   }
 }

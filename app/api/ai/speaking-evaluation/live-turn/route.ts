@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user || (user.role !== "STUDENT" && user.role !== "TEACHER" && user.role !== "ADMIN")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Bạn chưa đăng nhập." }, { status: 401 });
     }
 
     const body = (await request.json()) as {
@@ -59,6 +59,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ question, fallback: false });
   } catch (error) {
     console.error("Error generating speaking live turn:", error);
-    return NextResponse.json({ error: "Khong tao duoc cau hoi tiep theo." }, { status: 500 });
+    return NextResponse.json({ error: "Không tạo được câu hỏi tiếp theo." }, { status: 500 });
   }
 }

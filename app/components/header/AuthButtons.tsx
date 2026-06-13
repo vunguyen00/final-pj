@@ -23,10 +23,10 @@ export default function AuthButtons() {
   return (
     <div className="flex items-center gap-2">
       <Link href="/auth/login" className="text-sm font-medium text-muted-foreground hover:text-foreground">
-        Dang nhap
+        Đăng nhập
       </Link>
       <Link href="/auth/register" className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90">
-        Dang ky
+        Đăng ký
       </Link>
     </div>
   );

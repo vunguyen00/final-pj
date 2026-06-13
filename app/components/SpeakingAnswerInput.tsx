@@ -54,9 +54,11 @@ export function SpeakingAnswerInput({
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const keepAliveRef = useRef(false);
   const valueRef = useRef(value);
+  const interimRef = useRef("");
   const [listening, setListening] = useState(false);
   const [preparing, setPreparing] = useState(false);
   const [interim, setInterim] = useState("");
+  const [hasCompletedRecording, setHasCompletedRecording] = useState(false);
   const [supportError, setSupportError] = useState("");
 
   useEffect(() => {
@@ -65,15 +67,21 @@ export function SpeakingAnswerInput({
 
   useEffect(() => {
     return () => {
-      stopListening();
+      stopListening(false);
     };
   }, []);
+
+  useEffect(() => {
+    if (disabled && (listening || preparing)) {
+      stopListening(false);
+    }
+  }, [disabled, listening, preparing]);
 
   function resolveRecognitionConstructor() {
     return window.SpeechRecognition || window.webkitSpeechRecognition || null;
   }
 
-  function stopListening() {
+  function stopListening(markCompleted = true) {
     keepAliveRef.current = false;
     const recognizer = recognitionRef.current;
     recognitionRef.current = null;
@@ -87,6 +95,13 @@ export function SpeakingAnswerInput({
     }
     setListening(false);
     setPreparing(false);
+    if (
+      markCompleted &&
+      (valueRef.current.trim() || interimRef.current.trim())
+    ) {
+      setHasCompletedRecording(true);
+    }
+    interimRef.current = "";
     setInterim("");
   }
 
@@ -95,8 +110,17 @@ export function SpeakingAnswerInput({
 
     const Constructor = resolveRecognitionConstructor();
     if (!Constructor) {
-      setSupportError("Trinh duyet chua ho tro nhan dien giong noi. Ban van co the nhap transcript thu cong.");
+      setSupportError(
+        "Trình duyệt chưa hỗ trợ nhận diện giọng nói. Bạn vẫn có thể nhập nội dung trả lời thủ công.",
+      );
       return;
+    }
+
+    if (hasCompletedRecording) {
+      valueRef.current = "";
+      interimRef.current = "";
+      setInterim("");
+      onChange("");
     }
 
     setSupportError("");
@@ -121,15 +145,19 @@ export function SpeakingAnswerInput({
 
       if (finalChunk.trim()) {
         const currentValue = valueRef.current;
-        onChange(`${currentValue}${currentValue.trim() ? " " : ""}${finalChunk.trim()}`.trim());
+        const nextValue =
+          `${currentValue}${currentValue.trim() ? " " : ""}${finalChunk.trim()}`.trim();
+        valueRef.current = nextValue;
+        onChange(nextValue);
       }
+      interimRef.current = interimChunk;
       setInterim(interimChunk);
     };
 
     recognizer.onerror = (event) => {
       setPreparing(false);
       if (event.error !== "no-speech") {
-        setSupportError(`SpeechRecognition loi: ${event.error}`);
+        setSupportError(`Lỗi nhận diện giọng nói: ${event.error}`);
       }
     };
 
@@ -155,7 +183,7 @@ export function SpeakingAnswerInput({
     } catch {
       setListening(false);
       setPreparing(false);
-      setSupportError("Khong the bat nhan dien giong noi.");
+      setSupportError("Không thể bật nhận diện giọng nói.");
     }
   }
 
@@ -169,23 +197,33 @@ export function SpeakingAnswerInput({
             disabled={disabled || preparing}
             className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
           >
-            {preparing ? "Dang khoi dong micro..." : "Bat dau noi"}
+            {preparing
+              ? "Đang khởi động micro..."
+              : hasCompletedRecording
+                ? "Ghi âm lại"
+                : "Bắt đầu ghi âm"}
           </button>
         ) : (
           <button
             type="button"
-            onClick={stopListening}
+            onClick={() => stopListening()}
             className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white"
           >
-            Dung ghi
+            Dừng ghi
           </button>
         )}
         <span className={`rounded-lg px-3 py-2 text-xs font-semibold ${listening ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
-          {listening ? "Dang nghe..." : "San sang"}
+          {listening
+            ? "Đang ghi âm..."
+            : hasCompletedRecording
+              ? "Đã ghi xong"
+              : "Sẵn sàng"}
         </span>
       </div>
 
-      {interim ? <p className="text-xs text-slate-500">Realtime: {interim}</p> : null}
+      {interim ? (
+        <p className="text-xs text-slate-500">Đang nhận diện: {interim}</p>
+      ) : null}
       {supportError ? <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-700">{supportError}</p> : null}
     </div>
   );

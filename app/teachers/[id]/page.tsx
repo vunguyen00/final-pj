@@ -20,33 +20,33 @@ const teachersData: Record<
 > = {
   "1": {
     id: "1",
-    name: "Nguyen Van A",
+    name: "Nguyễn Văn A",
     avatar: "NVA",
-    title: "Thac si Ngon ngu hoc",
+    title: "Thạc sĩ Ngôn ngữ học",
     longBio:
-      "Thay Nguyen Van A la mot trong nhung giang vien tieng Anh co kinh nghiem da day hon 5000 hoc vien. Phuong phap giang day tap trung vao giao tiep tu nhien va ap dung thuc te.",
-    specialties: ["Speaking", "Giao tiep", "Phat am"],
+      "Thầy Nguyễn Văn A là một trong những giảng viên tiếng Anh giàu kinh nghiệm, đã giảng dạy hơn 5.000 học viên. Phương pháp giảng dạy tập trung vào giao tiếp tự nhiên và ứng dụng thực tế.",
+    specialties: ["Kỹ năng nói", "Giao tiếp", "Phát âm"],
     students: 5000,
     rating: 4.9,
     courses: [
-      { id: "1", title: "Tieng Anh Giao tiep co ban", students: 1250, rating: 4.8 },
-      { id: "5", title: "Business English cho nguoi di lam", students: 450, rating: 4.9 },
+      { id: "1", title: "Tiếng Anh giao tiếp cơ bản", students: 1250, rating: 4.8 },
+      { id: "5", title: "Tiếng Anh thương mại cho người đi làm", students: 450, rating: 4.9 },
     ],
     social: { email: "nguyenvana@learnhub.com", linkedin: "linkedin.com/in/nguyenvana" },
   },
   "2": {
     id: "2",
-    name: "Tran Thi B",
+    name: "Trần Thị B",
     avatar: "TTB",
-    title: "Giang vien IELTS",
+    title: "Giảng viên IELTS",
     longBio:
-      "Co Tran Thi B co 12 nam kinh nghiem luyen thi IELTS va da dong hanh cung hang nghin hoc vien trong muc tieu Band 7+.",
-    specialties: ["IELTS Writing", "IELTS Speaking"],
+      "Cô Trần Thị B có 12 năm kinh nghiệm luyện thi IELTS và đã đồng hành cùng hàng nghìn học viên chinh phục mục tiêu Band 7+.",
+    specialties: ["Viết IELTS", "Nói IELTS"],
     students: 4200,
     rating: 4.8,
     courses: [
       { id: "2", title: "IELTS Writing Band 7+", students: 890, rating: 4.9 },
-      { id: "6", title: "TOEFL iBT Preparation", students: 380, rating: 4.8 },
+      { id: "6", title: "Luyện thi TOEFL iBT", students: 380, rating: 4.8 },
     ],
     social: { email: "tranthib@learnhub.com" },
   },
@@ -76,9 +76,9 @@ export default async function TeacherDetailPage({ params }: Props) {
               <h1 className="text-3xl font-semibold text-foreground">{teacher.name}</h1>
               <p className="text-muted-foreground">{teacher.title}</p>
               <div className="mt-3 flex flex-wrap gap-3 text-sm text-muted-foreground">
-                <span>{teacher.rating} rating</span>
-                <span>{teacher.students.toLocaleString()} hoc vien</span>
-                <span>{teacher.courses.length} khoa hoc</span>
+                <span>{teacher.rating} điểm đánh giá</span>
+                <span>{teacher.students.toLocaleString("vi-VN")} học viên</span>
+                <span>{teacher.courses.length} khóa học</span>
               </div>
               <BadgeGroup className="mt-3">
                 {teacher.specialties.map((spec) => (
@@ -94,12 +94,12 @@ export default async function TeacherDetailPage({ params }: Props) {
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
             <article className="rounded-xl border border-border bg-card p-6">
-              <SectionHeader title="Gioi thieu" className="mb-3" />
+              <SectionHeader title="Giới thiệu" className="mb-3" />
               <p className="leading-relaxed text-muted-foreground">{teacher.longBio}</p>
             </article>
 
             <article className="rounded-xl border border-border bg-card p-6">
-              <SectionHeader title="Khoa hoc cua giang vien" className="mb-3" />
+              <SectionHeader title="Khóa học của giảng viên" className="mb-3" />
               <div className="space-y-3">
                 {teacher.courses.map((course) => (
                   <Link
@@ -110,7 +110,7 @@ export default async function TeacherDetailPage({ params }: Props) {
                     <div>
                       <h3 className="font-medium text-foreground">{course.title}</h3>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        {course.students} hoc vien - {course.rating} rating
+                        {course.students.toLocaleString("vi-VN")} học viên - {course.rating} điểm đánh giá
                       </p>
                     </div>
                     <span className="text-sm font-semibold text-primary">Xem</span>
@@ -121,7 +121,7 @@ export default async function TeacherDetailPage({ params }: Props) {
           </div>
 
           <aside className="rounded-xl border border-border bg-card p-6">
-            <h3 className="text-lg font-semibold text-foreground">Lien he</h3>
+            <h3 className="text-lg font-semibold text-foreground">Liên hệ</h3>
             <div className="mt-4 space-y-3 text-sm text-muted-foreground">
               <p>{teacher.social.email}</p>
               {teacher.social.linkedin ? <p>{teacher.social.linkedin}</p> : null}

@@ -37,6 +37,7 @@ function serializeEntranceTest(test: Awaited<ReturnType<typeof findEntranceTest>
       type: question.type,
       content: question.content,
       audioUrl: question.audioUrl,
+      hint: question.hint,
       order: question.order,
       score: question.score,
       answers:

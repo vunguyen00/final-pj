@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user || (user.role !== "STUDENT" && user.role !== "TEACHER" && user.role !== "ADMIN")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Bạn chưa đăng nhập." }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -64,26 +64,34 @@ export async function GET(request: NextRequest) {
         bandScore: attempt.score,
         submittedAt: attempt.submittedAt,
         durationSeconds: Math.max(0, Math.round((attempt.submittedAt.getTime() - attempt.startedAt.getTime()) / 1000)),
-        summary: `${Number(stored.correctAnswers ?? 0)}/${Number(stored.totalQuestions ?? 0)} cau dung`,
+        summary: `${Number(stored.correctAnswers ?? 0)}/${Number(stored.totalQuestions ?? 0)} câu đúng`,
       };
     });
 
-    const aiItems = aiAssessments.map((item) => ({
-      id: item.id,
-      type: item.type,
-      title: item.title || (item.type === "SPEAKING" ? "Speaking AI" : "Writing AI"),
-      course: item.course,
-      score: item.score,
-      maxScore: item.maxScore,
-      bandSystem: item.bandSystem,
-      bandLevel: item.bandLevel,
-      bandScore: item.bandScore,
-      submittedAt: item.submittedAt,
-      durationSeconds: item.durationSeconds,
-      summary: typeof (item.feedback as Record<string, unknown>)?.evaluation === "object"
-        ? String(((item.feedback as Record<string, unknown>).evaluation as Record<string, unknown>)?.summary || "")
-        : "",
-    }));
+    const aiItems = aiAssessments.map((item) => {
+      const feedback = item.feedback as Record<string, unknown>;
+      const ielts = feedback.ielts as Record<string, unknown> | undefined;
+      const legacyEvaluation = feedback.evaluation as
+        | Record<string, unknown>
+        | undefined;
+
+      return {
+        id: item.id,
+        type: item.type,
+        title: item.title || (item.type === "SPEAKING" ? "Speaking AI" : "Writing AI"),
+        course: item.course,
+        score: item.score,
+        maxScore: item.maxScore,
+        bandSystem: item.bandSystem,
+        bandLevel: item.bandLevel,
+        bandScore: item.bandScore,
+        submittedAt: item.submittedAt,
+        durationSeconds: item.durationSeconds,
+        summary: String(
+          ielts?.final_feedback || legacyEvaluation?.summary || "",
+        ),
+      };
+    });
 
     const results = [...testItems, ...aiItems].sort(
       (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
@@ -92,6 +100,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ results });
   } catch (error) {
     console.error("Error fetching result history:", error);
-    return NextResponse.json({ error: "Failed to fetch result history" }, { status: 500 });
+    return NextResponse.json({ error: "Không tải được lịch sử kết quả." }, { status: 500 });
   }
 }

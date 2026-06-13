@@ -14,6 +14,10 @@ import { SpeakingExamType } from "@/lib/ai/types";
 import { getSpeakingAiSetting } from "@/lib/speaking-ai-setting";
 import { canUseAiForCourse, shouldChargeAiPoints } from "@/lib/ai-access";
 import { evaluateTestAiAnswers } from "@/lib/test-ai-evaluation";
+import { evaluateIeltsSpeaking } from "@/lib/ielts-grading";
+import { buildSpeakingAssessmentPayload } from "@/lib/ielts-assessment";
+import type { IeltsSpeakingEvaluation } from "@/lib/ielts-rubric";
+import type { Prisma } from "@/app/generated/prisma/client";
 
 function audioExtension(type: string) {
   if (type.includes("mpeg") || type.includes("mp3")) return "mp3";
@@ -43,7 +47,7 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user || (user.role !== "STUDENT" && user.role !== "TEACHER" && user.role !== "ADMIN")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Bạn chưa đăng nhập." }, { status: 401 });
     }
 
     const form = await request.formData();
@@ -59,7 +63,7 @@ export async function POST(request: NextRequest) {
     const chargePoints = shouldChargeAiPoints(user.role);
 
     if (!transcript) {
-      return NextResponse.json({ error: "Can co transcript de AI cham speaking." }, { status: 400 });
+      return NextResponse.json({ error: "Cần có bản ghi lời nói để AI chấm bài." }, { status: 400 });
     }
     const validation = validateEssay(transcript);
     if (!validation.valid) {
@@ -73,14 +77,14 @@ export async function POST(request: NextRequest) {
     if (courseId) {
       const canUseCourse = await canUseAiForCourse(user, courseId);
       if (!canUseCourse) {
-        return NextResponse.json({ error: "Ban khong co quyen tren khoa hoc nay." }, { status: 403 });
+        return NextResponse.json({ error: "Bạn không có quyền trên khóa học này." }, { status: 403 });
       }
     }
 
     if (chargePoints) {
       const pointsBefore = await getAiPointsSummary(user.id);
       if (pointsBefore.available < SPEAKING_AI_COST) {
-        return NextResponse.json({ error: "Khong du diem de dung speaking AI." }, { status: 400 });
+        return NextResponse.json({ error: "Không đủ điểm để sử dụng Speaking AI." }, { status: 400 });
       }
     }
 
@@ -91,118 +95,74 @@ export async function POST(request: NextRequest) {
 
     const audioFile = audio instanceof File ? audio : null;
     const audioUrl = await saveSpeakingAudio(audioFile, user.id);
-    const evaluationResult = (await evaluateTestAiAnswers([
-      {
-        questionId: "speaking",
-        mode: "SPEAKING",
-        answer: sanitizedTranscript,
-        prompt: `${prompt}\nConversation context: ${conversation.slice(0, 1500)}`,
-        examType: examType === "HSK" ? "HSK" : "IELTS",
-      },
-    ])).get("speaking");
-    if (!evaluationResult || evaluationResult.failed) {
-      throw new Error("AI_EVALUATION_FAILED");
-    }
-
-    const evaluation = evaluationResult.aiEvaluation;
-    const normalizedOverall = evaluationResult.normalizedScore;
-    const taskRelevance = evaluation.taskRelevance ?? 0;
-    const normalizedCriteria = evaluation.criteria || {};
     const exam = examType === "HSK" ? "HSK" : "IELTS";
-    const maxScore = exam === "IELTS" ? 9 : 100;
-    const toExamScore = (score: number) =>
-      exam === "IELTS" ? Math.round(score * 0.9 * 2) / 2 : Math.round(score * 10);
-    const criteria = Object.fromEntries(
-      Object.entries(normalizedCriteria)
-        .filter(([key]) => ["fluency", "vocabulary", "grammar", "pronunciation"].includes(key))
-        .map(([key, value]) => [key, toExamScore(Number(value))]),
-    );
-    const overall = toExamScore(normalizedOverall);
-    const band = {
-      system: exam,
-      level: exam === "IELTS" ? overall.toFixed(1) : `HSKK ${Math.round(overall)}`,
-      score: overall,
-      rationale: evaluation.band?.rationale || "",
-    };
-    const sampleAnswer = evaluation.sampleAnswer || "";
+    let overall: number;
+    let maxScore: number;
+    let bandLevel: string;
+    let criteriaPayload: Prisma.InputJsonValue;
+    let feedbackPayload: Prisma.InputJsonValue;
+    let mistakesPayload: Prisma.InputJsonValue;
+    let improvementsPayload: Prisma.InputJsonValue;
+    let sampleAnswer: string | null = null;
 
-    const assessment = await prisma.aiAssessment.create({
-      data: {
-        userId: user.id,
-        courseId: courseId || null,
-        type: "SPEAKING",
-        title,
-        prompt: prompt || null,
-        submissionText: sanitizedTranscript,
-        audioUrl,
-        durationSeconds:
-          Number.isFinite(durationSeconds) && durationSeconds > 0
-            ? Math.min(Math.round(durationSeconds), speakingSetting.durationSeconds)
-            : null,
-        score: overall,
-        maxScore,
-        bandSystem: band.system,
-        bandLevel: band.level,
-        bandScore: band.score,
-        criteria: {
-          ...criteria,
-          taskRelevance,
-        },
-        feedback: {
-          evaluation: {
-            scores: criteria,
-            overall,
-            normalizedOverall,
-            taskRelevance,
-            language: evaluation.language,
-            exam,
-            scoreScale: exam === "IELTS" ? "BAND_0_9" : "SCORE_0_100",
-            band,
-            summary: evaluation.summary,
-            onTopic: evaluation.onTopic ?? true,
-            offTopicReason: evaluation.offTopicReason || "",
-            detailedComment: evaluation.detailedComment || evaluation.summary,
-          },
-          analysis: {
-            strengths: evaluation.strengths,
-            weaknesses: evaluation.weaknesses,
-            feedback: evaluation.feedback || [],
-            suggestions: evaluation.suggestions,
-          },
-        },
-        mistakes: {
-          pronunciation: evaluation.pronunciationErrors || [],
-          grammar: evaluation.grammarErrors || [],
-          vocabulary: evaluation.vocabularyErrors || [],
-          fluency: evaluation.fluencyIssues || [],
-        },
-        improvements: {
-          suggestions: evaluation.suggestions,
-          practiceMethods: evaluation.practiceMethods || [],
-          sampleAnswer,
-        },
-        sampleAnswer: sampleAnswer || null,
-        submittedAt: new Date(),
-      } as never,
-    }) as unknown as { id: string };
+    if (exam === "IELTS") {
+      let evaluation: IeltsSpeakingEvaluation;
+      try {
+        evaluation = await evaluateIeltsSpeaking({
+          prompt: prompt || "General IELTS Speaking interview",
+          transcript: sanitizedTranscript,
+          conversation: conversation.slice(0, 4000),
+          durationSeconds:
+            Number.isFinite(durationSeconds) && durationSeconds > 0
+              ? durationSeconds
+              : null,
+          audioAnalysisAvailable: false,
+        });
+      } catch (evaluationError) {
+        console.error("IELTS speaking grading failed:", evaluationError);
+        throw new Error("AI_EVALUATION_FAILED");
+      }
 
-    const pointResult = chargePoints
-      ? await spendAiPoints(user.id, courseId || null, SPEAKING_AI_COST, "SPEAKING_AI", assessment.id)
-      : { spent: 0, available: (await getAiPointsSummary(user.id)).available };
-    const activity = await recordLearningActivity({
-      userId: user.id,
-      courseId: courseId || null,
-      activityType: "SPEAKING",
-      sourceId: assessment.id,
-    });
+      const storedPayload = buildSpeakingAssessmentPayload(evaluation);
+      overall = evaluation.overall_band;
+      maxScore = 9;
+      bandLevel = overall.toFixed(1);
+      criteriaPayload = storedPayload.criteria;
+      feedbackPayload = storedPayload.feedback;
+      mistakesPayload = storedPayload.mistakes;
+      improvementsPayload = storedPayload.improvements;
+    } else {
+      const evaluationResult = (await evaluateTestAiAnswers([
+        {
+          questionId: "speaking",
+          mode: "SPEAKING",
+          answer: sanitizedTranscript,
+          prompt: `${prompt}\nConversation context: ${conversation.slice(0, 1500)}`,
+          examType: "HSK",
+        },
+      ])).get("speaking");
+      if (!evaluationResult || evaluationResult.failed) {
+        throw new Error("AI_EVALUATION_FAILED");
+      }
 
-    return NextResponse.json({
-      success: true,
-      assessmentId: assessment.id,
-      audioUrl,
-      points: pointResult,
-      streak: activity.streak,
-      data: {
+      const evaluation = evaluationResult.aiEvaluation;
+      const normalizedOverall = evaluationResult.normalizedScore;
+      const taskRelevance = evaluation.taskRelevance ?? 0;
+      const normalizedCriteria = evaluation.criteria || {};
+      const toExamScore = (score: number) => Math.round(score * 10);
+      const criteria = Object.fromEntries(
+        Object.entries(normalizedCriteria)
+          .filter(([key]) =>
+            ["fluency", "vocabulary", "grammar", "pronunciation"].includes(key),
+          )
+          .map(([key, value]) => [key, toExamScore(Number(value))]),
+      );
+      overall = toExamScore(normalizedOverall);
+      maxScore = 100;
+      bandLevel = `HSKK ${Math.round(overall)}`;
+      sampleAnswer = evaluation.sampleAnswer || null;
+      criteriaPayload = { ...criteria, taskRelevance };
+      feedbackPayload = {
         evaluation: {
           scores: criteria,
           overall,
@@ -210,8 +170,13 @@ export async function POST(request: NextRequest) {
           taskRelevance,
           language: evaluation.language,
           exam,
-          scoreScale: exam === "IELTS" ? "BAND_0_9" : "SCORE_0_100",
-          band,
+          scoreScale: "SCORE_0_100",
+          band: {
+            system: exam,
+            level: bandLevel,
+            score: overall,
+            rationale: evaluation.band?.rationale || "",
+          },
           summary: evaluation.summary,
           onTopic: evaluation.onTopic ?? true,
           offTopicReason: evaluation.offTopicReason || "",
@@ -231,9 +196,67 @@ export async function POST(request: NextRequest) {
         },
         improvements: {
           practiceMethods: evaluation.practiceMethods || [],
-          sampleAnswer,
+          sampleAnswer: sampleAnswer || "",
         },
+      };
+      mistakesPayload = {
+        pronunciation: evaluation.pronunciationErrors || [],
+        grammar: evaluation.grammarErrors || [],
+        vocabulary: evaluation.vocabularyErrors || [],
+        fluency: evaluation.fluencyIssues || [],
+      };
+      improvementsPayload = {
+        suggestions: evaluation.suggestions,
+        practiceMethods: evaluation.practiceMethods || [],
+        sampleAnswer: sampleAnswer || "",
+      };
+    }
+
+    const assessment = await prisma.aiAssessment.create({
+      data: {
+        userId: user.id,
+        courseId: courseId || null,
+        type: "SPEAKING",
+        taskType: exam === "IELTS" ? "speaking" : null,
+        title,
+        prompt: prompt || null,
+        submissionText: sanitizedTranscript,
+        audioUrl,
+        durationSeconds:
+          Number.isFinite(durationSeconds) && durationSeconds > 0
+            ? Math.min(Math.round(durationSeconds), speakingSetting.durationSeconds)
+            : null,
+        score: overall,
+        maxScore,
+        bandSystem: exam,
+        bandLevel,
+        bandScore: overall,
+        criteria: criteriaPayload,
+        feedback: feedbackPayload,
+        mistakes: mistakesPayload,
+        improvements: improvementsPayload,
+        sampleAnswer,
+        submittedAt: new Date(),
       },
+    });
+
+    const pointResult = chargePoints
+      ? await spendAiPoints(user.id, courseId || null, SPEAKING_AI_COST, "SPEAKING_AI", assessment.id)
+      : { spent: 0, available: (await getAiPointsSummary(user.id)).available };
+    const activity = await recordLearningActivity({
+      userId: user.id,
+      courseId: courseId || null,
+      activityType: "SPEAKING",
+      sourceId: assessment.id,
+    });
+
+    return NextResponse.json({
+      success: true,
+      assessmentId: assessment.id,
+      audioUrl,
+      points: pointResult,
+      streak: activity.streak,
+      data: feedbackPayload,
       durationMs: Date.now() - startTime,
     });
   } catch (error) {
@@ -245,7 +268,12 @@ export async function POST(request: NextRequest) {
         { status: 503 },
       );
     }
-    const status = message.includes("too short") || message.includes("Invalid") ? 400 : 500;
-    return NextResponse.json({ error: message }, { status });
+    if (message.includes("too short") || message.includes("too long")) {
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+    return NextResponse.json(
+      { error: "Không thể lưu kết quả bài nói. Vui lòng thử lại." },
+      { status: 500 },
+    );
   }
 }

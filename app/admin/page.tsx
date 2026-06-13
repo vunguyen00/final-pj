@@ -75,6 +75,7 @@ export default async function AdminPage() {
       name: true,
       kind: true,
       assessmentMode: true,
+      timeLimit: true,
       language: { select: { id: true, name: true, code: true } },
       createdAt: true,
       _count: { select: { questions: true, attempts: true } },

@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { sendBasicEmail } from "@/lib/mailer";
 import { prisma } from "@/lib/prisma";
-import { evaluateTestAiAnswers } from "@/lib/test-ai-evaluation";
+import {
+  evaluateTestAiAnswers,
+  isTestAiAnswerCorrect,
+} from "@/lib/test-ai-evaluation";
 import { logTeacherApplication } from "@/lib/teacher-onboarding";
 import { FIXED_TEST_MAX_SCORE, isTestReady } from "@/lib/test-rules";
 
@@ -98,7 +101,7 @@ export async function POST(
         const aiResult = aiResults.get(question.id);
         if (aiResult) {
           earnedScore = Math.round(question.score * (aiResult.normalizedScore / 10));
-          isCorrect = aiResult.normalizedScore >= 7;
+          isCorrect = isTestAiAnswerCorrect(aiResult);
           earned += earnedScore;
           aiEvaluation = aiResult.aiEvaluation;
         }
@@ -108,7 +111,7 @@ export async function POST(
         const aiResult = aiResults.get(question.id);
         if (aiResult) {
           earnedScore = Math.round(question.score * (aiResult.normalizedScore / 10));
-          isCorrect = aiResult.normalizedScore >= 7;
+          isCorrect = isTestAiAnswerCorrect(aiResult);
           earned += earnedScore;
           aiEvaluation = aiResult.aiEvaluation;
         }

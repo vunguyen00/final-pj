@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     if (courseId) {
       const canUseCourse = await canUseAiForCourse(user, courseId);
       if (!canUseCourse) {
-        return NextResponse.json({ error: "Ban khong co quyen tren khoa hoc nay." }, { status: 403 });
+        return NextResponse.json({ error: "Bạn không có quyền trên khóa học này." }, { status: 403 });
       }
     }
 
@@ -28,13 +28,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     if (error instanceof Error && error.message === "INSUFFICIENT_POINTS") {
-      return NextResponse.json({ error: "Khong du diem AI." }, { status: 400 });
+      return NextResponse.json({ error: "Không đủ điểm AI." }, { status: 400 });
     }
 
     if (error instanceof Error && error.message === "INVALID_POINTS") {
-      return NextResponse.json({ error: "So diem khong hop le." }, { status: 400 });
+      return NextResponse.json({ error: "Số điểm không hợp lệ." }, { status: 400 });
     }
 
-    return NextResponse.json({ error: "Loi he thong." }, { status: 500 });
+    return NextResponse.json({ error: "Lỗi hệ thống." }, { status: 500 });
   }
 }

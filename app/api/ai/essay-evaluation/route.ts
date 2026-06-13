@@ -9,19 +9,12 @@ import { getCurrentUser } from "@/lib/auth";
 import { getAiPointsSummary, recordLearningActivity, spendAiPoints, WRITING_AI_COST } from "@/lib/ai-points";
 import { prisma } from "@/lib/prisma";
 import { canUseAiForCourse, shouldChargeAiPoints } from "@/lib/ai-access";
-import { evaluateTestAiAnswers } from "@/lib/test-ai-evaluation";
-
-function applyCorrections(
-  essay: string,
-  corrections: Array<{ original: string; improved: string; reason: string }>,
-) {
-  return corrections.reduce((result, correction) => {
-    if (!correction.original || !correction.improved || !result.includes(correction.original)) {
-      return result;
-    }
-    return result.replace(correction.original, correction.improved);
-  }, essay);
-}
+import { evaluateIeltsWriting } from "@/lib/ielts-grading";
+import { buildWritingAssessmentPayload } from "@/lib/ielts-assessment";
+import type {
+  IeltsWritingEvaluation,
+  IeltsWritingTaskType,
+} from "@/lib/ielts-rubric";
 
 /**
  * Health check before evaluation
@@ -82,28 +75,29 @@ export async function POST(request: NextRequest) {
 
     const user = await getCurrentUser();
     if (!user || (user.role !== "STUDENT" && user.role !== "TEACHER" && user.role !== "ADMIN")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Bạn chưa đăng nhập." }, { status: 401 });
     }
 
-    const { essay, taskPrompt, courseId, title } = body as {
+    const { essay, taskPrompt, courseId, title, taskType } = body as {
       essay: string;
       taskPrompt?: string;
       courseId?: string;
       title?: string;
+      taskType?: IeltsWritingTaskType;
     };
     const chargePoints = shouldChargeAiPoints(user.role);
 
     if (courseId) {
       const canUseCourse = await canUseAiForCourse(user, courseId);
       if (!canUseCourse) {
-        return NextResponse.json({ error: "Ban khong co quyen tren khoa hoc nay." }, { status: 403 });
+        return NextResponse.json({ error: "Bạn không có quyền trên khóa học này." }, { status: 403 });
       }
     }
 
     if (chargePoints) {
       const pointsBefore = await getAiPointsSummary(user.id);
       if (pointsBefore.available < WRITING_AI_COST) {
-        return NextResponse.json({ error: "Khong du diem de cham writing AI." }, { status: 400 });
+        return NextResponse.json({ error: "Không đủ điểm để chấm bài bằng Writing AI." }, { status: 400 });
       }
     }
 
@@ -128,100 +122,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid request content" }, { status: 400 });
     }
 
-    const evaluationResult = (await evaluateTestAiAnswers([
-      {
-        questionId: "writing",
-        mode: "WRITING",
+    let evaluation: IeltsWritingEvaluation;
+    try {
+      evaluation = await evaluateIeltsWriting({
+        prompt: taskPrompt?.trim() || "General IELTS Writing Task 2",
         answer: sanitizedEssay,
-        prompt: taskPrompt,
-      },
-    ])).get("writing");
-    if (!evaluationResult || evaluationResult.failed) {
+        taskType,
+      });
+    } catch (evaluationError) {
+      console.error("IELTS writing grading failed:", evaluationError);
       throw new Error("AI_EVALUATION_FAILED");
     }
 
-    const evaluation = evaluationResult.aiEvaluation;
-    const criteria = evaluation.criteria || {};
-    const grammar = Number(criteria.grammar ?? evaluationResult.normalizedScore);
-    const vocabulary = Number(criteria.vocabulary ?? evaluationResult.normalizedScore);
-    const coherence = Number(criteria.coherence ?? evaluationResult.normalizedScore);
-    const taskResponse = Number(criteria.task_response ?? evaluationResult.normalizedScore);
-    const overall = evaluationResult.normalizedScore;
-    const corrections = evaluation.corrections || [];
-    const improvedVersion = applyCorrections(sanitizedEssay, corrections);
-    const formattedResponse = {
-      evaluation: {
-        scores: {
-          grammar,
-          vocabulary,
-          coherence,
-          task_response: taskResponse,
-          overall,
-        },
-        summary: evaluation.summary,
-        language: evaluation.language,
-        band: evaluation.band,
-        taskRelevance: evaluation.taskRelevance ?? 0,
-        onTopic: evaluation.onTopic ?? true,
-        offTopicReason: evaluation.offTopicReason || "",
-        detailedComment: evaluation.detailedComment || evaluation.summary,
-        task_requirements: {
-          prompt_understanding: taskPrompt?.trim() || "General writing task",
-          addressed_points: evaluation.strengths,
-          missing_points: evaluation.weaknesses,
-        },
-      },
-      analysis: {
-        strengths: evaluation.strengths,
-        weaknesses: evaluation.weaknesses,
-        feedback: evaluation.feedback || [],
-        suggestions: evaluation.suggestions,
-      },
-      improvements: {
-        corrections,
-        improved_version: improvedVersion,
-        sample_answer: evaluation.sampleAnswer || "",
-      },
-    };
+    const storedPayload = buildWritingAssessmentPayload(evaluation);
+    const overall = evaluation.overall_band;
     const assessment = await prisma.aiAssessment.create({
       data: {
         userId: user.id,
         courseId: courseId || null,
         type: "WRITING",
+        taskType: evaluation.task_type,
         title: title?.trim() || "Writing AI",
         prompt: taskPrompt || null,
         submissionText: essay,
         score: overall,
-        maxScore: 10,
-        bandSystem: evaluation.band?.system || "GENERAL",
-        bandLevel: evaluation.band?.level || "Intermediate",
-        bandScore: Number(evaluation.band?.score ?? overall),
-        criteria: {
-          taskAchievement: taskResponse,
-          coherenceCohesion: coherence,
-          lexicalResource: vocabulary,
-          grammarRangeAccuracy: grammar,
-          taskRelevance: evaluation.taskRelevance ?? 0,
-        },
-        feedback: formattedResponse,
-        mistakes: {
-          grammar: corrections,
-          vocabulary: evaluation.vocabularyErrors || evaluation.feedback || [],
-          weakSentences: corrections.map((item) => item.original),
-        },
-        improvements: {
-          suggestions: evaluation.suggestions,
-          improvedVersion,
-          practiceMethods: [
-            "Rewrite weak sentences, then compare with the improved version.",
-            "Build a topic vocabulary bank before writing.",
-            "Review grammar patterns from repeated corrections.",
-          ],
-        },
-        sampleAnswer: evaluation.sampleAnswer || improvedVersion || null,
+        maxScore: 9,
+        bandSystem: "IELTS",
+        bandLevel: overall.toFixed(1),
+        bandScore: overall,
+        criteria: storedPayload.criteria,
+        feedback: storedPayload.feedback,
+        mistakes: storedPayload.mistakes,
+        improvements: storedPayload.improvements,
+        sampleAnswer: evaluation.model_answer || null,
         submittedAt: new Date(),
-      } as never,
-    }) as unknown as { id: string };
+      },
+    });
 
     const pointResult = chargePoints
       ? await spendAiPoints(user.id, courseId || null, WRITING_AI_COST, "WRITING_AI", assessment.id)
@@ -243,7 +179,7 @@ export async function POST(request: NextRequest) {
         action: "essay_evaluation",
         duration,
         status: 200,
-        language: evaluation.language,
+        language: "English",
         overall_score: overall,
       })
     );
@@ -251,7 +187,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        data: formattedResponse,
+        data: storedPayload.feedback,
         assessmentId: assessment.id,
         points: pointResult,
         streak: activity.streak,

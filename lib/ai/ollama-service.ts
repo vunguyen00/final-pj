@@ -30,10 +30,10 @@ class OllamaService {
 
   constructor(config?: Partial<AIServiceConfig>) {
     this.config = { ...DEFAULT_CONFIG, ...config };
-    const configuredMax = Number(process.env.OLLAMA_NUM_PREDICT ?? 3200);
+    const configuredMax = Number(process.env.OLLAMA_NUM_PREDICT ?? 4800);
     this.maxOutputTokens = Number.isFinite(configuredMax)
       ? Math.max(256, Math.floor(configuredMax))
-      : 3200;
+      : 4800;
   }
 
   /**

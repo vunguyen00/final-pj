@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SpeakingAnswerInput } from "@/app/components/SpeakingAnswerInput";
+import { FormattedHint } from "@/app/components/FormattedHint";
 import { getSpeechRecognitionLocale } from "@/lib/test-rules";
 
 type Language = { id: string; name: string; code: string };
@@ -11,6 +12,7 @@ type Question = {
   type: string;
   content: string;
   audioUrl: string | null;
+  hint: string | null;
   score: number;
   answers: { id: string; content: string; order: number }[] | null;
 };
@@ -29,6 +31,7 @@ type Application = {
   language: Language;
   entranceTest: EntranceTest | null;
   answerState?: Record<string, string> | null;
+  startedAt: string | null;
   createdAt: string;
   submittedAt: string | null;
 };
@@ -69,6 +72,7 @@ export default function TeacherRegistrationPage() {
   const [submittedQuestionResults, setSubmittedQuestionResults] = useState<SubmittedQuestionResult[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const lastHiddenAt = useRef<number | null>(null);
+  const submitTestRef = useRef<() => Promise<void>>(async () => {});
 
   useEffect(() => {
     void loadData();
@@ -77,7 +81,7 @@ export default function TeacherRegistrationPage() {
   useEffect(() => {
     if (timeLeft === null || !activeApplication) return;
     if (timeLeft <= 0) {
-      void submitTest();
+      void submitTestRef.current();
       return;
     }
     const timer = window.setTimeout(() => setTimeLeft((value) => (value === null ? null : value - 1)), 1000);
@@ -155,6 +159,7 @@ export default function TeacherRegistrationPage() {
 
   const latestApplications = applications.slice(0, 5);
   const speechLocale = getSpeechRecognitionLocale(activeApplication?.language.code);
+  const testLocked = submitting || timeLeft === 0;
 
   async function loadData() {
     const response = await fetch("/api/teacher-applications", { cache: "no-store" });
@@ -166,7 +171,18 @@ export default function TeacherRegistrationPage() {
     if (draft) {
       setActiveApplication(draft);
       setAnswers((draft.answerState as Record<string, string>) || {});
-      setTimeLeft(draft.entranceTest?.timeLimit ? draft.entranceTest.timeLimit * 60 : null);
+      if (draft.entranceTest?.timeLimit) {
+        const elapsedSeconds = draft.startedAt
+          ? Math.floor(
+              (Date.now() - new Date(draft.startedAt).getTime()) / 1000,
+            )
+          : 0;
+        setTimeLeft(
+          Math.max(0, draft.entranceTest.timeLimit * 60 - elapsedSeconds),
+        );
+      } else {
+        setTimeLeft(null);
+      }
     }
   }
 
@@ -199,7 +215,11 @@ export default function TeacherRegistrationPage() {
     }
 
     setActiveApplication(data.application);
-    setTimeLeft(data.application.entranceTest?.timeLimit ? data.application.entranceTest.timeLimit * 60 : null);
+    setTimeLeft(
+      data.application.entranceTest?.timeLimit
+        ? data.application.entranceTest.timeLimit * 60
+        : null,
+    );
     setAnswers({});
     setFiles([]);
     setExpiryDates([]);
@@ -227,6 +247,10 @@ export default function TeacherRegistrationPage() {
     setTimeLeft(null);
     await loadData();
   }
+
+  useEffect(() => {
+    submitTestRef.current = submitTest;
+  });
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -315,8 +339,9 @@ export default function TeacherRegistrationPage() {
                     <span className="font-semibold text-slate-900">Cau {index + 1}</span>
                     <span>{question.score} diem</span>
                   </div>
-                  {question.audioUrl ? <audio controls className="mt-3 w-full max-w-md" src={question.audioUrl} /> : null}
+                  {question.audioUrl ? <audio controls={!testLocked} className="mt-3 w-full max-w-md" src={question.audioUrl} /> : null}
                   <p className="mt-3 font-medium text-slate-900">{question.content}</p>
+                  <FormattedHint hint={question.hint} />
                   <div className="mt-3 space-y-2">
                     {(question.type === "MULTIPLE_CHOICE" || question.type === "TRUE_FALSE") && question.answers
                       ? question.answers.map((answer) => (
@@ -325,6 +350,7 @@ export default function TeacherRegistrationPage() {
                               type="radio"
                               name={question.id}
                               checked={answers[question.id] === answer.id}
+                              disabled={testLocked}
                               onChange={() => setAnswers((prev) => ({ ...prev, [question.id]: answer.id }))}
                             />
                             <span>{answer.content}</span>
@@ -334,6 +360,7 @@ export default function TeacherRegistrationPage() {
                     {question.type === "FILL_IN_BLANK" ? (
                       <input
                         value={answers[question.id] || ""}
+                        disabled={testLocked}
                         onChange={(event) => setAnswers((prev) => ({ ...prev, [question.id]: event.target.value }))}
                         className="w-full rounded-lg border border-slate-300 px-3 py-2"
                       />
@@ -342,6 +369,7 @@ export default function TeacherRegistrationPage() {
                       <textarea
                         rows={6}
                         value={answers[question.id] || ""}
+                        disabled={testLocked}
                         onChange={(event) => setAnswers((prev) => ({ ...prev, [question.id]: event.target.value }))}
                         className="w-full rounded-lg border border-slate-300 px-3 py-2"
                       />
@@ -351,7 +379,7 @@ export default function TeacherRegistrationPage() {
                         value={answers[question.id] || ""}
                         onChange={(value) => setAnswers((prev) => ({ ...prev, [question.id]: value }))}
                         languageLocale={speechLocale}
-                        disabled={submitting}
+                        disabled={testLocked}
                       />
                     ) : null}
                   </div>
@@ -360,7 +388,7 @@ export default function TeacherRegistrationPage() {
             </div>
             <button
               onClick={() => void submitTest()}
-              disabled={submitting}
+              disabled={testLocked}
               className="mt-6 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
             >
               {submitting ? "Dang nop..." : "Nop bai test"}

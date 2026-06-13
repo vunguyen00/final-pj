@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import StarRatingInput from "@/app/components/StarRatingInput";
 
 type AiEvaluation = {
   language: string;
@@ -48,14 +49,24 @@ type ResultData = {
 };
 
 const questionTypes: Record<string, string> = {
-  MULTIPLE_CHOICE: "Multiple choice",
-  FILL_IN_BLANK: "Fill in blank",
-  ESSAY: "Writing response",
-  TRUE_FALSE: "True or false",
-  SPEAKING: "Speaking response",
+  MULTIPLE_CHOICE: "Trắc nghiệm",
+  FILL_IN_BLANK: "Điền từ",
+  ESSAY: "Bài viết",
+  TRUE_FALSE: "Đúng/Sai",
+  SPEAKING: "Bài nói",
 };
 
-const ratingOptions = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
+function isQuestionCorrect(question: QuestionResult) {
+  if (question.questionType !== "SPEAKING" || !question.aiEvaluation) {
+    return question.isCorrect;
+  }
+
+  if (question.aiEvaluation.onTopic !== undefined) {
+    return question.aiEvaluation.onTopic;
+  }
+
+  return (question.aiEvaluation.taskRelevance ?? 0) >= 60;
+}
 
 export default function StudentTestResultPage() {
   const params = useParams();
@@ -80,13 +91,13 @@ export default function StudentTestResultPage() {
         } else {
           const res = await fetch(`/api/student/tests/${testId}/attempts/${attemptId}`, { cache: "no-store" });
           if (!res.ok) {
-            setError("Result not found");
+            setError("Không tìm thấy kết quả.");
             return;
           }
           setResult(await res.json());
         }
       } catch {
-        setError("Failed to load result");
+        setError("Không thể tải kết quả.");
       } finally {
         setLoading(false);
       }
@@ -100,12 +111,12 @@ export default function StudentTestResultPage() {
     for (const question of result.questionResults) {
       const key =
         question.questionType === "ESSAY"
-          ? "Writing"
+          ? "Kỹ năng viết"
           : question.questionType === "SPEAKING"
-            ? "Speaking"
+            ? "Kỹ năng nói"
             : question.questionType === "FILL_IN_BLANK"
-              ? "Vocabulary"
-              : "Comprehension";
+              ? "Từ vựng"
+              : "Đọc hiểu";
       const current = groups.get(key) ?? { earned: 0, max: 0 };
       current.earned += question.earnedScore;
       current.max += question.score;
@@ -129,44 +140,47 @@ export default function StudentTestResultPage() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50">
         <div className="rounded-xl border border-red-200 bg-white p-8 text-center">
-          <p className="text-red-600">{error || "Result not found"}</p>
-          <Link href="/student/tests" className="mt-4 inline-block text-blue-600 hover:underline">Back to tests</Link>
+          <p className="text-red-600">{error || "Không tìm thấy kết quả."}</p>
+          <Link href="/student/tests" className="mt-4 inline-block text-blue-600 hover:underline">Quay lại danh sách bài test</Link>
         </div>
       </main>
     );
   }
 
   const percent = result.maxScore > 0 ? Math.round((result.score / result.maxScore) * 100) : 0;
-  const estimatedLevel = percent >= 85 ? "Advanced" : percent >= 70 ? "Upper Intermediate" : percent >= 55 ? "Intermediate" : percent >= 40 ? "Elementary" : "Beginner";
+  const estimatedLevel = percent >= 85 ? "Nâng cao" : percent >= 70 ? "Trung cấp cao" : percent >= 55 ? "Trung cấp" : percent >= 40 ? "Sơ cấp" : "Mới bắt đầu";
   const weaknesses = skillBreakdown.filter((skill) => skill.score < 70).map((skill) => skill.name);
+  const correctAnswers = result.questionResults.filter(
+    (question) => isQuestionCorrect(question) === true,
+  ).length;
 
   return (
     <main className="min-h-screen bg-slate-50 py-8">
       <div className="mx-auto max-w-6xl space-y-6 px-4">
-        <section className="rounded-2xl border border-slate-200 bg-white p-6">
+        <section className="rounded-3xl bg-gradient-to-br from-blue-700 to-indigo-800 p-6 text-white shadow-lg sm:p-8">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Assessment result</p>
-              <h1 className="mt-2 text-3xl font-bold text-slate-950">Estimated level: {estimatedLevel}</h1>
-              <p className="mt-2 text-slate-600">
-                Score {result.score.toFixed(1)} / {result.maxScore} - {result.correctAnswers}/{result.totalQuestions} correct - GENERAL {estimatedLevel}
+              <p className="text-sm font-semibold uppercase tracking-wide text-blue-100">Kết quả bài test</p>
+              <h1 className="mt-2 text-3xl font-bold">Trình độ ước tính: {estimatedLevel}</h1>
+              <p className="mt-2 text-blue-100">
+                Điểm {result.score.toFixed(1)} / {result.maxScore} - Đúng {correctAnswers}/{result.totalQuestions} câu
               </p>
             </div>
             <div className="text-left lg:text-right">
-              <p className="text-5xl font-bold text-slate-950">{percent}%</p>
-              <p className={result.isPassed ? "font-semibold text-emerald-600" : "font-semibold text-amber-600"}>
-                {result.isPassed ? "Ready for next path" : "Recommended review"}
+              <p className="text-5xl font-bold">{percent}%</p>
+              <p className={result.isPassed ? "font-semibold text-emerald-200" : "font-semibold text-amber-200"}>
+                {result.isPassed ? "Đã đạt yêu cầu" : "Nên ôn tập thêm"}
               </p>
             </div>
           </div>
           <div className="mt-5 h-3 rounded-full bg-slate-100">
-            <div className="h-3 rounded-full bg-blue-600" style={{ width: `${percent}%` }} />
+            <div className="h-3 rounded-full bg-white" style={{ width: `${percent}%` }} />
           </div>
         </section>
 
         <section className="grid gap-6 lg:grid-cols-3">
           <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <h2 className="font-bold text-slate-950">Skill breakdown</h2>
+            <h2 className="font-bold text-slate-950">Phân tích kỹ năng</h2>
             <div className="mt-4 space-y-4">
               {skillBreakdown.map((skill) => (
                 <div key={skill.name}>
@@ -182,85 +196,89 @@ export default function StudentTestResultPage() {
             </div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <h2 className="font-bold text-slate-950">Weaknesses</h2>
+            <h2 className="font-bold text-slate-950">Nội dung cần cải thiện</h2>
             <div className="mt-4 flex flex-wrap gap-2">
-              {(weaknesses.length ? weaknesses : ["No major weakness detected"]).map((item) => (
+              {(weaknesses.length ? weaknesses : ["Chưa phát hiện điểm yếu đáng kể"]).map((item) => (
                 <span key={item} className="rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">{item}</span>
               ))}
             </div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <h2 className="font-bold text-slate-950">Recommended learning path</h2>
+            <h2 className="font-bold text-slate-950">Lộ trình được đề xuất</h2>
             <ol className="mt-4 space-y-3 text-sm text-slate-600">
-              <li>1. Review weak skills with targeted practice.</li>
-              <li>2. Continue a {estimatedLevel} course in your selected language.</li>
-              <li>3. Take a certification estimate after the next module.</li>
+              <li>1. Ôn lại các kỹ năng còn yếu bằng bài luyện tập phù hợp.</li>
+              <li>2. Tiếp tục khóa học ở trình độ {estimatedLevel}.</li>
+              <li>3. Làm lại bài đánh giá sau khi hoàn thành chương tiếp theo.</li>
             </ol>
-            <Link href="/courses" className="mt-5 inline-block rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Recommended courses</Link>
+            <Link href="/courses" className="mt-5 inline-block rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Xem khóa học phù hợp</Link>
           </div>
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-5">
-          <h2 className="text-xl font-bold text-slate-950">Question review</h2>
+          <h2 className="text-xl font-bold text-slate-950">Xem lại từng câu</h2>
           <div className="mt-4 space-y-4">
-            {result.questionResults.map((question, index) => (
-              <article key={question.questionId} className="rounded-xl border border-slate-200 p-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-700">{index + 1}</span>
-                  <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">{questionTypes[question.questionType] || question.questionType}</span>
-                  <span className="text-sm font-semibold text-slate-500">{question.earnedScore}/{question.score} points</span>
-                  {question.isCorrect !== null ? (
-                    <span className={question.isCorrect ? "text-sm font-semibold text-emerald-600" : "text-sm font-semibold text-red-600"}>
-                      {question.isCorrect ? "Correct" : "Incorrect"}
-                    </span>
-                  ) : null}
-                </div>
-                <p className="mt-3 text-slate-900">{question.content}</p>
-                <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm">
-                  <p><span className="font-semibold">Your answer:</span> {question.studentAnswer || "No answer"}</p>
-                  {question.correctAnswer ? <p className="mt-1"><span className="font-semibold">Expected:</span> {question.correctAnswer}</p> : null}
-                </div>
-                {question.aiEvaluation ? (
-                  <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-                    <p className="font-semibold">
-                      AI feedback - {question.aiEvaluation.language} - {question.aiEvaluation.overallScore}/10
-                      {question.aiEvaluation.band ? ` - ${question.aiEvaluation.band.system} ${question.aiEvaluation.band.level}` : ""}
-                    </p>
-                    <p className="mt-2">{question.aiEvaluation.summary}</p>
-                    <p className="mt-2 font-semibold">
-                      Do bam de: {Math.round(question.aiEvaluation.taskRelevance ?? 0)}/100
-                    </p>
-                    {question.aiEvaluation.onTopic === false ? (
-                      <p className="mt-2 rounded-lg bg-red-100 p-3 font-semibold text-red-800">
-                        Lac de: {question.aiEvaluation.offTopicReason || "Cau tra loi chua dung trong tam de bai."}
-                      </p>
-                    ) : null}
-                    {question.aiEvaluation.detailedComment ? (
-                      <p className="mt-2 leading-6">{question.aiEvaluation.detailedComment}</p>
-                    ) : null}
-                    {question.aiEvaluation.weaknesses.length ? <p className="mt-2">Focus: {question.aiEvaluation.weaknesses.join(", ")}</p> : null}
-                    {question.aiEvaluation.suggestions.length ? <p className="mt-2">Next: {question.aiEvaluation.suggestions.slice(0, 3).join("; ")}</p> : null}
-                    {question.aiEvaluation.sampleAnswer ? (
-                      <div className="mt-3 rounded-lg border border-blue-200 bg-white p-3 text-slate-800">
-                        <p className="font-semibold">Bai mau dung de</p>
-                        <p className="mt-2 whitespace-pre-line leading-6">{question.aiEvaluation.sampleAnswer}</p>
-                      </div>
+            {result.questionResults.map((question, index) => {
+              const markedCorrect = isQuestionCorrect(question);
+
+              return (
+                <article key={question.questionId} className="rounded-xl border border-slate-200 p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-700">{index + 1}</span>
+                    <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">{questionTypes[question.questionType] || question.questionType}</span>
+                    <span className="text-sm font-semibold text-slate-500">{question.earnedScore}/{question.score} điểm</span>
+                    {markedCorrect !== null ? (
+                      <span className={markedCorrect ? "text-sm font-semibold text-emerald-600" : "text-sm font-semibold text-red-600"}>
+                        {markedCorrect ? "Đúng" : "Chưa đúng"}
+                      </span>
                     ) : null}
                   </div>
-                ) : null}
-              </article>
-            ))}
+                  <p className="mt-3 text-slate-900">{question.content}</p>
+                  <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm">
+                    <p><span className="font-semibold">Câu trả lời của bạn:</span> {question.studentAnswer || "Chưa trả lời"}</p>
+                    {question.correctAnswer ? <p className="mt-1"><span className="font-semibold">Đáp án:</span> {question.correctAnswer}</p> : null}
+                  </div>
+                  {question.aiEvaluation ? (
+                    <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+                      <p className="font-semibold">
+                        Phản hồi AI - {question.aiEvaluation.language} - {question.aiEvaluation.overallScore}/10
+                        {question.aiEvaluation.band ? ` - ${question.aiEvaluation.band.system} ${question.aiEvaluation.band.level}` : ""}
+                      </p>
+                      <p className="mt-2">{question.aiEvaluation.summary}</p>
+                      <p className="mt-2 font-semibold">
+                        Độ bám đề: {Math.round(question.aiEvaluation.taskRelevance ?? 0)}/100
+                      </p>
+                      {question.aiEvaluation.onTopic === false ? (
+                        <p className="mt-2 rounded-lg bg-red-100 p-3 font-semibold text-red-800">
+                          Lạc đề: {question.aiEvaluation.offTopicReason || "Câu trả lời chưa đúng trọng tâm đề bài."}
+                        </p>
+                      ) : null}
+                      {question.aiEvaluation.detailedComment ? (
+                        <p className="mt-2 leading-6">{question.aiEvaluation.detailedComment}</p>
+                      ) : null}
+                      {question.aiEvaluation.weaknesses.length ? <p className="mt-2">Cần cải thiện: {question.aiEvaluation.weaknesses.join(", ")}</p> : null}
+                      {question.aiEvaluation.suggestions.length ? <p className="mt-2">Đề xuất: {question.aiEvaluation.suggestions.slice(0, 3).join("; ")}</p> : null}
+                      {question.aiEvaluation.sampleAnswer ? (
+                        <div className="mt-3 rounded-lg border border-blue-200 bg-white p-3 text-slate-800">
+                          <p className="font-semibold">Bài mẫu đúng đề</p>
+                          <p className="mt-2 whitespace-pre-line leading-6">{question.aiEvaluation.sampleAnswer}</p>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </article>
+              );
+            })}
           </div>
         </section>
 
         <div className="flex flex-wrap gap-3">
-          <Link href="/student/tests" className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">Back to tests</Link>
+          <Link href="/student/tests" className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">Quay lại danh sách bài test</Link>
           {result.isPassed && result.courseId ? (
             <Link href={`/courses/${result.courseId}`} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-              Review course
+              Xem lại khóa học
             </Link>
           ) : null}
-          {!result.isPassed ? <Link href={`/student/tests/${testId}`} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Retake diagnostic</Link> : null}
+          {!result.isPassed ? <Link href={`/student/tests/${testId}`} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Làm lại bài test</Link> : null}
         </div>
       </div>
       {result.isPassed && result.courseId ? (
@@ -310,7 +328,7 @@ function CourseReviewPopup({ courseId, courseName }: { courseId: string; courseN
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        setMessage(data.error || "Khong luu duoc danh gia.");
+        setMessage(data.error || "Không thể lưu đánh giá.");
         return;
       }
 
@@ -327,10 +345,10 @@ function CourseReviewPopup({ courseId, courseName }: { courseId: string; courseN
       <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Hoan thanh khoa hoc</p>
-            <h2 className="mt-2 text-2xl font-bold text-slate-950">Danh gia {courseName}</h2>
+            <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Hoàn thành khóa học</p>
+            <h2 className="mt-2 text-2xl font-bold text-slate-950">Đánh giá {courseName}</h2>
             <p className="mt-2 text-sm text-slate-600">
-              Chon diem tu 1 den 5 sao. Binh luan la tuy chon va ban co the sua lai sau.
+              Chọn điểm từ 1 đến 5 sao. Bình luận là tùy chọn và bạn có thể sửa lại sau.
             </p>
           </div>
           <button
@@ -338,33 +356,23 @@ function CourseReviewPopup({ courseId, courseName }: { courseId: string; courseN
             onClick={closePopup}
             className="rounded-lg border border-slate-200 px-3 py-1 text-sm font-semibold text-slate-600 hover:bg-slate-50"
           >
-            Bo qua
+            Bỏ qua
           </button>
         </div>
 
-        <div className="mt-5 flex flex-wrap gap-2">
-          {ratingOptions.map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setRating(value)}
-              className={`rounded-lg border px-3 py-2 text-sm font-bold ${
-                value === rating
-                  ? "border-amber-300 bg-amber-50 text-amber-600"
-                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              {value.toFixed(1)}
-            </button>
-          ))}
-        </div>
-        <p className="mt-2 text-sm font-semibold text-amber-600">{rating.toFixed(1)} / 5 sao</p>
+        <StarRatingInput
+          value={rating}
+          onChange={setRating}
+          disabled={submitting}
+          className="mt-5"
+        />
+        <p className="mt-2 text-sm font-semibold text-amber-600">{rating} / 5 sao</p>
 
         <textarea
           value={comment}
           onChange={(event) => setComment(event.target.value)}
           rows={4}
-          placeholder="Binh luan tuy chon..."
+          placeholder="Bình luận tùy chọn..."
           className="mt-4 w-full rounded-lg border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
         />
         {message ? <p className="mt-2 text-sm text-red-600">{message}</p> : null}
@@ -375,7 +383,7 @@ function CourseReviewPopup({ courseId, courseName }: { courseId: string; courseN
             onClick={closePopup}
             className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
-            De sau
+            Để sau
           </button>
           <button
             type="button"
@@ -383,7 +391,7 @@ function CourseReviewPopup({ courseId, courseName }: { courseId: string; courseN
             disabled={submitting}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-slate-300"
           >
-            {submitting ? "Dang luu..." : "Gui danh gia"}
+            {submitting ? "Đang lưu..." : "Gửi đánh giá"}
           </button>
         </div>
       </div>

@@ -109,7 +109,7 @@ export async function grantCourseCompletionPoints(userId: string, courseId: stri
     type: "COURSE_COMPLETED",
     amount: COURSE_COMPLETION_POINTS,
     sourceKey: `COURSE_COMPLETED:${userId}:${courseId}`,
-    description: "Hoan thanh khoa hoc",
+    description: "Hoàn thành khóa học",
     metadata: { courseId },
   });
 
@@ -191,7 +191,7 @@ async function awardStreakMilestones(userId: string, courseId?: string | null) {
       type: `STREAK_${award.days}_DAYS`,
       amount: award.points,
       sourceKey: `STREAK:${award.days}:${userId}:${today}`,
-      description: `Streak ${award.days} ngay`,
+      description: `Chuỗi học ${award.days} ngày`,
       metadata: { streakDays: award.days },
     });
   }

@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { FIXED_TEST_MAX_SCORE, normalizeTestAssessmentMode, requiresLanguageForTest, type TestKind } from "@/lib/test-rules";
+import {
+  FIXED_TEST_MAX_SCORE,
+  UNLIMITED_TEST_ATTEMPTS,
+  normalizeTestAssessmentMode,
+  requiresLanguageForTest,
+  type TestKind,
+} from "@/lib/test-rules";
 
 export async function GET(request: NextRequest) {
   try {
@@ -64,7 +70,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, description, courseId, languageId, passingScore, maxAttempts, timeLimit, shuffleQuestions } = body;
+    const { name, description, courseId, languageId, passingScore, timeLimit, shuffleQuestions } = body;
     const kind: TestKind = body.kind === "PUBLIC_PRACTICE" || body.kind === "TEACHER_ENTRANCE" ? body.kind : "COURSE";
     const assessmentMode = normalizeTestAssessmentMode(body.assessmentMode);
 
@@ -134,15 +140,10 @@ export async function POST(request: NextRequest) {
     }
 
     const parsedPassingScore = Number(passingScore ?? 50);
-    const parsedMaxAttempts = Number(maxAttempts ?? 3);
     const parsedTimeLimit = timeLimit === null || timeLimit === undefined || timeLimit === "" ? null : Number(timeLimit);
 
     if (!Number.isFinite(parsedPassingScore) || parsedPassingScore < 0 || parsedPassingScore > FIXED_TEST_MAX_SCORE) {
       return NextResponse.json({ error: "Passing score must be between 0 and 100" }, { status: 400 });
-    }
-
-    if (!Number.isInteger(parsedMaxAttempts) || parsedMaxAttempts <= 0) {
-      return NextResponse.json({ error: "Max attempts must be a positive integer" }, { status: 400 });
     }
 
     if (parsedTimeLimit !== null && (!Number.isInteger(parsedTimeLimit) || parsedTimeLimit <= 0)) {
@@ -158,7 +159,7 @@ export async function POST(request: NextRequest) {
         assessmentMode,
         maxScore: FIXED_TEST_MAX_SCORE,
         passingScore: parsedPassingScore,
-        maxAttempts: parsedMaxAttempts,
+        maxAttempts: UNLIMITED_TEST_ATTEMPTS,
         timeLimit: parsedTimeLimit,
         shuffleQuestions: Boolean(shuffleQuestions),
         kind,

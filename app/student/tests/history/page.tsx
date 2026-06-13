@@ -54,7 +54,7 @@ export default function StudentTestHistoryPage() {
         const res = await fetch(`/api/student/tests/history${query}`, { cache: "no-store" });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          setError(data?.error || "Khong tai duoc lich su lam bai.");
+          setError(data?.error || "Không thể tải lịch sử làm bài.");
           return;
         }
         setCourses(data.courses || []);
@@ -62,7 +62,7 @@ export default function StudentTestHistoryPage() {
         setHistory(data.history || []);
         setError("");
       } catch {
-        setError("Khong tai duoc lich su lam bai.");
+        setError("Không thể tải lịch sử làm bài.");
       } finally {
         setLoading(false);
       }
@@ -93,31 +93,31 @@ export default function StudentTestHistoryPage() {
   return (
     <main className="min-h-screen bg-slate-50 py-8">
       <div className="mx-auto max-w-7xl px-4">
-        <section className="rounded-2xl border border-slate-200 bg-white p-6">
+        <section className="rounded-3xl bg-gradient-to-br from-slate-900 to-blue-900 p-6 text-white shadow-lg sm:p-8">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Test history</p>
-              <h1 className="mt-2 text-3xl font-bold text-slate-950">Lich su lam bai cua toi</h1>
-              <p className="mt-2 text-slate-600">
-                Xem lai toan bo ket qua, cau tra loi va phan hoi AI cho tung lan nop bai.
+              <p className="text-sm font-semibold uppercase tracking-wide text-blue-200">Lịch sử bài test</p>
+              <h1 className="mt-2 text-3xl font-bold">Lịch sử làm bài của tôi</h1>
+              <p className="mt-2 text-slate-200">
+                Xem lại toàn bộ kết quả, câu trả lời và phản hồi AI cho từng lần nộp bài.
               </p>
             </div>
             <div className="flex gap-2">
-              <Link href="/student/tests" className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
-                Quay lai trang test
+              <Link href="/student/tests" className="rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-blue-800 hover:bg-blue-50">
+                Quay lại danh sách bài test
               </Link>
             </div>
           </div>
         </section>
 
         <section className="mt-6 grid gap-4 md:grid-cols-3">
-          <Stat label="Tong so lan lam" value={stats.totalAttempts} />
-          <Stat label="So lan dat" value={stats.passed} />
-          <Stat label="Diem trung binh" value={`${stats.averageScore}%`} />
+          <Stat label="Tổng số lần làm" value={stats.totalAttempts} />
+          <Stat label="Số lần đạt" value={stats.passed} />
+          <Stat label="Điểm trung bình" value={`${stats.averageScore}%`} />
         </section>
 
         <section className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-sm font-semibold text-slate-700">Chuyen doi lich su theo khoa hoc</p>
+          <p className="text-sm font-semibold text-slate-700">Lọc theo khóa học</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
@@ -129,7 +129,7 @@ export default function StudentTestHistoryPage() {
                 selectedCourseId === "all" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700"
               }`}
             >
-              Tat ca khoa hoc
+              Tất cả khóa học
             </button>
             {courses.map((course) => (
               <button
@@ -147,7 +147,7 @@ export default function StudentTestHistoryPage() {
               </button>
             ))}
           </div>
-          <p className="mt-4 text-sm font-semibold text-slate-700">Chuyen doi lich su theo bai test</p>
+          <p className="mt-4 text-sm font-semibold text-slate-700">Lọc theo bài test</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
@@ -156,7 +156,7 @@ export default function StudentTestHistoryPage() {
                 selectedTestId === "all" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700"
               }`}
             >
-              Tat ca bai test
+              Tất cả bài test
             </button>
             {visibleTests.map((test) => (
               <button
@@ -186,13 +186,13 @@ export default function StudentTestHistoryPage() {
             {history.map((item) => {
               const scorePct = item.maxScore > 0 ? Math.round((item.score / item.maxScore) * 100) : 0;
               return (
-                <article key={item.attemptId} className="rounded-xl border border-slate-200 bg-white p-4">
+                <article key={item.attemptId} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="text-sm font-semibold text-blue-600">{item.course.name}</p>
                       <h2 className="text-lg font-bold text-slate-950">{item.test.name}</h2>
                       <p className="mt-1 text-sm text-slate-500">
-                        Lan lam #{item.attemptNo} - {new Date(item.submittedAt).toLocaleString("vi-VN")}
+                        Lần làm #{item.attemptNo} - {new Date(item.submittedAt).toLocaleString("vi-VN")}
                       </p>
                     </div>
                     <div className="text-left sm:text-right">
@@ -200,19 +200,19 @@ export default function StudentTestHistoryPage() {
                         {item.score.toFixed(1)} / {item.maxScore}
                       </p>
                       <p className={`text-sm font-semibold ${item.isPassed ? "text-emerald-600" : "text-amber-600"}`}>
-                        {item.isPassed ? "Dat" : "Chua dat"} - {scorePct}%
+                        {item.isPassed ? "Đạt" : "Chưa đạt"} - {scorePct}%
                       </p>
                     </div>
                   </div>
 
                   <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
-                    <Metric label="So cau dung" value={`${item.correctAnswers}/${item.totalQuestions}`} />
-                    <Metric label="Tong cau hoi" value={`${item.totalQuestions}`} />
+                    <Metric label="Số câu đúng" value={`${item.correctAnswers}/${item.totalQuestions}`} />
+                    <Metric label="Tổng câu hỏi" value={`${item.totalQuestions}`} />
                     <Link
                       href={`/student/tests/${item.test.id}/result/${item.attemptId}`}
                       className="rounded-lg bg-blue-600 px-4 py-2 text-center font-semibold text-white hover:bg-blue-700"
                     >
-                      Xem chi tiet ket qua
+                      Xem chi tiết kết quả
                     </Link>
                   </div>
                 </article>
@@ -220,7 +220,7 @@ export default function StudentTestHistoryPage() {
             })}
             {history.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
-                Chua co lich su lam bai cho bo loc nay.
+                Chưa có lịch sử làm bài cho bộ lọc này.
               </div>
             ) : null}
           </section>

@@ -33,11 +33,6 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Close menu on route change
-  useEffect(() => {
-    setMenuOpen(false);
-  }, []);
-
   useEffect(() => {
     if (user.role !== "STUDENT") return;
     fetch("/api/teacher-applications", { cache: "no-store" })
@@ -71,7 +66,7 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
     try {
       const res = await fetch("/api/auth/logout", { method: "POST" });
       if (!res.ok) {
-        throw new Error("Logout failed");
+        throw new Error("Đăng xuất thất bại.");
       }
       setMenuOpen(false);
       // Sử dụng window.location để force full reload,
@@ -259,7 +254,7 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
                   <path d="M12 14l6.16-3.42A12 12 0 0 1 19 15.5V17" />
                   <path d="M4.84 10.58A12 12 0 0 0 4 15.5V17" />
                 </svg>
-                Dang ky giang vien
+                Đăng ký giảng viên
               </Link>
             ) : null}
           </div>

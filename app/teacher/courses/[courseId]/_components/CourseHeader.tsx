@@ -35,22 +35,22 @@ export function CourseHeader({ course }: CourseHeaderProps) {
         Quay lại danh sách khóa học
       </Link>
 
-      <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
+      <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">{course.name}</h1>
             <p className="mt-2 text-slate-600">{course.description}</p>
             <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-500">
-              <span className="flex items-center gap-1">{course._count.enrollments} hoc vien</span>
-              <span className="flex items-center gap-1">{course._count.modules} modules</span>
-              <span className="flex items-center gap-1">{course._count.tests} bai test</span>
+              <span className="flex items-center gap-1">{course._count.enrollments} học viên</span>
+              <span className="flex items-center gap-1">{course._count.modules} chương</span>
+              <span className="flex items-center gap-1">{course._count.tests} bài test</span>
               <span className={`rounded-full px-2 py-1 text-xs font-medium ${statusClass}`}>
                 {statusLabel}
               </span>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-bold text-slate-900">{course.price.toLocaleString("vi-VN")} VND</p>
+            <p className="text-2xl font-bold text-slate-900">{course.price.toLocaleString("vi-VN")}đ</p>
             <p className="text-sm text-slate-500">{course.category}</p>
           </div>
         </div>

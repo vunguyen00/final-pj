@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { IeltsEvaluationResult } from "@/app/components/IeltsEvaluationResult";
+import type { IeltsSpeakingEvaluation } from "@/lib/ielts-rubric";
 
 type ExamType = "IELTS" | "HSK";
 type TurnRole = "ai" | "student";
@@ -18,6 +20,7 @@ type SpeakingResult = {
   points?: { spent: number; available: number };
   streak?: number;
   data: {
+    ielts?: IeltsSpeakingEvaluation;
     evaluation: {
       scores: Record<string, number>;
       overall: number;
@@ -102,7 +105,18 @@ function formatClock(totalSeconds: number) {
 }
 
 function toDisplayCriterionName(key: string) {
-  return key.replace(/_/g, " ").replace(/([A-Z])/g, " $1").trim();
+  const labels: Record<string, string> = {
+    fluency: "Độ trôi chảy",
+    fluencyCoherence: "Độ trôi chảy và mạch lạc",
+    pronunciation: "Phát âm",
+    grammar: "Ngữ pháp",
+    grammarRangeAccuracy: "Ngữ pháp và độ chính xác",
+    vocabulary: "Từ vựng",
+    lexicalResource: "Vốn từ vựng",
+    taskResponse: "Mức độ đáp ứng đề bài",
+    taskRelevance: "Độ bám đề",
+  };
+  return labels[key] || key.replace(/_/g, " ").replace(/([A-Z])/g, " $1").trim();
 }
 
 function nowIso() {
@@ -158,7 +172,7 @@ export default function SpeakingAiPage() {
         };
 
         if (!response.ok) {
-          setError(data.error || "Khong tai duoc cau hinh speaking.");
+          setError(data.error || "Không tải được cấu hình Speaking AI.");
           return;
         }
 
@@ -173,7 +187,7 @@ export default function SpeakingAiPage() {
         setTimeLeft(nextDuration);
         setPrompt(EXAM_DEFAULT_PROMPTS[nextExam]);
       } catch {
-        setError("Khong tai duoc cau hinh speaking.");
+        setError("Không tải được cấu hình Speaking AI.");
       } finally {
         setConfigLoading(false);
       }
@@ -229,7 +243,7 @@ export default function SpeakingAiPage() {
       setRecording(true);
       return true;
     } catch {
-      setError("Khong mo duoc micro de ghi am.");
+      setError("Không mở được micro để ghi âm.");
       return false;
     }
   }
@@ -396,7 +410,7 @@ export default function SpeakingAiPage() {
       });
       const data = (await response.json().catch(() => ({}))) as { question?: string; error?: string };
       if (!response.ok) {
-        throw new Error(data.error || "Khong tao duoc cau hoi tiep theo.");
+        throw new Error(data.error || "Không tạo được câu hỏi tiếp theo.");
       }
 
       if (data.question) {
@@ -408,7 +422,7 @@ export default function SpeakingAiPage() {
           ? "Please continue in Chinese and add one concrete example."
           : "Please continue your answer and add one specific example.";
       setConversation((prev) => [...prev, { role: "ai", text: fallback, timestamp: nowIso() }]);
-      const message = questionError instanceof Error ? questionError.message : "Khong tao duoc cau hoi tiep theo.";
+      const message = questionError instanceof Error ? questionError.message : "Không tạo được câu hỏi tiếp theo.";
       setError(message);
     } finally {
       setRequestingQuestion(false);
@@ -421,7 +435,7 @@ export default function SpeakingAiPage() {
     setError("");
     setResult(null);
     if (!prompt.trim()) {
-      setError("Can nhap de bai cho speaking.");
+      setError("Cần nhập đề bài cho phần thi nói.");
       return;
     }
 
@@ -448,7 +462,7 @@ export default function SpeakingAiPage() {
     if (!recognitionReady) {
       stopAudioCapture();
       setPreparingSession(false);
-      setError("Khong khoi dong duoc nhan dien giong noi. Hay kiem tra quyen micro va thu lai.");
+      setError("Không khởi động được nhận diện giọng nói. Hãy kiểm tra quyền micro và thử lại.");
       return;
     }
 
@@ -461,7 +475,6 @@ export default function SpeakingAiPage() {
         : "Please begin your response based on the prompt.";
     const firstTurn: ConversationTurn = { role: "ai", text: openingQuestion, timestamp: nowIso() };
     setConversation([firstTurn]);
-    void requestFollowUpQuestion([firstTurn]);
   }
 
   async function submitCurrentTurn() {
@@ -469,7 +482,7 @@ export default function SpeakingAiPage() {
 
     const text = `${transcriptDraftRef.current} ${interimTranscriptRef.current}`.trim();
     if (!text) {
-      setError("Chua co transcript cho luot tra loi nay.");
+      setError("Chưa có bản ghi cho lượt trả lời này.");
       return;
     }
 
@@ -509,7 +522,7 @@ export default function SpeakingAiPage() {
       .join("\n");
 
     if (!studentTranscript) {
-      setError("Chua co noi dung noi de cham diem.");
+      setError("Chưa có nội dung nói để chấm điểm.");
       submittingRef.current = false;
       return;
     }
@@ -537,16 +550,16 @@ export default function SpeakingAiPage() {
       const data = (await response.json().catch(() => ({}))) as SpeakingResult & { error?: string };
 
       if (!response.ok) {
-        setError(data.error || "Khong cham duoc speaking.");
+        setError(data.error || "Không chấm được bài nói.");
         return;
       }
 
       setResult(data);
       if (autoSubmit) {
-        setError("Het thoi gian. He thong da tu dong nop va cham diem.");
+        setError("Hết thời gian. Hệ thống đã tự động nộp và chấm điểm.");
       }
     } catch {
-      setError("Khong cham duoc speaking.");
+      setError("Không chấm được bài nói.");
     } finally {
       setLoading(false);
       submittingRef.current = false;
@@ -563,15 +576,15 @@ export default function SpeakingAiPage() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
-                Speaking AI - {userRole === "STUDENT" ? "7 points" : "mien phi cho giao vien/admin"}
+                Speaking AI - {userRole === "STUDENT" ? "7 điểm" : "miễn phí cho giảng viên và quản trị viên"}
               </p>
-              <h1 className="mt-2 text-3xl font-bold text-slate-950">Speaking thi truc tiep voi AI</h1>
+              <h1 className="mt-2 text-3xl font-bold text-slate-950">Thi nói trực tiếp với AI</h1>
               <p className="mt-2 max-w-3xl text-slate-600">
-                Ky thi va thoi gian duoc admin cau hinh co dinh. He thong tu dong ket thuc khi het gio va cham diem ngay.
+                Kỳ thi và thời gian do quản trị viên cấu hình. Hệ thống tự động kết thúc khi hết giờ và chấm điểm ngay.
               </p>
             </div>
             <Link href="/student/results" className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">
-              Lich su ket qua
+              Lịch sử kết quả
             </Link>
           </div>
         </section>
@@ -579,21 +592,21 @@ export default function SpeakingAiPage() {
         <section className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="grid gap-4 md:grid-cols-3">
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Ky thi</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Kỳ thi</p>
               <p className="mt-2 text-sm font-semibold text-slate-900">{examType === "HSK" ? "HSK (HSKK)" : "IELTS"}</p>
             </div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Thoi gian</p>
-              <p className="mt-2 text-sm font-semibold text-slate-900">{Math.round(durationSeconds / 60)} phut</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Thời gian</p>
+              <p className="mt-2 text-sm font-semibold text-slate-900">{Math.round(durationSeconds / 60)} phút</p>
             </div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Trang thai</p>
-              <p className="mt-2 text-sm text-slate-700">{recording ? "Dang ghi am" : "Chua ghi am"}</p>
-              <p className="mt-1 text-sm text-slate-700">{recognitionEnabled ? "Nhan dien giong noi: Bat" : "Nhan dien giong noi: Tat"}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Trạng thái</p>
+              <p className="mt-2 text-sm text-slate-700">{recording ? "Đang ghi âm" : "Chưa ghi âm"}</p>
+              <p className="mt-1 text-sm text-slate-700">{recognitionEnabled ? "Nhận diện giọng nói: Bật" : "Nhận diện giọng nói: Tắt"}</p>
             </div>
           </div>
 
-          <label className="mt-4 block text-sm font-semibold text-slate-700">Speaking prompt</label>
+          <label className="mt-4 block text-sm font-semibold text-slate-700">Đề bài nói</label>
           <textarea
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
@@ -610,7 +623,7 @@ export default function SpeakingAiPage() {
                 disabled={loading || configLoading || preparingSession}
                 className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
               >
-                {preparingSession ? "Dang khoi dong micro..." : "Bat dau thi noi"}
+                {preparingSession ? "Đang khởi động micro..." : "Bắt đầu thi nói"}
               </button>
             ) : (
               <button
@@ -619,7 +632,7 @@ export default function SpeakingAiPage() {
                 disabled={loading}
                 className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
               >
-                Ket thuc va cham diem
+                Kết thúc và chấm điểm
               </button>
             )}
 
@@ -631,16 +644,16 @@ export default function SpeakingAiPage() {
               {formatClock(timeLeft)}
             </span>
 
-            {preparingSession ? <span className="text-sm text-slate-500">Hay doi den khi he thong bao san sang roi moi bat dau noi.</span> : null}
-            {requestingQuestion ? <span className="text-sm text-slate-500">AI dang dat cau hoi tiep theo...</span> : null}
+            {preparingSession ? <span className="text-sm text-slate-500">Hãy đợi đến khi hệ thống báo sẵn sàng rồi mới bắt đầu nói.</span> : null}
+            {requestingQuestion ? <span className="text-sm text-slate-500">AI đang đặt câu hỏi tiếp theo...</span> : null}
           </div>
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-5">
-          <h2 className="text-lg font-bold text-slate-950">Hoi thoai truc tiep</h2>
+          <h2 className="text-lg font-bold text-slate-950">Hội thoại trực tiếp</h2>
           <div className="mt-4 max-h-80 space-y-3 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-3">
             {conversation.length === 0 ? (
-              <p className="text-sm text-slate-500">Chua co hoi thoai. Bam &quot;Bat dau thi noi&quot; de vao phong thi.</p>
+              <p className="text-sm text-slate-500">Chưa có hội thoại. Bấm &quot;Bắt đầu thi nói&quot; để vào phòng thi.</p>
             ) : (
               conversation.map((turn, index) => (
                 <div
@@ -649,7 +662,7 @@ export default function SpeakingAiPage() {
                     turn.role === "ai" ? "bg-blue-50 text-blue-900" : "bg-white text-slate-900"
                   }`}
                 >
-                  <p className="text-xs font-bold uppercase tracking-wide opacity-70">{turn.role === "ai" ? "AI Examiner" : "Ban"}</p>
+                  <p className="text-xs font-bold uppercase tracking-wide opacity-70">{turn.role === "ai" ? "Giám khảo AI" : "Bạn"}</p>
                   <p className="mt-1 whitespace-pre-wrap">{turn.text}</p>
                 </div>
               ))
@@ -657,9 +670,9 @@ export default function SpeakingAiPage() {
           </div>
 
           <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Transcript luot hien tai</p>
-            <p className="mt-2 min-h-16 whitespace-pre-wrap text-sm text-slate-800">{currentTurnTranscript || "He thong dang cho ban noi..."}</p>
-            {interimTranscript ? <p className="mt-2 text-xs text-slate-500">Realtime: {interimTranscript}</p> : null}
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Bản ghi lượt hiện tại</p>
+            <p className="mt-2 min-h-16 whitespace-pre-wrap text-sm text-slate-800">{currentTurnTranscript || "Hệ thống đang chờ bạn nói..."}</p>
+            {interimTranscript ? <p className="mt-2 text-xs text-slate-500">Theo thời gian thực: {interimTranscript}</p> : null}
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -669,9 +682,9 @@ export default function SpeakingAiPage() {
               disabled={!sessionRunning || loading || requestingQuestion || !currentTurnTranscript}
               className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
             >
-              Ket thuc luot tra loi
+              Kết thúc lượt trả lời
             </button>
-            <span className="text-sm text-slate-500">Sau khi bam, AI se dat cau hoi tiep theo.</span>
+            <span className="text-sm text-slate-500">Sau khi bấm, AI sẽ đặt câu hỏi tiếp theo.</span>
           </div>
 
           {audioPreview ? (
@@ -683,7 +696,26 @@ export default function SpeakingAiPage() {
 
         {error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
 
-        {result ? (
+        {result?.data.ielts ? (
+          <section className="space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4">
+              <p className="text-sm font-semibold text-red-600">
+                {userRole === "STUDENT"
+                  ? `-${result.points?.spent ?? 7} điểm`
+                  : "Không trừ điểm"}
+              </p>
+              <Link
+                href={`/student/results/${result.assessmentId}`}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white"
+              >
+                Xem chi tiết đã lưu
+              </Link>
+            </div>
+            <IeltsEvaluationResult evaluation={result.data.ielts} />
+          </section>
+        ) : null}
+
+        {result && !result.data.ielts ? (
           <section className="space-y-6">
             <div className="rounded-2xl border border-slate-200 bg-white p-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -691,29 +723,29 @@ export default function SpeakingAiPage() {
                   <p className="text-sm font-semibold text-blue-600">
                     {result.data.evaluation.language} - {result.data.evaluation.band.system}
                   </p>
-                  <h2 className="mt-1 text-2xl font-bold text-slate-950">Band/Level {result.data.evaluation.band.level}</h2>
+                  <h2 className="mt-1 text-2xl font-bold text-slate-950">Cấp độ {result.data.evaluation.band.level}</h2>
                   <p className="mt-2 text-sm text-slate-600">{result.data.evaluation.summary}</p>
                   {result.data.evaluation.onTopic === false ? (
                     <p className="mt-2 rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">
-                      Cau tra loi bi lac de: {result.data.evaluation.offTopicReason || "Noi dung chua tra loi dung speaking prompt."}
+                      Câu trả lời bị lạc đề: {result.data.evaluation.offTopicReason || "Nội dung chưa trả lời đúng yêu cầu của đề nói."}
                     </p>
                   ) : null}
                 </div>
                 <div className="text-left sm:text-right">
                   <p className="text-5xl font-bold text-slate-950">{result.data.evaluation.overall.toFixed(1)}</p>
                   <p className="text-sm font-semibold text-slate-600">
-                    / {scoreMax} (normalized {result.data.evaluation.normalizedOverall?.toFixed(1) ?? "-"}/10)
+                    / {scoreMax} (quy đổi {result.data.evaluation.normalizedOverall?.toFixed(1) ?? "-"}/10)
                   </p>
                   <p className="text-sm font-semibold text-red-600">
-                    {userRole === "STUDENT" ? `-${result.points?.spent ?? 7} diem` : "Khong tru diem"}
+                    {userRole === "STUDENT" ? `-${result.points?.spent ?? 7} điểm` : "Không trừ điểm"}
                   </p>
                   <p className="mt-1 text-xs font-semibold text-slate-500">
-                    Bam de: {Math.round(result.data.evaluation.taskRelevance ?? 0)}/100
+                    Bám đề: {Math.round(result.data.evaluation.taskRelevance ?? 0)}/100
                   </p>
                 </div>
               </div>
               <Link href={`/student/results/${result.assessmentId}`} className="mt-4 inline-block rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">
-                Xem chi tiet da luu
+                Xem chi tiết đã lưu
               </Link>
             </div>
 
@@ -726,15 +758,15 @@ export default function SpeakingAiPage() {
               ))}
             </div>
 
-            <FeedbackBlock title="Feedback chi tiet" items={result.data.analysis.feedback} />
+            <FeedbackBlock title="Phản hồi chi tiết" items={result.data.analysis.feedback} />
             {result.data.evaluation.detailedComment ? (
               <section className="rounded-xl border border-blue-200 bg-blue-50 p-5">
-                <h2 className="text-lg font-bold text-blue-950">Nhan xet tong hop</h2>
+                <h2 className="text-lg font-bold text-blue-950">Nhận xét tổng hợp</h2>
                 <p className="mt-3 text-sm leading-6 text-blue-900">{result.data.evaluation.detailedComment}</p>
               </section>
             ) : null}
             <FeedbackBlock
-              title="Phat am / grammar / tu vung / fluency"
+              title="Phát âm, ngữ pháp, từ vựng và độ trôi chảy"
               items={[
                 ...result.data.mistakes.pronunciation,
                 ...result.data.mistakes.grammar,
@@ -743,12 +775,12 @@ export default function SpeakingAiPage() {
               ]}
             />
             <FeedbackBlock
-              title="Phuong phap cai thien"
+              title="Phương pháp cải thiện"
               items={[...result.data.analysis.suggestions, ...result.data.improvements.practiceMethods]}
             />
             {result.data.improvements.sampleAnswer ? (
               <section className="rounded-xl border border-slate-200 bg-white p-5">
-                <h2 className="text-lg font-bold text-slate-950">Cau tra loi mau dung de</h2>
+                <h2 className="text-lg font-bold text-slate-950">Câu trả lời mẫu đúng đề</h2>
                 <p className="mt-4 whitespace-pre-line text-sm leading-6 text-slate-700">
                   {result.data.improvements.sampleAnswer}
                 </p>

@@ -7,7 +7,16 @@ import CourseReviewForm from "./components/CourseReviewForm";
 import { Badge, BadgeGroup } from "@/components/base/badge";
 import { Section } from "@/components/base/section";
 import { canReviewCourse, getCourseReviews, getUserCourseReview } from "@/lib/course-reviews";
-import { getCertification, getCourseDuration, getCourseLanguage, getCourseLevel, getCourseType } from "@/app/components/learningMarketplace";
+import {
+  getCertification,
+  getCourseDuration,
+  getCourseLanguage,
+  getCourseLevel,
+  getCourseType,
+  getLanguageLabel,
+  getLevelLabel,
+  getProductTypeLabel,
+} from "@/app/components/learningMarketplace";
 
 async function getCourse(id: string) {
   try {
@@ -54,26 +63,26 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
         <div className="grid gap-8 rounded-2xl border border-border bg-card p-6 lg:grid-cols-[1.4fr_0.8fr] lg:items-center">
           <div>
             <BadgeGroup>
-              <Badge>{language}</Badge>
-              <Badge className="bg-secondary text-secondary-foreground">{getCourseLevel(course)}</Badge>
-              <Badge className="bg-secondary text-secondary-foreground">{type}</Badge>
+              <Badge>{getLanguageLabel(language)}</Badge>
+              <Badge className="bg-secondary text-secondary-foreground">{getLevelLabel(getCourseLevel(course))}</Badge>
+              <Badge className="bg-secondary text-secondary-foreground">{getProductTypeLabel(type)}</Badge>
               <Badge className="bg-secondary text-secondary-foreground">{getCertification(course)}</Badge>
               {reviews.length ? <Badge className="bg-accent/20 text-accent">{averageRating.toFixed(1)} sao ({reviews.length})</Badge> : null}
             </BadgeGroup>
             <h1 className="mt-5 text-pretty font-serif text-4xl font-semibold text-foreground">{course.name}</h1>
             <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted-foreground">{course.description}</p>
             <div className="mt-6 grid gap-3 text-sm text-muted-foreground sm:grid-cols-4">
-              <Stat label="Teacher" value={course.instructor?.username || "Teacher"} />
-              <Stat label="Duration" value={getCourseDuration(course)} />
-              <Stat label="Lessons" value={`${totalLessons || course.lessons}`} />
-              <Stat label="Learners" value={`${course._count.enrollments}`} />
+              <Stat label="Giảng viên" value={course.instructor?.username || "Chưa cập nhật"} />
+              <Stat label="Thời lượng" value={getCourseDuration(course)} />
+              <Stat label="Bài học" value={`${totalLessons || course.lessons}`} />
+              <Stat label="Học viên" value={`${course._count.enrollments}`} />
             </div>
           </div>
           <div className="overflow-hidden rounded-2xl border border-border bg-muted">
             {course.thumbnail ? (
               <img src={course.thumbnail} alt={course.name} className="aspect-video w-full object-cover" />
             ) : (
-              <div className="flex aspect-video items-center justify-center text-2xl font-semibold text-muted-foreground">{language}</div>
+              <div className="flex aspect-video items-center justify-center text-2xl font-semibold text-muted-foreground">{getLanguageLabel(language)}</div>
             )}
           </div>
         </div>
@@ -83,14 +92,14 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
         <div className="grid gap-8 lg:grid-cols-3">
           <section className="space-y-6 lg:col-span-2">
             <div className="rounded-xl border border-border bg-card p-5">
-              <h2 className="text-2xl font-semibold text-foreground">Learning path</h2>
-              <p className="mt-2 text-sm text-muted-foreground">Modules, lessons, practice checkpoints, and certification readiness.</p>
+              <h2 className="text-2xl font-semibold text-foreground">Lộ trình học tập</h2>
+              <p className="mt-2 text-sm text-muted-foreground">Các chương, bài học, bài luyện tập và nội dung chuẩn bị cho chứng chỉ.</p>
               <div className="mt-5 space-y-3">
                 {course.modules.map((module, index) => (
                   <div key={module.id} className="rounded-xl border border-border">
                     <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                      <h3 className="font-semibold text-foreground">Module {index + 1}: {module.name}</h3>
-                      <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">{module.lessons.length} lessons</span>
+                      <h3 className="font-semibold text-foreground">Chương {index + 1}: {module.name}</h3>
+                      <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">{module.lessons.length} bài học</span>
                     </div>
                     <div className="divide-y divide-border">
                       {module.lessons.map((lesson, lessonIndex) => (
@@ -99,7 +108,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
                           <span>{lesson.title}</span>
                         </div>
                       ))}
-                      {module.lessons.length === 0 ? <p className="px-4 py-3 text-sm text-muted-foreground">No lessons yet.</p> : null}
+                      {module.lessons.length === 0 ? <p className="px-4 py-3 text-sm text-muted-foreground">Chưa có bài học.</p> : null}
                     </div>
                   </div>
                 ))}
@@ -107,27 +116,27 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
             </div>
 
             <div className="rounded-xl border border-border bg-card p-5">
-              <h2 className="text-2xl font-semibold text-foreground">Tests and certification checkpoints</h2>
+              <h2 className="text-2xl font-semibold text-foreground">Bài kiểm tra và đánh giá chứng chỉ</h2>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {course.tests.map((test) => (
                   <div key={test.id} className="rounded-xl border border-border p-4">
                     <p className="font-semibold text-foreground">{test.name}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">{test._count.questions} questions - Max {test.maxScore} points</p>
-                    <p className="mt-1 text-sm text-muted-foreground">{test.timeLimit ? `${test.timeLimit} minutes` : "Self-paced"}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{test._count.questions} câu hỏi - Tối đa {test.maxScore} điểm</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{test.timeLimit ? `${test.timeLimit} phút` : "Không giới hạn thời gian"}</p>
                   </div>
                 ))}
-                {course.tests.length === 0 ? <p className="text-sm text-muted-foreground">No tests attached to this course yet.</p> : null}
+                {course.tests.length === 0 ? <p className="text-sm text-muted-foreground">Khóa học chưa có bài kiểm tra.</p> : null}
               </div>
             </div>
 
             <div className="rounded-xl border border-border bg-card p-5">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h2 className="text-2xl font-semibold text-foreground">Danh gia khoa hoc</h2>
+                  <h2 className="text-2xl font-semibold text-foreground">Đánh giá khóa học</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {reviews.length
-                      ? `Tong diem ${totalRatingPoints.toFixed(1)} tu ${reviews.length} danh gia. Trung binh ${averageRating.toFixed(1)} / 5.`
-                      : "Chua co danh gia nao cho khoa hoc nay."}
+                      ? `Tổng điểm ${totalRatingPoints.toFixed(1)} từ ${reviews.length} đánh giá. Trung bình ${averageRating.toFixed(1)} / 5.`
+                      : "Chưa có đánh giá nào cho khóa học này."}
                   </p>
                 </div>
               </div>
@@ -137,11 +146,11 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
                   <CourseReviewForm courseId={course.id} canReview={canReview} existingReview={existingReview} />
                 ) : user ? (
                   <div className="rounded-xl border border-border bg-muted p-4 text-sm text-muted-foreground">
-                    Chi hoc vien da hoan thanh khoa hoc va pass bai test moi co the danh gia.
+                    Chỉ học viên đã hoàn thành khóa học và đạt bài test mới có thể đánh giá.
                   </div>
                 ) : (
                   <div className="rounded-xl border border-border bg-muted p-4 text-sm text-muted-foreground">
-                    Dang nhap bang tai khoan hoc vien de danh gia sau khi hoan thanh khoa hoc.
+                    Đăng nhập bằng tài khoản học viên để đánh giá sau khi hoàn thành khóa học.
                   </div>
                 )}
               </div>
@@ -156,7 +165,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
                     {review.comment ? (
                       <p className="mt-2 text-sm leading-6 text-muted-foreground">{review.comment}</p>
                     ) : (
-                      <p className="mt-2 text-sm leading-6 text-muted-foreground">Nguoi hoc khong de lai binh luan.</p>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">Người học không để lại bình luận.</p>
                     )}
                   </article>
                 ))}
@@ -169,17 +178,17 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
               <EnrollCourseCard courseId={course.id} price={course.price} initiallyEnrolled={Boolean(enrollment)} canLearnDirectly={canLearnDirectly} />
             ) : (
               <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
-                Sign in to enroll and track progress.
-                <Link href="/auth/login" className="mt-4 block rounded-lg bg-primary px-4 py-2 text-center font-semibold text-primary-foreground">Sign in</Link>
+                Đăng nhập để đăng ký khóa học và theo dõi tiến độ.
+                <Link href="/auth/login" className="mt-4 block rounded-lg bg-primary px-4 py-2 text-center font-semibold text-primary-foreground">Đăng nhập</Link>
               </div>
             )}
             <div className="rounded-xl border border-border bg-card p-5">
-              <h3 className="font-semibold text-foreground">Includes</h3>
+              <h3 className="font-semibold text-foreground">Nội dung bao gồm</h3>
               <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-                <li>Language-level badge and certificate-ready path</li>
-                <li>Practice tasks and completion tracking</li>
-                <li>Teacher-led curriculum</li>
-                <li>Mock tests when available</li>
+                <li>Huy hiệu trình độ và lộ trình hướng tới chứng chỉ</li>
+                <li>Bài luyện tập và theo dõi tiến độ hoàn thành</li>
+                <li>Chương trình học do giảng viên xây dựng</li>
+                <li>Đề thi thử khi khóa học có hỗ trợ</li>
               </ul>
             </div>
           </aside>

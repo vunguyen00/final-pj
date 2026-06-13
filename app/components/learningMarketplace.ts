@@ -13,6 +13,7 @@ export const LEVELS = ["Beginner", "Elementary", "Intermediate", "Upper Intermed
 
 export type LanguageName = (typeof LANGUAGES)[number];
 export type ProductType = (typeof PRODUCT_TYPES)[number];
+export type CourseLevel = (typeof LEVELS)[number];
 export type CourseLike = {
   name: string;
   description?: string | null;
@@ -60,6 +61,42 @@ export function getCourseLevel(course: CourseLike) {
   return "Beginner";
 }
 
+const languageLabels: Record<LanguageName, string> = {
+  English: "Tiếng Anh",
+  Chinese: "Tiếng Trung",
+  Japanese: "Tiếng Nhật",
+  Korean: "Tiếng Hàn",
+};
+
+const productTypeLabels: Record<ProductType, string> = {
+  "Single course": "Khóa học đơn",
+  "Combo course": "Combo khóa học",
+  "Skill training": "Luyện kỹ năng",
+  "Certification prep": "Luyện thi chứng chỉ",
+  "Vocabulary pack": "Gói từ vựng",
+  "Mock tests": "Đề thi thử",
+};
+
+const levelLabels: Record<CourseLevel, string> = {
+  Beginner: "Mới bắt đầu",
+  Elementary: "Sơ cấp",
+  Intermediate: "Trung cấp",
+  "Upper Intermediate": "Trung cấp cao",
+  Advanced: "Nâng cao",
+};
+
+export function getLanguageLabel(language: LanguageName | string) {
+  return languageLabels[language as LanguageName] || language;
+}
+
+export function getProductTypeLabel(type: ProductType | string) {
+  return productTypeLabels[type as ProductType] || type;
+}
+
+export function getLevelLabel(level: CourseLevel | string) {
+  return levelLabels[level as CourseLevel] || level;
+}
+
 export function getCertification(course: CourseLike) {
   const text = courseText(course);
   if (text.includes("ielts")) return "IELTS";
@@ -68,24 +105,24 @@ export function getCertification(course: CourseLike) {
   if (text.includes("jlpt")) return "JLPT";
   if (text.includes("hsk")) return "HSK";
   if (text.includes("topik")) return "TOPIK";
-  return "Certificate";
+  return "Chứng chỉ";
 }
 
 export function getCourseDuration(course: CourseLike) {
   if (course.duration) return course.duration;
   const lessons = course.lessons ?? 0;
-  if (lessons <= 0) return "Self-paced";
-  return `${Math.max(2, Math.ceil(lessons * 1.5))} hours`;
+  if (lessons <= 0) return "Học theo tiến độ cá nhân";
+  return `${Math.max(2, Math.ceil(lessons * 1.5))} giờ`;
 }
 
 export function getLanguageSkills(language: string) {
-  if (language === "Japanese") return ["Listening", "Reading", "Kanji", "Grammar", "Vocabulary", "JLPT Mock"];
-  if (language === "Chinese") return ["Listening", "Reading", "Hanzi", "Grammar", "Vocabulary", "HSK Mock"];
-  if (language === "Korean") return ["Listening", "Reading", "Hangul", "Grammar", "Vocabulary", "TOPIK Mock"];
-  return ["Listening", "Speaking", "Reading", "Writing", "Grammar", "Vocabulary", "Pronunciation"];
+  if (language === "Japanese") return ["Nghe", "Đọc", "Kanji", "Ngữ pháp", "Từ vựng", "Thi thử JLPT"];
+  if (language === "Chinese") return ["Nghe", "Đọc", "Hán tự", "Ngữ pháp", "Từ vựng", "Thi thử HSK"];
+  if (language === "Korean") return ["Nghe", "Đọc", "Hangul", "Ngữ pháp", "Từ vựng", "Thi thử TOPIK"];
+  return ["Nghe", "Nói", "Đọc", "Viết", "Ngữ pháp", "Từ vựng", "Phát âm"];
 }
 
 export function priceLabel(price?: number) {
   const value = Number(price ?? 0);
-  return value > 0 ? `${value.toLocaleString("vi-VN")}d` : "Free";
+  return value > 0 ? `${value.toLocaleString("vi-VN")}đ` : "Miễn phí";
 }

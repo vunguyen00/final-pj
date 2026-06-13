@@ -5,7 +5,7 @@ import { getSpeakingAiSetting } from "@/lib/speaking-ai-setting";
 export async function GET() {
   const user = await getCurrentUser();
   if (!user || (user.role !== "STUDENT" && user.role !== "TEACHER" && user.role !== "ADMIN")) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Bạn chưa đăng nhập." }, { status: 401 });
   }
 
   const setting = await getSpeakingAiSetting();

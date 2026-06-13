@@ -22,9 +22,9 @@ function hasMatch(item: MatchedNavItem | BasicNavItem): item is MatchedNavItem {
 }
 
 const navItems = [
-  { href: "/", label: "Marketplace", match: (path: string) => path === "/" },
-  { href: "/courses", label: "Courses", match: (path: string) => path.startsWith("/courses") },
-  { href: "/teachers", label: "Teachers", match: (path: string) => path.startsWith("/teachers") },
+  { href: "/", label: "Khám phá", match: (path: string) => path === "/" },
+  { href: "/courses", label: "Khóa học", match: (path: string) => path.startsWith("/courses") },
+  { href: "/teachers", label: "Giảng viên", match: (path: string) => path.startsWith("/teachers") },
 ] satisfies MatchedNavItem[];
 
 export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean }) {
@@ -36,7 +36,7 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
   useEffect(() => {
     function handleGlobalError(event: Event) {
       const customEvent = event as CustomEvent;
-      setGlobalError(customEvent.detail || "Something went wrong");
+      setGlobalError(customEvent.detail || "Đã xảy ra lỗi.");
       setTimeout(() => setGlobalError(""), 5000);
     }
     window.addEventListener("app-global-error", handleGlobalError);
@@ -49,13 +49,13 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
   const studentLinks =
     user
       ? [
-          { href: user.role === "ADMIN" ? "/admin" : "/student", label: "Dashboard" },
-          { href: "/student/tests", label: "Tests" },
-          { href: "/student/results", label: "Results" },
+          { href: user.role === "ADMIN" ? "/admin" : "/student", label: "Tổng quan" },
+          { href: "/student/tests", label: "Bài test" },
+          { href: "/student/results", label: "Kết quả" },
           { href: "/student/speaking-ai", label: "Speaking AI" },
           { href: "/student/writing-ai", label: "Writing AI" },
-          { href: "/student/rewards", label: "Points" },
-          ...(user.role === "ADMIN" ? [] : [{ href: "/student/wallet", label: "Wallet" }]),
+          { href: "/student/rewards", label: "Điểm" },
+          ...(user.role === "ADMIN" ? [] : [{ href: "/student/wallet", label: "Ví tiền" }]),
         ] satisfies BasicNavItem[]
       : [];
 
@@ -92,7 +92,7 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
             type="button"
             onClick={() => setOpen((value) => !value)}
             className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border text-foreground md:hidden"
-            aria-label="Open navigation"
+            aria-label="Mở menu điều hướng"
           >
             <span className="text-lg">{open ? "x" : "="}</span>
           </button>

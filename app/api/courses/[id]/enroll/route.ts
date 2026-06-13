@@ -10,7 +10,7 @@ export async function POST(
   try {
     const user = await requireUser();
     if (user.role !== "STUDENT" && user.role !== "TEACHER" && user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Bạn chưa đăng nhập." }, { status: 401 });
     }
     const { id: courseId } = await params;
 
@@ -22,11 +22,11 @@ export async function POST(
     ]);
 
     if (!course) {
-      return NextResponse.json({ error: "Khong tim thay khoa hoc." }, { status: 404 });
+      return NextResponse.json({ error: "Không tìm thấy khóa học." }, { status: 404 });
     }
 
     if (course.status !== "ACTIVE" && course.instructorId !== user.id) {
-      return NextResponse.json({ error: "Khoa hoc chua duoc mo cong khai." }, { status: 400 });
+      return NextResponse.json({ error: "Khóa học chưa được mở công khai." }, { status: 400 });
     }
 
     if (existing) {
@@ -48,7 +48,7 @@ export async function POST(
     if (balance < course.price) {
       return NextResponse.json(
         {
-          error: "So du khong du. Vui long nap them tien.",
+          error: "Số dư không đủ. Vui lòng nạp thêm tiền.",
           requiresTopUp: true,
           balance,
           price: course.price,
@@ -83,7 +83,7 @@ export async function POST(
     const updatedBalance = await getUserBalance(user.id);
     return NextResponse.json({ ok: true, enrolled: true, balance: updatedBalance });
   } catch {
-    return NextResponse.json({ error: "Loi he thong." }, { status: 500 });
+    return NextResponse.json({ error: "Lỗi hệ thống." }, { status: 500 });
   }
 }
 

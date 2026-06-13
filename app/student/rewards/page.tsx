@@ -33,12 +33,12 @@ export default function RewardCenterPage() {
         const response = await fetch("/api/ai/points", { cache: "no-store" });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
-          setError(data.error || "Khong tai duoc diem.");
+          setError(data.error || "Không tải được thông tin điểm.");
           return;
         }
         setSummary(data);
       } catch {
-        setError("Khong tai duoc diem.");
+        setError("Không tải được thông tin điểm.");
       } finally {
         setLoading(false);
       }
@@ -50,10 +50,10 @@ export default function RewardCenterPage() {
   const stats = useMemo(() => {
     if (!summary) return [];
     return [
-      ["Diem hien tai", summary.available],
-      ["Streak hien tai", `${summary.streak} ngay`],
-      ["Speaking AI", `${summary.speakingUses} lan`],
-      ["Writing AI", `${summary.writingUses} lan`],
+      ["Điểm hiện tại", summary.available],
+      ["Chuỗi học hiện tại", `${summary.streak} ngày`],
+      ["Speaking AI", `${summary.speakingUses} lần`],
+      ["Writing AI", `${summary.writingUses} lần`],
     ];
   }, [summary]);
 
@@ -63,10 +63,10 @@ export default function RewardCenterPage() {
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Reward Center</p>
-              <h1 className="mt-2 text-3xl font-bold text-slate-950">My Points</h1>
+              <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Trung tâm điểm</p>
+              <h1 className="mt-2 text-3xl font-bold text-slate-950">Điểm của tôi</h1>
               <p className="mt-2 max-w-2xl text-slate-600">
-                Theo doi diem tich luy, streak hoc tap, va lich su cong/tru diem AI.
+                Theo dõi điểm tích lũy, chuỗi ngày học và lịch sử cộng hoặc trừ điểm AI.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -92,26 +92,26 @@ export default function RewardCenterPage() {
 
             <section className="grid gap-4 md:grid-cols-2">
               <div className="rounded-xl border border-slate-200 bg-white p-5">
-                <h2 className="text-lg font-bold text-slate-950">Quy tac diem</h2>
+                <h2 className="text-lg font-bold text-slate-950">Quy tắc điểm</h2>
                 <div className="mt-4 space-y-3 text-sm text-slate-700">
-                  <Rule label="Hoan thanh khoa hoc" value="+50" />
+                  <Rule label="Hoàn thành khóa học" value="+50" />
                   <Rule label="Speaking AI" value="-7" />
                   <Rule label="Writing AI" value="-3" />
-                  <Rule label="Streak 3 ngay" value="+7" />
-                  <Rule label="Streak 7 ngay" value="+20" />
+                  <Rule label="Chuỗi học 3 ngày" value="+7" />
+                  <Rule label="Chuỗi học 7 ngày" value="+20" />
                 </div>
               </div>
               <div className="rounded-xl border border-slate-200 bg-white p-5">
-                <h2 className="text-lg font-bold text-slate-950">Tong quan</h2>
+                <h2 className="text-lg font-bold text-slate-950">Tổng quan</h2>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <Metric label="Tong diem cong" value={summary.earned} />
-                  <Metric label="Tong diem tru" value={summary.spent} />
+                  <Metric label="Tổng điểm cộng" value={summary.earned} />
+                  <Metric label="Tổng điểm trừ" value={summary.spent} />
                 </div>
               </div>
             </section>
 
             <section className="rounded-xl border border-slate-200 bg-white p-5">
-              <h2 className="text-lg font-bold text-slate-950">Lich su hoat dong diem</h2>
+              <h2 className="text-lg font-bold text-slate-950">Lịch sử hoạt động điểm</h2>
               <div className="mt-4 space-y-3">
                 {summary.history.map((item) => (
                   <article key={item.id} className="flex flex-col gap-2 rounded-lg border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -123,13 +123,13 @@ export default function RewardCenterPage() {
                       <p className={`text-lg font-bold ${item.amount > 0 ? "text-emerald-600" : "text-red-600"}`}>
                         {item.amount > 0 ? "+" : ""}{item.amount}
                       </p>
-                      <p className="text-xs text-slate-500">Con lai: {item.balanceAfter}</p>
+                      <p className="text-xs text-slate-500">Còn lại: {item.balanceAfter}</p>
                     </div>
                   </article>
                 ))}
                 {summary.history.length === 0 ? (
                   <div className="rounded-lg border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">
-                    Chua co giao dich diem.
+                    Chưa có giao dịch điểm.
                   </div>
                 ) : null}
               </div>

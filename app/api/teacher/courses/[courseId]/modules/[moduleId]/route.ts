@@ -28,7 +28,7 @@ export async function GET(
       );
     }
 
-    const module = await prisma.module.findUnique({
+    const courseModule = await prisma.module.findUnique({
       where: { id: moduleId },
       include: {
         lessons: {
@@ -37,14 +37,14 @@ export async function GET(
       },
     });
 
-    if (!module || module.courseId !== courseId) {
+    if (!courseModule || courseModule.courseId !== courseId) {
       return NextResponse.json(
         { error: "Module not found" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json({ module });
+    return NextResponse.json({ module: courseModule });
   } catch (error) {
     console.error("Error fetching module:", error);
     return NextResponse.json(
@@ -93,16 +93,24 @@ export async function PUT(
 
     const body = await request.json();
     const { name, order } = body;
+    const normalizedName = typeof name === "string" ? name.trim() : "";
 
-    const module = await prisma.module.update({
+    if (name !== undefined && !normalizedName) {
+      return NextResponse.json(
+        { error: "Tên chương không được để trống." },
+        { status: 400 }
+      );
+    }
+
+    const updatedModule = await prisma.module.update({
       where: { id: moduleId },
       data: {
-        ...(name && { name }),
+        ...(name !== undefined && { name: normalizedName }),
         ...(order !== undefined && { order }),
       },
     });
 
-    return NextResponse.json({ module });
+    return NextResponse.json({ module: updatedModule });
   } catch (error) {
     console.error("Error updating module:", error);
     return NextResponse.json(

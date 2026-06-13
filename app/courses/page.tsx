@@ -13,6 +13,9 @@ import {
   getCourseLanguage,
   getCourseLevel,
   getCourseType,
+  getLanguageLabel,
+  getLevelLabel,
+  getProductTypeLabel,
   priceLabel,
 } from "@/app/components/learningMarketplace";
 
@@ -32,11 +35,11 @@ async function getCourses() {
 }
 
 const tabs = [
-  { key: "popular", label: "Popular" },
-  { key: "new", label: "New" },
+  { key: "popular", label: "Phổ biến" },
+  { key: "new", label: "Mới nhất" },
   { key: "combo", label: "Combo" },
-  { key: "skill", label: "Skill-based" },
-  { key: "cert", label: "Certification prep" },
+  { key: "skill", label: "Theo kỹ năng" },
+  { key: "cert", label: "Luyện thi chứng chỉ" },
 ];
 
 function buildHref(params: Record<string, string | undefined>) {
@@ -83,10 +86,10 @@ export default async function CoursesPage({
   return (
     <main className="min-h-screen bg-background">
       <Hero
-        subtitle="Course marketplace"
-        title="Find your next language course"
-        description="Browse single courses, skill training, certification prep, vocabulary packs, and mock tests."
-        primaryAction={{ label: "Browse all", href: "/courses" }}
+        subtitle="Danh mục khóa học"
+        title="Tìm khóa học ngoại ngữ phù hợp"
+        description="Khám phá khóa học đơn, chương trình luyện kỹ năng, luyện thi chứng chỉ, gói từ vựng và đề thi thử."
+        primaryAction={{ label: "Xem tất cả", href: "/courses" }}
       />
 
       <Section padding="md">
@@ -105,9 +108,9 @@ export default async function CoursesPage({
             ))}
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-3">
-            <Filter label="Language" name="language" values={["all", ...LANGUAGES]} params={params} />
-            <Filter label="Level" name="level" values={["all", ...LEVELS]} params={params} />
-            <Filter label="Type" name="type" values={["all", ...PRODUCT_TYPES]} params={params} />
+            <Filter label="Ngôn ngữ" name="language" values={["all", ...LANGUAGES]} params={params} />
+            <Filter label="Trình độ" name="level" values={["all", ...LEVELS]} params={params} />
+            <Filter label="Loại khóa học" name="type" values={["all", ...PRODUCT_TYPES]} params={params} />
           </div>
         </div>
       </Section>
@@ -125,25 +128,25 @@ export default async function CoursesPage({
                     {course.thumbnail ? (
                       <img src={course.thumbnail} alt={course.name} className="h-full w-full object-cover" />
                     ) : (
-                      <div className="flex h-full items-center justify-center text-sm font-semibold text-muted-foreground">{language}</div>
+                      <div className="flex h-full items-center justify-center text-sm font-semibold text-muted-foreground">{getLanguageLabel(language)}</div>
                     )}
                   </div>
                 </Link>
                 <div className="p-5">
                   <BadgeGroup>
-                    <Badge>{language}</Badge>
-                    <Badge className="bg-muted text-muted-foreground">{getCourseLevel(course)}</Badge>
-                    <Badge className="bg-secondary text-secondary-foreground">{type}</Badge>
+                    <Badge>{getLanguageLabel(language)}</Badge>
+                    <Badge className="bg-muted text-muted-foreground">{getLevelLabel(getCourseLevel(course))}</Badge>
+                    <Badge className="bg-secondary text-secondary-foreground">{getProductTypeLabel(type)}</Badge>
                   </BadgeGroup>
                   <Link href={`/courses/${course.id}`}>
                     <h3 className="mt-3 line-clamp-2 text-lg font-semibold text-foreground hover:text-primary">{course.name}</h3>
                   </Link>
                   <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{course.description}</p>
                   <div className="mt-4 grid grid-cols-2 gap-2 text-sm text-muted-foreground">
-                    <span>Teacher: {course.instructor?.username || "Teacher"}</span>
+                    <span>Giảng viên: {course.instructor?.username || "Chưa cập nhật"}</span>
                     <span>{getCourseDuration(course)}</span>
-                    <span>{course.lessons} lessons</span>
-                    <span>{course._count.enrollments} learners</span>
+                    <span>{course.lessons} bài học</span>
+                    <span>{course._count.enrollments} học viên</span>
                   </div>
                   <div className="mt-5 flex items-center justify-between border-t border-border pt-4">
                     <span className="text-lg font-semibold text-foreground">{priceLabel(course.price)}</span>
@@ -153,7 +156,7 @@ export default async function CoursesPage({
                         isEnrolled ? "bg-accent/15 text-accent" : "bg-primary text-primary-foreground"
                       }`}
                     >
-                      {isEnrolled ? "Continue" : "View course"}
+                      {isEnrolled ? "Tiếp tục học" : "Xem khóa học"}
                     </Link>
                   </div>
                 </div>
@@ -163,7 +166,7 @@ export default async function CoursesPage({
         </CardGrid>
         {filteredCourses.length === 0 ? (
           <div className="mt-6 rounded-xl border border-dashed border-border bg-card p-10 text-center text-muted-foreground">
-            No courses match these filters. Try another language, level, or product type.
+            Không có khóa học phù hợp với bộ lọc. Hãy thử ngôn ngữ, trình độ hoặc loại khóa học khác.
           </div>
         ) : null}
       </Section>
@@ -194,7 +197,13 @@ function Filter({
               (params[name] || "all") === value ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
             }`}
           >
-            {value === "all" ? "All" : value}
+            {value === "all"
+              ? "Tất cả"
+              : name === "language"
+                ? getLanguageLabel(value)
+                : name === "level"
+                  ? getLevelLabel(value)
+                  : getProductTypeLabel(value)}
           </Link>
         ))}
       </div>

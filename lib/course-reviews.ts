@@ -109,10 +109,10 @@ export async function upsertCourseReview({
   rating: number;
   comment: string;
 }) {
-  const normalizedRating = Math.round(Number(rating) * 2) / 2;
+  const normalizedRating = Number(rating);
   const normalizedComment = String(comment || "").trim();
 
-  if (!Number.isFinite(normalizedRating) || normalizedRating < 1 || normalizedRating > 5) {
+  if (!Number.isInteger(normalizedRating) || normalizedRating < 1 || normalizedRating > 5) {
     throw new Error("INVALID_RATING");
   }
   if (normalizedComment.length > 1000) {

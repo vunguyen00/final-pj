@@ -8,6 +8,6 @@ export async function GET() {
     const summary = await getAiPointsSummary(user.id);
     return NextResponse.json(summary);
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Bạn chưa đăng nhập." }, { status: 401 });
   }
 }
