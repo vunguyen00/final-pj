@@ -10,7 +10,6 @@ import {
 } from "@/lib/ai-points";
 import { prisma } from "@/lib/prisma";
 import { ollamaService, sanitizeEssay, validateEssay, validatePromptSafety } from "@/lib/ai";
-import { SpeakingExamType } from "@/lib/ai/types";
 import { getSpeakingAiSetting } from "@/lib/speaking-ai-setting";
 import { canUseAiForCourse, shouldChargeAiPoints } from "@/lib/ai-access";
 import { evaluateTestAiAnswers } from "@/lib/test-ai-evaluation";
@@ -18,7 +17,11 @@ import { evaluateIeltsSpeaking } from "@/lib/ielts-grading";
 import { buildSpeakingAssessmentPayload } from "@/lib/ielts-assessment";
 import type { IeltsSpeakingEvaluation } from "@/lib/ielts-rubric";
 import type { Prisma } from "@/app/generated/prisma/client";
-import { isCourseMarkedCompleted } from "@/lib/learning-progress";
+import {
+  getSpeakingEvaluationSystem,
+  getSpeakingLanguageFromExamSetting,
+  normalizeSpeakingLanguage,
+} from "@/lib/speaking-languages";
 
 function audioExtension(type: string) {
   if (type.includes("mpeg") || type.includes("mp3")) return "mp3";
@@ -59,9 +62,16 @@ export async function POST(request: NextRequest) {
     const conversation = String(form.get("conversation") || "").trim();
     const durationSeconds = Number(form.get("durationSeconds") || 0);
     const audio = form.get("audio");
+    const includeAiFeedback = form.get("includeAiFeedback") === "true";
     const speakingSetting = await getSpeakingAiSetting();
-    const examType = speakingSetting.examType as SpeakingExamType;
-    const chargePoints = shouldChargeAiPoints(user.role);
+    const speakingLanguage = normalizeSpeakingLanguage(
+      form.get("language"),
+      getSpeakingLanguageFromExamSetting(speakingSetting.examType),
+    );
+    const exam = getSpeakingEvaluationSystem(speakingLanguage);
+    const scoreOnly = !includeAiFeedback;
+    const chargePoints =
+      includeAiFeedback && shouldChargeAiPoints(user.role);
 
     if (!transcript) {
       return NextResponse.json({ error: "Cần có bản ghi lời nói để AI chấm bài." }, { status: 400 });
@@ -81,11 +91,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Bạn không có quyền trên khóa học này." }, { status: 403 });
       }
     }
-    const scoreOnly =
-      user.role === "STUDENT" && Boolean(courseId)
-        ? await isCourseMarkedCompleted(user.id, courseId)
-        : false;
-
     if (chargePoints) {
       const pointsBefore = await getAiPointsSummary(user.id);
       if (pointsBefore.available < SPEAKING_AI_COST) {
@@ -100,7 +105,6 @@ export async function POST(request: NextRequest) {
 
     const audioFile = audio instanceof File ? audio : null;
     const audioUrl = await saveSpeakingAudio(audioFile, user.id);
-    const exam = examType === "HSK" ? "HSK" : "IELTS";
     let overall: number;
     let maxScore: number;
     let bandLevel: string;
@@ -147,7 +151,15 @@ export async function POST(request: NextRequest) {
           mode: "SPEAKING",
           answer: sanitizedTranscript,
           prompt: `${prompt}\nConversation context: ${conversation.slice(0, 1500)}`,
-          examType: "HSK",
+          languageCode:
+            speakingLanguage === "CHINESE"
+              ? "zh"
+              : speakingLanguage === "JAPANESE"
+                ? "ja"
+                : speakingLanguage === "KOREAN"
+                  ? "ko"
+                  : "en",
+          examType: exam,
           scoreOnly,
         },
       ])).get("speaking");
@@ -159,7 +171,9 @@ export async function POST(request: NextRequest) {
       const normalizedOverall = evaluationResult.normalizedScore;
       const taskRelevance = evaluation.taskRelevance ?? 0;
       const normalizedCriteria = evaluation.criteria || {};
-      const toExamScore = (score: number) => Math.round(score * 10);
+      const isHsk = exam === "HSK";
+      const toExamScore = (score: number) =>
+        isHsk ? Math.round(score * 10) : Math.round(score * 10) / 10;
       const criteria = Object.fromEntries(
         Object.entries(normalizedCriteria)
           .filter(([key]) =>
@@ -168,8 +182,10 @@ export async function POST(request: NextRequest) {
           .map(([key, value]) => [key, toExamScore(Number(value))]),
       );
       overall = toExamScore(normalizedOverall);
-      maxScore = 100;
-      bandLevel = `HSKK ${Math.round(overall)}`;
+      maxScore = isHsk ? 100 : 10;
+      bandLevel = isHsk
+        ? `HSKK ${Math.round(overall)}`
+        : `${overall.toFixed(1)}/10`;
       sampleAnswer = evaluation.sampleAnswer || null;
       criteriaPayload = { ...criteria, taskRelevance };
       feedbackPayload = {
@@ -181,7 +197,8 @@ export async function POST(request: NextRequest) {
           taskRelevance,
           language: evaluation.language,
           exam,
-          scoreScale: "SCORE_0_100",
+          maxScore,
+          scoreScale: isHsk ? "SCORE_0_100" : "SCORE_0_10",
           band: {
             system: exam,
             level: bandLevel,
@@ -228,7 +245,7 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         courseId: courseId || null,
         type: "SPEAKING",
-        taskType: exam === "IELTS" ? "speaking" : null,
+        taskType: exam.toLowerCase(),
         title,
         prompt: prompt || null,
         submissionText: sanitizedTranscript,
@@ -269,6 +286,7 @@ export async function POST(request: NextRequest) {
       streak: activity.streak,
       data: feedbackPayload,
       scoreOnly,
+      aiFeedbackPurchased: includeAiFeedback,
       durationMs: Date.now() - startTime,
     });
   } catch (error) {

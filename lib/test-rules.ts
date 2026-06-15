@@ -1,5 +1,3 @@
-import type { SpeakingExamType } from "@/lib/ai/types";
-
 export const FIXED_TEST_MAX_SCORE = 100;
 export const UNLIMITED_TEST_ATTEMPTS = 2147483647;
 
@@ -50,7 +48,12 @@ export function getSpeechRecognitionLocale(languageCode?: string | null) {
   return "en-US";
 }
 
-export function getSpeakingExamTypeForLanguageCode(languageCode?: string | null): SpeakingExamType {
+export function getSpeakingExamTypeForLanguageCode(
+  languageCode?: string | null,
+) {
   const normalized = (languageCode || "").trim().toLowerCase();
-  return normalized.startsWith("zh") ? "HSK" : "IELTS";
+  if (normalized.startsWith("zh")) return "HSK";
+  if (normalized.startsWith("ja")) return "JAPANESE_SPEAKING";
+  if (normalized.startsWith("ko")) return "KOREAN_SPEAKING";
+  return "IELTS";
 }

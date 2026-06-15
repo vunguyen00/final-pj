@@ -4,15 +4,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { IeltsEvaluationResult } from "@/app/components/IeltsEvaluationResult";
 import type { IeltsSpeakingEvaluation } from "@/lib/ielts-rubric";
-
-type ExamType = "IELTS" | "HSK";
-type TurnRole = "ai" | "student";
-
-type ConversationTurn = {
-  role: TurnRole;
-  text: string;
-  timestamp: string;
-};
+import {
+  getDefaultSpeakingPrompt,
+  getSpeakingLanguageFromExamSetting,
+  getSpeakingLanguageLabel,
+  getSpeakingTaskOptions,
+  getSpeakingWhisperLanguage,
+  normalizeSpeakingLanguage,
+  SPEAKING_LANGUAGES,
+  type SpeakingLanguage,
+  type SpeakingTask,
+} from "@/lib/speaking-languages";
 
 type SpeakingResult = {
   assessmentId: string;
@@ -29,8 +31,9 @@ type SpeakingResult = {
       normalizedOverall?: number;
       taskRelevance?: number;
       language: string;
-      exam?: "IELTS" | "HSK";
-      scoreScale?: "BAND_0_9" | "SCORE_0_100";
+      exam?: string;
+      maxScore?: number;
+      scoreScale?: string;
       band: { system: string; level: string; score: number; rationale: string };
       summary: string;
       onTopic?: boolean;
@@ -56,48 +59,14 @@ type SpeakingResult = {
   };
 };
 
-declare global {
-  interface Window {
-    webkitSpeechRecognition?: SpeechRecognitionConstructor;
-    SpeechRecognition?: SpeechRecognitionConstructor;
-  }
-}
-
-type SpeechRecognitionResultLike = {
-  isFinal: boolean;
-  0: { transcript: string };
-};
-
-type SpeechRecognitionEventLike = Event & {
-  resultIndex: number;
-  results: {
-    length: number;
-    [index: number]: SpeechRecognitionResultLike;
-  };
-};
-
-type SpeechRecognitionErrorEventLike = Event & {
-  error: string;
-};
-
-type SpeechRecognitionInstance = {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onstart: (() => void) | null;
-  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
-  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-};
-
-type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
-
-const EXAM_DEFAULT_PROMPTS: Record<ExamType, string> = {
-  IELTS:
-    "Describe a memorable trip you took. You should say where you went, who you went with, what happened, and explain why it was memorable.",
-  HSK: "Please answer in Chinese: describe one memorable experience and explain why it was important.",
+type TranscriptionWorkerMessage = {
+  type: "progress" | "transcribing" | "result" | "error";
+  id?: number;
+  status?: string;
+  progress?: number;
+  file?: string;
+  text?: string;
+  error?: string;
 };
 
 function formatClock(totalSeconds: number) {
@@ -121,28 +90,33 @@ function toDisplayCriterionName(key: string) {
   return labels[key] || key.replace(/_/g, " ").replace(/([A-Z])/g, " $1").trim();
 }
 
-function nowIso() {
-  return new Date().toISOString();
-}
-
 export default function SpeakingAiPage() {
   const [configLoading, setConfigLoading] = useState(true);
   const [userRole, setUserRole] = useState("");
-  const [examType, setExamType] = useState<ExamType>("IELTS");
+  const [speakingLanguage, setSpeakingLanguage] =
+    useState<SpeakingLanguage>("ENGLISH");
   const [durationSeconds, setDurationSeconds] = useState(180);
-  const [prompt, setPrompt] = useState(EXAM_DEFAULT_PROMPTS.IELTS);
+  const [prompt, setPrompt] = useState(getDefaultSpeakingPrompt("ENGLISH"));
   const [timeLeft, setTimeLeft] = useState(180);
   const [sessionRunning, setSessionRunning] = useState(false);
   const [transcriptDraft, setTranscriptDraft] = useState("");
-  const [interimTranscript, setInterimTranscript] = useState("");
-  const [conversation, setConversation] = useState<ConversationTurn[]>([]);
   const [recording, setRecording] = useState(false);
-  const [recognitionEnabled, setRecognitionEnabled] = useState(false);
   const [preparingSession, setPreparingSession] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioPreview, setAudioPreview] = useState("");
   const [loading, setLoading] = useState(false);
-  const [requestingQuestion, setRequestingQuestion] = useState(false);
+  const [submitAction, setSubmitAction] = useState<
+    "score" | "feedback" | null
+  >(null);
+  const [transcribing, setTranscribing] = useState(false);
+  const [transcriptionStatus, setTranscriptionStatus] = useState("");
+  const [setupOpen, setSetupOpen] = useState(true);
+  const [speakingPart, setSpeakingPart] = useState<SpeakingTask>(2);
+  const [topicMode, setTopicMode] = useState<"custom" | "random">("custom");
+  const [topicInput, setTopicInput] = useState("");
+  const [selectedTopic, setSelectedTopic] = useState("");
+  const [generatingTopic, setGeneratingTopic] = useState(false);
+  const [topicError, setTopicError] = useState("");
   const [error, setError] = useState("");
   const [result, setResult] = useState<SpeakingResult | null>(null);
 
@@ -151,15 +125,20 @@ export default function SpeakingAiPage() {
   const audioPreviewRef = useRef("");
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
-  const keepRecognitionAliveRef = useRef(false);
+  const transcriptionWorkerRef = useRef<Worker | null>(null);
+  const transcriptionRequestIdRef = useRef(0);
   const transcriptDraftRef = useRef("");
-  const interimTranscriptRef = useRef("");
   const submittingRef = useRef(false);
-  const finishAndSubmitRef = useRef<(autoSubmit: boolean) => Promise<void>>(async () => undefined);
+  const finishAndSubmitRef = useRef<
+    (autoSubmit: boolean, includeAiFeedback?: boolean) => Promise<void>
+  >(async () => undefined);
 
   const spentSeconds = useMemo(() => Math.max(0, durationSeconds - timeLeft), [durationSeconds, timeLeft]);
-  const currentTurnTranscript = `${transcriptDraft} ${interimTranscript}`.trim();
+  const currentTurnTranscript = transcriptDraft.trim();
+  const speakingTaskOptions = useMemo(
+    () => getSpeakingTaskOptions(speakingLanguage),
+    [speakingLanguage],
+  );
 
   useEffect(() => {
     async function loadSpeakingConfig() {
@@ -178,16 +157,16 @@ export default function SpeakingAiPage() {
           return;
         }
 
-        const nextExam = data.examType === "HSK" ? "HSK" : "IELTS";
+        const nextLanguage = getSpeakingLanguageFromExamSetting(data.examType);
         const nextDuration = Number.isFinite(Number(data.durationSeconds))
           ? Math.max(30, Math.min(900, Math.round(Number(data.durationSeconds))))
           : 180;
 
-        setExamType(nextExam);
+        setSpeakingLanguage(nextLanguage);
         setUserRole(data.role || "");
         setDurationSeconds(nextDuration);
         setTimeLeft(nextDuration);
-        setPrompt(EXAM_DEFAULT_PROMPTS[nextExam]);
+        setPrompt(getDefaultSpeakingPrompt(nextLanguage));
       } catch {
         setError("Không tải được cấu hình Speaking AI.");
       } finally {
@@ -201,7 +180,7 @@ export default function SpeakingAiPage() {
   useEffect(() => {
     if (!sessionRunning) return;
     if (timeLeft <= 0) {
-      void finishAndSubmitRef.current(true);
+      void finishAndSubmitRef.current(true, false);
       return;
     }
 
@@ -214,8 +193,13 @@ export default function SpeakingAiPage() {
 
   useEffect(() => {
     return () => {
-      stopSpeechRecognition();
-      stopAudioCapture();
+      const recorder = recorderRef.current;
+      if (recorder && recorder.state !== "inactive") {
+        recorder.stop();
+      }
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      transcriptionWorkerRef.current?.terminate();
+      transcriptionWorkerRef.current = null;
       if (audioPreviewRef.current) URL.revokeObjectURL(audioPreviewRef.current);
     };
   }, []);
@@ -282,152 +266,163 @@ export default function SpeakingAiPage() {
     setRecording(false);
   }
 
-  function resolveSpeechRecognitionConstructor() {
-    return window.SpeechRecognition || window.webkitSpeechRecognition || null;
-  }
-
-  function speechLangForExam(exam: ExamType) {
-    return exam === "HSK" ? "zh-CN" : "en-US";
-  }
-
-  function stopSpeechRecognition() {
-    keepRecognitionAliveRef.current = false;
-    const recognizer = recognitionRef.current;
-    recognitionRef.current = null;
-    if (recognizer) {
-      recognizer.onend = null;
-      try {
-        recognizer.stop();
-      } catch {
-        // noop
-      }
-    }
-    setRecognitionEnabled(false);
-    setInterimTranscript("");
-    interimTranscriptRef.current = "";
-  }
-
-  async function startSpeechRecognition() {
-    const Constructor = resolveSpeechRecognitionConstructor();
-    if (!Constructor) {
-      setError("Trinh duyet chua ho tro SpeechRecognition. Hay dung Chrome/Edge de thi speaking.");
-      return false;
-    }
-
-    const recognizer = new Constructor();
-    recognizer.continuous = true;
-    recognizer.interimResults = true;
-    recognizer.lang = speechLangForExam(examType);
-
-    recognizer.onresult = (event) => {
-      let finalChunk = "";
-      let interimChunk = "";
-
-      for (let i = event.resultIndex; i < event.results.length; i += 1) {
-        const transcript = event.results[i][0]?.transcript || "";
-        if (event.results[i].isFinal) {
-          finalChunk += `${transcript} `;
-        } else {
-          interimChunk += transcript;
-        }
-      }
-
-      if (finalChunk.trim()) {
-        const nextTranscript = `${transcriptDraftRef.current}${transcriptDraftRef.current.endsWith(" ") || transcriptDraftRef.current.length === 0 ? "" : " "}${finalChunk.trim()} `;
-        transcriptDraftRef.current = nextTranscript;
-        setTranscriptDraft(nextTranscript);
-      }
-      interimTranscriptRef.current = interimChunk;
-      setInterimTranscript(interimChunk);
-    };
-
-    recognizer.onerror = (event) => {
-      if (event.error !== "no-speech") {
-        setError(`SpeechRecognition loi: ${event.error}`);
-      }
-    };
-
-    recognizer.onend = () => {
-      if (keepRecognitionAliveRef.current) {
-        try {
-          recognizer.start();
-        } catch {
-          setRecognitionEnabled(false);
-        }
-      }
-    };
-
-    recognitionRef.current = recognizer;
-    keepRecognitionAliveRef.current = true;
-    return new Promise<boolean>((resolve) => {
-      let settled = false;
-      const finish = (ready: boolean) => {
-        if (settled) return;
-        settled = true;
-        if (!ready) {
-          keepRecognitionAliveRef.current = false;
-          recognitionRef.current = null;
-          recognizer.onend = null;
-          try {
-            recognizer.stop();
-          } catch {
-            // noop
-          }
-        }
-        setRecognitionEnabled(ready);
-        resolve(ready);
-      };
-
-      recognizer.onstart = () => finish(true);
-      const originalErrorHandler = recognizer.onerror;
-      recognizer.onerror = (event) => {
-        originalErrorHandler?.(event);
-        if (event.error === "not-allowed" || event.error === "service-not-allowed" || event.error === "audio-capture") {
-          finish(false);
-        }
-      };
-
-      try {
-        recognizer.start();
-        window.setTimeout(() => finish(false), 3000);
-      } catch {
-        finish(false);
-      }
-    });
-  }
-
-  async function requestFollowUpQuestion(history: ConversationTurn[]) {
-    setRequestingQuestion(true);
+  async function decodeAudioToMono16Khz(blob: Blob) {
+    const audioContext = new AudioContext();
     try {
-      const response = await fetch("/api/ai/speaking-evaluation/live-turn", {
+      const decoded = await audioContext.decodeAudioData(
+        await blob.arrayBuffer(),
+      );
+      const targetSampleRate = 16000;
+      const frameCount = Math.max(
+        1,
+        Math.ceil(decoded.duration * targetSampleRate),
+      );
+      const offlineContext = new OfflineAudioContext(
+        1,
+        frameCount,
+        targetSampleRate,
+      );
+      const source = offlineContext.createBufferSource();
+      source.buffer = decoded;
+      source.connect(offlineContext.destination);
+      source.start();
+      const rendered = await offlineContext.startRendering();
+      return new Float32Array(rendered.getChannelData(0));
+    } finally {
+      await audioContext.close().catch(() => undefined);
+    }
+  }
+
+  function getTranscriptionWorker() {
+    if (!transcriptionWorkerRef.current) {
+      transcriptionWorkerRef.current = new Worker(
+        "/workers/speaking-transcription.worker.mjs",
+        { type: "module" },
+      );
+    }
+    return transcriptionWorkerRef.current;
+  }
+
+  async function transcribeRecordedAudio(blob: Blob) {
+    setTranscribing(true);
+    setTranscriptionStatus(
+      "Đang chuẩn bị và phân tích bản ghi âm...",
+    );
+
+    try {
+      const audio = await decodeAudioToMono16Khz(blob);
+      const worker = getTranscriptionWorker();
+      const requestId = ++transcriptionRequestIdRef.current;
+
+      return await new Promise<string>((resolve, reject) => {
+        const handleMessage = (
+          event: MessageEvent<TranscriptionWorkerMessage>,
+        ) => {
+          const message = event.data;
+
+          if (message.type === "progress") {
+            const percent =
+              typeof message.progress === "number"
+                ? Math.round(message.progress)
+                : null;
+            setTranscriptionStatus(
+              percent !== null
+                ? `Đang chuẩn bị bộ phân tích âm thanh: ${percent}%`
+                : "Đang chuẩn bị bộ phân tích âm thanh...",
+            );
+            return;
+          }
+
+          if (message.id !== requestId) return;
+
+          if (message.type === "transcribing") {
+            setTranscriptionStatus(
+              "Hệ thống đang phân tích toàn bộ bản ghi âm...",
+            );
+            return;
+          }
+
+          worker.removeEventListener("message", handleMessage);
+          worker.removeEventListener("error", handleWorkerError);
+
+          if (message.type === "result") {
+            resolve(String(message.text || "").trim());
+            return;
+          }
+
+          reject(
+            new Error(
+              message.error || "Không thể chuyển audio thành văn bản.",
+            ),
+          );
+        };
+        const handleWorkerError = () => {
+          worker.removeEventListener("message", handleMessage);
+          worker.removeEventListener("error", handleWorkerError);
+          reject(
+            new Error(
+              "Không thể khởi động bộ phân tích âm thanh trên trình duyệt này.",
+            ),
+          );
+        };
+
+        worker.addEventListener("message", handleMessage);
+        worker.addEventListener("error", handleWorkerError);
+        worker.postMessage(
+          {
+            id: requestId,
+            audio: audio.buffer,
+            language: getSpeakingWhisperLanguage(speakingLanguage),
+          },
+          [audio.buffer],
+        );
+      });
+    } finally {
+      setTranscribing(false);
+      setTranscriptionStatus("");
+    }
+  }
+
+  async function generateSpeakingTopic() {
+    const customTopic = topicInput.trim();
+    if (topicMode === "custom" && !customTopic) {
+      setTopicError("Hãy nhập topic hoặc chọn chế độ đề ngẫu nhiên.");
+      return;
+    }
+
+    setGeneratingTopic(true);
+    setTopicError("");
+    try {
+      const response = await fetch("/api/ai/speaking-evaluation/topic", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt,
-          history: history.map((item) => ({
-            role: item.role,
-            text: item.text,
-          })),
+          language: speakingLanguage,
+          task: speakingPart,
+          topic: topicMode === "custom" ? customTopic : "",
+          randomTopic: topicMode === "random",
         }),
       });
-      const data = (await response.json().catch(() => ({}))) as { question?: string; error?: string };
-      if (!response.ok) {
-        throw new Error(data.error || "Không tạo được câu hỏi tiếp theo.");
+      const data = (await response.json().catch(() => ({}))) as {
+        topic?: string;
+        prompt?: string;
+        error?: string;
+      };
+
+      if (!response.ok || !data.prompt) {
+        setTopicError(data.error || "Không tạo được đề Speaking.");
+        return;
       }
 
-      if (data.question) {
-        setConversation((prev) => [...prev, { role: "ai", text: data.question!, timestamp: nowIso() }]);
-      }
-    } catch (questionError) {
-      const fallback =
-        examType === "HSK"
-          ? "Please continue in Chinese and add one concrete example."
-          : "Please continue your answer and add one specific example.";
-      setConversation((prev) => [...prev, { role: "ai", text: fallback, timestamp: nowIso() }]);
-      const message = questionError instanceof Error ? questionError.message : "Không tạo được câu hỏi tiếp theo.";
-      setError(message);
+      setPrompt(data.prompt);
+      setSelectedTopic(data.topic || customTopic || "Random");
+      setResult(null);
+      setError("");
+      setSetupOpen(false);
+    } catch {
+      setTopicError("Không tạo được đề Speaking. Vui lòng thử lại.");
     } finally {
-      setRequestingQuestion(false);
+      setGeneratingTopic(false);
     }
   }
 
@@ -446,11 +441,9 @@ export default function SpeakingAiPage() {
     setAudioPreview("");
     setAudioBlob(null);
     audioBlobRef.current = null;
-    setConversation([]);
     setTranscriptDraft("");
-    setInterimTranscript("");
     transcriptDraftRef.current = "";
-    interimTranscriptRef.current = "";
+    setTranscriptionStatus("");
     setTimeLeft(durationSeconds);
     setPreparingSession(true);
 
@@ -460,94 +453,59 @@ export default function SpeakingAiPage() {
       return;
     }
 
-    const recognitionReady = await startSpeechRecognition();
-    if (!recognitionReady) {
-      stopAudioCapture();
-      setPreparingSession(false);
-      setError("Không khởi động được nhận diện giọng nói. Hãy kiểm tra quyền micro và thử lại.");
-      return;
-    }
-
     setSessionRunning(true);
     setPreparingSession(false);
-
-    const openingQuestion =
-      examType === "HSK"
-        ? "Please begin your response in Chinese based on the prompt."
-        : "Please begin your response based on the prompt.";
-    const firstTurn: ConversationTurn = { role: "ai", text: openingQuestion, timestamp: nowIso() };
-    setConversation([firstTurn]);
   }
 
-  async function submitCurrentTurn() {
-    if (!sessionRunning || loading || requestingQuestion) return;
-
-    const text = `${transcriptDraftRef.current} ${interimTranscriptRef.current}`.trim();
-    if (!text) {
-      setError("Chưa có bản ghi cho lượt trả lời này.");
-      return;
-    }
-
-    setError("");
-    const nextHistory = [...conversation, { role: "student" as const, text, timestamp: nowIso() }];
-    setConversation(nextHistory);
-    setTranscriptDraft("");
-    setInterimTranscript("");
-    transcriptDraftRef.current = "";
-    interimTranscriptRef.current = "";
-    await requestFollowUpQuestion(nextHistory);
-  }
-
-  async function finishAndSubmit(autoSubmit: boolean) {
+  async function finishAndSubmit(
+    autoSubmit: boolean,
+    includeAiFeedback = false,
+  ) {
     if (!sessionRunning || submittingRef.current) return;
     submittingRef.current = true;
 
-    const finalTranscript = `${transcriptDraftRef.current} ${interimTranscriptRef.current}`.trim();
     setSessionRunning(false);
-    stopSpeechRecognition();
     await stopAudioCaptureAndWait();
 
-    const finalTurns = [...conversation];
-    if (finalTranscript) {
-      finalTurns.push({ role: "student", text: finalTranscript, timestamp: nowIso() });
-      setConversation(finalTurns);
-      setTranscriptDraft("");
-      setInterimTranscript("");
-      transcriptDraftRef.current = "";
-      interimTranscriptRef.current = "";
-    }
-
-    const studentTranscript = finalTurns
-      .filter((item) => item.role === "student")
-      .map((item) => item.text.trim())
-      .filter(Boolean)
-      .join("\n");
-
-    if (!studentTranscript) {
-      setError("Chưa có nội dung nói để chấm điểm.");
-      submittingRef.current = false;
-      return;
-    }
-
     setLoading(true);
+    setSubmitAction(includeAiFeedback ? "feedback" : "score");
     setError("");
     setResult(null);
 
     try {
+      const finalAudioBlob = audioBlobRef.current || audioBlob;
+      if (!finalAudioBlob || finalAudioBlob.size === 0) {
+        setError("Không tìm thấy bản ghi âm để chuyển thành văn bản.");
+        return;
+      }
+
+      const studentTranscript = await transcribeRecordedAudio(finalAudioBlob);
+      if (!studentTranscript) {
+        setError(
+          "Hệ thống không nhận diện được nội dung nói. Hãy kiểm tra bản ghi âm và thử lại.",
+        );
+        return;
+      }
+      transcriptDraftRef.current = studentTranscript;
+      setTranscriptDraft(studentTranscript);
+
       const form = new FormData();
       form.set("prompt", prompt);
       form.set("transcript", studentTranscript);
-      form.set("conversation", JSON.stringify(finalTurns));
+      form.set("conversation", "[]");
+      form.set("transcriptionSource", "whisper-browser");
+      form.set("includeAiFeedback", String(includeAiFeedback));
+      form.set("language", speakingLanguage);
       form.set("durationSeconds", String(Math.max(1, spentSeconds || durationSeconds)));
-      form.set("title", `Speaking AI - ${examType}`);
+      form.set(
+        "title",
+        `Speaking AI - ${getSpeakingLanguageLabel(speakingLanguage)}`,
+      );
       const courseId = new URLSearchParams(window.location.search).get(
         "courseId",
       );
       if (courseId) form.set("courseId", courseId);
-      const finalAudioBlob = audioBlobRef.current || audioBlob;
-      if (finalAudioBlob) {
-        form.set("audio", finalAudioBlob, "speaking.webm");
-      }
+      form.set("audio", finalAudioBlob, "speaking.webm");
 
       const response = await fetch("/api/ai/speaking-evaluation", {
         method: "POST",
@@ -564,16 +522,30 @@ export default function SpeakingAiPage() {
       if (autoSubmit) {
         setError("Hết thời gian. Hệ thống đã tự động nộp và chấm điểm.");
       }
-    } catch {
-      setError("Không chấm được bài nói.");
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "Không chấm được bài nói.",
+      );
     } finally {
       setLoading(false);
+      setSubmitAction(null);
       submittingRef.current = false;
     }
   }
 
-  finishAndSubmitRef.current = finishAndSubmit;
-  const scoreMax = result?.data.evaluation.exam === "IELTS" ? 9 : 100;
+  useEffect(() => {
+    finishAndSubmitRef.current = finishAndSubmit;
+  });
+
+  const scoreMax =
+    result?.data.evaluation.maxScore ??
+    (result?.data.evaluation.exam === "IELTS"
+      ? 9
+      : result?.data.evaluation.exam === "HSK"
+        ? 100
+        : 10);
   const scoreOnly = Boolean(result?.scoreOnly || result?.data.scoreOnly);
 
   return (
@@ -583,11 +555,16 @@ export default function SpeakingAiPage() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
-                Speaking AI - {userRole === "STUDENT" ? "7 điểm" : "miễn phí cho giảng viên và quản trị viên"}
+                Chấm điểm miễn phí · Nhận xét AI{" "}
+                {userRole === "STUDENT"
+                  ? "-7 điểm"
+                  : "miễn phí cho giảng viên và quản trị viên"}
               </p>
-              <h1 className="mt-2 text-3xl font-bold text-slate-950">Thi nói trực tiếp với AI</h1>
+              <h1 className="mt-2 text-3xl font-bold text-slate-950">Luyện nói và chấm điểm bằng AI</h1>
               <p className="mt-2 max-w-3xl text-slate-600">
-                Kỳ thi và thời gian do quản trị viên cấu hình. Hệ thống tự động kết thúc khi hết giờ và chấm điểm ngay.
+                Hệ thống ghi lại toàn bộ phần nói và phân tích âm thanh sau khi
+                kết thúc. Chấm điểm không mất phí; nhận xét chi tiết là tính
+                năng trả phí.
               </p>
             </div>
             <Link href="/student/results" className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">
@@ -599,8 +576,10 @@ export default function SpeakingAiPage() {
         <section className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="grid gap-4 md:grid-cols-3">
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Kỳ thi</p>
-              <p className="mt-2 text-sm font-semibold text-slate-900">{examType === "HSK" ? "HSK (HSKK)" : "IELTS"}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Ngôn ngữ</p>
+              <p className="mt-2 text-sm font-semibold text-slate-900">
+                {getSpeakingLanguageLabel(speakingLanguage)}
+              </p>
             </div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Thời gian</p>
@@ -609,7 +588,13 @@ export default function SpeakingAiPage() {
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Trạng thái</p>
               <p className="mt-2 text-sm text-slate-700">{recording ? "Đang ghi âm" : "Chưa ghi âm"}</p>
-              <p className="mt-1 text-sm text-slate-700">{recognitionEnabled ? "Nhận diện giọng nói: Bật" : "Nhận diện giọng nói: Tắt"}</p>
+              <p className="mt-1 text-sm text-slate-700">
+                {transcribing
+                  ? "Đang phân tích âm thanh"
+                  : transcriptDraft
+                    ? "Đã phân tích xong bản ghi"
+                    : "Âm thanh sẽ được phân tích sau khi kết thúc"}
+              </p>
             </div>
           </div>
 
@@ -621,6 +606,24 @@ export default function SpeakingAiPage() {
             disabled={sessionRunning || preparingSession || loading || configLoading}
             className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100"
           />
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+              Speaking Task {speakingPart}
+            </span>
+            {selectedTopic ? (
+              <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">
+                Topic: {selectedTopic}
+              </span>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setSetupOpen(true)}
+              disabled={sessionRunning || preparingSession || loading}
+              className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              Chọn đề khác
+            </button>
+          </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
             {!sessionRunning ? (
@@ -630,17 +633,36 @@ export default function SpeakingAiPage() {
                 disabled={loading || configLoading || preparingSession}
                 className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
               >
-                {preparingSession ? "Đang khởi động micro..." : "Bắt đầu thi nói"}
+                {transcribing
+                  ? "Đang phân tích âm thanh..."
+                  : loading
+                    ? submitAction === "feedback"
+                      ? "AI đang nhận xét..."
+                      : "AI đang chấm điểm..."
+                    : preparingSession
+                      ? "Đang khởi động micro..."
+                      : "Bắt đầu thi nói"}
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={() => void finishAndSubmit(false)}
-                disabled={loading}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
-              >
-                Kết thúc và chấm điểm
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => void finishAndSubmit(false, false)}
+                  disabled={loading}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
+                >
+                  Kết thúc và chấm điểm miễn phí
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void finishAndSubmit(false, true)}
+                  disabled={loading}
+                  className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
+                >
+                  Kết thúc và nhận xét AI
+                  {userRole === "STUDENT" ? " (-7 điểm)" : ""}
+                </button>
+              </>
             )}
 
             <span
@@ -652,46 +674,23 @@ export default function SpeakingAiPage() {
             </span>
 
             {preparingSession ? <span className="text-sm text-slate-500">Hãy đợi đến khi hệ thống báo sẵn sàng rồi mới bắt đầu nói.</span> : null}
-            {requestingQuestion ? <span className="text-sm text-slate-500">AI đang đặt câu hỏi tiếp theo...</span> : null}
           </div>
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-5">
-          <h2 className="text-lg font-bold text-slate-950">Hội thoại trực tiếp</h2>
-          <div className="mt-4 max-h-80 space-y-3 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-3">
-            {conversation.length === 0 ? (
-              <p className="text-sm text-slate-500">Chưa có hội thoại. Bấm &quot;Bắt đầu thi nói&quot; để vào phòng thi.</p>
-            ) : (
-              conversation.map((turn, index) => (
-                <div
-                  key={`${turn.timestamp}-${index}`}
-                  className={`rounded-lg px-3 py-2 text-sm ${
-                    turn.role === "ai" ? "bg-blue-50 text-blue-900" : "bg-white text-slate-900"
-                  }`}
-                >
-                  <p className="text-xs font-bold uppercase tracking-wide opacity-70">{turn.role === "ai" ? "Giám khảo AI" : "Bạn"}</p>
-                  <p className="mt-1 whitespace-pre-wrap">{turn.text}</p>
-                </div>
-              ))
-            )}
-          </div>
-
+          <h2 className="text-lg font-bold text-slate-950">
+            Bản ghi và nội dung nhận diện
+          </h2>
           <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Bản ghi lượt hiện tại</p>
-            <p className="mt-2 min-h-16 whitespace-pre-wrap text-sm text-slate-800">{currentTurnTranscript || "Hệ thống đang chờ bạn nói..."}</p>
-            {interimTranscript ? <p className="mt-2 text-xs text-slate-500">Theo thời gian thực: {interimTranscript}</p> : null}
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={() => void submitCurrentTurn()}
-              disabled={!sessionRunning || loading || requestingQuestion || !currentTurnTranscript}
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
-            >
-              Kết thúc lượt trả lời
-            </button>
-            <span className="text-sm text-slate-500">Sau khi bấm, AI sẽ đặt câu hỏi tiếp theo.</span>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Văn bản được tạo từ audio
+            </p>
+            <p className="mt-2 min-h-16 whitespace-pre-wrap text-sm text-slate-800">
+              {currentTurnTranscript ||
+                (recording
+                  ? "Đang ghi âm. Nội dung sẽ được nhận diện sau khi bạn kết thúc."
+                  : "Chưa có nội dung nhận diện. Bấm bắt đầu để ghi âm phần trả lời.")}
+            </p>
           </div>
 
           {audioPreview ? (
@@ -701,15 +700,23 @@ export default function SpeakingAiPage() {
           ) : null}
         </section>
 
+        {transcriptionStatus ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            {transcriptionStatus}
+          </p>
+        ) : null}
+
         {error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
 
         {result?.data.ielts ? (
           <section className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4">
               <p className="text-sm font-semibold text-red-600">
-                {userRole === "STUDENT"
-                  ? `-${result.points?.spent ?? 7} điểm`
-                  : "Không trừ điểm"}
+                {scoreOnly
+                  ? "Chấm điểm miễn phí · Không trừ điểm"
+                  : userRole === "STUDENT"
+                    ? `Nhận xét AI · -${result.points?.spent ?? 7} điểm`
+                    : "Nhận xét AI · Không trừ điểm"}
               </p>
               <Link
                 href={`/student/results/${result.assessmentId}`}
@@ -736,7 +743,7 @@ export default function SpeakingAiPage() {
                   <h2 className="mt-1 text-2xl font-bold text-slate-950">Cấp độ {result.data.evaluation.band.level}</h2>
                   {scoreOnly ? (
                     <p className="mt-2 text-sm text-slate-600">
-                      Khóa học đã hoàn thành. AI chỉ trả về điểm số cho lần chấm này.
+                      Lần chấm này chỉ trả về điểm số, không bao gồm nhận xét chi tiết.
                     </p>
                   ) : (
                     <p className="mt-2 text-sm text-slate-600">{result.data.evaluation.summary}</p>
@@ -753,7 +760,11 @@ export default function SpeakingAiPage() {
                     / {scoreMax} (quy đổi {result.data.evaluation.normalizedOverall?.toFixed(1) ?? "-"}/10)
                   </p>
                   <p className="text-sm font-semibold text-red-600">
-                    {userRole === "STUDENT" ? `-${result.points?.spent ?? 7} điểm` : "Không trừ điểm"}
+                    {scoreOnly
+                      ? "Chấm điểm miễn phí · Không trừ điểm"
+                      : userRole === "STUDENT"
+                        ? `Nhận xét AI · -${result.points?.spent ?? 7} điểm`
+                        : "Nhận xét AI · Không trừ điểm"}
                   </p>
                   {!scoreOnly ? (
                     <p className="mt-1 text-xs font-semibold text-slate-500">
@@ -811,6 +822,159 @@ export default function SpeakingAiPage() {
           </section>
         ) : null}
       </div>
+
+      {setupOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-8">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="speaking-setup-title"
+            className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl"
+          >
+            <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
+              Tạo đề Speaking bằng AI
+            </p>
+            <h2 id="speaking-setup-title" className="mt-2 text-2xl font-bold text-slate-950">
+              Bạn muốn luyện topic nào?
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Chọn ngôn ngữ, Speaking Task và nhập chủ đề, hoặc để AI chọn
+              ngẫu nhiên một đề phù hợp.
+            </p>
+
+            <label className="mt-5 block text-sm font-semibold text-slate-700">
+              Ngôn ngữ luyện nói
+            </label>
+            <select
+              value={speakingLanguage}
+              onChange={(event) => {
+                const language = normalizeSpeakingLanguage(
+                  event.target.value,
+                );
+                setSpeakingLanguage(language);
+                setSpeakingPart(getSpeakingTaskOptions(language)[0].value);
+                setPrompt(getDefaultSpeakingPrompt(language));
+                setSelectedTopic("");
+                setResult(null);
+                setTopicError("");
+              }}
+              disabled={generatingTopic || configLoading}
+              className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100"
+            >
+              {SPEAKING_LANGUAGES.map((language) => (
+                <option key={language.value} value={language.value}>
+                  {language.label}
+                </option>
+              ))}
+            </select>
+
+            <label className="mt-5 block text-sm font-semibold text-slate-700">
+              Speaking Task
+            </label>
+            <select
+              value={speakingPart}
+              onChange={(event) =>
+                setSpeakingPart(Number(event.target.value) as SpeakingTask)
+              }
+              disabled={generatingTopic || configLoading}
+              className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100"
+            >
+              {speakingTaskOptions.map((task) => (
+                <option key={task.value} value={task.value}>
+                  {task.label}
+                </option>
+              ))}
+            </select>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setTopicMode("custom");
+                  setTopicError("");
+                }}
+                disabled={generatingTopic}
+                className={`rounded-xl border p-4 text-left ${
+                  topicMode === "custom"
+                    ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
+                    : "border-slate-200 hover:bg-slate-50"
+                }`}
+              >
+                <span className="block text-sm font-bold text-slate-900">
+                  Chọn topic
+                </span>
+                <span className="mt-1 block text-xs text-slate-600">
+                  AI tạo đề dựa trên chủ đề bạn nhập.
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTopicMode("random");
+                  setTopicError("");
+                }}
+                disabled={generatingTopic}
+                className={`rounded-xl border p-4 text-left ${
+                  topicMode === "random"
+                    ? "border-violet-500 bg-violet-50 ring-2 ring-violet-100"
+                    : "border-slate-200 hover:bg-slate-50"
+                }`}
+              >
+                <span className="block text-sm font-bold text-slate-900">
+                  Random đề
+                </span>
+                <span className="mt-1 block text-xs text-slate-600">
+                  AI tự chọn topic cho ngôn ngữ và Speaking Task đã chọn.
+                </span>
+              </button>
+            </div>
+
+            {topicMode === "custom" ? (
+              <>
+                <label className="mt-4 block text-sm font-semibold text-slate-700">
+                  Topic
+                </label>
+                <input
+                  value={topicInput}
+                  onChange={(event) => {
+                    setTopicInput(event.target.value);
+                    setTopicError("");
+                  }}
+                  maxLength={80}
+                  disabled={generatingTopic}
+                  placeholder="Ví dụ: giáo dục, công nghệ, du lịch..."
+                  className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100"
+                />
+              </>
+            ) : null}
+
+            {topicError ? (
+              <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                {topicError}
+              </p>
+            ) : null}
+
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setSetupOpen(false)}
+                disabled={generatingTopic}
+                className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Tự nhập đề
+              </button>
+              <button
+                type="button"
+                onClick={() => void generateSpeakingTopic()}
+                disabled={generatingTopic || configLoading}
+                className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-slate-300"
+              >
+                {generatingTopic ? "AI đang tạo đề..." : "Tạo đề bằng AI"}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }

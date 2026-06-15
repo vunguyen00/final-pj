@@ -4,12 +4,19 @@ import { getCurrentUser } from "@/lib/auth";
 import {
   getCourseProgressPercent,
   hasCertificateSent,
-  isCourseMarkedCompleted,
   markCertificateSent,
   markCourseCompleted,
 } from "@/lib/learning-progress";
 import { sendCourseCertificateEmail } from "@/lib/mailer";
-import { getAiPointsSummary, grantCourseCompletionPoints, recordLearningActivity } from "@/lib/ai-points";
+import {
+  getAiPointsSummary,
+  grantCourseCompletionPoints,
+  recordLearningActivity,
+  SPEAKING_AI_COST,
+  spendAiPoints,
+  WRITING_AI_COST,
+} from "@/lib/ai-points";
+import { shouldChargeAiPoints } from "@/lib/ai-access";
 import {
   evaluateTestAiAnswers,
   isTestAiAnswerCorrect,
@@ -30,6 +37,7 @@ export async function POST(
 
     const body = await request.json();
     const answers = (body.answers ?? {}) as Record<string, string>;
+    const includeAiFeedback = body.includeAiFeedback === true;
 
     const test = await prisma.test.findUnique({
       where: { id: testId },
@@ -93,10 +101,7 @@ export async function POST(
     const questionResults: Array<Record<string, unknown>> = [];
     const answerSnapshots: Array<Record<string, unknown>> = [];
     const languageCode = test.language?.code || test.course?.language?.code || null;
-    const scoreOnlyAiFeedback =
-      user.role === "STUDENT" && test.courseId
-        ? await isCourseMarkedCompleted(user.id, test.courseId)
-        : false;
+    const scoreOnlyAiFeedback = !includeAiFeedback;
     const aiInputs = test.questions
         .filter((question) => question.type === "ESSAY" || question.type === "SPEAKING")
         .map((question) => ({
@@ -108,6 +113,34 @@ export async function POST(
           scoreOnly: scoreOnlyAiFeedback,
         }))
         .filter((item) => item.answer);
+    const feedbackMode = aiInputs.some((item) => item.mode === "SPEAKING")
+      ? "SPEAKING"
+      : aiInputs.some((item) => item.mode === "WRITING")
+        ? "WRITING"
+        : null;
+    const feedbackCost =
+      feedbackMode === "SPEAKING"
+        ? SPEAKING_AI_COST
+        : feedbackMode === "WRITING"
+          ? WRITING_AI_COST
+          : 0;
+    const shouldChargeFeedback =
+      includeAiFeedback &&
+      feedbackCost > 0 &&
+      shouldChargeAiPoints(user.role);
+
+    if (shouldChargeFeedback) {
+      const pointsBefore = await getAiPointsSummary(user.id);
+      if (pointsBefore.available < feedbackCost) {
+        return NextResponse.json(
+          {
+            error: `Không đủ điểm để nhận nhận xét AI. Cần ${feedbackCost} điểm, hiện có ${pointsBefore.available} điểm.`,
+          },
+          { status: 400 },
+        );
+      }
+    }
+
     const aiResults = await evaluateTestAiAnswers(aiInputs);
     const failedAiResult = aiInputs
       .map((input) => aiResults.get(input.questionId))
@@ -188,7 +221,11 @@ export async function POST(
         isCorrect,
         score: question.score,
         earnedScore,
-        explanation: question.explanation,
+        explanation:
+          scoreOnlyAiFeedback &&
+          (question.type === "ESSAY" || question.type === "SPEAKING")
+            ? null
+            : question.explanation,
         ...(aiEvaluation && { aiEvaluation }),
       });
 
@@ -221,6 +258,8 @@ export async function POST(
         correctAnswers: questionResults.filter((q) => q.isCorrect === true).length,
         questionResults,
         scoreOnlyAiFeedback,
+        aiFeedbackPurchased: includeAiFeedback && aiInputs.length > 0,
+        aiFeedbackCost: 0,
       });
     }
 
@@ -243,6 +282,8 @@ export async function POST(
           submittedAnswers: answerSnapshots,
           questionResults,
           scoreOnlyAiFeedback,
+          aiFeedbackPurchased: includeAiFeedback && aiInputs.length > 0,
+          aiFeedbackCost: shouldChargeFeedback ? feedbackCost : 0,
         },
         startedAt: new Date(
           Date.now() - (test.timeLimit ? test.timeLimit * 60 * 1000 : 0),
@@ -251,6 +292,19 @@ export async function POST(
         isPassed,
       } as never,
     }) as unknown as { id: string; attemptNo: number };
+
+    const feedbackPointResult = shouldChargeFeedback
+      ? await spendAiPoints(
+          user.id,
+          test.courseId ?? null,
+          feedbackCost,
+          feedbackMode === "SPEAKING" ? "SPEAKING_AI" : "WRITING_AI",
+          `TEST_ATTEMPT:${testAttempt.id}`,
+        )
+      : {
+          spent: 0,
+          available: (await getAiPointsSummary(user.id)).available,
+        };
 
     await recordLearningActivity({
       userId: user.id,
@@ -296,6 +350,8 @@ export async function POST(
       correctAnswers: questionResults.filter((q) => q.isCorrect === true).length,
       questionResults,
       scoreOnlyAiFeedback,
+      aiFeedbackPurchased: includeAiFeedback && aiInputs.length > 0,
+      aiFeedbackCost: feedbackPointResult.spent,
     });
   } catch (error) {
     console.error("Error submitting test:", error);

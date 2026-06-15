@@ -34,7 +34,14 @@ export function validateEssay(essay: unknown): EssayValidationResult {
   }
 
   // Check minimum length (should have at least some content)
-  if (trimmedEssay.split(/\s+/).length < VALIDATION_RULES.EMPTY_THRESHOLD) {
+  const whitespaceWords = trimmedEssay.split(/\s+/).filter(Boolean).length;
+  const cjkCharacters =
+    trimmedEssay.match(/[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/g)
+      ?.length ?? 0;
+  if (
+    whitespaceWords < VALIDATION_RULES.EMPTY_THRESHOLD &&
+    cjkCharacters < 10
+  ) {
     return {
       valid: false,
       error: `Essay is too short. Please write at least ${VALIDATION_RULES.EMPTY_THRESHOLD} words`,
@@ -80,8 +87,8 @@ export function validateRequestBody(body: unknown): body is { essay: string } {
  * Uses basic heuristics to identify language
  */
 export function detectLanguageFromText(text: string): string {
-  // Japanese hiragana, katakana, kanji
-  if (/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/.test(text)) {
+  // Japanese-specific hiragana and katakana
+  if (/[\u3040-\u309F\u30A0-\u30FF]/.test(text)) {
     return "Japanese";
   }
 
@@ -90,7 +97,7 @@ export function detectLanguageFromText(text: string): string {
     return "Korean";
   }
 
-  // Chinese characters (basic Hanzi)
+  // Chinese characters (Hanzi); checked after Japanese-specific scripts
   if (/[\u4E00-\u9FFF]/.test(text)) {
     return "Chinese";
   }

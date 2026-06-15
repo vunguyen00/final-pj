@@ -155,6 +155,13 @@ export default function StudentTestResultPage() {
   const correctAnswers = result.questionResults.filter(
     (question) => isQuestionCorrect(question) === true,
   ).length;
+  const hasAiQuestions = result.questionResults.some(
+    (question) =>
+      question.questionType === "ESSAY" ||
+      question.questionType === "SPEAKING",
+  );
+  const showDetailedGuidance =
+    !result.scoreOnlyAiFeedback || !hasAiQuestions;
 
   return (
     <main className="min-h-screen bg-slate-50 py-8">
@@ -197,23 +204,37 @@ export default function StudentTestResultPage() {
               ))}
             </div>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <h2 className="font-bold text-slate-950">Nội dung cần cải thiện</h2>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {(weaknesses.length ? weaknesses : ["Chưa phát hiện điểm yếu đáng kể"]).map((item) => (
-                <span key={item} className="rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">{item}</span>
-              ))}
+          {showDetailedGuidance ? (
+            <>
+              <div className="rounded-xl border border-slate-200 bg-white p-5">
+                <h2 className="font-bold text-slate-950">Nội dung cần cải thiện</h2>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {(weaknesses.length ? weaknesses : ["Chưa phát hiện điểm yếu đáng kể"]).map((item) => (
+                    <span key={item} className="rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">{item}</span>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-5">
+                <h2 className="font-bold text-slate-950">Lộ trình được đề xuất</h2>
+                <ol className="mt-4 space-y-3 text-sm text-slate-600">
+                  <li>1. Ôn lại các kỹ năng còn yếu bằng bài luyện tập phù hợp.</li>
+                  <li>2. Tiếp tục khóa học ở trình độ {estimatedLevel}.</li>
+                  <li>3. Làm lại bài đánh giá sau khi hoàn thành chương tiếp theo.</li>
+                </ol>
+                <Link href="/courses" className="mt-5 inline-block rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Xem khóa học phù hợp</Link>
+              </div>
+            </>
+          ) : (
+            <div className="rounded-xl border border-violet-200 bg-violet-50 p-5 lg:col-span-2">
+              <h2 className="font-bold text-violet-950">
+                Kết quả miễn phí chỉ bao gồm điểm số
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-violet-800">
+                Chọn Nhận xét AI khi làm bài để xem điểm yếu, lỗi cụ thể,
+                hướng cải thiện và bài mẫu.
+              </p>
             </div>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <h2 className="font-bold text-slate-950">Lộ trình được đề xuất</h2>
-            <ol className="mt-4 space-y-3 text-sm text-slate-600">
-              <li>1. Ôn lại các kỹ năng còn yếu bằng bài luyện tập phù hợp.</li>
-              <li>2. Tiếp tục khóa học ở trình độ {estimatedLevel}.</li>
-              <li>3. Làm lại bài đánh giá sau khi hoàn thành chương tiếp theo.</li>
-            </ol>
-            <Link href="/courses" className="mt-5 inline-block rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Xem khóa học phù hợp</Link>
-          </div>
+          )}
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-5">
@@ -247,7 +268,8 @@ export default function StudentTestResultPage() {
                       </p>
                       {question.aiEvaluation.scoreOnly ? (
                         <p className="mt-2 text-blue-800">
-                          Khóa học đã hoàn thành. AI chỉ trả về điểm số cho lần chấm này.
+                          Bạn đã chọn chấm điểm miễn phí. Nhận xét, lỗi chi tiết và
+                          bài mẫu chỉ có trong chế độ Nhận xét AI.
                         </p>
                       ) : (
                         <>

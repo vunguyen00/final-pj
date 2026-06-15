@@ -11,7 +11,6 @@ import { prisma } from "@/lib/prisma";
 import { canUseAiForCourse, shouldChargeAiPoints } from "@/lib/ai-access";
 import { evaluateIeltsWriting } from "@/lib/ielts-grading";
 import { buildWritingAssessmentPayload } from "@/lib/ielts-assessment";
-import { isCourseMarkedCompleted } from "@/lib/learning-progress";
 import type {
   IeltsWritingEvaluation,
   IeltsWritingTaskType,
@@ -85,8 +84,13 @@ export async function POST(request: NextRequest) {
       courseId?: string;
       title?: string;
       taskType?: IeltsWritingTaskType;
+      includeAiFeedback?: boolean;
     };
-    const chargePoints = shouldChargeAiPoints(user.role);
+    const includeAiFeedback =
+      (body as { includeAiFeedback?: unknown }).includeAiFeedback === true;
+    const scoreOnly = !includeAiFeedback;
+    const chargePoints =
+      includeAiFeedback && shouldChargeAiPoints(user.role);
 
     if (courseId) {
       const canUseCourse = await canUseAiForCourse(user, courseId);
@@ -94,11 +98,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Bạn không có quyền trên khóa học này." }, { status: 403 });
       }
     }
-    const scoreOnly =
-      user.role === "STUDENT" && Boolean(courseId)
-        ? await isCourseMarkedCompleted(user.id, courseId!)
-        : false;
-
     if (chargePoints) {
       const pointsBefore = await getAiPointsSummary(user.id);
       if (pointsBefore.available < WRITING_AI_COST) {
@@ -198,6 +197,7 @@ export async function POST(request: NextRequest) {
         points: pointResult,
         streak: activity.streak,
         scoreOnly,
+        aiFeedbackPurchased: includeAiFeedback,
       },
       { status: 200 }
     );

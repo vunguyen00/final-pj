@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { getCourseProgressPercent } from "@/lib/learning-progress";
 import { FIXED_TEST_MAX_SCORE, isTestReady } from "@/lib/test-rules";
+import { SPEAKING_AI_COST, WRITING_AI_COST } from "@/lib/ai-points";
+import { shouldChargeAiPoints } from "@/lib/ai-access";
 
 export async function GET(
   _request: NextRequest,
@@ -116,6 +118,13 @@ export async function GET(
             }))
           : null,
     }));
+    const aiFeedbackCost = test.questions.some(
+      (question) => question.type === "SPEAKING",
+    )
+      ? SPEAKING_AI_COST
+      : test.questions.some((question) => question.type === "ESSAY")
+        ? WRITING_AI_COST
+        : 0;
 
     return NextResponse.json({
       test: {
@@ -131,6 +140,8 @@ export async function GET(
         timeLimit: test.timeLimit,
         shuffleQuestions: test.shuffleQuestions,
         previewMode: isOwnerPreview,
+        aiFeedbackCost,
+        chargeAiFeedback: shouldChargeAiPoints(user.role),
       },
       questions,
       attempts,

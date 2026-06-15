@@ -71,8 +71,16 @@ export default function TeacherRegistrationPage() {
   const [message, setMessage] = useState("");
   const [submittedQuestionResults, setSubmittedQuestionResults] = useState<SubmittedQuestionResult[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [speakingBusyByQuestion, setSpeakingBusyByQuestion] = useState<
+    Record<string, boolean>
+  >({});
   const lastHiddenAt = useRef<number | null>(null);
+  const speakingBusyRef = useRef<Record<string, boolean>>({});
   const submitTestRef = useRef<() => Promise<void>>(async () => {});
+  const hasSpeakingBusy = useMemo(
+    () => Object.values(speakingBusyByQuestion).some(Boolean),
+    [speakingBusyByQuestion],
+  );
 
   useEffect(() => {
     void loadData();
@@ -81,12 +89,14 @@ export default function TeacherRegistrationPage() {
   useEffect(() => {
     if (timeLeft === null || !activeApplication) return;
     if (timeLeft <= 0) {
-      void submitTestRef.current();
+      if (!hasSpeakingBusy) {
+        void submitTestRef.current();
+      }
       return;
     }
     const timer = window.setTimeout(() => setTimeLeft((value) => (value === null ? null : value - 1)), 1000);
     return () => window.clearTimeout(timer);
-  }, [timeLeft, activeApplication]);
+  }, [timeLeft, activeApplication, hasSpeakingBusy]);
 
   useEffect(() => {
     if (!activeApplication || activeApplication.status !== "DRAFT") return;
@@ -229,6 +239,12 @@ export default function TeacherRegistrationPage() {
 
   async function submitTest() {
     if (!activeApplication || submitting) return;
+    if (Object.values(speakingBusyRef.current).some(Boolean)) {
+      setMessage(
+        "Hay dung ghi am va doi he thong phan tich am thanh xong truoc khi nop bai.",
+      );
+      return;
+    }
     setSubmitting(true);
     const response = await fetch(`/api/teacher-applications/${activeApplication.id}/submit-test`, {
       method: "POST",
@@ -251,6 +267,16 @@ export default function TeacherRegistrationPage() {
   useEffect(() => {
     submitTestRef.current = submitTest;
   });
+
+  function handleSpeakingBusyChange(questionId: string, busy: boolean) {
+    if (speakingBusyRef.current[questionId] === busy) return;
+
+    speakingBusyRef.current = {
+      ...speakingBusyRef.current,
+      [questionId]: busy,
+    };
+    setSpeakingBusyByQuestion(speakingBusyRef.current);
+  }
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -380,6 +406,10 @@ export default function TeacherRegistrationPage() {
                         onChange={(value) => setAnswers((prev) => ({ ...prev, [question.id]: value }))}
                         languageLocale={speechLocale}
                         disabled={testLocked}
+                        forceStop={timeLeft === 0}
+                        onBusyChange={(busy) =>
+                          handleSpeakingBusyChange(question.id, busy)
+                        }
                       />
                     ) : null}
                   </div>

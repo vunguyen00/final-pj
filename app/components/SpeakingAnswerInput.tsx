@@ -1,230 +1,381 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-declare global {
-  interface Window {
-    webkitSpeechRecognition?: SpeechRecognitionConstructor;
-    SpeechRecognition?: SpeechRecognitionConstructor;
+type TranscriptionWorkerMessage = {
+  type: "progress" | "transcribing" | "result" | "error";
+  id?: number;
+  progress?: number;
+  text?: string;
+  error?: string;
+};
+
+let sharedWorker: Worker | null = null;
+let transcriptionRequestId = 0;
+
+function getTranscriptionWorker() {
+  if (!sharedWorker) {
+    sharedWorker = new Worker(
+      "/workers/speaking-transcription.worker.mjs",
+      { type: "module" },
+    );
+  }
+  return sharedWorker;
+}
+
+function whisperLanguageFromLocale(locale: string) {
+  const normalized = locale.toLowerCase();
+  if (normalized.startsWith("zh")) return "chinese";
+  if (normalized.startsWith("ja")) return "japanese";
+  if (normalized.startsWith("ko")) return "korean";
+  if (normalized.startsWith("vi")) return "vietnamese";
+  return "english";
+}
+
+async function decodeAudioToMono16Khz(blob: Blob) {
+  const audioContext = new AudioContext();
+  try {
+    const decoded = await audioContext.decodeAudioData(await blob.arrayBuffer());
+    const targetSampleRate = 16000;
+    const frameCount = Math.max(
+      1,
+      Math.ceil(decoded.duration * targetSampleRate),
+    );
+    const offlineContext = new OfflineAudioContext(
+      1,
+      frameCount,
+      targetSampleRate,
+    );
+    const source = offlineContext.createBufferSource();
+    source.buffer = decoded;
+    source.connect(offlineContext.destination);
+    source.start();
+    const rendered = await offlineContext.startRendering();
+    return new Float32Array(rendered.getChannelData(0));
+  } finally {
+    await audioContext.close().catch(() => undefined);
   }
 }
 
-type SpeechRecognitionResultLike = {
-  isFinal: boolean;
-  0: { transcript: string };
-};
+async function transcribeAudio(
+  blob: Blob,
+  languageLocale: string,
+  onStatus: (status: string) => void,
+) {
+  onStatus("Đang chuẩn bị bản ghi âm...");
+  const audio = await decodeAudioToMono16Khz(blob);
+  const worker = getTranscriptionWorker();
+  const requestId = ++transcriptionRequestId;
 
-type SpeechRecognitionEventLike = Event & {
-  resultIndex: number;
-  results: {
-    length: number;
-    [index: number]: SpeechRecognitionResultLike;
-  };
-};
+  return new Promise<string>((resolve, reject) => {
+    const handleMessage = (
+      event: MessageEvent<TranscriptionWorkerMessage>,
+    ) => {
+      const message = event.data;
 
-type SpeechRecognitionErrorEventLike = Event & {
-  error: string;
-};
+      if (message.type === "progress") {
+        const percent =
+          typeof message.progress === "number"
+            ? Math.round(message.progress)
+            : null;
+        onStatus(
+          percent === null
+            ? "Đang chuẩn bị bộ phân tích âm thanh..."
+            : `Đang chuẩn bị bộ phân tích âm thanh: ${percent}%`,
+        );
+        return;
+      }
 
-type SpeechRecognitionInstance = {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onstart: (() => void) | null;
-  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
-  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-};
+      if (message.id !== requestId) return;
 
-type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
+      if (message.type === "transcribing") {
+        onStatus("Đang phân tích âm thanh...");
+        return;
+      }
+
+      cleanup();
+      if (message.type === "result") {
+        resolve(String(message.text || "").trim());
+        return;
+      }
+      reject(
+        new Error(
+          message.error || "Không thể nhận diện nội dung từ bản ghi âm.",
+        ),
+      );
+    };
+
+    const handleWorkerError = () => {
+      cleanup();
+      sharedWorker?.terminate();
+      sharedWorker = null;
+      reject(
+        new Error(
+          "Không thể khởi động bộ phân tích âm thanh trên trình duyệt này.",
+        ),
+      );
+    };
+
+    function cleanup() {
+      worker.removeEventListener("message", handleMessage);
+      worker.removeEventListener("error", handleWorkerError);
+    }
+
+    worker.addEventListener("message", handleMessage);
+    worker.addEventListener("error", handleWorkerError);
+    worker.postMessage(
+      {
+        id: requestId,
+        audio: audio.buffer,
+        language: whisperLanguageFromLocale(languageLocale),
+      },
+      [audio.buffer],
+    );
+  });
+}
 
 export function SpeakingAnswerInput({
   value,
   onChange,
   languageLocale,
   disabled = false,
+  forceStop = false,
+  onBusyChange,
 }: {
   value: string;
   onChange: (value: string) => void;
   languageLocale: string;
   disabled?: boolean;
+  forceStop?: boolean;
+  onBusyChange?: (busy: boolean) => void;
 }) {
-  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
-  const keepAliveRef = useRef(false);
-  const valueRef = useRef(value);
-  const interimRef = useRef("");
-  const [listening, setListening] = useState(false);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const previewUrlRef = useRef("");
+  const finishingRef = useRef(false);
+
+  const [recording, setRecording] = useState(false);
   const [preparing, setPreparing] = useState(false);
-  const [interim, setInterim] = useState("");
+  const [transcribing, setTranscribing] = useState(false);
   const [hasCompletedRecording, setHasCompletedRecording] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [status, setStatus] = useState("");
   const [supportError, setSupportError] = useState("");
 
   useEffect(() => {
-    valueRef.current = value;
-  }, [value]);
+    onBusyChange?.(recording || preparing || transcribing);
+  }, [onBusyChange, preparing, recording, transcribing]);
+
+  const stopTracks = useCallback(() => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+  }, []);
+
+  const finishRecording = useCallback(async () => {
+    if (finishingRef.current || transcribing) return;
+    const recorder = recorderRef.current;
+    if (!recorder || recorder.state === "inactive") {
+      setRecording(false);
+      stopTracks();
+      return;
+    }
+
+    finishingRef.current = true;
+    setRecording(false);
+    setTranscribing(true);
+    setSupportError("");
+
+    try {
+      const blob = await new Promise<Blob>((resolve) => {
+        recorder.addEventListener(
+          "stop",
+          () => {
+            resolve(
+              new Blob(chunksRef.current, {
+                type: recorder.mimeType || "audio/webm",
+              }),
+            );
+          },
+          { once: true },
+        );
+        recorder.stop();
+      });
+
+      recorderRef.current = null;
+      stopTracks();
+
+      if (!blob.size) {
+        throw new Error("Bản ghi âm không có dữ liệu.");
+      }
+
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+      }
+      const nextPreviewUrl = URL.createObjectURL(blob);
+      previewUrlRef.current = nextPreviewUrl;
+      setPreviewUrl(nextPreviewUrl);
+
+      const transcript = await transcribeAudio(
+        blob,
+        languageLocale,
+        setStatus,
+      );
+      if (!transcript) {
+        throw new Error(
+          "Không nhận diện được nội dung nói. Hãy thử ghi âm lại.",
+        );
+      }
+
+      onChange(transcript);
+      setHasCompletedRecording(true);
+      setStatus("Đã phân tích xong bản ghi âm.");
+    } catch (error) {
+      setSupportError(
+        error instanceof Error
+          ? error.message
+          : "Không thể xử lý bản ghi âm.",
+      );
+      setStatus("");
+    } finally {
+      setTranscribing(false);
+      finishingRef.current = false;
+      stopTracks();
+    }
+  }, [languageLocale, onChange, stopTracks, transcribing]);
+
+  useEffect(() => {
+    if (forceStop && recording) {
+      void finishRecording();
+    }
+  }, [finishRecording, forceStop, recording]);
 
   useEffect(() => {
     return () => {
-      stopListening(false);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (disabled && (listening || preparing)) {
-      stopListening(false);
-    }
-  }, [disabled, listening, preparing]);
-
-  function resolveRecognitionConstructor() {
-    return window.SpeechRecognition || window.webkitSpeechRecognition || null;
-  }
-
-  function stopListening(markCompleted = true) {
-    keepAliveRef.current = false;
-    const recognizer = recognitionRef.current;
-    recognitionRef.current = null;
-    if (recognizer) {
-      recognizer.onend = null;
-      try {
-        recognizer.stop();
-      } catch {
-        // noop
+      const recorder = recorderRef.current;
+      if (recorder && recorder.state !== "inactive") {
+        recorder.stop();
       }
-    }
-    setListening(false);
-    setPreparing(false);
-    if (
-      markCompleted &&
-      (valueRef.current.trim() || interimRef.current.trim())
-    ) {
-      setHasCompletedRecording(true);
-    }
-    interimRef.current = "";
-    setInterim("");
-  }
+      stopTracks();
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+      }
+    };
+  }, [stopTracks]);
 
-  function startListening() {
-    if (disabled || preparing) return;
-
-    const Constructor = resolveRecognitionConstructor();
-    if (!Constructor) {
+  async function startRecording() {
+    if (disabled || preparing || transcribing || recording) return;
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
       setSupportError(
-        "Trình duyệt chưa hỗ trợ nhận diện giọng nói. Bạn vẫn có thể nhập nội dung trả lời thủ công.",
+        "Trình duyệt chưa hỗ trợ ghi âm. Hãy dùng Chrome, Edge hoặc Firefox phiên bản mới.",
       );
       return;
     }
 
-    if (hasCompletedRecording) {
-      valueRef.current = "";
-      interimRef.current = "";
-      setInterim("");
-      onChange("");
-    }
-
-    setSupportError("");
     setPreparing(true);
-    const recognizer = new Constructor();
-    recognizer.continuous = true;
-    recognizer.interimResults = true;
-    recognizer.lang = languageLocale;
+    setSupportError("");
+    setStatus("");
 
-    recognizer.onresult = (event) => {
-      let finalChunk = "";
-      let interimChunk = "";
-
-      for (let index = event.resultIndex; index < event.results.length; index += 1) {
-        const transcript = event.results[index][0]?.transcript || "";
-        if (event.results[index].isFinal) {
-          finalChunk += `${transcript} `;
-        } else {
-          interimChunk += transcript;
-        }
-      }
-
-      if (finalChunk.trim()) {
-        const currentValue = valueRef.current;
-        const nextValue =
-          `${currentValue}${currentValue.trim() ? " " : ""}${finalChunk.trim()}`.trim();
-        valueRef.current = nextValue;
-        onChange(nextValue);
-      }
-      interimRef.current = interimChunk;
-      setInterim(interimChunk);
-    };
-
-    recognizer.onerror = (event) => {
-      setPreparing(false);
-      if (event.error !== "no-speech") {
-        setSupportError(`Lỗi nhận diện giọng nói: ${event.error}`);
-      }
-    };
-
-    recognizer.onend = () => {
-      if (keepAliveRef.current) {
-        try {
-          recognizer.start();
-        } catch {
-          setListening(false);
-          setPreparing(false);
-        }
-      }
-    };
-
-    recognitionRef.current = recognizer;
-    keepAliveRef.current = true;
-    recognizer.onstart = () => {
-      setPreparing(false);
-      setListening(true);
-    };
     try {
-      recognizer.start();
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      streamRef.current = stream;
+      recorderRef.current = recorder;
+      chunksRef.current = [];
+
+      recorder.addEventListener("dataavailable", (event) => {
+        if (event.data.size > 0) chunksRef.current.push(event.data);
+      });
+      recorder.addEventListener(
+        "start",
+        () => {
+          setPreparing(false);
+          setRecording(true);
+        },
+        { once: true },
+      );
+
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+        previewUrlRef.current = "";
+        setPreviewUrl("");
+      }
+      if (hasCompletedRecording || value.trim()) {
+        setHasCompletedRecording(false);
+        onChange("");
+      }
+
+      recorder.start(500);
     } catch {
-      setListening(false);
+      stopTracks();
+      recorderRef.current = null;
       setPreparing(false);
-      setSupportError("Không thể bật nhận diện giọng nói.");
+      setSupportError(
+        "Không mở được micro. Hãy kiểm tra quyền micro của trình duyệt.",
+      );
     }
   }
+
+  const busy = recording || preparing || transcribing;
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        {!listening ? (
+        {!recording ? (
           <button
             type="button"
-            onClick={startListening}
-            disabled={disabled || preparing}
+            onClick={() => void startRecording()}
+            disabled={disabled || preparing || transcribing}
             className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
           >
             {preparing
               ? "Đang khởi động micro..."
-              : hasCompletedRecording
-                ? "Ghi âm lại"
-                : "Bắt đầu ghi âm"}
+              : transcribing
+                ? "Đang phân tích âm thanh..."
+                : hasCompletedRecording
+                  ? "Ghi âm lại"
+                  : "Bắt đầu ghi âm"}
           </button>
         ) : (
           <button
             type="button"
-            onClick={() => stopListening()}
-            className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white"
+            onClick={() => void finishRecording()}
+            disabled={disabled}
+            className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
           >
-            Dừng ghi
+            Dừng ghi và phân tích âm thanh
           </button>
         )}
-        <span className={`rounded-lg px-3 py-2 text-xs font-semibold ${listening ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
-          {listening
+        <span
+          className={`rounded-lg px-3 py-2 text-xs font-semibold ${
+            busy
+              ? "bg-emerald-100 text-emerald-700"
+              : "bg-slate-100 text-slate-600"
+          }`}
+        >
+          {recording
             ? "Đang ghi âm..."
-            : hasCompletedRecording
-              ? "Đã ghi xong"
-              : "Sẵn sàng"}
+            : transcribing
+              ? "Đang phân tích âm thanh..."
+              : hasCompletedRecording
+                ? "Đã phân tích xong"
+                : "Sẵn sàng"}
         </span>
       </div>
 
-      {interim ? (
-        <p className="text-xs text-slate-500">Đang nhận diện: {interim}</p>
+      {previewUrl ? (
+        <audio controls src={previewUrl} className="w-full max-w-xl" />
       ) : null}
-      {supportError ? <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-700">{supportError}</p> : null}
+      {status ? (
+        <p className="rounded-lg bg-blue-50 p-3 text-sm text-blue-700">
+          {status}
+        </p>
+      ) : null}
+      {supportError ? (
+        <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-700">
+          {supportError}
+        </p>
+      ) : null}
     </div>
   );
 }

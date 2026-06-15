@@ -2,19 +2,22 @@ import { ollamaService } from "./ollama-service";
 import { detectLanguageFromText, sanitizeEssay, validateEssay } from "./validators";
 import { validatePromptSafety } from "./prompt-builder";
 import { SpeakingEvaluationResponse, SpeakingExamType } from "./types";
+import type {
+  SpeakingLanguage,
+  SpeakingTask,
+} from "@/lib/speaking-languages";
 
 const SPEAKING_SYSTEM_PROMPT = `You are a strict multilingual speaking examiner.
 
-Grade the response like a real certification examiner. Follow the requested exam rubric exactly.
+Grade the response like a real language-speaking examiner. Follow the requested scoring system when one is provided; otherwise use a strict general speaking rubric.
 
 Be strict but constructive. Mention limitations if transcript is incomplete or acoustic analysis is unavailable.
 Treat task relevance as a hard scoring requirement. A fluent answer that does not answer the speaking task must receive a low overall score.
 Return ONLY valid JSON.`;
 
-const LIVE_EXAMINER_SYSTEM_PROMPT = `You are a speaking examiner in a live oral test.
-Reply with ONLY one short follow-up question for the candidate, in the target test style.
-Do not provide feedback or scores during the exam.
-Do not output JSON.`;
+const SPEAKING_PROMPT_SYSTEM = `You create realistic speaking practice prompts.
+Return ONLY valid JSON with two string fields: "topic" and "prompt".
+Do not include scores, feedback, markdown fences, or commentary outside the JSON.`;
 
 const IELTS_CRITERIA = ["fluency", "vocabulary", "grammar", "pronunciation"] as const;
 const HSK_CRITERIA = ["pronunciation", "vocabulary_grammar", "fluency", "content"] as const;
@@ -84,6 +87,7 @@ ${examEvaluationGuide(input.exam)}
 Audio saved: ${input.audioAvailable ? "yes" : "no"}
 Duration seconds: ${input.durationSeconds ?? "unknown"}
 Important: if there is no speech-to-text confidence or audio acoustic analysis, infer pronunciation/fluency only from transcript and duration. Do not invent exact phonetic evidence.
+The transcript may contain isolated browser speech-recognition errors such as misspellings, homophones, missing punctuation, or an improbable substituted word. Infer the intended word only when the task and surrounding sentence strongly support it. Do not count that isolated token as a definite learner error. Do not excuse repeated misuse or malformed grammar, and label ambiguous cases as possible recognition errors. Transcript spelling alone is not pronunciation evidence.
 </AUDIO_CONTEXT>
 
 <CONVERSATION_LOG>
@@ -315,40 +319,73 @@ export class SpeakingService {
     return { ...parsed, language };
   }
 
-  async generateFollowUpQuestion(input: {
-    examType: SpeakingExamType;
-    prompt?: string;
-    history: Array<{ role: "ai" | "student"; text: string }>;
-  }): Promise<string> {
-    if (input.examType === "JLPT") {
-      throw new Error("JLPT does not include a speaking section.");
+  async generatePracticePrompt(input: {
+    language: SpeakingLanguage;
+    task: SpeakingTask;
+    topic?: string;
+    randomTopic?: boolean;
+  }): Promise<{ topic: string; prompt: string }> {
+    const requestedTopic = String(input.topic || "")
+      .replace(/[\r\n<>]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 80);
+    const topicInstruction =
+      input.randomTopic || !requestedTopic
+        ? "Choose one varied, practical topic suitable for a language learner."
+        : `Use this requested topic: ${requestedTopic}`;
+    const targetLanguages: Record<SpeakingLanguage, string> = {
+      ENGLISH: "English",
+      CHINESE: "Simplified Chinese",
+      JAPANESE: "Japanese",
+      KOREAN: "Korean",
+    };
+    const taskGuides: Record<SpeakingTask, string> = {
+      1: "Create 4 concise personal questions that can each be answered briefly.",
+      2: "Create one long-turn speaking task asking the learner to describe an experience, with 3-4 points to cover.",
+      3: "Create 4 discussion questions that move from causes and effects to comparison and personal opinion.",
+    };
+    const targetLanguage = targetLanguages[input.language];
+    const formatInstruction = taskGuides[input.task];
+
+    const raw = await ollamaService.chat(
+      [
+        { role: "system", content: SPEAKING_PROMPT_SYSTEM },
+        {
+          role: "user",
+          content: `Target language: ${targetLanguage}
+Speaking task: ${input.task}
+${topicInstruction}
+${formatInstruction}
+
+Write both the topic and the complete prompt entirely in ${targetLanguage}.
+The prompt must be ready to show directly to the learner. Keep it under 180 words.`,
+        },
+      ],
+      { maxOutputTokens: 700 },
+    );
+    const cleaned = raw
+      .trim()
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/```$/i, "")
+      .trim();
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+    const parsed = JSON.parse(
+      start >= 0 && end > start ? cleaned.slice(start, end + 1) : cleaned,
+    ) as { topic?: unknown; prompt?: unknown };
+    const topic = String(parsed.topic || requestedTopic || "General speaking")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 100);
+    const prompt = String(parsed.prompt || "").trim().slice(0, 1800);
+
+    if (!prompt) {
+      throw new Error("AI returned an empty speaking prompt.");
     }
 
-    const conversationHistory = input.history
-      .slice(-8)
-      .map((item) => `${item.role === "ai" ? "Examiner" : "Candidate"}: ${item.text}`)
-      .join("\n");
-
-    const raw = await ollamaService.chat([
-      { role: "system", content: LIVE_EXAMINER_SYSTEM_PROMPT },
-      {
-        role: "user",
-        content: `Exam type: ${input.examType}
-Task: ${input.prompt?.trim() || "General speaking interview."}
-Recent turns:
-${conversationHistory || "No turns yet."}
-
-Generate the next examiner follow-up question in one sentence.`,
-      },
-    ]);
-
-    const cleaned = raw.replace(/^["'\s]+|["'\s]+$/g, "").replace(/\s+/g, " ").trim();
-    if (!cleaned) {
-      return input.examType === "IELTS"
-        ? "Can you give a specific example to support your answer?"
-        : "Please explain one concrete example in more detail.";
-    }
-    return cleaned.slice(0, 240);
+    return { topic, prompt };
   }
 }
 

@@ -30,7 +30,18 @@ const OVERVIEW_PATTERN =
   /\b(overall|in general|it is clear that|it can be seen that)\b/i;
 
 export function countResponseWords(value: string) {
-  return value.trim().split(/\s+/).filter(Boolean).length;
+  const normalized = value.trim();
+  if (!normalized) return 0;
+
+  const cjkCharacters =
+    normalized.match(/[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/g)
+      ?.length ?? 0;
+  const nonCjkWords = normalized
+    .replace(/[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean).length;
+
+  return nonCjkWords + Math.ceil(cjkCharacters / 2);
 }
 
 export function roundToHalf(value: number, maximum = 10) {

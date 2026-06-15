@@ -42,7 +42,7 @@ export type TestAiAnswerInput = {
   answer: string;
   prompt?: string;
   languageCode?: string | null;
-  examType?: "IELTS" | "HSK";
+  examType?: string;
   scoreOnly?: boolean;
 };
 
@@ -391,6 +391,7 @@ Completely unrelated answers: relevance <=20 and overall <=1.5. Mostly unrelated
 Calibrate conservatively. A score of 5 is limited, 6 is competent with noticeable limitations, 7 requires consistently developed ideas and flexible language, 8 requires precise wide-ranging language and strong control, and 9-10 must be rare and exceptional. Start at 5 and increase only when the answer demonstrates concrete evidence for the higher level.
 For writing, calculate overallScore from task_response, coherence, vocabulary, and grammar. IELTS-like Task 2 responses below 250 words must not exceed 6.5. A missing conclusion or unclear position limits task_response to 5.
 For speaking transcripts, calculate overallScore from fluency, vocabulary, grammar, and pronunciation. A basic or repetitive response should normally remain at 6 or below. A transcript below 150 words must not exceed 6.5. Without acoustic audio analysis, pronunciation must not exceed 6.
+Speaking transcripts may come from browser automatic speech recognition. Isolated misspellings, homophones, missing punctuation, or contextually improbable substitutions may be recognition errors. Infer an intended word only when the prompt and surrounding sentence provide strong evidence. Do not penalize that isolated token as a definite learner error, but do not excuse repeated misuse, broken grammar, or plausible learner mistakes. If uncertain, label it as a possible recognition error. Transcript spelling alone is not pronunciation evidence.
 For speaking, set onTopic=true whenever the answer addresses the requested topic, even if grammar, pronunciation, fluency, or the overall score is weak.
 When an input has scoreOnly=true, calculate all numeric scores normally but set every comment string, sampleAnswer, correction, and feedback array to empty. Do not provide explanations or improvement advice.
 Unless scoreOnly=true, always provide a detailedComment with actionable feedback and a sampleAnswer that correctly answers the original prompt. For WRITING use about 120-180 words. For SPEAKING use a natural model response of about 80-120 words.

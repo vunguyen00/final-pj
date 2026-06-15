@@ -59,7 +59,8 @@ export function IeltsEvaluationResult({
             <h2 className="text-3xl font-bold">Overall band</h2>
             {scoreOnly ? (
               <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-100">
-                Khóa học đã hoàn thành. AI chỉ trả về điểm số cho lần chấm này.
+                Lần chấm này chỉ trả về điểm số. Nhận xét chi tiết chỉ có khi sử
+                dụng chế độ Nhận xét AI.
               </p>
             ) : (
               <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-100">

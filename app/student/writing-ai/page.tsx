@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useUser } from "@/app/components/header/useUser";
 import { IeltsEvaluationResult } from "@/app/components/IeltsEvaluationResult";
@@ -28,16 +28,22 @@ const DEFAULT_TASK_PROMPTS: Record<IeltsWritingTaskType, string> = {
 
 export default function WritingAiPage() {
   const { user } = useUser();
-  const [taskType, setTaskType] = useState<IeltsWritingTaskType>("task_2");
+  const [taskType, setTaskType] =
+    useState<IeltsWritingTaskType>("task_2");
   const [taskPrompt, setTaskPrompt] = useState(DEFAULT_TASK_PROMPTS.task_2);
   const [essay, setEssay] = useState("");
   const [loading, setLoading] = useState(false);
+  const [submitAction, setSubmitAction] = useState<
+    "score" | "feedback" | null
+  >(null);
   const [error, setError] = useState("");
   const [result, setResult] = useState<EvaluationResponse | null>(null);
 
-  async function submitWriting(event: FormEvent) {
-    event.preventDefault();
+  async function submitWriting(includeAiFeedback: boolean) {
+    if (loading) return;
+
     setLoading(true);
+    setSubmitAction(includeAiFeedback ? "feedback" : "score");
     setError("");
     setResult(null);
 
@@ -49,10 +55,13 @@ export default function WritingAiPage() {
           essay,
           taskPrompt,
           taskType,
+          includeAiFeedback,
           courseId:
             new URLSearchParams(window.location.search).get("courseId") ||
             undefined,
-          title: `Writing AI - ${taskType === "task_1" ? "Task 1" : "Task 2"}`,
+          title: `Writing AI - ${
+            taskType === "task_1" ? "Task 1" : "Task 2"
+          }`,
         }),
       });
       const data = await response.json().catch(() => ({}));
@@ -65,6 +74,7 @@ export default function WritingAiPage() {
       setError("Không chấm được bài viết.");
     } finally {
       setLoading(false);
+      setSubmitAction(null);
     }
   }
 
@@ -75,26 +85,46 @@ export default function WritingAiPage() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
-                Writing AI - {user?.role === "STUDENT" ? "3 điểm" : "miễn phí cho giảng viên và quản trị viên"}
+                Chấm điểm miễn phí · Nhận xét AI{" "}
+                {user?.role === "STUDENT"
+                  ? "-3 điểm"
+                  : "miễn phí cho giảng viên và quản trị viên"}
               </p>
-              <h1 className="mt-2 text-3xl font-bold text-slate-950">Chấm bài viết theo tiêu chuẩn bài thi thật</h1>
+              <h1 className="mt-2 text-3xl font-bold text-slate-950">
+                Chấm bài viết theo tiêu chuẩn bài thi thật
+              </h1>
               <p className="mt-2 max-w-2xl text-slate-600">
-                AI đánh giá mức độ hoàn thành yêu cầu, tính mạch lạc, vốn từ vựng, phạm vi ngữ pháp và độ chính xác.
+                Chấm điểm chỉ trả kết quả số. Nhận xét AI cung cấp lỗi, điểm
+                yếu, cách cải thiện và bài mẫu.
               </p>
             </div>
-            <Link href="/student/results" className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">Lịch sử kết quả</Link>
+            <Link
+              href="/student/results"
+              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700"
+            >
+              Lịch sử kết quả
+            </Link>
           </div>
         </section>
 
-        <form onSubmit={submitWriting} className="rounded-xl border border-slate-200 bg-white p-5">
-          <label className="text-sm font-semibold text-slate-700">Dạng bài IELTS</label>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void submitWriting(false);
+          }}
+          className="rounded-xl border border-slate-200 bg-white p-5"
+        >
+          <label className="text-sm font-semibold text-slate-700">
+            Dạng bài IELTS
+          </label>
           <select
             value={taskType}
             onChange={(event) => {
-              const nextTaskType = event.target.value as IeltsWritingTaskType;
-              const promptIsDefault = Object.values(DEFAULT_TASK_PROMPTS).includes(
-                taskPrompt,
-              );
+              const nextTaskType =
+                event.target.value as IeltsWritingTaskType;
+              const promptIsDefault = Object.values(
+                DEFAULT_TASK_PROMPTS,
+              ).includes(taskPrompt);
               setTaskType(nextTaskType);
               if (promptIsDefault) {
                 setTaskPrompt(DEFAULT_TASK_PROMPTS[nextTaskType]);
@@ -107,14 +137,20 @@ export default function WritingAiPage() {
             <option value="task_1">Writing Task 1</option>
             <option value="task_2">Writing Task 2</option>
           </select>
-          <label className="mt-4 block text-sm font-semibold text-slate-700">Đề bài</label>
+
+          <label className="mt-4 block text-sm font-semibold text-slate-700">
+            Đề bài
+          </label>
           <textarea
             value={taskPrompt}
             onChange={(event) => setTaskPrompt(event.target.value)}
             rows={3}
             className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
           />
-          <label className="mt-4 block text-sm font-semibold text-slate-700">Bài viết</label>
+
+          <label className="mt-4 block text-sm font-semibold text-slate-700">
+            Bài viết
+          </label>
           <textarea
             value={essay}
             onChange={(event) => setEssay(event.target.value)}
@@ -123,25 +159,55 @@ export default function WritingAiPage() {
             className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
           />
           <p className="mt-2 text-right text-xs font-semibold text-slate-500">
-            {essay.trim() ? essay.trim().split(/\s+/).length : 0} từ
-            {" · "}
-            mục tiêu tối thiểu {taskType === "task_1" ? 150 : 250} từ
+            {essay.trim() ? essay.trim().split(/\s+/).length : 0} từ · mục
+            tiêu tối thiểu {taskType === "task_1" ? 150 : 250} từ
           </p>
-          {error ? <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
-          <button disabled={loading} className="mt-4 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white disabled:bg-slate-300">
-            {loading ? "Đang chấm..." : "Nộp bài viết"}
-          </button>
+
+          {error ? (
+            <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+              {error}
+            </p>
+          ) : null}
+
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="submit"
+              disabled={loading}
+              className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white disabled:bg-slate-300"
+            >
+              {loading && submitAction === "score"
+                ? "Đang chấm điểm..."
+                : "Chấm điểm miễn phí"}
+            </button>
+            <button
+              type="button"
+              onClick={() => void submitWriting(true)}
+              disabled={loading}
+              className="rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white disabled:bg-slate-300"
+            >
+              {loading && submitAction === "feedback"
+                ? "AI đang nhận xét..."
+                : user?.role === "STUDENT"
+                  ? "Nhận xét AI (-3 điểm)"
+                  : "Nhận xét AI"}
+            </button>
+          </div>
         </form>
 
         {result ? (
           <section className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4">
               <p className="text-sm font-semibold text-red-600">
-                {user?.role === "STUDENT"
-                  ? `-${result.points?.spent ?? 3} điểm`
-                  : "Không trừ điểm"}
+                {result.scoreOnly
+                  ? "Chấm điểm miễn phí · Không trừ điểm"
+                  : user?.role === "STUDENT"
+                    ? `Nhận xét AI · -${result.points?.spent ?? 3} điểm`
+                    : "Nhận xét AI · Không trừ điểm"}
               </p>
-              <Link href={`/student/results/${result.assessmentId}`} className="mt-4 inline-block rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">
+              <Link
+                href={`/student/results/${result.assessmentId}`}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white"
+              >
                 Xem chi tiết đã lưu
               </Link>
             </div>

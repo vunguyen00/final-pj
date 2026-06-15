@@ -672,6 +672,7 @@ Start from band 5 and move upward only when the transcript contains concrete evi
 Do not award a high band to an off-topic, memorized, evasive, or very short response even when its grammar is accurate.
 Use the prompt, conversation, transcript, and duration to judge whether ideas are sufficiently developed.
 Pronunciation evidence must be honest. If acoustic audio analysis is unavailable, do not invent exact word stress, sentence stress, rhythm, connected speech, or phonetic errors. State the limitation in Vietnamese and only mention evidence supported by the transcript.
+The transcript was produced by browser automatic speech recognition and can contain isolated spelling mistakes, homophones, missing punctuation, or contextually improbable word substitutions. Treat a token as a likely recognition error only when the prompt and surrounding sentence strongly support a clear intended word. Do not penalize that isolated token as a definite vocabulary, grammar, or pronunciation error. Do not automatically excuse repeated misuse, malformed sentence structure, or errors that remain plausible as the candidate's own language. When evidence is ambiguous, describe it in Vietnamese as a possible recognition error instead of making a definite claim. Transcript spelling alone is not proof of pronunciation quality.
 Every comment must be specific. Do not use vague praise such as "good job" or unexplained statements such as "needs improvement".
 Keep each short_comment under 140 characters, each detailed_feedback under 700 characters, and each array at no more than 3 concise items. Avoid double quotation marks inside JSON string values; use single quotation marks for quoted words or sentences.
 Write all feedback in Vietnamese. Keep quoted English examples in English.
@@ -695,6 +696,7 @@ ${input.transcript}
 <EVIDENCE>
 Duration seconds: ${input.durationSeconds ?? "unknown"}
 Acoustic audio analysis available: ${input.audioAnalysisAvailable ? "yes" : "no"}
+Transcript source: browser automatic speech recognition; isolated recognition or spelling errors are possible.
 </EVIDENCE>
 
 Required JSON schema:

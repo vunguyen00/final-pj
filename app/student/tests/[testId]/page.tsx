@@ -29,6 +29,8 @@ type TestInfo = {
   passingScore: number;
   timeLimit: number | null;
   shuffleQuestions: boolean;
+  aiFeedbackCost: number;
+  chargeAiFeedback: boolean;
 };
 
 type AttemptHistoryItem = {
@@ -71,10 +73,15 @@ export default function StudentTakeTestPage() {
   const [error, setError] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [submitAction, setSubmitAction] = useState<"score" | "feedback" | null>(null);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [attemptHistory, setAttemptHistory] = useState<AttemptHistoryItem[]>([]);
+  const [speakingBusyByQuestion, setSpeakingBusyByQuestion] = useState<
+    Record<string, boolean>
+  >({});
 
   const answersRef = useRef<Record<string, string>>({});
+  const speakingBusyRef = useRef<Record<string, boolean>>({});
   const submittingRef = useRef(false);
   const autoSubmitTriggeredRef = useRef(false);
   const deadlineRef = useRef<number | null>(null);
@@ -90,10 +97,30 @@ export default function StudentTakeTestPage() {
       ).length,
     [answers, questions],
   );
+  const hasSpeakingBusy = useMemo(
+    () => Object.values(speakingBusyByQuestion).some(Boolean),
+    [speakingBusyByQuestion],
+  );
 
   const handleSubmit = useCallback(
-    async ({ skipConfirmation = false }: { skipConfirmation?: boolean } = {}) => {
+    async ({
+      skipConfirmation = false,
+      includeAiFeedback = false,
+    }: {
+      skipConfirmation?: boolean;
+      includeAiFeedback?: boolean;
+    } = {}) => {
       if (submittingRef.current) return;
+      if (Object.values(speakingBusyRef.current).some(Boolean)) {
+        if (skipConfirmation) {
+          autoSubmitTriggeredRef.current = false;
+        } else {
+          window.alert(
+            "Hãy dừng ghi âm và đợi hệ thống phân tích âm thanh xong trước khi chấm điểm.",
+          );
+        }
+        return;
+      }
 
       const currentAnswers = answersRef.current;
       const unanswered = questions.filter(
@@ -111,12 +138,16 @@ export default function StudentTakeTestPage() {
 
       submittingRef.current = true;
       setSubmitting(true);
+      setSubmitAction(includeAiFeedback ? "feedback" : "score");
 
       try {
         const response = await fetch(`/api/student/tests/${testId}/submit`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ answers: currentAnswers }),
+          body: JSON.stringify({
+            answers: currentAnswers,
+            includeAiFeedback,
+          }),
         });
         const data = await response.json().catch(() => ({}));
 
@@ -124,6 +155,7 @@ export default function StudentTakeTestPage() {
           window.alert(data.error || "Không thể nộp bài. Vui lòng thử lại.");
           submittingRef.current = false;
           setSubmitting(false);
+          setSubmitAction(null);
           return;
         }
 
@@ -138,6 +170,7 @@ export default function StudentTakeTestPage() {
         window.alert("Không thể nộp bài. Vui lòng kiểm tra kết nối và thử lại.");
         submittingRef.current = false;
         setSubmitting(false);
+        setSubmitAction(null);
       }
     },
     [deadlineStorageKey, questions, router, testId],
@@ -212,7 +245,7 @@ export default function StudentTakeTestPage() {
     }, 1000);
 
     return () => window.clearInterval(timer);
-  }, [handleSubmit, submitting, timeLeft]);
+  }, [handleSubmit, hasSpeakingBusy, submitting, timeLeft]);
 
   function handleAnswerChange(questionId: string, answer: string) {
     if (isInteractionLocked) return;
@@ -224,7 +257,35 @@ export default function StudentTakeTestPage() {
     });
   }
 
+  function handleSpeakingAnswerChange(questionId: string, answer: string) {
+    if (submittingRef.current) return;
+
+    setAnswers((previous) => {
+      const next = { ...previous, [questionId]: answer };
+      answersRef.current = next;
+      return next;
+    });
+  }
+
+  function handleSpeakingBusyChange(questionId: string, busy: boolean) {
+    if (speakingBusyRef.current[questionId] === busy) return;
+
+    speakingBusyRef.current = {
+      ...speakingBusyRef.current,
+      [questionId]: busy,
+    };
+    setSpeakingBusyByQuestion(speakingBusyRef.current);
+  }
+
   const speechLocale = getSpeechRecognitionLocale(test?.language?.code);
+  const hasSpeakingQuestion = questions.some(
+    (question) => question.type === "SPEAKING",
+  );
+  const hasWritingQuestion = questions.some(
+    (question) => question.type === "ESSAY",
+  );
+  const hasAiQuestions = hasSpeakingQuestion || hasWritingQuestion;
+  const aiFeedbackCost = test?.aiFeedbackCost ?? 0;
 
   if (loading) {
     return (
@@ -438,10 +499,14 @@ export default function StudentTakeTestPage() {
                     <SpeakingAnswerInput
                       value={answers[question.id] || ""}
                       onChange={(value) =>
-                        handleAnswerChange(question.id, value)
+                        handleSpeakingAnswerChange(question.id, value)
                       }
                       languageLocale={speechLocale}
                       disabled={isInteractionLocked}
+                      forceStop={isExpired}
+                      onBusyChange={(busy) =>
+                        handleSpeakingBusyChange(question.id, busy)
+                      }
                     />
                     <div>
                       <div className="flex items-center justify-between gap-3">
@@ -511,19 +576,37 @@ export default function StudentTakeTestPage() {
           )}
         </section>
 
-        <div className="mt-6 flex justify-center">
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
           <button
             type="button"
-            onClick={() => void handleSubmit()}
+            onClick={() => void handleSubmit({ includeAiFeedback: false })}
             disabled={isInteractionLocked}
             className="min-w-44 rounded-xl bg-blue-600 px-8 py-3 text-base font-bold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
             {submitting
-              ? "Đang nộp bài..."
+              ? submitAction === "feedback"
+                ? "Đang nhận xét..."
+                : "Đang chấm điểm..."
               : isExpired
                 ? "Đã hết thời gian"
-                : "Nộp bài"}
+                : "Chấm điểm miễn phí"}
           </button>
+          {hasAiQuestions ? (
+            <button
+              type="button"
+              onClick={() => void handleSubmit({ includeAiFeedback: true })}
+              disabled={isInteractionLocked}
+              className="min-w-52 rounded-xl bg-violet-600 px-8 py-3 text-base font-bold text-white shadow-sm hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+            >
+              {submitting
+                ? submitAction === "feedback"
+                  ? "AI đang nhận xét..."
+                  : "Vui lòng đợi..."
+                : test.chargeAiFeedback
+                  ? `Nhận xét AI (-${aiFeedbackCost} điểm)`
+                  : "Nhận xét AI (miễn phí)"}
+            </button>
+          ) : null}
         </div>
       </div>
     </main>
