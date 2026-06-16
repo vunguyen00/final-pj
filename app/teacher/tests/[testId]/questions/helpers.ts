@@ -33,7 +33,7 @@ export const inferKindFromQuestion = (question: Question): QuestionKind => {
 
 export const getQuestionTypeLabel = (question: Pick<Question, "type" | "audioUrl">): string => {
   if (question.type === "SPEAKING") return "Speaking AI";
-  if (question.audioUrl) return "Listening";
+  if (question.audioUrl) return "Nghe và trả lời";
   const labels: Record<QuestionType, string> = {
     MULTIPLE_CHOICE: "Trắc nghiệm",
     TRUE_FALSE: "Đúng/Sai",

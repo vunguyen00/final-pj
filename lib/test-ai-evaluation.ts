@@ -393,6 +393,7 @@ For writing, calculate overallScore from task_response, coherence, vocabulary, a
 For speaking transcripts, calculate overallScore from fluency, vocabulary, grammar, and pronunciation. A basic or repetitive response should normally remain at 6 or below. A transcript below 150 words must not exceed 6.5. Without acoustic audio analysis, pronunciation must not exceed 6.
 Speaking transcripts may come from browser automatic speech recognition. Isolated misspellings, homophones, missing punctuation, or contextually improbable substitutions may be recognition errors. Infer an intended word only when the prompt and surrounding sentence provide strong evidence. Do not penalize that isolated token as a definite learner error, but do not excuse repeated misuse, broken grammar, or plausible learner mistakes. If uncertain, label it as a possible recognition error. Transcript spelling alone is not pronunciation evidence.
 For speaking, set onTopic=true whenever the answer addresses the requested topic, even if grammar, pronunciation, fluency, or the overall score is weak.
+Use each input's languageCode to identify the submitted language. Grade grammar, vocabulary, coherence, and task response according to that language, and write feedback and the sample answer in the same language.
 When an input has scoreOnly=true, calculate all numeric scores normally but set every comment string, sampleAnswer, correction, and feedback array to empty. Do not provide explanations or improvement advice.
 Unless scoreOnly=true, always provide a detailedComment with actionable feedback and a sampleAnswer that correctly answers the original prompt. For WRITING use about 120-180 words. For SPEAKING use a natural model response of about 80-120 words.
 Use at most two items per feedback array and at most one correction. Keep the JSON concise.${retryInstruction}`,
@@ -421,8 +422,9 @@ export async function evaluateTestAiAnswers(inputs: TestAiAnswerInput[]) {
         exam:
           input.mode === "SPEAKING"
             ? input.examType || getSpeakingExamTypeForLanguageCode(input.languageCode)
-            : "GENERAL_WRITING",
-          prompt: input.prompt || "",
+            : input.examType || "GENERAL_WRITING",
+        languageCode: input.languageCode || "",
+        prompt: input.prompt || "",
           answer: input.answer,
           scoreOnly: Boolean(input.scoreOnly),
         }));

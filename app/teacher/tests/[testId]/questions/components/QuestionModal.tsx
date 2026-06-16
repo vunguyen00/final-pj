@@ -8,11 +8,24 @@ type Props = {
   onClose: () => void;
   onSubmit: (e: React.FormEvent) => void;
   setForm: (updater: (prev: QuestionForm) => QuestionForm) => void;
+  uploadingAudio: boolean;
+  audioUploadMessage: string;
+  onAudioUpload: (file: File | null) => void;
 };
 
 const needsObjectiveAnswers = (kind: QuestionKind) => kind === "MULTIPLE_CHOICE" || kind === "TRUE_FALSE";
 
-export function QuestionModal({ show, isEditing, form, onClose, onSubmit, setForm }: Props) {
+export function QuestionModal({
+  show,
+  isEditing,
+  form,
+  onClose,
+  onSubmit,
+  setForm,
+  uploadingAudio,
+  audioUploadMessage,
+  onAudioUpload,
+}: Props) {
   if (!show) return null;
 
   const handleTypeSelect = (kind: QuestionKind) => {
@@ -70,15 +83,36 @@ export function QuestionModal({ show, isEditing, form, onClose, onSubmit, setFor
           </div>
 
           {form.kind === "LISTENING" && (
-            <div>
-              <label className="block text-sm font-medium text-slate-700">URL audio *</label>
+            <div className="space-y-3 rounded-lg border border-slate-200 p-3">
+              <label className="block text-sm font-medium text-slate-700">Audio nghe và trả lời *</label>
               <input
-                type="url"
+                type="text"
                 value={form.audioUrl}
                 onChange={(e) => setForm((prev) => ({ ...prev, audioUrl: e.target.value }))}
                 placeholder="https://example.com/audio.mp3"
-                className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+                className="block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
               />
+              <label className="block text-sm font-medium text-slate-700">
+                Hoặc tải file audio lên
+                <input
+                  type="file"
+                  accept="audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/ogg,audio/webm,audio/mp4,audio/aac"
+                  disabled={uploadingAudio}
+                  onChange={(e) => onAudioUpload(e.target.files?.[0] || null)}
+                  className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal focus:border-slate-500 focus:outline-none"
+                />
+              </label>
+              {audioUploadMessage ? (
+                <p className="rounded-lg bg-blue-50 p-2 text-sm text-blue-700">
+                  {audioUploadMessage}
+                </p>
+              ) : null}
+              {form.audioUrl ? (
+                <audio controls className="h-8 w-full">
+                  <source src={form.audioUrl} />
+                  Trình duyệt của bạn không hỗ trợ phát âm thanh.
+                </audio>
+              ) : null}
             </div>
           )}
 

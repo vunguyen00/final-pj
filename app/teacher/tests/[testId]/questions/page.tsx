@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { QuestionCard } from "./components/QuestionCard";
 import { QuestionModal } from "./components/QuestionModal";
+import { TestMaterialPanel } from "@/app/components/TestMaterialPanel";
+import type { ChartMaterialData } from "@/lib/test-material";
 import { createDefaultForm, inferKindFromQuestion, mapKindToPayload } from "./helpers";
 import { Question, QuestionForm, QuestionKind, Test } from "./types";
 import {
@@ -25,6 +27,18 @@ export default function TeacherTestQuestionsPage() {
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [questionForm, setQuestionForm] = useState<QuestionForm>(createDefaultForm());
   const [pageError, setPageError] = useState<string | null>(null);
+  const [materialForm, setMaterialForm] = useState({
+    title: "",
+    content: "",
+    url: "",
+    type: "",
+    data: null as ChartMaterialData | null,
+  });
+  const [savingMaterial, setSavingMaterial] = useState(false);
+  const [uploadingMaterial, setUploadingMaterial] = useState(false);
+  const [materialMessage, setMaterialMessage] = useState("");
+  const [uploadingAudio, setUploadingAudio] = useState(false);
+  const [audioUploadMessage, setAudioUploadMessage] = useState("");
 
   const totalQuestionScore = useMemo(() => questions.reduce((sum, question) => sum + Number(question.score || 0), 0), [questions]);
   const remainingScore = getRemainingQuestionScore(totalQuestionScore);
@@ -37,6 +51,13 @@ export default function TeacherTestQuestionsPage() {
       if (testRes.ok) {
         const data = await testRes.json();
         setTest(data.test);
+        setMaterialForm({
+          title: data.test.materialTitle || "",
+          content: data.test.materialContent || "",
+          url: data.test.materialUrl || "",
+          type: data.test.materialType || "",
+          data: data.test.materialData || null,
+        });
         setPageError(null);
       } else {
         const data = await testRes.json().catch(() => ({}));
@@ -62,6 +83,110 @@ export default function TeacherTestQuestionsPage() {
 
   const resetForm = () => setQuestionForm(createDefaultForm());
 
+  async function uploadMaterial(file: File | null) {
+    if (!file) return;
+    setUploadingMaterial(true);
+    setMaterialMessage("");
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      const response = await fetch("/api/teacher/test-material-upload", {
+        method: "POST",
+        body: form,
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setMaterialMessage(data.error || "Không thể tải tài liệu lên.");
+        return;
+      }
+      setMaterialForm((current) => ({
+        ...current,
+        url: data.url,
+        type: data.type,
+        data: null,
+      }));
+      setMaterialMessage(
+        "Đã tải tệp lên. Bấm Lưu tài liệu để áp dụng cho đề.",
+      );
+    } catch {
+      setMaterialMessage("Không thể tải tài liệu lên.");
+    } finally {
+      setUploadingMaterial(false);
+    }
+  }
+
+  async function uploadQuestionAudio(file: File | null) {
+    if (!file) return;
+    setUploadingAudio(true);
+    setAudioUploadMessage("");
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      const response = await fetch("/api/teacher/question-audio-upload", {
+        method: "POST",
+        body: form,
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setAudioUploadMessage(data.error || "Không thể tải audio lên.");
+        return;
+      }
+      setQuestionForm((current) => ({
+        ...current,
+        kind: "LISTENING",
+        audioUrl: data.url,
+        hasListening: true,
+      }));
+      setAudioUploadMessage(
+        "Đã tải file audio lên. Câu hỏi sẽ dùng file này khi lưu.",
+      );
+    } catch {
+      setAudioUploadMessage("Không thể tải audio lên.");
+    } finally {
+      setUploadingAudio(false);
+    }
+  }
+
+  async function saveMaterial() {
+    setSavingMaterial(true);
+    setMaterialMessage("");
+    try {
+      const response = await fetch(`/api/teacher/tests/${testId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          materialTitle: materialForm.title,
+          materialContent: materialForm.content,
+          materialUrl: materialForm.url,
+          materialType: materialForm.type,
+          materialData: materialForm.data,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setMaterialMessage(data.error || "Không thể lưu tài liệu đề bài.");
+        return;
+      }
+      setTest((current) =>
+        current
+          ? {
+              ...current,
+              materialTitle: data.test.materialTitle,
+              materialContent: data.test.materialContent,
+              materialUrl: data.test.materialUrl,
+              materialType: data.test.materialType,
+              materialData: data.test.materialData,
+            }
+          : current,
+      );
+      setMaterialMessage("Đã lưu tài liệu đề bài.");
+    } catch {
+      setMaterialMessage("Không thể lưu tài liệu đề bài.");
+    } finally {
+      setSavingMaterial(false);
+    }
+  }
+
   const openCreateModal = () => {
     if (!test) {
       alert("Không tìm thấy bài test. Vui lòng thử lại.");
@@ -73,12 +198,14 @@ export default function TeacherTestQuestionsPage() {
     }
     setEditingQuestion(null);
     setQuestionForm(createDefaultForm());
+    setAudioUploadMessage("");
     setShowModal(true);
   };
 
   const openEditModal = (question: Question) => {
     const kind = inferKindFromQuestion(question);
     setEditingQuestion(question);
+    setAudioUploadMessage("");
     setQuestionForm({
       kind,
       type: question.type,
@@ -97,7 +224,7 @@ export default function TeacherTestQuestionsPage() {
     if (!form.kind) return "Vui lòng chọn dạng câu hỏi";
     if (!form.content.trim()) return "Vui lòng nhập nội dung câu hỏi";
     if (!form.score || Number(form.score) <= 0) return "Điểm số phải lớn hơn 0";
-    if (form.kind === "LISTENING" && !form.audioUrl.trim()) return "Vui lòng nhập URL audio";
+    if (form.kind === "LISTENING" && !form.audioUrl.trim()) return "Vui lòng nhập URL hoặc tải file audio";
 
     if ((form.kind === "MULTIPLE_CHOICE" || form.kind === "TRUE_FALSE") && form.answers.some((a) => !a.content.trim())) {
       return "Vui lòng điền đủ nội dung cho tất cả đáp án";
@@ -153,6 +280,7 @@ export default function TeacherTestQuestionsPage() {
 
       setShowModal(false);
       setEditingQuestion(null);
+      setAudioUploadMessage("");
       resetForm();
       await fetchTestAndQuestions();
     } catch (error) {
@@ -222,6 +350,148 @@ export default function TeacherTestQuestionsPage() {
           </div>
         ) : null}
 
+        <section className="mb-6 rounded-xl border border-slate-200 bg-white p-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-slate-950">
+                Tài liệu chung của đề
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Passage, ảnh hoặc PDF sẽ nằm ở cột trái; câu hỏi nằm ở cột
+                phải khi học viên làm bài.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                setMaterialForm({
+                  title: "",
+                  content: "",
+                  url: "",
+                  type: "",
+                  data: null,
+                })
+              }
+              className="text-sm font-semibold text-red-600"
+            >
+              Xóa nội dung đang nhập
+            </button>
+          </div>
+
+          <div className="mt-5 grid gap-5 lg:grid-cols-2">
+            <div className="space-y-4">
+              <label className="block text-sm font-semibold text-slate-700">
+                Tiêu đề tài liệu
+                <input
+                  value={materialForm.title}
+                  onChange={(event) =>
+                    setMaterialForm((current) => ({
+                      ...current,
+                      title: event.target.value,
+                    }))
+                  }
+                  placeholder="Ví dụ: Nineteenth-Century Paperback Literature"
+                  className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
+                />
+              </label>
+
+              <label className="block text-sm font-semibold text-slate-700">
+                Passage hoặc dữ liệu dạng văn bản
+                <textarea
+                  rows={9}
+                  value={materialForm.content}
+                  onChange={(event) =>
+                    setMaterialForm((current) => ({
+                      ...current,
+                      content: event.target.value,
+                    }))
+                  }
+                  placeholder="Nhập bài đọc, mô tả bảng số liệu hoặc hướng dẫn chung..."
+                  className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal leading-6"
+                />
+              </label>
+
+              <label className="block text-sm font-semibold text-slate-700">
+                Ảnh hoặc PDF
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+                  disabled={uploadingMaterial}
+                  onChange={(event) =>
+                    void uploadMaterial(event.target.files?.[0] || null)
+                  }
+                  className="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
+                />
+              </label>
+
+              {materialForm.url ? (
+                <div className="flex items-center justify-between rounded-lg bg-slate-50 p-3 text-sm">
+                  <span className="truncate text-slate-600">
+                    {materialForm.url}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setMaterialForm((current) => ({
+                        ...current,
+                        url: "",
+                        type: "",
+                      }))
+                    }
+                    className="ml-3 font-semibold text-red-600"
+                  >
+                    Bỏ tệp
+                  </button>
+                </div>
+              ) : null}
+
+              {materialMessage ? (
+                <p className="rounded-lg bg-blue-50 p-3 text-sm text-blue-700">
+                  {materialMessage}
+                </p>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={() => void saveMaterial()}
+                disabled={savingMaterial || uploadingMaterial}
+                className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {uploadingMaterial
+                  ? "Đang tải tệp..."
+                  : savingMaterial
+                    ? "Đang lưu..."
+                    : "Lưu tài liệu đề bài"}
+              </button>
+            </div>
+
+            <div>
+              <p className="mb-2 text-sm font-semibold text-slate-700">
+                Xem trước cột tài liệu
+              </p>
+              {materialForm.title ||
+              materialForm.content ||
+              materialForm.url ||
+              materialForm.data ? (
+                <TestMaterialPanel
+                  compact
+                  material={{
+                    title: materialForm.title,
+                    content: materialForm.content,
+                    url: materialForm.url,
+                    type: materialForm.type,
+                    data: materialForm.data,
+                  }}
+                />
+              ) : (
+                <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">
+                  Chưa có tài liệu để xem trước.
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
         {questions.length === 0 ? (
           <div className="rounded-xl border border-slate-200 bg-white p-12 text-center text-slate-600">
             Chưa có câu hỏi nào
@@ -242,9 +512,13 @@ export default function TeacherTestQuestionsPage() {
         onClose={() => {
           setShowModal(false);
           setEditingQuestion(null);
+          setAudioUploadMessage("");
         }}
         onSubmit={handleSubmit}
         setForm={(updater) => setQuestionForm((prev) => updater(prev))}
+        uploadingAudio={uploadingAudio}
+        audioUploadMessage={audioUploadMessage}
+        onAudioUpload={uploadQuestionAudio}
       />
     </div>
   );

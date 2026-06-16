@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { FIXED_TEST_MAX_SCORE } from "@/lib/test-rules";
+import { Prisma } from "@/app/generated/prisma/client";
 
 export async function GET(
   request: NextRequest,
@@ -109,7 +110,18 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, description, passingScore, timeLimit, shuffleQuestions } = body;
+    const {
+      name,
+      description,
+      passingScore,
+      timeLimit,
+      shuffleQuestions,
+      materialTitle,
+      materialContent,
+      materialUrl,
+      materialType,
+      materialData,
+    } = body;
 
     if (name !== undefined && !String(name).trim()) {
       return NextResponse.json({ error: "Test name is required" }, { status: 400 });
@@ -129,6 +141,20 @@ export async function PUT(
       }
     }
 
+    if (
+      materialType !== undefined &&
+      materialType !== null &&
+      materialType !== "" &&
+      materialType !== "IMAGE" &&
+      materialType !== "PDF" &&
+      materialType !== "CHART"
+    ) {
+      return NextResponse.json(
+        { error: "Loại tài liệu không hợp lệ." },
+        { status: 400 },
+      );
+    }
+
     const test = await prisma.test.update({
       where: { id: testId },
       data: {
@@ -138,6 +164,24 @@ export async function PUT(
         ...(passingScore !== undefined && { passingScore: parseFloat(passingScore) }),
         ...(timeLimit !== undefined && { timeLimit: timeLimit ? Number(timeLimit) : null }),
         ...(shuffleQuestions !== undefined && { shuffleQuestions }),
+        ...(materialTitle !== undefined && {
+          materialTitle: String(materialTitle || "").trim() || null,
+        }),
+        ...(materialContent !== undefined && {
+          materialContent: String(materialContent || "").trim() || null,
+        }),
+        ...(materialUrl !== undefined && {
+          materialUrl: String(materialUrl || "").trim() || null,
+        }),
+        ...(materialType !== undefined && {
+          materialType: String(materialType || "").trim() || null,
+        }),
+        ...(materialData !== undefined && {
+          materialData:
+            materialData === null || materialData === ""
+              ? Prisma.DbNull
+              : materialData,
+        }),
       },
     });
 
@@ -145,7 +189,13 @@ export async function PUT(
   } catch (error) {
     console.error("Error updating test:", error);
     return NextResponse.json(
-      { error: "Failed to update test" },
+      {
+        error: "Failed to update test",
+        details:
+          process.env.NODE_ENV === "development" && error instanceof Error
+            ? error.message
+            : undefined,
+      },
       { status: 500 }
     );
   }

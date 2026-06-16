@@ -29,7 +29,7 @@ export function QuestionCard({ question, index, onEdit, onDelete }: Props) {
           {question.audioUrl && (
             <div className="mt-2">
               <audio controls className="h-8 w-full max-w-md">
-                <source src={question.audioUrl} type="audio/mpeg" />
+                <source src={question.audioUrl} />
                 Trình duyệt của bạn không hỗ trợ phát âm thanh.
               </audio>
             </div>

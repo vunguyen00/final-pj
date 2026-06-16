@@ -11,6 +11,16 @@ type QuestionAnswerInput = {
   feedback?: string | null;
 };
 
+function isValidAudioUrl(value: string) {
+  if (value.startsWith("/uploads/question-audio/")) return true;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ testId: string }> }
@@ -110,20 +120,19 @@ export async function POST(
       );
     }
 
+    const trimmedAudioUrl = typeof audioUrl === "string" ? audioUrl.trim() : "";
     let finalAudioUrl: string | null = null;
-    if (hasListening && !audioUrl?.trim()) {
+    if (hasListening && !trimmedAudioUrl) {
       return NextResponse.json({ error: "Thieu URL audio cho dang nghe" }, { status: 400 });
     }
 
     if (type === "SPEAKING") {
       finalAudioUrl = null;
-    } else if (hasListening && audioUrl?.trim()) {
-      try {
-        new URL(audioUrl);
-        finalAudioUrl = audioUrl;
-      } catch {
+    } else if (hasListening && trimmedAudioUrl) {
+      if (!isValidAudioUrl(trimmedAudioUrl)) {
         return NextResponse.json({ error: "URL audio khong hop le" }, { status: 400 });
       }
+      finalAudioUrl = trimmedAudioUrl;
     }
 
     const normalizedAnswers: QuestionAnswerInput[] = Array.isArray(answers) ? (answers as QuestionAnswerInput[]) : [];

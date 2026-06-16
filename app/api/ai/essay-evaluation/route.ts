@@ -11,10 +11,17 @@ import { prisma } from "@/lib/prisma";
 import { canUseAiForCourse, shouldChargeAiPoints } from "@/lib/ai-access";
 import { evaluateIeltsWriting } from "@/lib/ielts-grading";
 import { buildWritingAssessmentPayload } from "@/lib/ielts-assessment";
+import { evaluateTestAiAnswers } from "@/lib/test-ai-evaluation";
 import type {
   IeltsWritingEvaluation,
   IeltsWritingTaskType,
 } from "@/lib/ielts-rubric";
+import type { Prisma } from "@/app/generated/prisma/client";
+import {
+  getWritingEvaluationSystem,
+  getWritingLanguageCode,
+  normalizeWritingLanguage,
+} from "@/lib/writing-languages";
 
 /**
  * Health check before evaluation
@@ -78,14 +85,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Bạn chưa đăng nhập." }, { status: 401 });
     }
 
-    const { essay, taskPrompt, courseId, title, taskType } = body as {
+    const {
+      essay,
+      taskPrompt,
+      courseId,
+      title,
+      taskType,
+      referenceData,
+      language,
+    } = body as {
       essay: string;
       taskPrompt?: string;
       courseId?: string;
       title?: string;
       taskType?: IeltsWritingTaskType;
       includeAiFeedback?: boolean;
+      referenceData?: string;
+      language?: unknown;
     };
+    const writingLanguage = normalizeWritingLanguage(language);
+    const evaluationSystem =
+      getWritingEvaluationSystem(writingLanguage);
     const includeAiFeedback =
       (body as { includeAiFeedback?: unknown }).includeAiFeedback === true;
     const scoreOnly = !includeAiFeedback;
@@ -126,40 +146,155 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid request content" }, { status: 400 });
     }
 
-    let evaluation: IeltsWritingEvaluation;
-    try {
-      evaluation = await evaluateIeltsWriting({
-        prompt: taskPrompt?.trim() || "General IELTS Writing Task 2",
-        answer: sanitizedEssay,
-        taskType,
+    const completePrompt = [
+      taskPrompt?.trim() || "General Writing Task",
+      referenceData?.trim()
+        ? `Reference data for the task:\n${referenceData.trim()}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    let overall: number;
+    let maxScore: number;
+    let bandLevel: string;
+    let criteriaPayload: Prisma.InputJsonValue;
+    let feedbackPayload: Prisma.InputJsonValue;
+    let mistakesPayload: Prisma.InputJsonValue;
+    let improvementsPayload: Prisma.InputJsonValue;
+    let sampleAnswer: string | null = null;
+
+    if (writingLanguage === "ENGLISH") {
+      let evaluation: IeltsWritingEvaluation;
+      try {
+        evaluation = await evaluateIeltsWriting({
+          prompt: completePrompt,
+          answer: sanitizedEssay,
+          taskType,
+          scoreOnly,
+        });
+      } catch (evaluationError) {
+        console.error("IELTS writing grading failed:", evaluationError);
+        throw new Error("AI_EVALUATION_FAILED");
+      }
+
+      const storedPayload = buildWritingAssessmentPayload(
+        evaluation,
         scoreOnly,
-      });
-    } catch (evaluationError) {
-      console.error("IELTS writing grading failed:", evaluationError);
-      throw new Error("AI_EVALUATION_FAILED");
+      );
+      overall = evaluation.overall_band;
+      maxScore = 9;
+      bandLevel = overall.toFixed(1);
+      criteriaPayload = storedPayload.criteria;
+      feedbackPayload = storedPayload.feedback;
+      mistakesPayload = storedPayload.mistakes;
+      improvementsPayload = storedPayload.improvements;
+      sampleAnswer = scoreOnly ? null : evaluation.model_answer || null;
+    } else {
+      const evaluationResult = (await evaluateTestAiAnswers([
+        {
+          questionId: "writing",
+          mode: "WRITING",
+          answer: sanitizedEssay,
+          prompt: completePrompt,
+          languageCode: getWritingLanguageCode(writingLanguage),
+          examType: evaluationSystem,
+          scoreOnly,
+        },
+      ])).get("writing");
+      if (!evaluationResult || evaluationResult.failed) {
+        throw new Error("AI_EVALUATION_FAILED");
+      }
+
+      const evaluation = evaluationResult.aiEvaluation;
+      const criteria = Object.fromEntries(
+        Object.entries(evaluation.criteria || {})
+          .filter(([key]) =>
+            ["task_response", "coherence", "vocabulary", "grammar"].includes(
+              key,
+            ),
+          )
+          .map(([key, value]) => [key, Number(value)]),
+      );
+      overall = evaluationResult.normalizedScore;
+      maxScore = 10;
+      bandLevel = `${overall.toFixed(1)}/10`;
+      sampleAnswer = scoreOnly ? null : evaluation.sampleAnswer || null;
+      criteriaPayload = {
+        ...criteria,
+        taskRelevance: evaluation.taskRelevance ?? 0,
+      };
+      feedbackPayload = {
+        scoreOnly,
+        evaluation: {
+          scores: criteria,
+          overall,
+          normalizedOverall: overall,
+          taskRelevance: evaluation.taskRelevance ?? 0,
+          language: evaluation.language,
+          exam: evaluationSystem,
+          maxScore,
+          scoreScale: "SCORE_0_10",
+          band: {
+            system: evaluationSystem,
+            level: bandLevel,
+            score: overall,
+            rationale: evaluation.band?.rationale || "",
+          },
+          summary: evaluation.summary,
+          onTopic: evaluation.onTopic ?? true,
+          offTopicReason: evaluation.offTopicReason || "",
+          detailedComment:
+            evaluation.detailedComment || evaluation.summary,
+        },
+        analysis: {
+          strengths: evaluation.strengths,
+          weaknesses: evaluation.weaknesses,
+          feedback: evaluation.feedback || [],
+          suggestions: evaluation.suggestions,
+        },
+        mistakes: {
+          grammar: evaluation.grammarErrors || [],
+          vocabulary: evaluation.vocabularyErrors || [],
+          corrections: evaluation.corrections || [],
+        },
+        improvements: {
+          suggestions: evaluation.suggestions,
+          sampleAnswer: sampleAnswer || "",
+        },
+      };
+      mistakesPayload = {
+        grammar: evaluation.grammarErrors || [],
+        vocabulary: evaluation.vocabularyErrors || [],
+        corrections: evaluation.corrections || [],
+      };
+      improvementsPayload = {
+        suggestions: evaluation.suggestions,
+        sampleAnswer: sampleAnswer || "",
+      };
     }
 
-    const storedPayload = buildWritingAssessmentPayload(evaluation, scoreOnly);
-    const overall = evaluation.overall_band;
     const assessment = await prisma.aiAssessment.create({
       data: {
         userId: user.id,
         courseId: courseId || null,
         type: "WRITING",
-        taskType: evaluation.task_type,
+        taskType:
+          writingLanguage === "ENGLISH"
+            ? taskType || "task_2"
+            : `${writingLanguage.toLowerCase()}_${taskType || "task_2"}`,
         title: title?.trim() || "Writing AI",
         prompt: taskPrompt || null,
         submissionText: essay,
         score: overall,
-        maxScore: 9,
-        bandSystem: "IELTS",
-        bandLevel: overall.toFixed(1),
+        maxScore,
+        bandSystem: evaluationSystem,
+        bandLevel,
         bandScore: overall,
-        criteria: storedPayload.criteria,
-        feedback: storedPayload.feedback,
-        mistakes: storedPayload.mistakes,
-        improvements: storedPayload.improvements,
-        sampleAnswer: scoreOnly ? null : evaluation.model_answer || null,
+        criteria: criteriaPayload,
+        feedback: feedbackPayload,
+        mistakes: mistakesPayload,
+        improvements: improvementsPayload,
+        sampleAnswer,
         submittedAt: new Date(),
       },
     });
@@ -184,7 +319,7 @@ export async function POST(request: NextRequest) {
         action: "essay_evaluation",
         duration,
         status: 200,
-        language: "English",
+        language: writingLanguage,
         overall_score: overall,
       })
     );
@@ -192,7 +327,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        data: storedPayload.feedback,
+        data: feedbackPayload,
         assessmentId: assessment.id,
         points: pointResult,
         streak: activity.streak,

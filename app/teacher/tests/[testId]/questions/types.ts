@@ -28,6 +28,11 @@ export type Test = {
   description: string | null;
   maxScore: number;
   assessmentMode: "STANDARD" | "WRITING" | "SPEAKING";
+  materialTitle: string | null;
+  materialContent: string | null;
+  materialUrl: string | null;
+  materialType: string | null;
+  materialData: unknown;
   language: {
     id: string;
     name: string;

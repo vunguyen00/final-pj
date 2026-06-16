@@ -12,6 +12,16 @@ type QuestionAnswerInput = {
   feedback?: string | null;
 };
 
+function isValidAudioUrl(value: string) {
+  if (value.startsWith("/uploads/question-audio/")) return true;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ testId: string; questionId: string }> }
@@ -127,19 +137,27 @@ export async function PUT(
       );
     }
 
-    let finalAudioUrl: string | null | undefined = audioUrl;
+    const audioUrlWasProvided = audioUrl !== undefined;
+    const trimmedAudioUrl = typeof audioUrl === "string" ? audioUrl.trim() : "";
+    const effectiveAudioUrl =
+      trimmedAudioUrl || (!audioUrlWasProvided ? existingQuestion.audioUrl || "" : "");
+    let finalAudioUrl: string | null | undefined = audioUrlWasProvided ? trimmedAudioUrl : undefined;
     if (nextType === "SPEAKING") {
       finalAudioUrl = null;
-    } else if (nextHasListening && audioUrl?.trim()) {
-      try {
-        new URL(audioUrl);
-        finalAudioUrl = audioUrl;
-      } catch {
+    } else if (nextHasListening) {
+      if (!effectiveAudioUrl) {
+        return NextResponse.json(
+          { error: "Thieu URL audio cho dang nghe" },
+          { status: 400 }
+        );
+      }
+      if (!isValidAudioUrl(effectiveAudioUrl)) {
         return NextResponse.json(
           { error: "URL audio khong hop le" },
           { status: 400 }
         );
       }
+      finalAudioUrl = audioUrlWasProvided ? effectiveAudioUrl : undefined;
     } else if (!nextHasListening) {
       finalAudioUrl = null;
     }
