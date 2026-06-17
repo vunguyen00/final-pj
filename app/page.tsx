@@ -37,7 +37,7 @@ export default async function HomePage() {
     <main className="min-h-screen bg-background">
       <Hero
         subtitle="Nền tảng học ngoại ngữ đa ngôn ngữ"
-        title="Xây dựng lộ trình ngoại ngữ cùng LearnHub"
+        title="Xây dựng lộ trình ngoại ngữ cùng FinnCenter"
         description="Khóa học, lộ trình combo, luyện kỹ năng, gói từ vựng, đề thi thử và chương trình luyện thi chứng chỉ cho tiếng Anh, Trung, Nhật và Hàn."
         primaryAction={{ label: "Khám phá khóa học", href: "/courses" }}
         secondaryAction={{ label: "Làm bài kiểm tra đầu vào", href: "/student/tests" }}
@@ -77,7 +77,7 @@ export default async function HomePage() {
       </Section>
 
       <Section background="muted" padding="md">
-        <SectionHeader title="Vì sao học viên chọn LearnHub?" centered />
+        <SectionHeader title="Vì sao học viên chọn FinnCenter?" centered />
         <FeatureList
           items={[
             {

@@ -54,7 +54,7 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
           { href: "/student/results", label: "Kết quả" },
           { href: "/student/speaking-ai", label: "Speaking AI" },
           { href: "/student/writing-ai", label: "Writing AI" },
-          { href: "/student/rewards", label: "Điểm" },
+          { href: "/student/rewards", label: "Điểm đậu" },
           ...(user.role === "ADMIN" ? [] : [{ href: "/student/wallet", label: "Ví tiền" }]),
         ] satisfies BasicNavItem[]
       : [];
@@ -64,8 +64,8 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
       {globalError ? <div className="bg-destructive/10 py-2 text-center text-sm font-semibold text-destructive">{globalError}</div> : null}
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">LH</span>
-          <span className="text-lg font-semibold tracking-tight text-foreground">LearnHub</span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">FC</span>
+          <span className="text-lg font-semibold tracking-tight text-foreground">FinnCenter</span>
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">

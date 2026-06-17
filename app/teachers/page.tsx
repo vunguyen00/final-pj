@@ -78,7 +78,7 @@ export default function TeachersPage() {
       <Section background="muted" padding="md">
         <SectionHeader
           title="Đội ngũ giảng viên"
-          subtitle="Gặp gỡ các giảng viên giàu kinh nghiệm của LearnHub."
+          subtitle="Gặp gỡ các giảng viên giàu kinh nghiệm của FinnCenter."
         />
 
         <CardGrid cols={3} gap="md">

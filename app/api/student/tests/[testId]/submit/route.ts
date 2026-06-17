@@ -9,6 +9,7 @@ import {
 } from "@/lib/learning-progress";
 import { sendCourseCertificateEmail } from "@/lib/mailer";
 import {
+  AI_POINT_PRICE_VND,
   getAiPointsSummary,
   grantCourseCompletionPoints,
   recordLearningActivity,
@@ -134,7 +135,14 @@ export async function POST(
       if (pointsBefore.available < feedbackCost) {
         return NextResponse.json(
           {
-            error: `Không đủ điểm để nhận nhận xét AI. Cần ${feedbackCost} điểm, hiện có ${pointsBefore.available} điểm.`,
+            error: `Không đủ hạt đậu để nhận xét AI. Cần ${feedbackCost} hạt đậu, hiện có ${pointsBefore.available} hạt đậu. Vào Ví tiền để mua thêm hạt đậu.`,
+            requiresPointPurchase: true,
+            neededPoints: feedbackCost,
+            neededBeans: feedbackCost,
+            currentPoints: pointsBefore.available,
+            currentBeans: pointsBefore.available,
+            pointPriceVnd: AI_POINT_PRICE_VND,
+            beanPriceVnd: AI_POINT_PRICE_VND,
           },
           { status: 400 },
         );
@@ -243,6 +251,19 @@ export async function POST(
 
     if (isOwnerPreview) {
       const previewAttemptId = `preview-${Date.now()}`;
+      const previewPointResult = shouldChargeFeedback
+        ? await spendAiPoints(
+            user.id,
+            test.courseId ?? null,
+            feedbackCost,
+            feedbackMode === "SPEAKING" ? "SPEAKING_AI" : "WRITING_AI",
+            `TEST_PREVIEW:${testId}:${Date.now()}`,
+          )
+        : {
+            spent: 0,
+            available: (await getAiPointsSummary(user.id)).available,
+          };
+
       return NextResponse.json({
         attemptId: previewAttemptId,
         score: finalScore,
@@ -259,7 +280,8 @@ export async function POST(
         questionResults,
         scoreOnlyAiFeedback,
         aiFeedbackPurchased: includeAiFeedback && aiInputs.length > 0,
-        aiFeedbackCost: 0,
+        aiFeedbackCost: previewPointResult.spent,
+        points: previewPointResult,
       });
     }
 

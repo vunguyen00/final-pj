@@ -1,4 +1,4 @@
-﻿import nodemailer from "nodemailer";
+import nodemailer from "nodemailer";
 
 type MailerConfig = {
   host: string;
@@ -97,7 +97,7 @@ export async function sendCourseCertificateEmail(
         <h2>Chuc mung ${username}!</h2>
         <p>Ban da hoan thanh khoa hoc <strong>${courseName}</strong>.</p>
         <p>Chung chi hoan thanh da duoc ghi nhan trong he thong.</p>
-        <p>Cam on ban da hoc cung LearnHub.</p>
+        <p>Cam on ban da hoc cung FinnCenter.</p>
       </div>
     `,
   });

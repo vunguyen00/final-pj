@@ -7,7 +7,7 @@ export default function AboutPage() {
     <main className="min-h-screen bg-background">
       <Section background="muted" padding="lg">
         <SectionHeader
-          title="Ve LearnHub"
+          title="Ve FinnCenter"
           subtitle="Nen tang hoc ngoai ngu giup nguoi hoc Viet Nam tiep can lo trinh chat luong cao va kha thi." 
           centered
         />
@@ -18,7 +18,7 @@ export default function AboutPage() {
           <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
             <h2 className="text-2xl font-semibold text-foreground">Su menh cua chung toi</h2>
             <p className="leading-relaxed text-muted-foreground">
-              LearnHub duoc xay dung de mo rong co hoi hoc ngoai ngu thong qua khoa hoc thuc te, giang vien co kinh nghiem,
+              FinnCenter duoc xay dung de mo rong co hoi hoc ngoai ngu thong qua khoa hoc thuc te, giang vien co kinh nghiem,
               va he thong theo doi tien do ro rang.
             </p>
             <p className="leading-relaxed text-muted-foreground">

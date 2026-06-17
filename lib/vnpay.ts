@@ -33,16 +33,29 @@ function joinUrl(base: string, path: string) {
   return new URL(path, base).toString();
 }
 
+function readVnpEnv(name: string, fallback = "") {
+  const value = String(process.env[name] ?? fallback).trim();
+  if (value.length < 2) return value;
+
+  const first = value[0];
+  const last = value[value.length - 1];
+  if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+    return value.slice(1, -1).trim();
+  }
+
+  return value;
+}
+
 export function getVnpayConfig(request?: Request | null): VnpayConfig {
-  const tmnCode = String(process.env.VNPAY_TMN_CODE ?? "").trim();
-  const hashSecret = String(process.env.VNPAY_HASH_SECRET ?? "").trim();
-  const paymentUrl = String(process.env.VNPAY_PAYMENT_URL ?? process.env.VNPAY_URL ?? "").trim();
-  const apiUrl = String(process.env.VNPAY_API ?? "").trim();
-  const defaultBaseUrl = String(process.env.VNPAY_BASE_URL ?? "").trim();
-  const configuredReturnUrl = String(process.env.VNPAY_RETURN_URL ?? "").trim();
-  const configuredIpnUrl = String(process.env.VNPAY_IPN_URL ?? "").trim();
-  const returnPath = String(process.env.VNPAY_RETURN_PATH ?? "/api/wallet/vnpay-return").trim();
-  const ipnPath = String(process.env.VNPAY_IPN_PATH ?? "/api/wallet/vnpay-ipn").trim();
+  const tmnCode = readVnpEnv("VNPAY_TMN_CODE");
+  const hashSecret = readVnpEnv("VNPAY_HASH_SECRET");
+  const paymentUrl = readVnpEnv("VNPAY_PAYMENT_URL", readVnpEnv("VNPAY_URL"));
+  const apiUrl = readVnpEnv("VNPAY_API");
+  const defaultBaseUrl = readVnpEnv("VNPAY_BASE_URL");
+  const configuredReturnUrl = readVnpEnv("VNPAY_RETURN_URL");
+  const configuredIpnUrl = readVnpEnv("VNPAY_IPN_URL");
+  const returnPath = readVnpEnv("VNPAY_RETURN_PATH", "/api/wallet/vnpay-return");
+  const ipnPath = readVnpEnv("VNPAY_IPN_PATH", "/api/wallet/vnpay-ipn");
 
   if (!tmnCode || !hashSecret || !paymentUrl || !apiUrl || !defaultBaseUrl || !returnPath || !ipnPath) {
     throw new Error("VNPAY_CONFIG_MISSING");

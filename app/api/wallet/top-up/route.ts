@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     let created = false;
     for (let attempt = 0; attempt < 5; attempt++) {
       txnRef = createTxnRef();
-      const orderInfo = `Nap vi FinnCenter ${amount} VND - ${txnRef}`;
+      const orderInfo = `Nap vi FinnCenter ${amount} VND ${txnRef}`;
       try {
         await createPendingTopUp({
           userId: user.id,
@@ -73,11 +73,10 @@ export async function POST(request: Request) {
       vnp_Locale: "vn",
       vnp_CurrCode: "VND",
       vnp_TxnRef: txnRef,
-      vnp_OrderInfo: `Nap vi FinnCenter ${amount} VND - ${txnRef}`,
+      vnp_OrderInfo: `Nap vi FinnCenter ${amount} VND ${txnRef}`,
       vnp_OrderType: "other",
       vnp_Amount: amountInMinorUnit,
       vnp_ReturnUrl: config.returnUrl,
-      vnp_IpnUrl: config.ipnUrl,
       vnp_IpAddr: ipAddr,
       vnp_CreateDate: formatVnpDate(now),
       vnp_ExpireDate: formatVnpDate(new Date(now.getTime() + 15 * 60 * 1000)),

@@ -25,7 +25,7 @@ const footerGroups = [
     ],
   },
   {
-    title: "LearnHub",
+    title: "FinnCenter",
     links: [
       { label: "Về chúng tôi", href: "/about" },
       { label: "Giảng viên", href: "/teachers" },
@@ -65,8 +65,8 @@ export default function Footer() {
         <div className="grid gap-10 lg:grid-cols-[1.5fr_1fr_1fr_1fr_1fr]">
           <div className="max-w-sm">
             <Link href="/" className="mb-5 inline-flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0e8cf1] text-sm font-bold text-white">LH</span>
-              <span className="text-3xl font-semibold tracking-tight">LearnHub</span>
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0e8cf1] text-sm font-bold text-white">FC</span>
+              <span className="text-3xl font-semibold tracking-tight">FinnCenter</span>
             </Link>
             <p className="text-base leading-8 text-slate-300">
               Nền tảng học ngoại ngữ cùng giảng viên giàu kinh nghiệm, giúp bạn đạt mục tiêu nhanh chóng và hiệu quả hơn.
@@ -97,7 +97,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-12 flex flex-col gap-4 border-t border-slate-800 pt-7 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-          <p>© 2026 LearnHub. Bảo lưu mọi quyền.</p>
+          <p>© 2026 FinnCenter. Bảo lưu mọi quyền.</p>
           <div className="flex items-center gap-5">
             <span>Phát triển tại Việt Nam</span>
             <span className="text-slate-500">EN VI JA KO ZH</span>

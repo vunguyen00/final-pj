@@ -35,7 +35,7 @@ export function isValidTopUpAmount(amount: unknown) {
 }
 
 async function calculateLedgerBalance(userId: string) {
-  const [totalTopUp, totalSpent] = await prisma.$transaction([
+  const [totalTopUp, totalSpent, aiPointPurchases] = await prisma.$transaction([
     prisma.payment.aggregate({
       _sum: { amount: true },
       where: {
@@ -49,9 +49,21 @@ async function calculateLedgerBalance(userId: string) {
         order: { userId },
       },
     }),
+    prisma.pointTransaction.findMany({
+      where: {
+        userId,
+        type: "AI_POINTS_PURCHASE",
+      },
+      select: { metadata: true },
+    }),
   ]);
+  const totalAiPointSpent = aiPointPurchases.reduce((sum, item) => {
+    const metadata = item.metadata as { cost?: unknown } | null;
+    const cost = Number(metadata?.cost ?? 0);
+    return sum + (Number.isFinite(cost) ? cost : 0);
+  }, 0);
 
-  return Math.round((totalTopUp._sum.amount ?? 0) - (totalSpent._sum.price ?? 0));
+  return Math.round((totalTopUp._sum.amount ?? 0) - (totalSpent._sum.price ?? 0) - totalAiPointSpent);
 }
 
 export async function getOrCreateWallet(userId: string) {
@@ -313,15 +325,16 @@ export async function confirmTopUpFromIpn(params: {
 
 export type WalletTransaction = {
   id: string;
-  type: "TOP_UP" | "PURCHASE";
+  type: "TOP_UP" | "PURCHASE" | "AI_POINT_PURCHASE";
   amount: number;
   status: string;
   createdAt: string;
   courseName?: string;
+  points?: number;
 };
 
 export async function getWalletTransactions(userId: string): Promise<WalletTransaction[]> {
-  const [topUps, purchases] = await prisma.$transaction([
+  const [topUps, purchases, aiPointPurchases] = await prisma.$transaction([
     prisma.payment.findMany({
       where: {
         userId,
@@ -349,6 +362,20 @@ export async function getWalletTransactions(userId: string): Promise<WalletTrans
       orderBy: { order: { createdAt: "desc" } },
       take: 50,
     }),
+    prisma.pointTransaction.findMany({
+      where: {
+        userId,
+        type: "AI_POINTS_PURCHASE",
+      },
+      select: {
+        id: true,
+        amount: true,
+        metadata: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
   ]);
 
   const txTopUp: WalletTransaction[] = topUps.map((item) => ({
@@ -368,7 +395,21 @@ export async function getWalletTransactions(userId: string): Promise<WalletTrans
     courseName: item.course.name,
   }));
 
-  return [...txTopUp, ...txPurchase]
+  const txAiPointPurchase: WalletTransaction[] = aiPointPurchases.map((item) => {
+    const metadata = item.metadata as { cost?: unknown; points?: unknown } | null;
+    const cost = Number(metadata?.cost ?? 0);
+    const points = Number(metadata?.points ?? item.amount);
+    return {
+      id: `ai-points-${item.id}`,
+      type: "AI_POINT_PURCHASE",
+      amount: Number.isFinite(cost) ? Math.round(cost) : 0,
+      points: Number.isFinite(points) ? Math.round(points) : item.amount,
+      status: PAYMENT_STATUS.SUCCESS,
+      createdAt: item.createdAt.toISOString(),
+    };
+  });
+
+  return [...txTopUp, ...txPurchase, ...txAiPointPurchase]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 100);
 }

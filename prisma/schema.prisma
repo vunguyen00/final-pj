@@ -471,10 +471,13 @@ model Order {
 }
 
 model OrderItem {
-  id       String @id @default(uuid())
-  orderId  String
-  courseId String
-  price    Float
+  id             String @id @default(uuid())
+  orderId        String
+  courseId       String
+  price          Float
+  adminRevenue   Int    @default(0)
+  teacherRevenue Int    @default(0)
+  revenueSplit   String @default("ADMIN_ONLY")
 
   order  Order  @relation(fields: [orderId], references: [id])
   course Course @relation(fields: [courseId], references: [id])

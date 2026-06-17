@@ -1,6 +1,6 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
-import { spendAiPoints } from "@/lib/ai-points";
+import { AI_POINT_PRICE_VND, spendAiPoints } from "@/lib/ai-points";
 import { canUseAiForCourse, shouldChargeAiPoints } from "@/lib/ai-access";
 
 export async function POST(request: Request) {
@@ -28,7 +28,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     if (error instanceof Error && error.message === "INSUFFICIENT_POINTS") {
-      return NextResponse.json({ error: "Không đủ điểm AI." }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: "Không đủ hạt đậu. Vào Ví tiền để mua thêm hạt đậu.",
+          requiresPointPurchase: true,
+          pointPriceVnd: AI_POINT_PRICE_VND,
+          beanPriceVnd: AI_POINT_PRICE_VND,
+        },
+        { status: 400 },
+      );
     }
 
     if (error instanceof Error && error.message === "INVALID_POINTS") {

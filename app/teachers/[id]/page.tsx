@@ -32,7 +32,7 @@ const teachersData: Record<
       { id: "1", title: "Tiếng Anh giao tiếp cơ bản", students: 1250, rating: 4.8 },
       { id: "5", title: "Tiếng Anh thương mại cho người đi làm", students: 450, rating: 4.9 },
     ],
-    social: { email: "nguyenvana@learnhub.com", linkedin: "linkedin.com/in/nguyenvana" },
+    social: { email: "nguyenvana@finncenter.name.vn", linkedin: "linkedin.com/in/nguyenvana" },
   },
   "2": {
     id: "2",
@@ -48,7 +48,7 @@ const teachersData: Record<
       { id: "2", title: "IELTS Writing Band 7+", students: 890, rating: 4.9 },
       { id: "6", title: "Luyện thi TOEFL iBT", students: 380, rating: 4.8 },
     ],
-    social: { email: "tranthib@learnhub.com" },
+    social: { email: "tranthib@finncenter.name.vn" },
   },
 };
 

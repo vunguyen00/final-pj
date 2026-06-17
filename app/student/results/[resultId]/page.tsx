@@ -1,35 +1,11 @@
-"use client";
-
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
 import Link from "next/link";
 import { getLevelLabel } from "@/app/components/learningMarketplace";
 import { IeltsEvaluationResult } from "@/app/components/IeltsEvaluationResult";
+import { requireRole } from "@/lib/auth";
 import { extractStoredIeltsEvaluation } from "@/lib/ielts-rubric";
+import { getStudentResultDetail, type ResultDetail } from "@/lib/student-results";
 
-type ResultDetail = {
-  id: string;
-  type: "TEST" | "SPEAKING" | "WRITING";
-  title: string;
-  taskType?: string | null;
-  course: { id: string; name: string } | null;
-  score: number;
-  maxScore: number;
-  band: { system: string; level: string; score: number };
-  criteria: Record<string, unknown>;
-  feedback: Record<string, unknown>;
-  mistakes: Record<string, unknown> | null;
-  improvements: Record<string, unknown> | null;
-  sampleAnswer?: string | null;
-  prompt?: string | null;
-  submissionText?: string | null;
-  audioUrl?: string | null;
-  durationSeconds?: number | null;
-  submittedAt: string;
-  testId?: string;
-  scoreOnly?: boolean;
-};
 type TestAiEvaluation = {
   scoreOnly?: boolean;
   language?: string;
@@ -43,6 +19,7 @@ type TestAiEvaluation = {
   weaknesses?: string[];
   suggestions?: string[];
 };
+
 type TestQuestionResult = {
   questionId?: string;
   questionType?: string;
@@ -51,6 +28,20 @@ type TestQuestionResult = {
   earnedScore?: number;
   score?: number;
   aiEvaluation?: TestAiEvaluation;
+};
+
+const CRITERION_LABELS: Record<string, string> = {
+  totalQuestions: "Tổng số câu hỏi",
+  correctAnswers: "Số câu đúng",
+  taskAchievement: "Mức độ hoàn thành yêu cầu",
+  taskResponse: "Mức độ đáp ứng đề bài",
+  coherenceCohesion: "Mạch lạc và liên kết",
+  lexicalResource: "Vốn từ vựng",
+  grammarRangeAccuracy: "Ngữ pháp và độ chính xác",
+  fluencyCoherence: "Độ trôi chảy và mạch lạc",
+  pronunciation: "Phát âm",
+  grammar: "Ngữ pháp",
+  vocabulary: "Từ vựng",
 };
 
 function asStringArray(value: unknown): string[] {
@@ -88,83 +79,47 @@ function getResultTypeLabel(type: ResultDetail["type"]) {
   return "Kết quả bài viết";
 }
 
-const criterionLabels: Record<string, string> = {
-  totalQuestions: "Tổng số câu hỏi",
-  correctAnswers: "Số câu đúng",
-  taskAchievement: "Mức độ hoàn thành yêu cầu",
-  taskResponse: "Mức độ đáp ứng đề bài",
-  coherenceCohesion: "Mạch lạc và liên kết",
-  lexicalResource: "Vốn từ vựng",
-  grammarRangeAccuracy: "Ngữ pháp và độ chính xác",
-  fluencyCoherence: "Độ trôi chảy và mạch lạc",
-  pronunciation: "Phát âm",
-  grammar: "Ngữ pháp",
-  vocabulary: "Từ vựng",
-};
-
 function formatCriterionLabel(key: string) {
-  return criterionLabels[key] || key.replace(/_/g, " ").replace(/([A-Z])/g, " $1").trim();
+  return CRITERION_LABELS[key] || key.replace(/_/g, " ").replace(/([A-Z])/g, " $1").trim();
 }
 
-export default function ResultDetailPage() {
-  const params = useParams();
-  const resultId = params.resultId as string;
-  const [detail, setDetail] = useState<ResultDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+export default async function ResultDetailPage({ params }: { params: Promise<{ resultId: string }> }) {
+  const user = await requireRole("STUDENT", "TEACHER", "ADMIN");
+  const { resultId } = await params;
 
-  useEffect(() => {
-    async function fetchDetail() {
-      try {
-        const response = await fetch(`/api/student/results/${resultId}`, { cache: "no-store" });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          setError(data.error || "Không tìm thấy kết quả.");
-          return;
-        }
-        setDetail(data);
-      } catch {
-        setError("Không tải được chi tiết kết quả.");
-      } finally {
-        setLoading(false);
-      }
+  try {
+    const detail = await getStudentResultDetail(user, resultId);
+    if (!detail) {
+      return <ResultError message="Không tìm thấy kết quả." />;
     }
 
-    void fetchDetail();
-  }, [resultId]);
+    return <ResultDetailView detail={detail} />;
+  } catch {
+    return <ResultError message="Bạn không có quyền xem kết quả này." />;
+  }
+}
 
-  const parsed = useMemo(() => (detail ? flattenFeedback(detail) : null), [detail]);
-  const ieltsEvaluation = useMemo(
-    () => (detail ? extractStoredIeltsEvaluation(detail.feedback) : null),
-    [detail],
+function ResultError({ message }: { message: string }) {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-slate-50">
+      <div className="rounded-xl border border-red-200 bg-white p-8 text-center">
+        <p className="text-red-600">{message}</p>
+        <Link href="/student/results" className="mt-4 inline-block text-blue-600">
+          Quay lại lịch sử
+        </Link>
+      </div>
+    </main>
   );
-  const testQuestionResults = useMemo(() => {
-    if (!detail || detail.type !== "TEST") return [];
-    const questionResults = detail.feedback?.questionResults;
-    return Array.isArray(questionResults) ? questionResults as TestQuestionResult[] : [];
-  }, [detail]);
-  const percent = detail && detail.maxScore > 0 ? Math.round((detail.score / detail.maxScore) * 100) : 0;
-  const scoreOnly =
-    detail?.scoreOnly === true || detail?.feedback?.scoreOnly === true;
+}
 
-  if (loading) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600" />
-      </main>
-    );
-  }
-
-  if (error || !detail || !parsed) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="rounded-xl border border-red-200 bg-white p-8 text-center">
-          <p className="text-red-600">{error || "Không tìm thấy kết quả."}</p>
-          <Link href="/student/results" className="mt-4 inline-block text-blue-600">Quay lại lịch sử</Link>
-        </div>
-      </main>
-    );
-  }
+function ResultDetailView({ detail }: { detail: ResultDetail }) {
+  const parsed = flattenFeedback(detail);
+  const ieltsEvaluation = extractStoredIeltsEvaluation(detail.feedback);
+  const questionResults = detail.type === "TEST" && Array.isArray(detail.feedback?.questionResults)
+    ? (detail.feedback.questionResults as TestQuestionResult[])
+    : [];
+  const percent = detail.maxScore > 0 ? Math.round((detail.score / detail.maxScore) * 100) : 0;
+  const scoreOnly = detail.scoreOnly === true || detail.feedback?.scoreOnly === true;
 
   return (
     <main className="min-h-screen bg-slate-50 py-8">
@@ -188,10 +143,7 @@ export default function ResultDetailPage() {
         </section>
 
         {ieltsEvaluation ? (
-          <IeltsEvaluationResult
-            evaluation={ieltsEvaluation}
-            scoreOnly={scoreOnly}
-          />
+          <IeltsEvaluationResult evaluation={ieltsEvaluation} scoreOnly={scoreOnly} />
         ) : (
           <section className="grid gap-4 md:grid-cols-4">
             {Object.entries(detail.criteria || {}).map(([key, value]) => (
@@ -226,62 +178,35 @@ export default function ResultDetailPage() {
           </section>
         ) : null}
 
-        {testQuestionResults.some((item) => item.aiEvaluation) ? (
+        {questionResults.some((item) => item.aiEvaluation) ? (
           <section className="rounded-xl border border-slate-200 bg-white p-5">
             <h2 className="text-lg font-bold text-slate-950">
-              {scoreOnly ? "Điểm AI theo từng câu" : "Nhận xét AI theo từng câu"}
+              {scoreOnly ? "Kết quả chấm theo từng câu" : "Nhận xét AI theo từng câu"}
             </h2>
             <div className="mt-4 space-y-4">
-              {testQuestionResults.filter((item) => item.aiEvaluation).map((item, index) => {
-                const evaluation = item.aiEvaluation!;
-                return (
-                  <article key={item.questionId || index} className="rounded-lg border border-slate-200 p-4">
-                    <p className="font-semibold text-slate-900">{item.content || `Câu ${index + 1}`}</p>
-                    <p className="mt-2 text-sm font-semibold text-blue-700">
-                      {Number(item.earnedScore || 0)}/{Number(item.score || 0)} điểm - AI {Number(evaluation.overallScore || 0)}/10
-                      {!scoreOnly
-                        ? ` - Bám đề ${Math.round(evaluation.taskRelevance || 0)}/100`
-                        : ""}
-                    </p>
-                    {!scoreOnly && evaluation.onTopic === false ? (
-                      <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">
-                        Lạc đề: {evaluation.offTopicReason || "Câu trả lời chưa đúng trọng tâm đề bài."}
-                      </p>
-                    ) : null}
-                    {!scoreOnly ? (
-                      <p className="mt-3 text-sm leading-6 text-slate-700">
-                        {evaluation.detailedComment || evaluation.summary || "AI đã chấm câu trả lời."}
-                      </p>
-                    ) : null}
-                    {!scoreOnly && evaluation.weaknesses?.length ? (
-                      <p className="mt-2 text-sm text-slate-700">Cần cải thiện: {evaluation.weaknesses.join("; ")}</p>
-                    ) : null}
-                    {!scoreOnly && evaluation.suggestions?.length ? (
-                      <p className="mt-2 text-sm text-slate-700">Gợi ý: {evaluation.suggestions.join("; ")}</p>
-                    ) : null}
-                    {!scoreOnly && evaluation.sampleAnswer ? (
-                      <div className="mt-4 rounded-lg bg-slate-50 p-4">
-                        <p className="text-sm font-semibold text-slate-900">Bài mẫu đúng đề</p>
-                        <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-700">{evaluation.sampleAnswer}</p>
-                      </div>
-                    ) : null}
-                  </article>
-                );
-              })}
+              {questionResults.filter((item) => item.aiEvaluation).map((item) => (
+                <QuestionEvaluation key={item.questionId || item.content || `${item.earnedScore}-${item.score}`} item={item} scoreOnly={scoreOnly} />
+              ))}
             </div>
           </section>
         ) : null}
 
-        {(detail.submissionText || detail.audioUrl || detail.prompt) ? (
+        {detail.submissionText || detail.audioUrl || detail.prompt ? (
           <section className="rounded-xl border border-slate-200 bg-white p-5">
             <h2 className="text-lg font-bold text-slate-950">Bài làm đã lưu</h2>
-            {detail.prompt ? <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-700"><span className="font-semibold">Đề bài:</span> {detail.prompt}</p> : null}
+            {detail.prompt ? (
+              <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
+                <span className="font-semibold">Đề bài:</span> {detail.prompt}
+              </p>
+            ) : null}
             {detail.audioUrl ? (
               <audio controls className="mt-4 w-full">
                 <source src={detail.audioUrl} />
               </audio>
             ) : null}
-            {detail.submissionText ? <p className="mt-4 whitespace-pre-line rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-700">{detail.submissionText}</p> : null}
+            {detail.submissionText ? (
+              <p className="mt-4 whitespace-pre-line rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-700">{detail.submissionText}</p>
+            ) : null}
           </section>
         ) : null}
 
@@ -293,7 +218,9 @@ export default function ResultDetailPage() {
         ) : null}
 
         <div className="flex flex-wrap gap-3">
-          <Link href="/student/results" className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">Lịch sử kết quả</Link>
+          <Link href="/student/results" className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">
+            Lịch sử kết quả
+          </Link>
           {detail.type === "TEST" ? (
             <Link href={`/student/tests/${detail.testId || ""}`} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">
               Làm lại bài test
@@ -302,6 +229,43 @@ export default function ResultDetailPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+function QuestionEvaluation({ item, scoreOnly }: { item: TestQuestionResult; scoreOnly: boolean }) {
+  const evaluation = item.aiEvaluation;
+  if (!evaluation) return null;
+
+  return (
+    <article className="rounded-lg border border-slate-200 p-4">
+      <p className="font-semibold text-slate-900">{item.content || "Câu hỏi"}</p>
+      <p className="mt-2 text-sm font-semibold text-blue-700">
+        {Number(item.earnedScore || 0)}/{Number(item.score || 0)} điểm - AI {Number(evaluation.overallScore || 0)}/10
+        {!scoreOnly ? ` - Bám đề ${Math.round(evaluation.taskRelevance || 0)}/100` : ""}
+      </p>
+      {!scoreOnly && evaluation.onTopic === false ? (
+        <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">
+          Lạc đề: {evaluation.offTopicReason || "Câu trả lời chưa đúng trọng tâm đề bài."}
+        </p>
+      ) : null}
+      {!scoreOnly ? (
+        <p className="mt-3 text-sm leading-6 text-slate-700">
+          {evaluation.detailedComment || evaluation.summary || "AI đã chấm câu trả lời."}
+        </p>
+      ) : null}
+      {!scoreOnly && evaluation.weaknesses?.length ? (
+        <p className="mt-2 text-sm text-slate-700">Cần cải thiện: {evaluation.weaknesses.join("; ")}</p>
+      ) : null}
+      {!scoreOnly && evaluation.suggestions?.length ? (
+        <p className="mt-2 text-sm text-slate-700">Gợi ý: {evaluation.suggestions.join("; ")}</p>
+      ) : null}
+      {!scoreOnly && evaluation.sampleAnswer ? (
+        <div className="mt-4 rounded-lg bg-slate-50 p-4">
+          <p className="text-sm font-semibold text-slate-900">Bài mẫu đúng đề</p>
+          <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-700">{evaluation.sampleAnswer}</p>
+        </div>
+      ) : null}
+    </article>
   );
 }
 
@@ -320,7 +284,9 @@ function List({ title, items }: { title: string; items: string[] }) {
     <div>
       <h3 className="font-semibold text-slate-900">{title}</h3>
       <ul className="mt-2 space-y-2 text-sm text-slate-700">
-        {items.map((item, index) => <li key={`${title}-${index}`}>- {item}</li>)}
+        {items.map((item) => (
+          <li key={`${title}-${item}`}>- {item}</li>
+        ))}
       </ul>
     </div>
   );

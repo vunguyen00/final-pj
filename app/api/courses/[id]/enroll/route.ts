@@ -1,6 +1,7 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { calculateCourseRevenueSplit } from "@/lib/revenue";
 import { debitWalletForPurchase, getUserBalance } from "@/lib/wallet";
 
 export async function POST(
@@ -15,7 +16,12 @@ export async function POST(
     const { id: courseId } = await params;
 
     const [course, existing] = await Promise.all([
-      prisma.course.findUnique({ where: { id: courseId } }),
+      prisma.course.findUnique({
+        where: { id: courseId },
+        include: {
+          instructor: { select: { role: true } },
+        },
+      }),
       prisma.enrollment.findUnique({
         where: { userId_courseId: { userId: user.id, courseId } },
       }),
@@ -45,6 +51,7 @@ export async function POST(
     }
 
     const coursePrice = Math.round(course.price);
+    const revenueSplit = calculateCourseRevenueSplit(coursePrice, course.instructor?.role);
     const balance = await getUserBalance(user.id);
     if (balance < coursePrice) {
       return NextResponse.json(
@@ -76,6 +83,9 @@ export async function POST(
           orderId: order.id,
           courseId,
           price: coursePrice,
+          adminRevenue: revenueSplit.adminRevenue,
+          teacherRevenue: revenueSplit.teacherRevenue,
+          revenueSplit: revenueSplit.revenueSplit,
         },
       });
 

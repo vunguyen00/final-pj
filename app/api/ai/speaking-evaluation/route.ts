@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import {
   getAiPointsSummary,
+  AI_POINT_PRICE_VND,
   recordLearningActivity,
   SPEAKING_AI_COST,
   spendAiPoints,
@@ -94,7 +95,19 @@ export async function POST(request: NextRequest) {
     if (chargePoints) {
       const pointsBefore = await getAiPointsSummary(user.id);
       if (pointsBefore.available < SPEAKING_AI_COST) {
-        return NextResponse.json({ error: "Không đủ điểm để sử dụng Speaking AI." }, { status: 400 });
+        return NextResponse.json(
+          {
+            error: "Không đủ hạt đậu để sử dụng Speaking AI. Vào Ví tiền để mua thêm hạt đậu.",
+            requiresPointPurchase: true,
+            neededPoints: SPEAKING_AI_COST,
+            neededBeans: SPEAKING_AI_COST,
+            currentPoints: pointsBefore.available,
+            currentBeans: pointsBefore.available,
+            pointPriceVnd: AI_POINT_PRICE_VND,
+            beanPriceVnd: AI_POINT_PRICE_VND,
+          },
+          { status: 400 },
+        );
       }
     }
 

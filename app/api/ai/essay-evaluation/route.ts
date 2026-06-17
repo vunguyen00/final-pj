@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sanitizeEssay, validateEssay, validatePromptSafety, validateRequestBody } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
-import { getAiPointsSummary, recordLearningActivity, spendAiPoints, WRITING_AI_COST } from "@/lib/ai-points";
+import { AI_POINT_PRICE_VND, getAiPointsSummary, recordLearningActivity, spendAiPoints, WRITING_AI_COST } from "@/lib/ai-points";
 import { prisma } from "@/lib/prisma";
 import { canUseAiForCourse, shouldChargeAiPoints } from "@/lib/ai-access";
 import { evaluateIeltsWriting } from "@/lib/ielts-grading";
@@ -121,7 +121,19 @@ export async function POST(request: NextRequest) {
     if (chargePoints) {
       const pointsBefore = await getAiPointsSummary(user.id);
       if (pointsBefore.available < WRITING_AI_COST) {
-        return NextResponse.json({ error: "Không đủ điểm để chấm bài bằng Writing AI." }, { status: 400 });
+        return NextResponse.json(
+          {
+            error: "Không đủ hạt đậu để nhận xét bằng Writing AI. Vào Ví tiền để mua thêm hạt đậu.",
+            requiresPointPurchase: true,
+            neededPoints: WRITING_AI_COST,
+            neededBeans: WRITING_AI_COST,
+            currentPoints: pointsBefore.available,
+            currentBeans: pointsBefore.available,
+            pointPriceVnd: AI_POINT_PRICE_VND,
+            beanPriceVnd: AI_POINT_PRICE_VND,
+          },
+          { status: 400 },
+        );
       }
     }
 

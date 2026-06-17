@@ -417,7 +417,6 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
     learningActivitiesInRange,
     pointTransactionsInRange,
     paymentsInRange,
-    ordersInRangeCount,
     orderItemsInRange,
     teacherApplicationsInRange,
     antiCheatLogsInRange,
@@ -519,12 +518,14 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
       where: { createdAt: dateFilter, status: "SUCCESS" },
       select: { id: true, amount: true, createdAt: true, status: true },
     }),
-    prisma.order.count({ where: { createdAt: dateFilter } }),
     prisma.orderItem.findMany({
       where: { order: { createdAt: dateFilter } },
       select: {
         id: true,
         price: true,
+        adminRevenue: true,
+        teacherRevenue: true,
+        revenueSplit: true,
         courseId: true,
         course: {
           select: {
@@ -642,18 +643,24 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
     }
   }
 
-  const pointsIssued = pointTransactionsInRange
+  const usablePointTransactions = pointTransactionsInRange.filter(
+    (item) =>
+      item.type === "AI_POINTS_PURCHASE" ||
+      item.type === "AI_POINTS_ADMIN_GRANT" ||
+      item.type.endsWith("_SPENT"),
+  );
+  const pointsIssued = usablePointTransactions
     .filter((item) => item.amount > 0)
     .reduce((sum, item) => sum + item.amount, 0);
   const pointsUsed = Math.abs(
-    pointTransactionsInRange.filter((item) => item.amount < 0).reduce((sum, item) => sum + item.amount, 0),
+    usablePointTransactions.filter((item) => item.amount < 0).reduce((sum, item) => sum + item.amount, 0),
   );
   const positivePointsByStudent = new Map<string, number>();
   const totalPointsByStudent = new Map<string, number>();
   const pointsByCourseCompletion = new Map<string, number>();
-  const pointEntries = pointTransactionsInRange.map((item) => ({ date: item.createdAt, amount: item.amount }));
+  const pointEntries = usablePointTransactions.map((item) => ({ date: item.createdAt, amount: item.amount }));
 
-  for (const point of pointTransactionsInRange) {
+  for (const point of usablePointTransactions) {
     const role = userRoleMap.get(point.userId);
     if (role === "STUDENT") {
       accumulateCounter(totalPointsByStudent, point.userId, point.amount);
@@ -667,8 +674,12 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
   }
 
   const paymentRevenue = paymentsInRange.reduce((sum, item) => sum + item.amount, 0);
-  const avgOrderValue = paymentsInRange.length ? paymentRevenue / paymentsInRange.length : 0;
-  const revenueEntries = paymentsInRange.map((item) => ({ date: item.createdAt, amount: item.amount }));
+  const courseRevenue = orderItemsInRange.reduce((sum, item) => sum + item.price, 0);
+  const adminRevenue = orderItemsInRange.reduce((sum, item) => sum + item.adminRevenue, 0);
+  const teacherRevenue = orderItemsInRange.reduce((sum, item) => sum + item.teacherRevenue, 0);
+  const courseOrderCount = new Set(orderItemsInRange.map((item) => item.order.id)).size;
+  const avgOrderValue = orderItemsInRange.length ? courseRevenue / orderItemsInRange.length : 0;
+  const revenueEntries = orderItemsInRange.map((item) => ({ date: item.order.createdAt, amount: item.price }));
   const orderByCourseRevenue = new Map<string, number>();
   const orderByCourseCount = new Map<string, number>();
   const orderByTeacherRevenue = new Map<string, number>();
@@ -679,7 +690,7 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
     accumulateCounter(orderByCourseCount, item.courseId, 1);
     orderCourseNameMap.set(item.courseId, item.course.name);
     if (item.course.instructorId) {
-      accumulateCounter(orderByTeacherRevenue, item.course.instructorId, item.price);
+      accumulateCounter(orderByTeacherRevenue, item.course.instructorId, item.teacherRevenue);
       const teacherName = item.course.instructor?.username ?? userNameMap.get(item.course.instructorId) ?? item.course.instructorId;
       instructorNameMap.set(item.course.instructorId, teacherName);
     }
@@ -1007,10 +1018,13 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
         writingCount: aiTypeCounter.get("WRITING") ?? 0,
       },
       revenue: {
-        totalOrders: ordersInRangeCount,
-        totalRevenue: formatNumber(paymentRevenue, 2),
+        totalOrders: courseOrderCount,
+        totalRevenue: formatNumber(courseRevenue, 2),
+        adminRevenue: formatNumber(adminRevenue, 2),
+        teacherRevenue: formatNumber(teacherRevenue, 2),
+        walletTopUpRevenue: formatNumber(paymentRevenue, 2),
         averageOrderValue: formatNumber(avgOrderValue, 2),
-        successfulTransactions: paymentsInRange.length,
+        successfulTransactions: orderItemsInRange.length,
       },
     },
     userGrowth: {
@@ -1099,7 +1113,7 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
               : item.name === "SPEAKING" || item.name === "WRITING"
                 ? "AI Assessment"
                 : item.name === "COURSE"
-                  ? "Nhan diem thuong"
+                  ? "Hoan thanh khoa hoc"
                   : toTitleLabel(item.name),
         count: item.value,
       })),
@@ -1117,8 +1131,11 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
     },
     revenueAnalytics: {
       revenueByTime: buildSumSeries(revenueEntries, range.start, range.end, bucketGranularity),
-      totalRevenue: formatNumber(paymentRevenue, 2),
-      orderCount: ordersInRangeCount,
+      totalRevenue: formatNumber(courseRevenue, 2),
+      adminRevenue: formatNumber(adminRevenue, 2),
+      teacherRevenue: formatNumber(teacherRevenue, 2),
+      walletTopUpRevenue: formatNumber(paymentRevenue, 2),
+      orderCount: courseOrderCount,
       averageOrderValue: formatNumber(avgOrderValue, 2),
       topSellingCourses: topFromMap(orderByCourseCount, 10).map((item) => ({
         courseId: item.name,

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 
 export function shouldChargeAiPoints(role: string) {
-  return role === "STUDENT";
+  return role === "STUDENT" || role === "TEACHER";
 }
 
 export async function canUseAiForCourse(user: { id: string; role: string }, courseId: string) {

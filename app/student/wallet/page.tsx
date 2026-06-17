@@ -12,19 +12,19 @@ type PageProps = {
 
 const EMPTY_WALLET_DATA: WalletData = {
   balance: 0,
-  aiPoints: { earned: 0, spent: 0, available: 0 },
+  aiPoints: { earned: 0, spent: 0, available: 0, pointPriceVnd: 1000 },
   transactions: [],
 };
 
 function paymentMessage(payment: string | null, code: string | null) {
   if (payment === "success") {
-    return "Nạp tiền thành công. Số dư đã được cập nhật sau khi VNPAY xác nhận IPN.";
+    return "Nạp tiền thành công. Số dư ví đã được cập nhật.";
   }
   if (payment === "failed") {
     return `Thanh toán không thành công${code ? ` (mã: ${code})` : ""}.`;
   }
   if (payment === "pending") {
-    return "Thanh toán đã được ghi nhận và đang chờ VNPAY xác nhận IPN.";
+    return "Thanh toán đã được ghi nhận và đang chờ VNPAY xác nhận.";
   }
   if (payment === "invalid_signature") {
     return "Không thể xác thực chữ ký trả về từ VNPAY. Giao dịch chưa được cộng vào ví.";
@@ -70,6 +70,7 @@ export default async function StudentWalletPage({ searchParams }: PageProps) {
         earned: aiPoints.earned,
         spent: aiPoints.spent,
         available: aiPoints.available,
+        pointPriceVnd: aiPoints.pointPriceVnd,
       },
       transactions,
     };

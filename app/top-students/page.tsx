@@ -19,7 +19,7 @@ export default function TopStudentsPage() {
   return (
     <main className="min-h-screen bg-background">
       <Section background="muted" padding="md">
-        <SectionHeader title="Hoc vien xuat sac" subtitle="Bang xep hang hoc vien co thanh tich cao nhat tai LearnHub." />
+        <SectionHeader title="Hoc vien xuat sac" subtitle="Bang xep hang hoc vien co thanh tich cao nhat tai FinnCenter." />
 
         <CardGrid cols={3} gap="md" className="mb-8">
           {topStudents.slice(0, 3).map((student) => (
