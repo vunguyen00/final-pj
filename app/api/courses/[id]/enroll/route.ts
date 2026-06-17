@@ -1,7 +1,7 @@
 ﻿import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getUserBalance } from "@/lib/wallet";
+import { debitWalletForPurchase, getUserBalance } from "@/lib/wallet";
 
 export async function POST(
   _request: Request,
@@ -44,20 +44,27 @@ export async function POST(
       return NextResponse.json({ ok: true, enrolled: true, freeForInstructor: true });
     }
 
+    const coursePrice = Math.round(course.price);
     const balance = await getUserBalance(user.id);
-    if (balance < course.price) {
+    if (balance < coursePrice) {
       return NextResponse.json(
         {
           error: "Số dư không đủ. Vui lòng nạp thêm tiền.",
           requiresTopUp: true,
           balance,
-          price: course.price,
+          price: coursePrice,
         },
         { status: 400 },
       );
     }
 
-    await prisma.$transaction(async (tx) => {
+    const updatedBalance = await prisma.$transaction(async (tx) => {
+      const walletBalance = await debitWalletForPurchase({
+        tx,
+        userId: user.id,
+        amount: coursePrice,
+      });
+
       const order = await tx.order.create({
         data: {
           userId: user.id,
@@ -68,7 +75,7 @@ export async function POST(
         data: {
           orderId: order.id,
           courseId,
-          price: course.price,
+          price: coursePrice,
         },
       });
 
@@ -78,11 +85,19 @@ export async function POST(
           courseId,
         },
       });
+
+      return walletBalance;
     });
 
-    const updatedBalance = await getUserBalance(user.id);
     return NextResponse.json({ ok: true, enrolled: true, balance: updatedBalance });
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === "INSUFFICIENT_BALANCE") {
+      return NextResponse.json(
+        { error: "Số dư không đủ. Vui lòng nạp thêm tiền.", requiresTopUp: true },
+        { status: 400 },
+      );
+    }
+
     return NextResponse.json({ error: "Lỗi hệ thống." }, { status: 500 });
   }
 }

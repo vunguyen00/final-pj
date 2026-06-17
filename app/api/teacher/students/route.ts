@@ -102,11 +102,11 @@ export async function GET() {
     prisma.payment.findMany({
       where: {
         status: "SUCCESS",
-        order: { userId: { in: userIds } },
+        userId: { in: userIds },
       },
       select: {
         amount: true,
-        order: { select: { userId: true } },
+        userId: true,
       },
     }),
     prisma.orderItem.findMany({
@@ -136,8 +136,8 @@ export async function GET() {
   const balances = new Map<string, number>();
   for (const topUp of topUps) {
     balances.set(
-      topUp.order.userId,
-      (balances.get(topUp.order.userId) ?? 0) + topUp.amount,
+      topUp.userId,
+      (balances.get(topUp.userId) ?? 0) + topUp.amount,
     );
   }
   for (const purchase of purchases) {

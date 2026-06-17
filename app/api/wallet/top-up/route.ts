@@ -1,21 +1,32 @@
 import { NextResponse } from "next/server";
-import { requireUser } from "@/lib/auth";
-import { createPendingTopUp, isValidTopUpAmount } from "@/lib/wallet";
-import { createTxnRef, formatVnpDate, getVnpayConfig, normalizeIpAddr, signVnpParams } from "@/lib/vnpay";
+import { getCurrentUser } from "@/lib/auth";
+import { createPendingTopUp, normalizeTopUpAmount } from "@/lib/wallet";
+import {
+  buildVnpQuery,
+  createTxnRef,
+  formatVnpDate,
+  getRequestIpAddr,
+  getVnpayConfig,
+  signVnpParams,
+} from "@/lib/vnpay";
 
 export async function POST(request: Request) {
   try {
-    const user = await requireUser();
-    if (user.role === "ADMIN") {
-      return NextResponse.json({ error: "Admin khong duoc nap vi." }, { status: 403 });
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Bạn cần đăng nhập trước khi nạp tiền." }, { status: 401 });
     }
 
-    const body = await request.json();
-    const amount = body?.amount;
+    if (user.role === "ADMIN") {
+      return NextResponse.json({ error: "Admin không được nạp ví." }, { status: 403 });
+    }
 
-    if (!isValidTopUpAmount(amount)) {
+    const body = await request.json().catch(() => null);
+    const amount = normalizeTopUpAmount(body?.amount);
+
+    if (amount === null) {
       return NextResponse.json(
-        { error: "So tien nap khong hop le (toi thieu 10.000d)." },
+        { error: "Số tiền nạp không hợp lệ. Số tiền tối thiểu là 10.000đ." },
         { status: 400 },
       );
     }
@@ -25,9 +36,20 @@ export async function POST(request: Request) {
     let created = false;
     for (let attempt = 0; attempt < 5; attempt++) {
       txnRef = createTxnRef();
+      const orderInfo = `Nap vi FinnCenter ${amount} VND - ${txnRef}`;
       try {
-        await createPendingTopUp(user.id, amount, txnRef);
+        await createPendingTopUp({
+          userId: user.id,
+          amount,
+          txnRef,
+          orderInfo,
+        });
         created = true;
+        console.log("[VNPAY][TOPUP] created pending payment", {
+          txnRef,
+          userId: user.id,
+          amount,
+        });
         break;
       } catch (e) {
         const code = (e as { code?: string })?.code;
@@ -37,13 +59,13 @@ export async function POST(request: Request) {
       }
     }
     if (!created) {
-      return NextResponse.json({ error: "Khong tao duoc ma giao dich duy nhat." }, { status: 500 });
+      return NextResponse.json({ error: "Không tạo được mã giao dịch duy nhất." }, { status: 500 });
     }
 
     const now = new Date();
-    const ipAddr = normalizeIpAddr(request.headers.get("x-forwarded-for"));
+    const ipAddr = getRequestIpAddr(request);
 
-    const amountInMinorUnit = Math.round(amount * 100);
+    const amountInMinorUnit = amount * 100;
     const vnpParams: Record<string, string | number> = {
       vnp_Version: "2.1.0",
       vnp_Command: "pay",
@@ -51,7 +73,7 @@ export async function POST(request: Request) {
       vnp_Locale: "vn",
       vnp_CurrCode: "VND",
       vnp_TxnRef: txnRef,
-      vnp_OrderInfo: `Nap vi cho user ${user.id} - ${txnRef}`,
+      vnp_OrderInfo: `Nap vi FinnCenter ${amount} VND - ${txnRef}`,
       vnp_OrderType: "other",
       vnp_Amount: amountInMinorUnit,
       vnp_ReturnUrl: config.returnUrl,
@@ -62,38 +84,29 @@ export async function POST(request: Request) {
     };
 
     const { sorted, signature, signData } = signVnpParams(vnpParams, config.hashSecret);
-    const paymentUrl = new URL(config.paymentUrl);
-    for (const [key, value] of Object.entries(sorted)) {
-      paymentUrl.searchParams.set(key, value);
-    }
-    paymentUrl.searchParams.set("vnp_SecureHash", signature);
+    const paymentQuery = buildVnpQuery({ ...sorted, vnp_SecureHash: signature });
+    const paymentUrl = `${config.paymentUrl}${config.paymentUrl.includes("?") ? "&" : "?"}${paymentQuery}`;
 
-    console.log("[VNPAY][TOPUP] config", {
+    console.log("[VNPAY][TOPUP] generated callback urls", {
       tmnCode: config.tmnCode,
-      paymentUrl: config.paymentUrl,
       baseUrl: config.baseUrl,
       returnUrl: config.returnUrl,
       ipnUrl: config.ipnUrl,
     });
     console.log("[VNPAY][TOPUP] vnp_Params", vnpParams);
     console.log("[VNPAY][TOPUP] signData", signData);
-    console.log("[VNPAY][TOPUP] secureHash", signature);
-    console.log("[VNPAY][TOPUP] redirectUrl", paymentUrl.toString());
+    console.log("[VNPAY][TOPUP] redirectUrl", paymentUrl);
 
-    return NextResponse.json({ ok: true, paymentUrl: paymentUrl.toString(), txnRef });
+    return NextResponse.json({ ok: true, paymentUrl, txnRef });
   } catch (error) {
     if (error instanceof Error && error.message === "VNPAY_CONFIG_MISSING") {
       return NextResponse.json(
-        { error: "Thieu cau hinh VNPAY trong bien moi truong (.env)." },
+        { error: "Thiếu cấu hình VNPAY trong biến môi trường (.env)." },
         { status: 500 },
       );
     }
 
-    if (error && typeof error === "object" && "digest" in error) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     console.error("[VNPAY][TOPUP] unexpected error", error);
-    return NextResponse.json({ error: "Loi he thong." }, { status: 500 });
+    return NextResponse.json({ error: "Lỗi hệ thống." }, { status: 500 });
   }
 }

@@ -64,7 +64,7 @@ export default function EnrollCourseCard({
       const response = await fetch("/api/wallet/top-up", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: Math.max(price, 50000) }),
+        body: JSON.stringify({ amount: Math.max(Math.ceil(price), 50000) }),
       });
       const data = await response.json();
 
@@ -91,6 +91,7 @@ export default function EnrollCourseCard({
       <div className="text-3xl font-bold text-slate-900">{price.toLocaleString("vi-VN")}đ</div>
       {!canLearnDirectly ? (
         <button
+          type="button"
           disabled={loading || enrolled}
           onClick={handleEnroll}
           className="mt-4 w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"

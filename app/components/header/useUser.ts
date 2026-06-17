@@ -8,6 +8,11 @@ type User = {
   email: string;
   role: string;
   avatarUrl?: string | null;
+  balance?: number;
+  aiPoints?: {
+    available: number;
+  };
+  teacherRegistrationEnabled?: boolean;
 };
 
 export function useUser() {
@@ -16,20 +21,44 @@ export function useUser() {
 
   useEffect(() => {
     const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 8000);
+    let mounted = true;
 
-    fetch("/api/auth/me", { signal: controller.signal })
+    fetch("/api/auth/me", {
+      credentials: "same-origin",
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    })
       .then((res) => {
         if (res.ok) return res.json();
         return null;
       })
       .then((data) => {
-        setUser(data?.user || null);
+        if (mounted) {
+          setUser(data?.user || null);
+        }
       })
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (mounted) {
+          setUser(null);
+        }
+      })
+      .finally(() => {
+        window.clearTimeout(timeout);
 
-    return () => controller.abort();
+        if (mounted) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
   }, []);
 
   return { user, loading };
 }
+
+export type { User };

@@ -6,11 +6,50 @@ import {
   setAuthCookie,
   validateStrongPassword,
 } from "@/lib/auth";
+import { getDatabaseUrlTarget } from "@/lib/database-url";
 import { prisma } from "@/lib/prisma";
 
+function getErrorDetails(error: unknown) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      code: "code" in error ? String(error.code) : undefined,
+    };
+  }
+
+  return {
+    name: "UnknownError",
+    message: "Unknown error.",
+  };
+}
+
+function isUniqueConstraintError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "P2002"
+  );
+}
+
 export async function POST(request: Request) {
+  let body: {
+    username?: unknown;
+    email?: unknown;
+    password?: unknown;
+    confirmPassword?: unknown;
+  };
+
   try {
-    const body = await request.json();
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Du lieu gui len khong hop le." }, { status: 400 });
+  }
+
+  console.info("[auth/register] DATABASE_URL target:", getDatabaseUrlTarget());
+
+  try {
     const username = typeof body.username === "string" ? body.username.trim() : "";
     const email =
       typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
@@ -62,6 +101,18 @@ export async function POST(request: Request) {
       },
     });
 
+    const persistedUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        email: true,
+      },
+    });
+
+    if (!persistedUser || persistedUser.email !== email) {
+      throw new Error("User create succeeded but record was not found after write.");
+    }
+
     const token = createAuthToken(user.id, user.role);
     await setAuthCookie(token);
 
@@ -69,7 +120,22 @@ export async function POST(request: Request) {
       ok: true,
       redirectTo: ROLE_HOME[user.role],
     });
-  } catch {
-    return NextResponse.json({ error: "Loi he thong." }, { status: 500 });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      return NextResponse.json(
+        { error: "Email da ton tai." },
+        { status: 409 },
+      );
+    }
+
+    console.error("[auth/register] failed", {
+      database: getDatabaseUrlTarget(),
+      error: getErrorDetails(error),
+    });
+
+    return NextResponse.json(
+      { error: "Loi co so du lieu. Vui long thu lai." },
+      { status: 500 },
+    );
   }
 }

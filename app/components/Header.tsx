@@ -29,7 +29,7 @@ const navItems = [
 
 export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean }) {
   const pathname = usePathname() || "";
-  const { user } = useUser();
+  const { user, loading } = useUser();
   const [globalError, setGlobalError] = useState("");
   const [open, setOpen] = useState(false);
 
@@ -87,7 +87,7 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
         </nav>
 
         <div className="flex items-center gap-2">
-          <AuthButtons />
+          <AuthButtons user={user} loading={loading} />
           <button
             type="button"
             onClick={() => setOpen((value) => !value)}

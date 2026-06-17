@@ -2,6 +2,7 @@
 import { authenticate } from "@/lib/auth";
 import { getUserBalance } from "@/lib/wallet";
 import { getAiPointsSummary } from "@/lib/ai-points";
+import { getTeacherEntranceSetting } from "@/lib/teacher-onboarding";
 
 export async function GET() {
   try {
@@ -11,9 +12,10 @@ export async function GET() {
       return NextResponse.json({ user: null });
     }
 
-    const [balance, aiPoints] = await Promise.all([
+    const [balance, aiPoints, teacherEntranceSetting] = await Promise.all([
       user.role === "ADMIN" ? Promise.resolve(0) : getUserBalance(user.id),
       getAiPointsSummary(user.id),
+      user.role === "STUDENT" ? getTeacherEntranceSetting() : Promise.resolve({ enabled: false }),
     ]);
 
     return NextResponse.json({
@@ -26,6 +28,7 @@ export async function GET() {
         learningLanguageId: user.learningLanguageId,
         balance,
         aiPoints,
+        teacherRegistrationEnabled: teacherEntranceSetting.enabled,
       },
     });
   } catch {

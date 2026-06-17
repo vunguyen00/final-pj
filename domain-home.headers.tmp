@@ -1,0 +1,16 @@
+HTTP/1.1 200 OK
+Date: Wed, 17 Jun 2026 14:07:56 GMT
+Content-Type: text/html; charset=utf-8
+Transfer-Encoding: chunked
+Connection: keep-alive
+Cache-Control: no-cache, must-revalidate
+Report-To: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=%2F2WBWXvjSb9TkbUQ2hL17VffmB4N2rgyaTb5jY6h3saswIzy0sZ5YTbSPJ5OWaI6JOe11x%2FGwj22tsWIsIVJWw%2F%2FZKctFaREWTiGgA2M2iOH5Z2cctNIRVTMW43e%2Ffh%2FbBGjCOA%3D"}]}
+link: </_next/static/media/2a65768255d6b625-s.p.14by5b4al-y~f.woff2>; rel=preload; as="font"; crossorigin=""; type="font/woff2", </_next/static/media/83afe278b6a6bb3c-s.p.0q-301v4kxxnr.woff2>; rel=preload; as="font"; crossorigin=""; type="font/woff2", </_next/static/chunks/%5Broot-of-the-server%5D__062f-pp._.css>; rel=preload; as="style"
+vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept-Encoding
+x-powered-by: Next.js
+cf-cache-status: DYNAMIC
+Nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+Server: cloudflare
+CF-RAY: a0d29f95ec69ce2f-SIN
+alt-svc: h3=":443"; ma=86400
+

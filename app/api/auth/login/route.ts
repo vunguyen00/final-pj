@@ -5,11 +5,39 @@ import {
   setAuthCookie,
   verifyPassword,
 } from "@/lib/auth";
+import { getDatabaseUrlTarget } from "@/lib/database-url";
 import { prisma } from "@/lib/prisma";
 
+function getErrorDetails(error: unknown) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      code: "code" in error ? String(error.code) : undefined,
+    };
+  }
+
+  return {
+    name: "UnknownError",
+    message: "Unknown error.",
+  };
+}
+
 export async function POST(request: Request) {
+  let body: {
+    email?: unknown;
+    password?: unknown;
+  };
+
   try {
-    const body = await request.json();
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Du lieu gui len khong hop le." }, { status: 400 });
+  }
+
+  console.info("[auth/login] DATABASE_URL target:", getDatabaseUrlTarget());
+
+  try {
     const email =
       typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     const password = typeof body.password === "string" ? body.password : "";
@@ -52,7 +80,15 @@ export async function POST(request: Request) {
       ok: true,
       redirectTo: ROLE_HOME[user.role],
     });
-  } catch {
-    return NextResponse.json({ error: "Loi he thong." }, { status: 500 });
+  } catch (error) {
+    console.error("[auth/login] failed", {
+      database: getDatabaseUrlTarget(),
+      error: getErrorDetails(error),
+    });
+
+    return NextResponse.json(
+      { error: "Loi co so du lieu. Vui long thu lai." },
+      { status: 500 },
+    );
   }
 }

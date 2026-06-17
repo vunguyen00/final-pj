@@ -8,30 +8,32 @@ datasource db {
 }
 
 model User {
-  id                String             @id @default(uuid())
-  username          String
-  email             String             @unique
-  password          String
-  role              Role               @default(STUDENT)
-  phoneNumber       String?
-  isBanned          Boolean            @default(false)
-  learningLanguageId String?
-  createdAt         DateTime           @default(now())
-  sessions          Session[]
-  passwordResetOtps PasswordResetOtp[]
-  enrollments       Enrollment[]
-  testAttempts      TestAttempt[]
-  feedbacks         Feedback[]
-  orders            Order[]
-  courses           Course[]
-  aiAssessments     AiAssessment[]
-  pointTransactions PointTransaction[]
-  learningActivities LearningActivity[]
-  learningLanguage  LearningLanguage?  @relation("UserLearningLanguage", fields: [learningLanguageId], references: [id])
-  teacherApplications TeacherApplication[] @relation("TeacherApplicationUser")
+  id                          String               @id @default(uuid())
+  username                    String
+  email                       String               @unique
+  password                    String
+  role                        Role                 @default(STUDENT)
+  phoneNumber                 String?
+  isBanned                    Boolean              @default(false)
+  learningLanguageId          String?
+  createdAt                   DateTime             @default(now())
+  sessions                    Session[]
+  passwordResetOtps           PasswordResetOtp[]
+  enrollments                 Enrollment[]
+  testAttempts                TestAttempt[]
+  feedbacks                   Feedback[]
+  orders                      Order[]
+  payments                    Payment[]
+  wallet                      Wallet?
+  courses                     Course[]
+  aiAssessments               AiAssessment[]
+  pointTransactions           PointTransaction[]
+  learningActivities          LearningActivity[]
+  learningLanguage            LearningLanguage?    @relation("UserLearningLanguage", fields: [learningLanguageId], references: [id])
+  teacherApplications         TeacherApplication[] @relation("TeacherApplicationUser")
   reviewedTeacherApplications TeacherApplication[] @relation("TeacherApplicationReviewer")
-  notifications     Notification[]
-  emailLogs         EmailLog[]
+  notifications               Notification[]
+  emailLogs                   EmailLog[]
 }
 
 model Session {
@@ -45,14 +47,14 @@ model Session {
 }
 
 model PasswordResetOtp {
-  id        String   @id @default(uuid())
+  id         String    @id @default(uuid())
   userId     String
   email      String
   codeHash   String
   expiresAt  DateTime
   consumedAt DateTime?
   attempts   Int
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -67,29 +69,29 @@ enum Role {
 }
 
 model Course {
-  id          String       @id @default(uuid())
-  name        String
-  description String
-  thumbnail   String?   
-  category    String?      
-  duration    String?      
-  lessons     Int          @default(0)
-  status      CourseStatus @default(ACTIVE)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  price       Float
-  languageId  String?
-  instructorId String?     // ID của giảng viên
+  id           String       @id @default(uuid())
+  name         String
+  description  String
+  thumbnail    String?
+  category     String?
+  duration     String?
+  lessons      Int          @default(0)
+  status       CourseStatus @default(ACTIVE)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  price        Float
+  languageId   String?
+  instructorId String? // ID của giảng viên
 
-  instructor  User?        @relation(fields: [instructorId], references: [id])
-  language    LearningLanguage? @relation(fields: [languageId], references: [id])
-  modules     Module[]
-  enrollments Enrollment[]
-  tests       Test[]
-  feedbacks   Feedback[]
-  orderItems  OrderItem[]
-  aiAssessments AiAssessment[]
-  pointTransactions PointTransaction[]
+  instructor         User?              @relation(fields: [instructorId], references: [id])
+  language           LearningLanguage?  @relation(fields: [languageId], references: [id])
+  modules            Module[]
+  enrollments        Enrollment[]
+  tests              Test[]
+  feedbacks          Feedback[]
+  orderItems         OrderItem[]
+  aiAssessments      AiAssessment[]
+  pointTransactions  PointTransaction[]
   learningActivities LearningActivity[]
 }
 
@@ -111,7 +113,7 @@ model Module {
 }
 
 model Lesson {
-  id       String @id @default(uuid())
+  id       String  @id @default(uuid())
   moduleId String
   title    String
   content  String
@@ -133,30 +135,30 @@ model Enrollment {
 }
 
 model Test {
-  id           String   @id @default(uuid())
-  courseId     String?
-  languageId   String?
-  kind         TestKind @default(COURSE)
-  assessmentMode TestAssessmentMode @default(STANDARD)
-  name         String
-  description String?
-  maxScore     Float
-  passingScore Float
-  maxAttempts  Int
-  timeLimit    Int?  
-  shuffleQuestions Boolean @default(false)
-  materialTitle String?
-  materialContent String?
-  materialUrl   String?
-  materialType  String?
-  materialData  Json?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id               String             @id @default(uuid())
+  courseId         String?
+  languageId       String?
+  kind             TestKind           @default(COURSE)
+  assessmentMode   TestAssessmentMode @default(STANDARD)
+  name             String
+  description      String?
+  maxScore         Float
+  passingScore     Float
+  maxAttempts      Int
+  timeLimit        Int?
+  shuffleQuestions Boolean            @default(false)
+  materialTitle    String?
+  materialContent  String?
+  materialUrl      String?
+  materialType     String?
+  materialData     Json?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 
-  course   Course?       @relation(fields: [courseId], references: [id])
-  language LearningLanguage? @relation(fields: [languageId], references: [id])
-  attempts TestAttempt[]
-  questions Question[]
+  course              Course?              @relation(fields: [courseId], references: [id])
+  language            LearningLanguage?    @relation(fields: [languageId], references: [id])
+  attempts            TestAttempt[]
+  questions           Question[]
   teacherApplications TeacherApplication[]
 }
 
@@ -173,36 +175,36 @@ enum TestAssessmentMode {
 }
 
 enum QuestionType {
-  MULTIPLE_CHOICE  // Trắc nghiệm
-  FILL_IN_BLANK    // Điền từ
-  ESSAY            // Viết bài văn
-  TRUE_FALSE       // Đúng/Sai
-  SPEAKING         // Nói với AI
+  MULTIPLE_CHOICE // Trắc nghiệm
+  FILL_IN_BLANK // Điền từ
+  ESSAY // Viết bài văn
+  TRUE_FALSE // Đúng/Sai
+  SPEAKING // Nói với AI
 }
 
 model Question {
-  id           String       @id @default(uuid())
-  testId       String
-  type         QuestionType
-  content      String       // Nội dung câu hỏi
-  audioUrl     String?      // URL audio cho câu hỏi listening
-  order        Int
-  score        Float        // Điểm cho câu này
-  explanation  String?     // Giải thích/Lý do đúng
-  hint         String?      // Gợi ý
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id          String       @id @default(uuid())
+  testId      String
+  type        QuestionType
+  content     String // Nội dung câu hỏi
+  audioUrl    String? // URL audio cho câu hỏi listening
+  order       Int
+  score       Float // Điểm cho câu này
+  explanation String? // Giải thích/Lý do đúng
+  hint        String? // Gợi ý
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
-  test     Test          @relation(fields: [testId], references: [id])
-  answers  Answer[]
+  test    Test     @relation(fields: [testId], references: [id])
+  answers Answer[]
 }
 
 model Answer {
   id         String  @id @default(uuid())
   questionId String
-  content    String  // Nội dung đáp án
+  content    String // Nội dung đáp án
   isCorrect  Boolean // Đáp án đúng hay sai
-  order      Int     // Thứ tự đáp án (đặc biệt quan trọng với trắc nghiệm)
+  order      Int // Thứ tự đáp án (đặc biệt quan trọng với trắc nghiệm)
   feedback   String? // Phản hồi khi chọn đáp án này
 
   question Question @relation(fields: [questionId], references: [id])
@@ -221,16 +223,16 @@ model TestAttempt {
   submittedAt DateTime
   isPassed    Boolean
 
-  test         Test          @relation(fields: [testId], references: [id])
-  user         User          @relation(fields: [userId], references: [id])
-  cheatingLogs CheatingLog[]
+  test          Test           @relation(fields: [testId], references: [id])
+  user          User           @relation(fields: [userId], references: [id])
+  cheatingLogs  CheatingLog[]
   antiCheatLogs AntiCheatLog[]
 
   @@unique([testId, userId, attemptNo])
 }
 
 model AiAssessment {
-  id              String   @id @default(uuid())
+  id              String    @id @default(uuid())
   userId          String
   courseId        String?
   type            String
@@ -241,7 +243,7 @@ model AiAssessment {
   audioUrl        String?
   durationSeconds Int?
   score           Float
-  maxScore        Float    @default(10)
+  maxScore        Float     @default(10)
   bandSystem      String
   bandLevel       String
   bandScore       Float
@@ -251,9 +253,9 @@ model AiAssessment {
   improvements    Json?
   sampleAnswer    String?
   startedAt       DateTime?
-  submittedAt     DateTime @default(now())
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  submittedAt     DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   course Course? @relation(fields: [courseId], references: [id])
@@ -316,7 +318,7 @@ model LearningLanguage {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users               User[] @relation("UserLearningLanguage")
+  users               User[]               @relation("UserLearningLanguage")
   courses             Course[]
   tests               Test[]
   teacherApplications TeacherApplication[]
@@ -345,10 +347,10 @@ model TeacherApplication {
   createdAt         DateTime                 @default(now())
   updatedAt         DateTime                 @updatedAt
 
-  user             User             @relation("TeacherApplicationUser", fields: [userId], references: [id], onDelete: Cascade)
-  language         LearningLanguage @relation(fields: [languageId], references: [id])
-  entranceTest     Test?            @relation(fields: [entranceTestId], references: [id])
-  reviewedBy       User?            @relation("TeacherApplicationReviewer", fields: [reviewedById], references: [id])
+  user             User                    @relation("TeacherApplicationUser", fields: [userId], references: [id], onDelete: Cascade)
+  language         LearningLanguage        @relation(fields: [languageId], references: [id])
+  entranceTest     Test?                   @relation(fields: [entranceTestId], references: [id])
+  reviewedBy       User?                   @relation("TeacherApplicationReviewer", fields: [reviewedById], references: [id])
   certificates     TeacherCertificate[]
   logs             TeacherApplicationLog[]
   antiCheatLogs    AntiCheatLog[]
@@ -392,31 +394,31 @@ model TeacherApplicationLog {
 }
 
 model AntiCheatLog {
-  id              String   @id @default(uuid())
+  id              String    @id @default(uuid())
   applicationId   String
   testAttemptId   String?
   eventType       String
   detail          String?
-  severity        Int      @default(1)
+  severity        Int       @default(1)
   clientTimestamp DateTime?
-  serverTimestamp DateTime @default(now())
+  serverTimestamp DateTime  @default(now())
   metadata        Json?
 
   application TeacherApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  testAttempt  TestAttempt?       @relation(fields: [testAttemptId], references: [id])
+  testAttempt TestAttempt?       @relation(fields: [testAttemptId], references: [id])
 
   @@index([applicationId, serverTimestamp])
 }
 
 model SuspiciousEvent {
   id                   String   @id @default(uuid())
-  applicationId         String
-  eventType             String
-  count                 Int      @default(0)
-  totalDurationSeconds  Int      @default(0)
-  severity              Int      @default(1)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  applicationId        String
+  eventType            String
+  count                Int      @default(0)
+  totalDurationSeconds Int      @default(0)
+  severity             Int      @default(1)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   application TeacherApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
@@ -435,14 +437,14 @@ model Notification {
 }
 
 model EmailLog {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String?
   to        String
   subject   String
   status    String
   error     String?
   sentAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
@@ -463,7 +465,7 @@ model Order {
   userId    String
   createdAt DateTime @default(now())
 
-  user    User       @relation(fields: [userId], references: [id])
+  user    User        @relation(fields: [userId], references: [id])
   items   OrderItem[]
   payment Payment?
 }
@@ -478,12 +480,37 @@ model OrderItem {
   course Course @relation(fields: [courseId], references: [id])
 }
 
-model Payment {
+model Wallet {
   id        String   @id @default(uuid())
-  orderId   String   @unique
-  amount    Float
-  status    String
+  userId    String   @unique
+  balance   Int      @default(0)
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  order Order @relation(fields: [orderId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id                String   @id @default(uuid())
+  orderId           String?  @unique
+  userId            String
+  provider          String   @default("VNPAY")
+  txnRef            String   @unique
+  amount            Int
+  status            String
+  orderInfo         String?
+  bankCode          String?
+  transactionNo     String?
+  responseCode      String?
+  transactionStatus String?
+  payDate           String?
+  rawResponse       Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  order Order? @relation(fields: [orderId], references: [id])
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
 }

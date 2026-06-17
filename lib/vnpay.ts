@@ -1,4 +1,4 @@
-import { createHmac } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 export type VnpayConfig = {
   tmnCode: string;
@@ -39,6 +39,8 @@ export function getVnpayConfig(request?: Request | null): VnpayConfig {
   const paymentUrl = String(process.env.VNPAY_PAYMENT_URL ?? process.env.VNPAY_URL ?? "").trim();
   const apiUrl = String(process.env.VNPAY_API ?? "").trim();
   const defaultBaseUrl = String(process.env.VNPAY_BASE_URL ?? "").trim();
+  const configuredReturnUrl = String(process.env.VNPAY_RETURN_URL ?? "").trim();
+  const configuredIpnUrl = String(process.env.VNPAY_IPN_URL ?? "").trim();
   const returnPath = String(process.env.VNPAY_RETURN_PATH ?? "/api/wallet/vnpay-return").trim();
   const ipnPath = String(process.env.VNPAY_IPN_PATH ?? "/api/wallet/vnpay-ipn").trim();
 
@@ -48,15 +50,15 @@ export function getVnpayConfig(request?: Request | null): VnpayConfig {
 
   const requestBaseUrl = inferBaseUrlFromRequest(request);
   const baseUrl = normalizeBaseUrl(requestBaseUrl ?? defaultBaseUrl);
-  const returnUrl = joinUrl(baseUrl, returnPath);
-  const ipnUrl = joinUrl(baseUrl, ipnPath);
+  const returnUrl = requestBaseUrl ? joinUrl(baseUrl, returnPath) : configuredReturnUrl || joinUrl(baseUrl, returnPath);
+  const ipnUrl = requestBaseUrl ? joinUrl(baseUrl, ipnPath) : configuredIpnUrl || joinUrl(baseUrl, ipnPath);
 
   return { tmnCode, hashSecret, paymentUrl, apiUrl, baseUrl, returnUrl, ipnUrl };
 }
 
 export function sortObject(obj: Record<string, string | number>) {
   const sorted: Record<string, string> = {};
-  const keys = Object.keys(obj).sort((a, b) => a.localeCompare(b));
+  const keys = Object.keys(obj).sort();
 
   for (const key of keys) {
     const value = obj[key];
@@ -73,9 +75,9 @@ function vnpEncode(input: string) {
   return encodeURIComponent(input).replace(/%20/g, "+");
 }
 
-export function buildVnpQuery(params: Record<string, string>) {
+export function buildVnpQuery(params: Record<string, string | number>) {
   return Object.entries(params)
-    .map(([key, value]) => `${vnpEncode(key)}=${vnpEncode(value)}`)
+    .map(([key, value]) => `${vnpEncode(key)}=${vnpEncode(String(value))}`)
     .join("&");
 }
 
@@ -92,8 +94,12 @@ export function verifyVnpParams(params: Record<string, string>, hashSecret: stri
   delete cloned.vnp_SecureHash;
   delete cloned.vnp_SecureHashType;
 
+  if (!secureHash) return false;
+
   const { signature } = signVnpParams(cloned, hashSecret);
-  return secureHash === signature;
+  const expected = Buffer.from(signature, "utf8");
+  const received = Buffer.from(secureHash, "utf8");
+  return expected.length === received.length && timingSafeEqual(expected, received);
 }
 
 export function createTxnRef() {
@@ -136,4 +142,8 @@ export function normalizeIpAddr(rawIp: string | null) {
     return "127.0.0.1";
   }
   return first.replace("::ffff:", "");
+}
+
+export function getRequestIpAddr(request: Request) {
+  return normalizeIpAddr(request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip"));
 }

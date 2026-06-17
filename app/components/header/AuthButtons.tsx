@@ -1,32 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { useUser } from "./useUser";
+import type { User } from "./useUser";
 import ProfileMenu from "./ProfileMenu";
 
-export default function AuthButtons() {
-  const { user, loading } = useUser();
+type AuthButtonsProps = {
+  user: User | null;
+  loading: boolean;
+};
 
-  if (loading) {
-    return (
-      <div className="flex items-center gap-2">
-        <div className="h-8 w-20 animate-pulse rounded-lg bg-muted" />
-        <div className="h-8 w-16 animate-pulse rounded-lg bg-muted" />
-      </div>
-    );
-  }
-
+export default function AuthButtons({ user, loading }: AuthButtonsProps) {
   if (user) {
     return <ProfileMenu user={user} />;
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2" aria-busy={loading}>
       <Link href="/auth/login" className="text-sm font-medium text-muted-foreground hover:text-foreground">
-        Đăng nhập
+        Login
       </Link>
       <Link href="/auth/register" className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90">
-        Đăng ký
+        Register
       </Link>
     </div>
   );

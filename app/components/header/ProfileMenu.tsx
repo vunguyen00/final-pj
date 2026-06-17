@@ -9,6 +9,11 @@ type User = {
   email: string;
   role: string;
   avatarUrl?: string | null;
+  balance?: number;
+  aiPoints?: {
+    available: number;
+  };
+  teacherRegistrationEnabled?: boolean;
 };
 
 interface ProfileMenuProps {
@@ -17,10 +22,10 @@ interface ProfileMenuProps {
 
 export default function ProfileMenu({ user }: ProfileMenuProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [teacherRegistrationEnabled, setTeacherRegistrationEnabled] = useState(false);
-  const [balance, setBalance] = useState<number | null>(null);
-  const [points, setPoints] = useState<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const teacherRegistrationEnabled = user.role === "STUDENT" && Boolean(user.teacherRegistrationEnabled);
+  const balance = user.role === "ADMIN" ? null : user.balance ?? null;
+  const points = user.role === "ADMIN" ? null : user.aiPoints?.available ?? null;
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -32,35 +37,6 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  useEffect(() => {
-    if (user.role !== "STUDENT") return;
-    fetch("/api/teacher-applications", { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setTeacherRegistrationEnabled(Boolean(data?.setting?.enabled)))
-      .catch(() => setTeacherRegistrationEnabled(false));
-  }, [user.role]);
-
-  useEffect(() => {
-    // fetch wallet and points for non-admin users
-    if (user.role === "ADMIN") return;
-    let mounted = true;
-    fetch("/api/wallet")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!mounted || !data) return;
-        setBalance(typeof data.balance === "number" ? data.balance : null);
-        setPoints(data.aiPoints?.available ?? null);
-      })
-      .catch(() => {
-        if (!mounted) return;
-        setBalance(null);
-        setPoints(null);
-      });
-    return () => {
-      mounted = false;
-    };
-  }, [user.role]);
 
   const handleLogout = async () => {
     try {
@@ -80,6 +56,7 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
   return (
     <div className="relative" ref={menuRef}>
       <button
+        type="button"
         onClick={() => setMenuOpen(!menuOpen)}
         className="flex items-center gap-2 rounded-full border border-slate-200 px-2 py-1.5 transition-colors hover:bg-slate-50"
       >
@@ -126,7 +103,7 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
               <div className="mt-2 flex items-center gap-3">
                 <div>
                   <p className="text-xs text-slate-500">Số dư</p>
-                  <p className="text-sm font-semibold text-slate-900">{balance !== null ? Math.round(balance).toLocaleString("vi-VN") + "d" : "-"}</p>
+                  <p className="text-sm font-semibold text-slate-900">{balance !== null ? Math.round(balance).toLocaleString("vi-VN") + "đ" : "-"}</p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-500">Điểm</p>
@@ -260,6 +237,7 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
           </div>
           <div className="border-t border-slate-100 py-1">
             <button
+              type="button"
               onClick={handleLogout}
               className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
             >

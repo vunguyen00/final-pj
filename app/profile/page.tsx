@@ -71,7 +71,7 @@ export default async function ProfilePage() {
               <>
                 <div className="rounded-lg border border-slate-200 p-4">
                   <p className="text-sm text-slate-500">So du con lai</p>
-                  <p className="mt-1 font-semibold text-slate-900">{Math.round(balance).toLocaleString("vi-VN")}d</p>
+                  <p className="mt-1 font-semibold text-slate-900">{Math.round(balance).toLocaleString("vi-VN")}đ</p>
                 </div>
                 <div className="rounded-lg border border-slate-200 p-4">
                   <p className="text-sm text-slate-500">Diem hien co</p>
@@ -82,7 +82,7 @@ export default async function ProfilePage() {
           </div>
           <div className="mt-4">
             {!isAdmin && (
-              <Link href="/student/wallet" className="text-sm font-medium text-blue-600 hover:text-blue-700">N?p ti?n</Link>
+              <Link href="/student/wallet" className="text-sm font-medium text-blue-600 hover:text-blue-700">Nạp tiền</Link>
             )}
           </div>
         </section>
