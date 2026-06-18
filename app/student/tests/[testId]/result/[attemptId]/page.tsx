@@ -263,11 +263,7 @@ export default function StudentTestResultPage() {
                   {question.aiEvaluation ? (
                     <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
                       <p className="font-semibold">
-<<<<<<< ours
-                        {question.aiEvaluation.scoreOnly ? "Điểm AI" : "Phản hồi AI"} - {question.aiEvaluation.language} - {question.aiEvaluation.overallScore}/10
-=======
                         {question.aiEvaluation.scoreOnly ? "Kết quả chấm" : "Phản hồi AI"} - {question.aiEvaluation.language} - {question.aiEvaluation.overallScore}/10
->>>>>>> theirs
                         {question.aiEvaluation.band ? ` - ${question.aiEvaluation.band.system} ${question.aiEvaluation.band.level}` : ""}
                       </p>
                       {question.aiEvaluation.scoreOnly ? (

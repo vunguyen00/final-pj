@@ -22,7 +22,7 @@ export default async function TeacherPage() {
               Quan ly khoa hoc
             </Link>
             <Link href="/teacher/tests" className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted">
-              Quan ly bai test
+              Xem doanh thu
             </Link>
           </div>
         </div>

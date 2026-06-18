@@ -190,13 +190,15 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
                 >
                   Quản lý học viên
                 </Link>
-                <Link
-                  href="/teacher/tests"
-                  onClick={() => setMenuOpen(false)}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
-                >
-                  Quản lý bài test
-                </Link>
+                {user.role === "TEACHER" ? (
+                  <Link
+                    href="/teacher/tests"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    Doanh thu cá nhân
+                  </Link>
+                ) : null}
               </>
             )}
             {user.role === "ADMIN" && (
