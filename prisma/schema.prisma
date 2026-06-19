@@ -34,6 +34,7 @@ model User {
   reviewedTeacherApplications TeacherApplication[] @relation("TeacherApplicationReviewer")
   notifications               Notification[]
   emailLogs                   EmailLog[]
+  revenueWithdrawals          TeacherRevenueWithdrawal[]
 }
 
 model Session {
@@ -481,6 +482,32 @@ model OrderItem {
 
   order  Order  @relation(fields: [orderId], references: [id])
   course Course @relation(fields: [courseId], references: [id])
+}
+
+enum TeacherRevenueWithdrawalStatus {
+  PENDING
+  APPROVED
+  PAID
+  REJECTED
+}
+
+model TeacherRevenueWithdrawal {
+  id            String                         @id @default(uuid())
+  teacherId     String
+  amount        Int
+  bankName      String
+  accountNumber String
+  accountName   String
+  status        TeacherRevenueWithdrawalStatus @default(PENDING)
+  note          String?
+  processedAt   DateTime?
+  createdAt     DateTime                       @default(now())
+  updatedAt     DateTime                       @updatedAt
+
+  teacher User @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@index([teacherId, createdAt])
+  @@index([status, createdAt])
 }
 
 model Wallet {

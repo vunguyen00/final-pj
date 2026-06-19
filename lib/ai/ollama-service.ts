@@ -30,10 +30,10 @@ class OllamaService {
 
   constructor(config?: Partial<AIServiceConfig>) {
     this.config = { ...DEFAULT_CONFIG, ...config };
-    const configuredMax = Number(process.env.OLLAMA_NUM_PREDICT ?? 4800);
+    const configuredMax = Number(process.env.OLLAMA_NUM_PREDICT ?? 7000);
     this.maxOutputTokens = Number.isFinite(configuredMax)
       ? Math.max(256, Math.floor(configuredMax))
-      : 4800;
+      : 7000;
   }
 
   /**
@@ -120,6 +120,13 @@ class OllamaService {
         `/api/chat returned empty content for ${model} after ${Number(chatData.eval_count ?? 0)} output tokens`,
       );
     }
+    const done = chatData.done === undefined ? true : Boolean(chatData.done);
+    const doneReason = String(chatData.done_reason ?? chatData.stop_reason ?? "").toLowerCase();
+    if (!done || doneReason === "length" || doneReason === "max_tokens") {
+      throw new Error(
+        `/api/chat returned an incomplete response for ${model} after ${Number(chatData.eval_count ?? 0)} output tokens`,
+      );
+    }
 
     return {
       message: { role: "assistant", content },
@@ -128,7 +135,7 @@ class OllamaService {
         typeof chatData.created_at === "string"
           ? (chatData.created_at as string)
           : new Date().toISOString(),
-      done: Boolean(chatData.done ?? true),
+      done,
       total_duration: Number(chatData.total_duration ?? 0),
       load_duration: Number(chatData.load_duration ?? 0),
       prompt_eval_count: Number(chatData.prompt_eval_count ?? 0),

@@ -3,8 +3,8 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
-const labelClass = "mb-1 block text-sm font-medium text-foreground";
-const inputClass = "w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground outline-none ring-primary/20 focus:ring-2";
+const labelClass = "mb-1.5 block text-sm font-bold text-slate-700";
+const inputClass = "w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100";
 
 export function LoginForm() {
   const router = useRouter();
@@ -53,12 +53,14 @@ export function LoginForm() {
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           required
+          autoComplete="email"
+          placeholder="ban@example.com"
         />
       </div>
 
       <div>
         <label className={labelClass} htmlFor="password">
-          Mat khau
+          Mật khẩu
         </label>
         <input
           id="password"
@@ -67,6 +69,8 @@ export function LoginForm() {
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           required
+          autoComplete="current-password"
+          placeholder="Nhập mật khẩu"
         />
       </div>
 
@@ -75,9 +79,9 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full rounded-xl bg-blue-600 px-4 py-3 font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {loading ? "Dang xu ly..." : "Dang nhap"}
+        {loading ? "Đang đăng nhập..." : "Đăng nhập"}
       </button>
     </form>
   );

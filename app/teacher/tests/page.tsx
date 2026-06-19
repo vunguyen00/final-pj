@@ -2,9 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { RevenueWithdrawalPanel } from "@/app/teacher/tests/RevenueWithdrawalPanel";
+import { calculateAvailableTeacherRevenue, RESERVED_WITHDRAWAL_STATUSES } from "@/lib/teacher-revenue";
 
 export const metadata = {
-  title: "Doanh thu giảng viên | LearnHub",
+  title: "Doanh thu giảng viên | FinnCenter",
 };
 
 const currencyFormatter = new Intl.NumberFormat("vi-VN", {
@@ -45,7 +47,7 @@ export default async function TeacherRevenuePage() {
     redirect("/admin");
   }
 
-  const [courses, orderItems] = await Promise.all([
+  const [courses, orderItems, withdrawals, reservedWithdrawals, revenueNotifications] = await Promise.all([
     prisma.course.findMany({
       where: { instructorId: user.id },
       select: {
@@ -76,11 +78,44 @@ export default async function TeacherRevenuePage() {
         },
       },
     }),
+    prisma.teacherRevenueWithdrawal.findMany({
+      where: { teacherId: user.id },
+      select: {
+        id: true,
+        amount: true,
+        bankName: true,
+        accountNumber: true,
+        accountName: true,
+        status: true,
+        note: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+    prisma.teacherRevenueWithdrawal.aggregate({
+      where: {
+        teacherId: user.id,
+        status: { in: [...RESERVED_WITHDRAWAL_STATUSES] },
+      },
+      _sum: { amount: true },
+    }),
+    prisma.notification.findMany({
+      where: {
+        userId: user.id,
+        title: { contains: "doanh thu", mode: "insensitive" },
+      },
+      select: { id: true, title: true, body: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
   ]);
 
   const monthStart = getMonthStart();
   const totalGross = orderItems.reduce((sum, item) => sum + item.price, 0);
   const totalTeacherRevenue = orderItems.reduce((sum, item) => sum + item.teacherRevenue, 0);
+  const reservedRevenue = reservedWithdrawals._sum.amount ?? 0;
+  const availableRevenue = calculateAvailableTeacherRevenue(totalTeacherRevenue, reservedRevenue);
   const totalAdminRevenue = orderItems.reduce((sum, item) => sum + item.adminRevenue, 0);
   const monthTeacherRevenue = orderItems
     .filter((item) => item.order.createdAt >= monthStart)
@@ -133,9 +168,21 @@ export default async function TeacherRevenuePage() {
         <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <SummaryCard label="Doanh thu thực nhận" value={formatCurrency(totalTeacherRevenue)} hint="Tổng phần giảng viên nhận" tone="emerald" />
           <SummaryCard label="Tháng này" value={formatCurrency(monthTeacherRevenue)} hint="Từ đầu tháng hiện tại" tone="blue" />
-          <SummaryCard label="Tổng doanh số" value={formatCurrency(totalGross)} hint={`Admin nhận ${formatCurrency(totalAdminRevenue)}`} tone="slate" />
+          <SummaryCard label="Tổng doanh số" value={formatCurrency(totalGross)} hint={`Doanh số khóa học thu về ${formatCurrency(totalAdminRevenue)}`} tone="slate" />
           <SummaryCard label="Lượt mua / học viên" value={`${orderItems.length} / ${totalEnrollments}`} hint={`${courses.length} khóa học đang quản lý`} tone="amber" />
         </section>
+
+        <RevenueWithdrawalPanel
+          availableRevenue={availableRevenue}
+          withdrawals={withdrawals.map((item) => ({
+            ...item,
+            createdAt: item.createdAt.toISOString(),
+          }))}
+          notifications={revenueNotifications.map((item) => ({
+            ...item,
+            createdAt: item.createdAt.toISOString(),
+          }))}
+        />
 
         <section className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-5 py-4">

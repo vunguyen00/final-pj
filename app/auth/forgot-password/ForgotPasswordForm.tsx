@@ -4,25 +4,18 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-const labelClass = "mb-1 block text-sm font-medium text-foreground";
-const inputClass = "w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground outline-none ring-primary/20 focus:ring-2";
+const labelClass = "mb-1.5 block text-sm font-bold text-slate-700";
+const inputClass = "w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100";
 
 export function ForgotPasswordForm() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [phase, setPhase] = useState<"request" | "reset">("request");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [form, setForm] = useState({ email: "", otp: "", newPassword: "", confirmPassword: "", phase: "request" as "request" | "reset", loading: false, error: "", message: "" });
+  const { email, otp, newPassword, confirmPassword, phase, loading, error, message } = form;
+  const updateForm = (patch: Partial<typeof form>) => setForm((current) => ({ ...current, ...patch }));
 
   async function requestOtp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setLoading(true);
-    setError("");
-    setMessage("");
+    updateForm({ loading: true, error: "", message: "" });
 
     try {
       const checkRes = await fetch("/api/auth/verify-email", {
@@ -33,23 +26,20 @@ export function ForgotPasswordForm() {
       const checkData = await checkRes.json();
 
       if (!checkRes.ok) {
-        setError(checkData.error ?? "Khong kiem tra duoc email.");
-        setLoading(false);
+        updateForm({ error: checkData.error ?? "Không kiểm tra được email.", loading: false });
         return;
       }
 
       if (!checkData.exists) {
-        setError("Email khong ton tai trong he thong.");
-        setLoading(false);
+        updateForm({ error: "Email không tồn tại trong hệ thống.", loading: false });
         return;
       }
 
       if (checkData.role === "ADMIN") {
         const adminMessage =
           "Tai khoan admin phai lien he quan tri he thong de duoc cap mat khau moi. Khong the dat lai mat khau bang OTP.";
-        setError(adminMessage);
+        updateForm({ error: adminMessage, loading: false });
         window.alert(adminMessage);
-        setLoading(false);
         return;
       }
 
@@ -61,28 +51,24 @@ export function ForgotPasswordForm() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error ?? "Khong gui duoc OTP.");
+        updateForm({ error: data.error ?? "Không gửi được mã xác nhận." });
         return;
       }
 
-      setPhase("reset");
-      setMessage("OTP da duoc gui den email cua ban.");
+      updateForm({ phase: "reset", message: "Mã xác nhận đã được gửi đến email của bạn." });
     } catch {
-      setError("Loi mang. Vui long thu lai.");
+      updateForm({ error: "Lỗi mạng. Vui lòng thử lại." });
     } finally {
-      setLoading(false);
+      updateForm({ loading: false });
     }
   }
 
   async function resetPassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setLoading(true);
-    setError("");
-    setMessage("");
+    updateForm({ loading: true, error: "", message: "" });
 
     if (newPassword !== confirmPassword) {
-      setError("Xac nhan mat khau khong khop.");
-      setLoading(false);
+      updateForm({ error: "Xác nhận mật khẩu không khớp.", loading: false });
       return;
     }
 
@@ -100,16 +86,16 @@ export function ForgotPasswordForm() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error ?? "Dat lai mat khau that bai.");
+        updateForm({ error: data.error ?? "Cập nhật mật khẩu thất bại." });
         return;
       }
 
       router.push("/auth/login");
       router.refresh();
     } catch {
-      setError("Loi mang. Vui long thu lai.");
+      updateForm({ error: "Lỗi mạng. Vui lòng thử lại." });
     } finally {
-      setLoading(false);
+      updateForm({ loading: false });
     }
   }
 
@@ -125,8 +111,10 @@ export function ForgotPasswordForm() {
             type="email"
             className={inputClass}
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            onChange={(event) => updateForm({ email: event.target.value })}
             required
+            autoComplete="email"
+            placeholder="ban@example.com"
           />
         </div>
 
@@ -138,13 +126,13 @@ export function ForgotPasswordForm() {
           disabled={loading}
           className="w-full rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {loading ? "Dang xu ly..." : "Gui ma OTP"}
+          {loading ? "Đang gửi hướng dẫn..." : "Tiếp tục"}
         </button>
 
         <p className="text-sm text-muted-foreground">
-          Nho lai mat khau?{" "}
+          Nhớ lại mật khẩu?{" "}
           <Link className="font-semibold text-foreground hover:underline" href="/auth/login">
-            Quay ve dang nhap
+            Quay về đăng nhập
           </Link>
         </p>
       </form>
@@ -157,50 +145,55 @@ export function ForgotPasswordForm() {
         <label className={labelClass} htmlFor="email-confirm">
           Email
         </label>
-        <input id="email-confirm" type="email" className={`${inputClass} bg-muted text-muted-foreground`} value={email} disabled />
+        <input id="email-confirm" type="email" className={`${inputClass} bg-muted text-muted-foreground`} value={email} disabled readOnly />
       </div>
 
       <div>
         <label className={labelClass} htmlFor="otp">
-          OTP
+          Mã xác nhận
         </label>
         <input
           id="otp"
           type="text"
           className={inputClass}
           value={otp}
-          onChange={(event) => setOtp(event.target.value)}
+          onChange={(event) => updateForm({ otp: event.target.value })}
           placeholder="Nhap ma 6 so"
           required
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          maxLength={6}
         />
       </div>
 
       <div>
         <label className={labelClass} htmlFor="new-password">
-          Mat khau moi
+          Mật khẩu mới
         </label>
         <input
           id="new-password"
           type="password"
           className={inputClass}
           value={newPassword}
-          onChange={(event) => setNewPassword(event.target.value)}
+          onChange={(event) => updateForm({ newPassword: event.target.value })}
           required
           minLength={8}
+          autoComplete="new-password"
         />
       </div>
 
       <div>
         <label className={labelClass} htmlFor="confirm-password">
-          Xac nhan mat khau moi
+          Xác nhận mật khẩu mới
         </label>
         <input
           id="confirm-password"
           type="password"
           className={inputClass}
           value={confirmPassword}
-          onChange={(event) => setConfirmPassword(event.target.value)}
+          onChange={(event) => updateForm({ confirmPassword: event.target.value })}
           required
+          autoComplete="new-password"
         />
       </div>
 
@@ -212,7 +205,7 @@ export function ForgotPasswordForm() {
         disabled={loading}
         className="w-full rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {loading ? "Dang xu ly..." : "Dat lai mat khau"}
+        {loading ? "Đang cập nhật..." : "Cập nhật mật khẩu"}
       </button>
 
       <button
@@ -220,15 +213,10 @@ export function ForgotPasswordForm() {
         disabled={loading}
         className="w-full rounded-lg border border-border px-4 py-2 font-semibold text-foreground hover:bg-muted disabled:cursor-not-allowed"
         onClick={() => {
-          setPhase("request");
-          setOtp("");
-          setNewPassword("");
-          setConfirmPassword("");
-          setError("");
-          setMessage("");
+          updateForm({ phase: "request", otp: "", newPassword: "", confirmPassword: "", error: "", message: "" });
         }}
       >
-        Gui lai OTP
+        Gửi lại mã xác nhận
       </button>
     </form>
   );

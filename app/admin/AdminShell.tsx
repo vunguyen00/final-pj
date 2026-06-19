@@ -4,6 +4,7 @@ import { useState } from "react";
 import AdminDashboard from "./AdminDashboard";
 import AnalyticsDashboard from "./AnalyticsDashboard";
 import AdminTestsManagement from "./AdminTestsManagement";
+import AdminRevenueWithdrawals, { type AdminWithdrawal } from "./AdminRevenueWithdrawals";
 import type { AnalyticsPayload } from "@/lib/admin-analytics";
 import type { AdminManagedTest, Application, Course, Language } from "./types";
 
@@ -15,6 +16,7 @@ export default function AdminShell({
   initialCourses,
   initialAdminManagedTests,
   analyticsInitialData,
+  initialWithdrawals,
 }: {
   initialEnabled: boolean;
   initialCourseAutoApproval: boolean;
@@ -23,8 +25,9 @@ export default function AdminShell({
   initialCourses: Course[];
   initialAdminManagedTests: AdminManagedTest[];
   analyticsInitialData: AnalyticsPayload;
+  initialWithdrawals: AdminWithdrawal[];
 }) {
-  const [tab, setTab] = useState<"overview" | "tests" | "analytics">("overview");
+  const [tab, setTab] = useState<"overview" | "tests" | "withdrawals" | "analytics">("overview");
 
   return (
     <div>
@@ -35,22 +38,32 @@ export default function AdminShell({
         </div>
         <div className="flex flex-wrap gap-2">
           <button
+            type="button"
             onClick={() => setTab("overview")}
             className={`rounded-md px-3 py-2 text-sm font-medium ${tab === "overview" ? "bg-primary text-primary-foreground" : "border border-border bg-card text-foreground"}`}
           >
             Tổng quan
           </button>
           <button
+            type="button"
             onClick={() => setTab("tests")}
             className={`rounded-md px-3 py-2 text-sm font-medium ${tab === "tests" ? "bg-primary text-primary-foreground" : "border border-border bg-card text-foreground"}`}
           >
             Quản lý test
           </button>
           <button
+            type="button"
             onClick={() => setTab("analytics")}
             className={`rounded-md px-3 py-2 text-sm font-medium ${tab === "analytics" ? "bg-primary text-primary-foreground" : "border border-border bg-card text-foreground"}`}
           >
             Thống kê
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("withdrawals")}
+            className={`rounded-md px-3 py-2 text-sm font-medium ${tab === "withdrawals" ? "bg-primary text-primary-foreground" : "border border-border bg-card text-foreground"}`}
+          >
+            Rút doanh thu
           </button>
         </div>
       </div>
@@ -68,6 +81,8 @@ export default function AdminShell({
           initialAdminManagedTests={initialAdminManagedTests}
           isAdmin
         />
+      ) : tab === "withdrawals" ? (
+        <AdminRevenueWithdrawals initialWithdrawals={initialWithdrawals} />
       ) : (
         <AnalyticsDashboard initialData={analyticsInitialData} />
       )}

@@ -5,28 +5,81 @@ import { getDashboardAnalytics } from "@/lib/admin-analytics";
 import { getTeacherEntranceSetting, getActiveLanguages } from "@/lib/teacher-onboarding";
 import { getCourseAutoApprovalSetting } from "@/lib/course-approval";
 import type { AdminManagedTest } from "./types";
+import type { AdminWithdrawal } from "./AdminRevenueWithdrawals";
 
 export default async function AdminPage() {
   await requireRole("ADMIN");
 
-  const setting = await getTeacherEntranceSetting();
-  const courseApprovalSetting = await getCourseAutoApprovalSetting();
-  const languages = await getActiveLanguages();
+  const [
+    setting,
+    courseApprovalSetting,
+    languages,
+    applicationsRaw,
+    analyticsInitialData,
+    courses,
+    adminManagedTests,
+    withdrawals,
+  ] = await Promise.all([
+    getTeacherEntranceSetting(),
+    getCourseAutoApprovalSetting(),
+    getActiveLanguages(),
+    prisma.teacherApplication.findMany({
+      include: {
+        user: { select: { id: true, username: true, email: true, phoneNumber: true, role: true } },
+        language: true,
+        certificates: true,
+        antiCheatLogs: { orderBy: { serverTimestamp: "desc" }, take: 50 },
+        suspiciousEvents: true,
+        entranceTest: { select: { id: true, name: true, passingScore: true, maxScore: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+    getDashboardAnalytics({ preset: "LAST_30_DAYS" }),
+    prisma.course.findMany({
+      include: {
+        language: { select: { id: true, name: true, code: true } },
+        instructor: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            teacherApplications: {
+              where: { status: "APPROVED" },
+              select: { language: { select: { id: true, name: true, code: true } } },
+              orderBy: { reviewedAt: "desc" },
+              take: 1,
+            },
+          },
+        },
+        _count: { select: { modules: true, tests: true, enrollments: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    }),
+    prisma.test.findMany({
+      where: { kind: { in: ["TEACHER_ENTRANCE", "PUBLIC_PRACTICE"] } },
+      select: {
+        id: true,
+        name: true,
+        kind: true,
+        assessmentMode: true,
+        timeLimit: true,
+        language: { select: { id: true, name: true, code: true } },
+        createdAt: true,
+        _count: { select: { questions: true, attempts: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+    prisma.teacherRevenueWithdrawal.findMany({
+      include: { teacher: { select: { id: true, username: true, email: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    }),
+  ]);
 
-  const applicationsRaw = await prisma.teacherApplication.findMany({
-    include: {
-      user: { select: { id: true, username: true, email: true, phoneNumber: true, role: true } },
-      language: true,
-      certificates: true,
-      antiCheatLogs: { orderBy: { serverTimestamp: "desc" }, take: 50 },
-      suspiciousEvents: true,
-      entranceTest: { select: { id: true, name: true, passingScore: true, maxScore: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
-
-  const attemptIds = applicationsRaw.map((a) => a.entranceAttemptId).filter(Boolean) as string[];
+  const attemptIds = applicationsRaw.flatMap((application) => application.entranceAttemptId ? [application.entranceAttemptId] : []);
   const attempts = attemptIds.length
     ? await prisma.testAttempt.findMany({ where: { id: { in: attemptIds } }, select: { id: true, score: true, maxScore: true, isPassed: true, submittedAt: true } })
     : [];
@@ -41,48 +94,6 @@ export default async function AdminPage() {
     suspiciousEvents: app.suspiciousEvents.map((s) => ({ ...s, updatedAt: s.updatedAt ? s.updatedAt.toISOString() : null })),
     entranceAttempt: app.entranceAttemptId ? (attemptMap.get(app.entranceAttemptId) ?? null) : null,
   }));
-
-  const analyticsInitialData = await getDashboardAnalytics({ preset: "LAST_30_DAYS" });
-  const courses = await prisma.course.findMany({
-    include: {
-      language: { select: { id: true, name: true, code: true } },
-      instructor: {
-        select: {
-          id: true,
-          username: true,
-          email: true,
-          teacherApplications: {
-            where: { status: "APPROVED" },
-            select: {
-              language: { select: { id: true, name: true, code: true } },
-            },
-            orderBy: { reviewedAt: "desc" },
-            take: 1,
-          },
-        },
-      },
-      _count: { select: { modules: true, tests: true, enrollments: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 200,
-  });
-  const adminManagedTests = await prisma.test.findMany({
-    where: {
-      kind: { in: ["TEACHER_ENTRANCE", "PUBLIC_PRACTICE"] },
-    },
-    select: {
-      id: true,
-      name: true,
-      kind: true,
-      assessmentMode: true,
-      timeLimit: true,
-      language: { select: { id: true, name: true, code: true } },
-      createdAt: true,
-      _count: { select: { questions: true, attempts: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
 
   return (
     <div className="mt-6">
@@ -114,6 +125,12 @@ export default async function AdminPage() {
           createdAt: test.createdAt.toISOString(),
         }))}
         analyticsInitialData={analyticsInitialData}
+        initialWithdrawals={withdrawals.map((item) => ({
+          ...item,
+          status: item.status as AdminWithdrawal["status"],
+          createdAt: item.createdAt.toISOString(),
+          processedAt: item.processedAt?.toISOString() ?? null,
+        }))}
       />
     </div>
   );

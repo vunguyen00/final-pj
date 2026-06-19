@@ -168,44 +168,6 @@ function extractFirstBalancedObject(input: string) {
   return null;
 }
 
-function autoCloseJson(input: string) {
-  const start = input.indexOf("{");
-  if (start < 0) return null;
-
-  const source = input.slice(start);
-  const stack: string[] = [];
-  let output = "";
-  let inString = false;
-  let escaping = false;
-
-  for (const character of source) {
-    output += character;
-    if (inString) {
-      if (escaping) {
-        escaping = false;
-      } else if (character === "\\") {
-        escaping = true;
-      } else if (character === '"') {
-        inString = false;
-      }
-      continue;
-    }
-
-    if (character === '"') inString = true;
-    if (character === "{") stack.push("}");
-    if (character === "[") stack.push("]");
-    if (character === "}" || character === "]") {
-      const expected = stack.pop();
-      if (expected !== character) return null;
-    }
-  }
-
-  if (inString) output += '"';
-  output = output.replace(/:\s*$/g, ": null").replace(/,\s*$/g, "");
-  while (stack.length) output += stack.pop();
-  return output.replace(/,\s*([}\]])/g, "$1");
-}
-
 function repairLikelyJsonStringIssues(input: string) {
   let output = "";
   let inString = false;
@@ -271,10 +233,8 @@ function parseJsonObject(raw: string) {
   const candidates = [
     cleaned,
     extractFirstBalancedObject(cleaned),
-    autoCloseJson(cleaned),
     repaired,
     extractFirstBalancedObject(repaired),
-    autoCloseJson(repaired),
   ].filter((candidate): candidate is string => Boolean(candidate));
 
   let lastError: unknown;
@@ -558,7 +518,7 @@ async function requestValidatedEvaluation<T>(
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
       const raw = await ollamaService.chat(messagesForAttempt(attempt), {
-        maxOutputTokens: 4400,
+        maxOutputTokens: 6500,
       });
       const parsed = parseJsonObject(raw);
       if (!validate(parsed)) {
@@ -591,6 +551,14 @@ export async function evaluateIeltsWriting(input: {
     taskType === "task_1"
       ? `This is IELTS Writing Task 1. Use Task Achievement. Check that the response presents a clear overview and selects key features. If the overview is missing, Task Achievement must not exceed band 5.0.`
       : `This is IELTS Writing Task 2. Use Task Response. Check that the response presents a clear position, develops relevant ideas, and includes an appropriate conclusion. If the position is unclear or the conclusion is missing, Task Response must not exceed band 5.0.`;
+  const hasCompleteModelAnswer = (value: unknown): value is IeltsWritingEvaluation => {
+    if (!isIeltsWritingEvaluation(value)) return false;
+    if (input.scoreOnly) return value.model_answer.trim() === "";
+    const answer = value.model_answer.trim();
+    const wordCount = answer.split(/\s+/).filter(Boolean).length;
+    const minimumWords = taskType === "task_1" ? 120 : 200;
+    return wordCount >= minimumWords && /[.!?][\"')\]]?$/.test(answer);
+  };
 
   const evaluation = await requestValidatedEvaluation(
     (attempt) => [
@@ -612,7 +580,7 @@ Apply IELTS length expectations: approximately 150 words for Task 1 and 250 word
 Every comment must cite concrete evidence from the submitted answer. Do not use vague praise such as "good job" or unexplained statements such as "needs improvement".
 Keep each short_comment under 140 characters, each detailed_feedback under 700 characters, and each array at no more than 3 concise items. Avoid double quotation marks inside JSON string values; use single quotation marks for quoted words or sentences.
 Write all feedback in Vietnamese. Keep quoted learner sentences and corrected English examples in English.
-The model answer must directly answer the prompt and be appropriate for ${taskType === "task_1" ? "Task 1" : "Task 2"}.
+The model answer must directly answer the prompt, be complete, end with a finished sentence, and contain ${taskType === "task_1" ? "150-190" : "230-290"} words.
 ${input.scoreOnly ? "This is score-only mode. Calculate all scores normally, but return empty strings for every comment and model_answer, and empty arrays for strengths, weaknesses, suggestions, examples, corrections, and priority_to_improve." : ""}
 Return only valid compact JSON matching the exact schema. Do not add keys or markdown.${attempt > 1 ? "\nThe previous response was invalid. Regenerate the complete JSON from scratch, shorten every text field, avoid double quotation marks inside values, and correctly escape line breaks." : ""}${attempt === 3 ? "\nThis is the final retry. Use at most 2 items in each array and keep detailed_feedback under 400 characters." : ""}`,
       },
@@ -634,7 +602,7 @@ Required JSON schema:
 ${WRITING_SCHEMA}`,
       },
     ],
-    isIeltsWritingEvaluation,
+    hasCompleteModelAnswer,
   );
 
   const normalized = normalizeWritingEvaluation(

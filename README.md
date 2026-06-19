@@ -1,7 +1,7 @@
 
-# LearnHub - Website ban khoa hoc ngon ngu tich hop AI
+# FinnCenter - Website ban khoa hoc ngon ngu tich hop AI
 
-LearnHub la website hoc tap va mua ban khoa hoc truc tuyen, tap trung vao cac khoa hoc ngon ngu va on tap ky nang. He thong ho tro nguoi hoc tim kiem khoa hoc, dang ky/mua khoa hoc, hoc theo module/bai hoc, lam bai test cuoi khoa va nhan danh gia bang AI cho cac bai viet.
+FinnCenter la website hoc tap va mua ban khoa hoc truc tuyen, tap trung vao cac khoa hoc ngon ngu va on tap ky nang. He thong ho tro nguoi hoc tim kiem khoa hoc, dang ky/mua khoa hoc, hoc theo module/bai hoc, lam bai test cuoi khoa va nhan danh gia bang AI cho cac bai viet.
 
 Website duoc xay dung theo mo hinh LMS ket hop marketplace: giao vien co the tao va quan ly khoa hoc, hoc vien co the mua khoa hoc bang vi noi bo, theo doi tien do hoc tap va lam bai kiem tra sau khi hoan thanh noi dung bai hoc.
 
@@ -44,4 +44,4 @@ Sau khi hoc vien nop bai test, he thong cham diem tu dong. Voi cau hoi tu luan, 
 
 ## Diem noi bat
 
-LearnHub khong chi la website ban khoa hoc thong thuong ma con tich hop day du quy trinh hoc tap, on luyen va danh gia. Viec ket hop thanh toan, tien do hoc tap, bai test, chung chi va AI giup website phu hop voi cac nen tang dao tao ngon ngu hien dai, dac biet cho cac khoa hoc luyen thi va ren luyen ky nang viet.
+FinnCenter khong chi la website ban khoa hoc thong thuong ma con tich hop day du quy trinh hoc tap, on luyen va danh gia. Viec ket hop thanh toan, tien do hoc tap, bai test, chung chi va AI giup website phu hop voi cac nen tang dao tao ngon ngu hien dai, dac biet cho cac khoa hoc luyen thi va ren luyen ky nang viet.

@@ -11,15 +11,16 @@ export default async function ForgotPasswordPage() {
 
   return (
     <>
-      <h1 className="text-2xl font-semibold text-foreground">Quen mat khau</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Nhap email de nhan OTP va dat lai mat khau.</p>
+      <p className="text-xs font-bold uppercase tracking-[.2em] text-blue-600">Khôi phục tài khoản</p>
+      <h1 className="mt-2 text-3xl font-black text-slate-950">Quên mật khẩu</h1>
+      <p className="mt-2 text-sm leading-6 text-slate-500">Nhập email đã đăng ký. Chúng tôi sẽ hướng dẫn bạn tạo mật khẩu mới.</p>
       <div className="mt-5">
         <ForgotPasswordForm />
       </div>
       <p className="mt-4 text-sm text-muted-foreground">
-        Chua co tai khoan?{" "}
+        Chưa có tài khoản?{" "}
         <Link className="font-semibold text-foreground hover:underline" href="/auth/register">
-          Dang ky ngay
+          Đăng ký ngay
         </Link>
       </p>
     </>

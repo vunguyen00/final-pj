@@ -11,15 +11,16 @@ export default async function RegisterPage() {
 
   return (
     <>
-      <h1 className="text-2xl font-semibold text-foreground">Dang ky</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Tai khoan dang ky moi se mac dinh role STUDENT.</p>
+      <p className="text-xs font-bold uppercase tracking-[.2em] text-blue-600">Bắt đầu miễn phí</p>
+      <h1 className="mt-2 text-3xl font-black text-slate-950">Tạo tài khoản</h1>
+      <p className="mt-2 text-sm text-slate-500">Chỉ mất một phút để bắt đầu học tập tại FinnCenter.</p>
       <div className="mt-5">
         <RegisterForm />
       </div>
-      <p className="mt-4 text-sm text-muted-foreground">
-        Da co tai khoan?{" "}
-        <Link className="font-semibold text-foreground hover:underline" href="/auth/login">
-          Dang nhap
+      <p className="mt-6 text-center text-sm text-slate-500">
+        Đã có tài khoản?{" "}
+        <Link className="font-bold text-blue-700 hover:underline" href="/auth/login">
+          Đăng nhập
         </Link>
       </p>
     </>
