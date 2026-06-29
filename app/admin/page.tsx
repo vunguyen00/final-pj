@@ -73,7 +73,21 @@ export default async function AdminPage() {
       take: 100,
     }),
     prisma.teacherRevenueWithdrawal.findMany({
-      include: { teacher: { select: { id: true, username: true, email: true } } },
+      include: {
+        teacher: { select: { id: true, username: true, email: true } },
+        complaint: {
+          select: {
+            id: true,
+            reason: true,
+            reportedAmount: true,
+            message: true,
+            status: true,
+            adminNote: true,
+            resolvedAt: true,
+            createdAt: true,
+          },
+        },
+      },
       orderBy: { createdAt: "desc" },
       take: 200,
     }),
@@ -130,6 +144,15 @@ export default async function AdminPage() {
           status: item.status as AdminWithdrawal["status"],
           createdAt: item.createdAt.toISOString(),
           processedAt: item.processedAt?.toISOString() ?? null,
+          complaint: item.complaint
+            ? {
+                ...item.complaint,
+                status: item.complaint.status as NonNullable<AdminWithdrawal["complaint"]>["status"],
+                reason: item.complaint.reason as NonNullable<AdminWithdrawal["complaint"]>["reason"],
+                createdAt: item.complaint.createdAt.toISOString(),
+                resolvedAt: item.complaint.resolvedAt?.toISOString() ?? null,
+              }
+            : null,
         }))}
       />
     </div>

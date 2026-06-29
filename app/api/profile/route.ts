@@ -14,7 +14,7 @@ export async function PATCH(request: Request) {
         : null;
 
     if (!username) {
-      return NextResponse.json({ error: "Username khong duoc de trong." }, { status: 400 });
+      return NextResponse.json({ error: "Tên hiển thị không được để trống." }, { status: 400 });
     }
 
     if (learningLanguageId) {
@@ -23,7 +23,7 @@ export async function PATCH(request: Request) {
         select: { id: true },
       });
       if (!language) {
-        return NextResponse.json({ error: "Ngon ngu khong hop le." }, { status: 400 });
+        return NextResponse.json({ error: "Ngôn ngữ không hợp lệ." }, { status: 400 });
       }
     }
 
@@ -45,6 +45,6 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json({ user: updated });
   } catch {
-    return NextResponse.json({ error: "Loi he thong." }, { status: 500 });
+    return NextResponse.json({ error: "Lỗi hệ thống." }, { status: 500 });
   }
 }

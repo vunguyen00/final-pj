@@ -43,7 +43,21 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ wi
           note: action === "REJECT" ? note : current.note,
           processedAt: action === "PAY" || action === "REJECT" ? new Date() : null,
         },
-        include: { teacher: { select: { id: true, username: true, email: true } } },
+        include: {
+          teacher: { select: { id: true, username: true, email: true } },
+          complaint: {
+            select: {
+              id: true,
+              reason: true,
+              reportedAmount: true,
+              message: true,
+              status: true,
+              adminNote: true,
+              resolvedAt: true,
+              createdAt: true,
+            },
+          },
+        },
       });
       const amount = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(current.amount);
       const copy = notificationCopy[action];
@@ -53,7 +67,21 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ wi
       return withdrawal;
     });
 
-    return NextResponse.json({ withdrawal: { ...result, createdAt: result.createdAt.toISOString(), processedAt: result.processedAt?.toISOString() ?? null, updatedAt: undefined } });
+    return NextResponse.json({
+      withdrawal: {
+        ...result,
+        createdAt: result.createdAt.toISOString(),
+        processedAt: result.processedAt?.toISOString() ?? null,
+        complaint: result.complaint
+          ? {
+              ...result.complaint,
+              createdAt: result.complaint.createdAt.toISOString(),
+              resolvedAt: result.complaint.resolvedAt?.toISOString() ?? null,
+            }
+          : null,
+        updatedAt: undefined,
+      },
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (message === "NOT_FOUND") return NextResponse.json({ error: "Không tìm thấy yêu cầu." }, { status: 404 });

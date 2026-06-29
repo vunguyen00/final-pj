@@ -108,23 +108,23 @@ function verifyAuthToken(token: string): AuthPayload | null {
 
 export function validateStrongPassword(password: string): string | null {
   if (password.length < 8) {
-    return "Mat khau phai co it nhat 8 ky tu.";
+    return "Mật khẩu phải có ít nhất 8 ký tự.";
   }
 
   if (!/[a-z]/.test(password)) {
-    return "Mat khau phai co it nhat 1 chu thuong.";
+    return "Mật khẩu phải có ít nhất 1 chữ thường.";
   }
 
   if (!/[A-Z]/.test(password)) {
-    return "Mat khau phai co it nhat 1 chu hoa.";
+    return "Mật khẩu phải có ít nhất 1 chữ hoa.";
   }
 
   if (!/\d/.test(password)) {
-    return "Mat khau phai co it nhat 1 chu so.";
+    return "Mật khẩu phải có ít nhất 1 chữ số.";
   }
 
   if (!/[^A-Za-z0-9]/.test(password)) {
-    return "Mat khau phai co it nhat 1 ky tu dac biet.";
+    return "Mật khẩu phải có ít nhất 1 ký tự đặc biệt.";
   }
 
   return null;

@@ -89,6 +89,18 @@ export default async function TeacherRevenuePage() {
         status: true,
         note: true,
         createdAt: true,
+        complaint: {
+          select: {
+            id: true,
+            reason: true,
+            reportedAmount: true,
+            message: true,
+            status: true,
+            adminNote: true,
+            resolvedAt: true,
+            createdAt: true,
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
       take: 20,
@@ -107,7 +119,7 @@ export default async function TeacherRevenuePage() {
       },
       select: { id: true, title: true, body: true, createdAt: true },
       orderBy: { createdAt: "desc" },
-      take: 5,
+      take: 20,
     }),
   ]);
 
@@ -177,6 +189,13 @@ export default async function TeacherRevenuePage() {
           withdrawals={withdrawals.map((item) => ({
             ...item,
             createdAt: item.createdAt.toISOString(),
+            complaint: item.complaint
+              ? {
+                  ...item.complaint,
+                  createdAt: item.complaint.createdAt.toISOString(),
+                  resolvedAt: item.complaint.resolvedAt?.toISOString() ?? null,
+                }
+              : null,
           }))}
           notifications={revenueNotifications.map((item) => ({
             ...item,

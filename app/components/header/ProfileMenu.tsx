@@ -58,23 +58,36 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
       <button
         type="button"
         onClick={() => setMenuOpen(!menuOpen)}
-        className="flex items-center gap-2 rounded-full border border-slate-200 px-2 py-1.5 transition-colors hover:bg-slate-50"
+        className="inline-flex h-10 w-[4.5rem] items-center justify-center gap-1.5 overflow-hidden rounded-full border border-slate-200 transition-colors hover:bg-slate-50"
+        aria-label="Mở menu tài khoản"
+        aria-expanded={menuOpen}
+        aria-haspopup="menu"
       >
         {/* Avatar */}
         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-medium text-white">
           {user?.avatarUrl ? (
             <img
               src={user.avatarUrl}
-              alt={user.username}
+              alt=""
               className="h-8 w-8 rounded-full object-cover"
             />
           ) : (
-            user?.username?.charAt(0).toUpperCase()
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+              aria-hidden="true"
+            >
+              <path d="M20 21a8 8 0 0 0-16 0" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
           )}
         </div>
-        <span className="hidden text-sm font-medium text-slate-900 sm:block">
-          {user?.username}
-        </span>
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"

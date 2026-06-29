@@ -8,15 +8,15 @@ datasource db {
 }
 
 model User {
-  id                          String               @id @default(uuid())
+  id                          String                              @id @default(uuid())
   username                    String
-  email                       String               @unique
+  email                       String                              @unique
   password                    String
-  role                        Role                 @default(STUDENT)
+  role                        Role                                @default(STUDENT)
   phoneNumber                 String?
-  isBanned                    Boolean              @default(false)
+  isBanned                    Boolean                             @default(false)
   learningLanguageId          String?
-  createdAt                   DateTime             @default(now())
+  createdAt                   DateTime                            @default(now())
   sessions                    Session[]
   passwordResetOtps           PasswordResetOtp[]
   enrollments                 Enrollment[]
@@ -29,12 +29,13 @@ model User {
   aiAssessments               AiAssessment[]
   pointTransactions           PointTransaction[]
   learningActivities          LearningActivity[]
-  learningLanguage            LearningLanguage?    @relation("UserLearningLanguage", fields: [learningLanguageId], references: [id])
-  teacherApplications         TeacherApplication[] @relation("TeacherApplicationUser")
-  reviewedTeacherApplications TeacherApplication[] @relation("TeacherApplicationReviewer")
+  learningLanguage            LearningLanguage?                   @relation("UserLearningLanguage", fields: [learningLanguageId], references: [id])
+  teacherApplications         TeacherApplication[]                @relation("TeacherApplicationUser")
+  reviewedTeacherApplications TeacherApplication[]                @relation("TeacherApplicationReviewer")
   notifications               Notification[]
   emailLogs                   EmailLog[]
   revenueWithdrawals          TeacherRevenueWithdrawal[]
+  revenueWithdrawalComplaints TeacherRevenueWithdrawalComplaint[]
 }
 
 model Session {
@@ -491,6 +492,18 @@ enum TeacherRevenueWithdrawalStatus {
   REJECTED
 }
 
+enum TeacherRevenueWithdrawalComplaintReason {
+  NOT_RECEIVED
+  WRONG_AMOUNT
+  OTHER
+}
+
+enum TeacherRevenueWithdrawalComplaintStatus {
+  OPEN
+  RESOLVED
+  REJECTED
+}
+
 model TeacherRevenueWithdrawal {
   id            String                         @id @default(uuid())
   teacherId     String
@@ -504,7 +517,28 @@ model TeacherRevenueWithdrawal {
   createdAt     DateTime                       @default(now())
   updatedAt     DateTime                       @updatedAt
 
-  teacher User @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  teacher   User                               @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  complaint TeacherRevenueWithdrawalComplaint?
+
+  @@index([teacherId, createdAt])
+  @@index([status, createdAt])
+}
+
+model TeacherRevenueWithdrawalComplaint {
+  id             String                                  @id @default(uuid())
+  withdrawalId   String                                  @unique
+  teacherId      String
+  reason         TeacherRevenueWithdrawalComplaintReason
+  reportedAmount Int?
+  message        String
+  status         TeacherRevenueWithdrawalComplaintStatus @default(OPEN)
+  adminNote      String?
+  resolvedAt     DateTime?
+  createdAt      DateTime                                @default(now())
+  updatedAt      DateTime                                @updatedAt
+
+  withdrawal TeacherRevenueWithdrawal @relation(fields: [withdrawalId], references: [id], onDelete: Cascade)
+  teacher    User                     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 
   @@index([teacherId, createdAt])
   @@index([status, createdAt])

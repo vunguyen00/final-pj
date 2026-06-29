@@ -5,8 +5,8 @@ import { FeatureList, Stats } from "@/components/base/content";
 import { CardGrid, GridCard } from "@/components/base/grid";
 import { Hero } from "@/components/base/hero";
 import { Section, SectionHeader } from "@/components/base/section";
+import { formatCount, getPublicTeachers } from "@/lib/public-teachers";
 import {
-  LANGUAGES,
   getCourseLanguage,
   getCourseType,
   getLanguageLabel,
@@ -27,11 +27,25 @@ async function getHomeCourses() {
   }
 }
 
-const teachers = ["Mina Tran", "Daniel Park", "Sakura Ito", "Liu Wen"];
+async function getHomeStats() {
+  try {
+    const [students, courses, teachers, languages] = await Promise.all([
+      prisma.user.count({ where: { role: "STUDENT" } }),
+      prisma.course.count({ where: { status: "ACTIVE" } }),
+      prisma.user.count({ where: { role: "TEACHER" } }),
+      prisma.learningLanguage.count({ where: { isActive: true } }),
+    ]);
+
+    return { students, courses, teachers, languages };
+  } catch {
+    return { students: 0, courses: 0, teachers: 0, languages: 0 };
+  }
+}
 
 export default async function HomePage() {
-  const courses = await getHomeCourses();
+  const [courses, stats, teachers] = await Promise.all([getHomeCourses(), getHomeStats(), getPublicTeachers()]);
   const featured = courses.slice(0, 4);
+  const featuredTeachers = teachers.slice(0, 4);
 
   return (
     <main className="min-h-screen bg-background">
@@ -99,27 +113,34 @@ export default async function HomePage() {
       <Section padding="md">
         <Stats
           stats={[
-            { label: "Học viên đang học", value: "50K+", hint: "Trên mọi lộ trình ngôn ngữ" },
-            { label: "Khóa học đang mở", value: `${courses.length}+`, hint: "Cập nhật hằng tuần" },
-            { label: "Giảng viên nổi bật", value: String(teachers.length), hint: "Giảng viên giàu kinh nghiệm" },
-            { label: "Ngôn ngữ", value: String(LANGUAGES.length), hint: "Anh, Trung, Nhật, Hàn" },
+            { label: "Học viên đang học", value: formatCount(stats.students), hint: "Tài khoản học viên trong hệ thống" },
+            { label: "Khóa học đang mở", value: formatCount(stats.courses), hint: "Khóa học đang hoạt động" },
+            { label: "Giảng viên nổi bật", value: formatCount(stats.teachers), hint: "Giảng viên hiện có trong hệ thống" },
+            { label: "Ngôn ngữ", value: formatCount(stats.languages), hint: "Ngôn ngữ đang được mở" },
           ]}
         />
       </Section>
 
       <Section background="muted" padding="md">
         <SectionHeader title="Giảng viên nổi bật" subtitle="Đội ngũ giàu kinh nghiệm, giảng dạy thực tế và bám sát mục tiêu." />
-        <CardGrid cols={4} gap="md">
-          {teachers.map((teacher) => (
-            <GridCard
-              key={teacher}
-              title={teacher}
-              description="Giảng viên ngoại ngữ"
-              badge="Cố vấn"
-              footer={<Link href="/teachers" className="text-sm font-semibold text-primary">Xem hồ sơ</Link>}
-            />
-          ))}
-        </CardGrid>
+        {featuredTeachers.length > 0 ? (
+          <CardGrid cols={4} gap="md">
+            {featuredTeachers.map((teacher) => (
+              <GridCard
+                key={teacher.id}
+                title={teacher.name}
+                description={teacher.summary}
+                icon={<span className="text-sm font-semibold text-primary">{teacher.avatar}</span>}
+                badge={teacher.badges[0] ?? "Giảng viên"}
+                footer={<Link href="/teachers" className="text-sm font-semibold text-primary">Xem hồ sơ</Link>}
+              />
+            ))}
+          </CardGrid>
+        ) : (
+          <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
+            Chưa có giảng viên trong hệ thống.
+          </div>
+        )}
       </Section>
     </main>
   );

@@ -16,11 +16,11 @@ export async function POST(request: Request) {
     const confirmPassword = typeof body.confirmPassword === "string" ? body.confirmPassword : "";
 
     if (!currentPassword || !newPassword || !confirmPassword) {
-      return NextResponse.json({ error: "Vui long nhap day du thong tin." }, { status: 400 });
+      return NextResponse.json({ error: "Vui lòng nhập đầy đủ thông tin." }, { status: 400 });
     }
 
     if (newPassword !== confirmPassword) {
-      return NextResponse.json({ error: "Mat khau moi khong khop." }, { status: 400 });
+      return NextResponse.json({ error: "Mật khẩu mới không khớp." }, { status: 400 });
     }
 
     const passwordError = validateStrongPassword(newPassword);
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     });
 
     if (!row || !verifyPassword(currentPassword, row.password)) {
-      return NextResponse.json({ error: "Mat khau cu khong dung." }, { status: 400 });
+      return NextResponse.json({ error: "Mật khẩu cũ không đúng." }, { status: 400 });
     }
 
     await prisma.user.update({
@@ -44,6 +44,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true });
   } catch {
-    return NextResponse.json({ error: "Loi he thong." }, { status: 500 });
+    return NextResponse.json({ error: "Lỗi hệ thống." }, { status: 500 });
   }
 }
