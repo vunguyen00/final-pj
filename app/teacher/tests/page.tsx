@@ -47,7 +47,7 @@ export default async function TeacherRevenuePage() {
     redirect("/admin");
   }
 
-  const [courses, orderItems, withdrawals, reservedWithdrawals, revenueNotifications] = await Promise.all([
+  const [courses, orderItems, withdrawals, reservedWithdrawals, revenueNotifications, unreadRevenueNotificationCount] = await Promise.all([
     prisma.course.findMany({
       where: { instructorId: user.id },
       select: {
@@ -117,9 +117,16 @@ export default async function TeacherRevenuePage() {
         userId: user.id,
         title: { contains: "doanh thu", mode: "insensitive" },
       },
-      select: { id: true, title: true, body: true, createdAt: true },
+      select: { id: true, title: true, body: true, readAt: true, createdAt: true },
       orderBy: { createdAt: "desc" },
       take: 20,
+    }),
+    prisma.notification.count({
+      where: {
+        userId: user.id,
+        title: { contains: "doanh thu", mode: "insensitive" },
+        readAt: null,
+      },
     }),
   ]);
 
@@ -186,6 +193,7 @@ export default async function TeacherRevenuePage() {
 
         <RevenueWithdrawalPanel
           availableRevenue={availableRevenue}
+          unreadNotificationCount={unreadRevenueNotificationCount}
           withdrawals={withdrawals.map((item) => ({
             ...item,
             createdAt: item.createdAt.toISOString(),
@@ -199,6 +207,7 @@ export default async function TeacherRevenuePage() {
           }))}
           notifications={revenueNotifications.map((item) => ({
             ...item,
+            readAt: item.readAt?.toISOString() ?? null,
             createdAt: item.createdAt.toISOString(),
           }))}
         />

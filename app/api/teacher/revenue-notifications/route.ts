@@ -26,7 +26,7 @@ export async function GET(request: Request) {
       userId: user.id,
       title: { contains: "doanh thu", mode: "insensitive" },
     },
-    select: { id: true, title: true, body: true, createdAt: true },
+    select: { id: true, title: true, body: true, readAt: true, createdAt: true },
     orderBy: { createdAt: "desc" },
     skip,
     take: take + 1,
@@ -37,8 +37,27 @@ export async function GET(request: Request) {
   return NextResponse.json({
     notifications: page.map((item) => ({
       ...item,
+      readAt: item.readAt?.toISOString() ?? null,
       createdAt: item.createdAt.toISOString(),
     })),
     hasMore: notifications.length > take,
   });
+}
+
+export async function PATCH() {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "TEACHER") {
+    return NextResponse.json({ error: "Chỉ giảng viên mới có thể cập nhật thông báo doanh thu." }, { status: 403 });
+  }
+
+  const result = await prisma.notification.updateMany({
+    where: {
+      userId: user.id,
+      title: { contains: "doanh thu", mode: "insensitive" },
+      readAt: null,
+    },
+    data: { readAt: new Date() },
+  });
+
+  return NextResponse.json({ updated: result.count });
 }

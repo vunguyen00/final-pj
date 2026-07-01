@@ -12,7 +12,7 @@ const currency = new Intl.NumberFormat("vi-VN", {
 type ComplaintReason = "NOT_RECEIVED" | "WRONG_AMOUNT" | "OTHER";
 type ComplaintStatus = "OPEN" | "RESOLVED" | "REJECTED";
 type ActivityTab = "notifications" | "withdrawals";
-type RevenueNotification = { id: string; title: string; body: string; createdAt: string };
+type RevenueNotification = { id: string; title: string; body: string; readAt: string | null; createdAt: string };
 
 const NOTIFICATION_PAGE_SIZE = 20;
 
@@ -62,10 +62,12 @@ const fieldClassName = "w-full rounded-lg border border-slate-300 px-3 py-2.5 te
 
 export function RevenueWithdrawalPanel({
   availableRevenue,
+  unreadNotificationCount,
   withdrawals,
   notifications,
 }: {
   availableRevenue: number;
+  unreadNotificationCount: number;
   withdrawals: Withdrawal[];
   notifications: RevenueNotification[];
 }) {
@@ -82,6 +84,7 @@ export function RevenueWithdrawalPanel({
   const [activityOpen, setActivityOpen] = useState(false);
   const [activityTab, setActivityTab] = useState<ActivityTab>("notifications");
   const [loadedNotifications, setLoadedNotifications] = useState(notifications);
+  const [unreadCount, setUnreadCount] = useState(unreadNotificationCount);
   const [hasMoreNotifications, setHasMoreNotifications] = useState(notifications.length >= NOTIFICATION_PAGE_SIZE);
   const [loadingMoreNotifications, setLoadingMoreNotifications] = useState(false);
   const loadingMoreNotificationsRef = useRef(false);
@@ -131,6 +134,31 @@ export function RevenueWithdrawalPanel({
     setWithdrawalOpen(true);
     setError("");
     setMessage("");
+  }
+
+  async function markNotificationsAsRead() {
+    if (unreadCount <= 0) return;
+
+    const readAt = new Date().toISOString();
+    setUnreadCount(0);
+    setLoadedNotifications((current) => current.map((item) => ({ ...item, readAt: item.readAt ?? readAt })));
+
+    try {
+      await fetch("/api/teacher/revenue-notifications", { method: "PATCH" });
+    } catch {
+      // The next server render will restore the unread count if the update fails.
+    }
+  }
+
+  function openNotifications() {
+    setActivityTab("notifications");
+    setActivityOpen(true);
+    void markNotificationsAsRead();
+  }
+
+  function openWithdrawalHistory() {
+    setActivityTab("withdrawals");
+    setActivityOpen(true);
   }
 
   async function submitComplaint(event: FormEvent<HTMLFormElement>) {
@@ -221,15 +249,25 @@ export function RevenueWithdrawalPanel({
           </button>
           <button
             type="button"
-            aria-label="Thông báo rút doanh thu"
-            onClick={() => {
-              setActivityTab("notifications");
-              setActivityOpen(true);
-            }}
-            className="relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-blue-200 bg-white text-blue-700 shadow-sm hover:bg-blue-50"
+            onClick={openNotifications}
+            className="relative inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-white px-4 py-2.5 text-sm font-bold text-blue-700 shadow-sm hover:bg-blue-50"
           >
             <BellIcon />
-            <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-blue-600 px-1.5 py-0.5 text-center text-xs font-bold text-white">{loadedNotifications.length}</span>
+            <span>Thông báo</span>
+            {unreadCount > 0 ? (
+              <span className="absolute -right-2 -top-2 min-w-5 rounded-full bg-blue-600 px-1.5 py-0.5 text-center text-xs font-bold leading-4 text-white">
+                {unreadCount}
+              </span>
+            ) : null}
+          </button>
+          <button
+            type="button"
+            onClick={openWithdrawalHistory}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50"
+          >
+            <HistoryIcon />
+            <span>Lịch sử rút tiền</span>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">{withdrawals.length}</span>
           </button>
         </div>
       </div>
@@ -286,28 +324,17 @@ export function RevenueWithdrawalPanel({
             <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wider text-blue-700">Teacher revenue</p>
-                <h2 className="mt-1 text-xl font-bold text-slate-950">Thông báo rút doanh thu</h2>
-                <p className="mt-1 text-sm text-slate-500">Xem thông báo và lịch sử rút tiền trong một cửa sổ riêng.</p>
+                <h2 className="mt-1 text-xl font-bold text-slate-950">
+                  {activityTab === "notifications" ? "Thông báo rút doanh thu" : "Lịch sử rút tiền"}
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  {activityTab === "notifications"
+                    ? "Các thông báo mới sẽ tự chuyển sang đã đọc sau khi bạn mở danh sách."
+                    : "Theo dõi trạng thái các yêu cầu rút doanh thu đã gửi."}
+                </p>
               </div>
               <button type="button" onClick={() => setActivityOpen(false)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">
                 Đóng
-              </button>
-            </div>
-
-            <div className="flex gap-2 border-b border-slate-200 bg-slate-50 px-5 py-3">
-              <button
-                type="button"
-                onClick={() => setActivityTab("notifications")}
-                className={`rounded-lg px-3 py-2 text-sm font-bold ${activityTab === "notifications" ? "bg-blue-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200"}`}
-              >
-                Thông báo ({loadedNotifications.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setActivityTab("withdrawals")}
-                className={`rounded-lg px-3 py-2 text-sm font-bold ${activityTab === "withdrawals" ? "bg-blue-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200"}`}
-              >
-                Lịch sử rút tiền({withdrawals.length})
               </button>
             </div>
 
@@ -441,6 +468,16 @@ function BanknoteIcon() {
       <rect width="20" height="12" x="2" y="6" rx="2" />
       <circle cx="12" cy="12" r="2" />
       <path d="M6 12h.01M18 12h.01" />
+    </svg>
+  );
+}
+
+function HistoryIcon() {
+  return (
+    <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 12a9 9 0 1 0 3-6.7" />
+      <path d="M3 3v6h6" />
+      <path d="M12 7v5l3 2" />
     </svg>
   );
 }
