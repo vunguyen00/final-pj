@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Badge, BadgeGroup } from "@/components/base/badge";
 import { CardGrid } from "@/components/base/grid";
 import { Section, SectionHeader } from "@/components/base/section";
@@ -47,7 +48,9 @@ export default async function TeachersPage() {
                     <span>{formatCount(teacher.studentsCount)} học viên</span>
                     <span>{formatCount(teacher.coursesCount)} khóa học</span>
                   </div>
-                  <span className="font-medium text-primary">Giảng viên</span>
+                  <Link href={`/teachers/${teacher.id}`} className="font-medium text-primary hover:underline">
+                    Hồ sơ
+                  </Link>
                 </div>
               </article>
             ))}

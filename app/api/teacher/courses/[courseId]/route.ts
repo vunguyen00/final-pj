@@ -132,12 +132,13 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, description, price, category, duration, thumbnail, status, languageId } = body;
+    const { name, description, price, category, level, duration, thumbnail, status, languageId } = body;
 
     const updateData: Record<string, unknown> = {
       ...(name && { name }),
       ...(description && { description }),
       ...(category !== undefined && { category }),
+      ...(level !== undefined && { level }),
       ...(duration !== undefined && { duration }),
       ...(thumbnail !== undefined && { thumbnail }),
     };

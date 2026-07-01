@@ -14,6 +14,12 @@ export async function GET() {
             username: true,
           },
         },
+        language: {
+          select: {
+            name: true,
+            code: true,
+          },
+        },
         _count: {
           select: {
             enrollments: true,

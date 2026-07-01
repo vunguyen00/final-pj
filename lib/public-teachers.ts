@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getCourseReviews } from "@/lib/course-reviews";
 
 export type PublicTeacher = {
   id: string;
@@ -10,6 +11,23 @@ export type PublicTeacher = {
   badges: string[];
   coursesCount: number;
   studentsCount: number;
+};
+
+export type PublicTeacherCourse = {
+  id: string;
+  name: string;
+  description: string;
+  thumbnail: string | null;
+  category: string | null;
+  language: string | null;
+  price: number;
+  studentsCount: number;
+  reviewsCount: number;
+  averageRating: number;
+};
+
+export type PublicTeacherDetail = PublicTeacher & {
+  topCourses: PublicTeacherCourse[];
 };
 
 function formatCount(value: number) {
@@ -43,7 +61,6 @@ export async function getPublicTeachers(): Promise<PublicTeacher[]> {
         courses: {
           where: { status: "ACTIVE" },
           select: {
-            category: true,
             language: { select: { name: true } },
             _count: { select: { enrollments: true } },
           },
@@ -64,8 +81,7 @@ export async function getPublicTeachers(): Promise<PublicTeacher[]> {
         const studentsCount = teacher.courses.reduce((total, course) => total + course._count.enrollments, 0);
         const approvedLanguage = teacher.teacherApplications[0]?.language?.name;
         const courseLanguages = teacher.courses.map((course) => course.language?.name);
-        const courseCategories = teacher.courses.map((course) => course.category);
-        const badges = uniqueNonEmpty([approvedLanguage, ...courseLanguages, ...courseCategories]).slice(0, 3);
+        const badges = uniqueNonEmpty([approvedLanguage, ...courseLanguages]).slice(0, 3);
         const primaryLanguage = approvedLanguage ?? badges[0];
 
         return {
@@ -90,6 +106,92 @@ export async function getPublicTeachers(): Promise<PublicTeacher[]> {
       });
   } catch {
     return [];
+  }
+}
+
+export async function getPublicTeacherDetail(id: string): Promise<PublicTeacherDetail | null> {
+  try {
+    const teacher = await prisma.user.findFirst({
+      where: { id, role: "TEACHER" },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        courses: {
+          where: { status: "ACTIVE" },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            thumbnail: true,
+            category: true,
+            price: true,
+            language: { select: { name: true } },
+            _count: { select: { enrollments: true } },
+          },
+          orderBy: { createdAt: "desc" },
+        },
+        teacherApplications: {
+          where: { status: "APPROVED" },
+          select: { language: { select: { name: true } } },
+          orderBy: [{ reviewedAt: "desc" }, { createdAt: "desc" }],
+          take: 1,
+        },
+      },
+    });
+
+    if (!teacher) return null;
+
+    const approvedLanguage = teacher.teacherApplications[0]?.language?.name;
+    const badges = uniqueNonEmpty([approvedLanguage, ...teacher.courses.map((course) => course.language?.name)]).slice(0, 3);
+    const primaryLanguage = approvedLanguage ?? badges[0];
+    const courses = await Promise.all(
+      teacher.courses.map(async (course) => {
+        const reviews = await getCourseReviews(course.id);
+        const averageRating = reviews.length ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length : 0;
+
+        return {
+          id: course.id,
+          name: course.name,
+          description: course.description,
+          thumbnail: course.thumbnail,
+          category: course.category,
+          language: course.language?.name ?? primaryLanguage ?? null,
+          price: course.price,
+          studentsCount: course._count.enrollments,
+          reviewsCount: reviews.length,
+          averageRating,
+        };
+      }),
+    );
+
+    courses.sort((a, b) => {
+      if (b.averageRating !== a.averageRating) return b.averageRating - a.averageRating;
+      if (b.reviewsCount !== a.reviewsCount) return b.reviewsCount - a.reviewsCount;
+      if (b.studentsCount !== a.studentsCount) return b.studentsCount - a.studentsCount;
+      return a.name.localeCompare(b.name, "vi");
+    });
+
+    const coursesCount = teacher.courses.length;
+    const studentsCount = teacher.courses.reduce((total, course) => total + course._count.enrollments, 0);
+
+    return {
+      id: teacher.id,
+      name: teacher.username,
+      email: teacher.email,
+      avatar: getInitials(teacher.username),
+      title: primaryLanguage ? `Giảng viên ${primaryLanguage}` : "Giảng viên FinnCenter",
+      summary:
+        coursesCount > 0
+          ? `Đang phụ trách ${formatCount(coursesCount)} khóa học với ${formatCount(studentsCount)} lượt đăng ký.`
+          : "Hồ sơ giảng viên đã được duyệt trong hệ thống.",
+      badges,
+      coursesCount,
+      studentsCount,
+      topCourses: courses.slice(0, 3),
+    };
+  } catch {
+    return null;
   }
 }
 

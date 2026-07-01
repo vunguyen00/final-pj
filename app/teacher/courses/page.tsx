@@ -12,11 +12,17 @@ type Course = {
   description: string;
   price: number;
   category: string | null;
+  level: string | null;
   duration: string | null;
   thumbnail: string | null;
   status: CourseStatus;
   createdAt: string;
   instructorId: string | null;
+  language: {
+    id: string;
+    name: string;
+    code: string;
+  } | null;
   _count: {
     enrollments: number;
     tests: number;
@@ -36,10 +42,23 @@ const defaultForm = {
   description: "",
   price: "",
   category: "",
+  level: "Beginner",
   duration: "",
   thumbnail: "",
   status: "ACTIVE",
 };
+
+const levelOptions = [
+  { value: "Beginner", label: "Mới bắt đầu" },
+  { value: "Elementary", label: "Sơ cấp" },
+  { value: "Intermediate", label: "Trung cấp" },
+  { value: "Upper Intermediate", label: "Trung cấp cao" },
+  { value: "Advanced", label: "Nâng cao" },
+];
+
+function getLevelLabel(level?: string | null) {
+  return levelOptions.find((item) => item.value === level)?.label || "Chưa chọn";
+}
 
 function getStatusUi(status: CourseStatus) {
   if (status === "ACTIVE") return { label: "Hoạt động", className: "bg-green-100 text-green-700" };
@@ -175,6 +194,7 @@ export default function TeacherCoursesPage() {
       description: course.description,
       price: course.price.toString(),
       category: course.category || "",
+      level: course.level || "Beginner",
       duration: course.duration || "",
       thumbnail: course.thumbnail || "",
       status: course.status,
@@ -251,6 +271,7 @@ export default function TeacherCoursesPage() {
             <p className="mt-2 text-slate-600">Tạo và quản lý các khóa học của bạn</p>
           </div>
           <button
+            type="button"
             onClick={openCreateModal}
             className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
           >
@@ -273,7 +294,9 @@ export default function TeacherCoursesPage() {
               <thead className="bg-slate-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Khóa học</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Ngôn ngữ</th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Danh mục</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Trình độ</th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Giá</th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Học viên</th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Trạng thái</th>
@@ -301,7 +324,13 @@ export default function TeacherCoursesPage() {
                         </div>
                       </td>
                       <td className="whitespace-nowrap px-6 py-4">
+                        <span className="inline-flex rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">{course.language?.name || "Chưa gán"}</span>
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4">
                         <span className="inline-flex rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">{course.category || "Chưa phân loại"}</span>
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4">
+                        <span className="inline-flex rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">{getLevelLabel(course.level)}</span>
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-900">{course.price.toLocaleString("vi-VN")}đ</td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-900">{course._count.enrollments}</td>
@@ -316,21 +345,23 @@ export default function TeacherCoursesPage() {
                               <circle cx="12" cy="12" r="3" />
                             </svg>
                           </Link>
-                          <button onClick={() => handleEdit(course)} className="rounded-lg p-2 text-slate-600 hover:bg-slate-100" title="Chỉnh sửa">
+                          <button type="button" onClick={() => handleEdit(course)} className="rounded-lg p-2 text-slate-600 hover:bg-slate-100" title="Chỉnh sửa" aria-label="Chỉnh sửa khóa học">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
                               <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
                             </svg>
                           </button>
                           {user?.role === "ADMIN" && (course.status === "ACTIVE" || course.status === "LOCKED") ? (
                             <button
+                              type="button"
                               onClick={() => void handleToggleLock(course.id, course.status)}
                               className={`rounded-lg p-2 hover:bg-slate-100 ${course.status === "ACTIVE" ? "text-orange-600" : "text-green-600"}`}
                               title={course.status === "ACTIVE" ? "Khóa khóa học" : "Mở khóa khóa học"}
+                              aria-label={course.status === "ACTIVE" ? "Khóa khóa học" : "Mở khóa khóa học"}
                             >
                               {course.status === "ACTIVE" ? "Khóa" : "Mở"}
                             </button>
                           ) : null}
-                          <button onClick={() => void handleDelete(course.id)} className="rounded-lg p-2 text-red-600 hover:bg-red-50" title="Xóa">
+                          <button type="button" onClick={() => void handleDelete(course.id)} className="rounded-lg p-2 text-red-600 hover:bg-red-50" title="Xóa" aria-label="Xóa khóa học">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
                               <polyline points="3 6 5 6 21 6" />
                               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -348,8 +379,8 @@ export default function TeacherCoursesPage() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="mx-4 w-full max-w-lg rounded-xl bg-white p-6">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center">
+          <div className="w-full max-w-lg max-h-[calc(100vh-2rem)] overflow-y-auto rounded-xl bg-white p-6">
             <h2 className="text-xl font-bold text-slate-900">{editingCourse ? "Chỉnh sửa khóa học" : "Tạo khóa học mới"}</h2>
             <form onSubmit={handleSubmit} className="mt-4 space-y-4">
               <div>
@@ -380,9 +411,19 @@ export default function TeacherCoursesPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
+                  <label className="block text-sm font-medium text-slate-900">Trình độ</label>
+                  <select value={formData.level} onChange={(event) => setFormData({ ...formData, level: event.target.value })} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                    {levelOptions.map((level) => (
+                      <option key={level.value} value={level.value}>{level.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-slate-900">Thời lượng</label>
                   <input type="text" placeholder="Ví dụ: 8 tuần" value={formData.duration} onChange={(event) => setFormData({ ...formData, duration: event.target.value })} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 {user?.role === "ADMIN" ? (
                   <div>
                     <label className="block text-sm font-medium text-slate-900">Trạng thái</label>

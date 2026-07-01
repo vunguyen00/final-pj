@@ -13,9 +13,18 @@ type CourseInfoForm = {
   description: string;
   price: string;
   category: string;
+  level: string;
   duration: string;
   thumbnail: string;
 };
+
+const levelOptions = [
+  { value: "Beginner", label: "Mới bắt đầu" },
+  { value: "Elementary", label: "Sơ cấp" },
+  { value: "Intermediate", label: "Trung cấp" },
+  { value: "Upper Intermediate", label: "Trung cấp cao" },
+  { value: "Advanced", label: "Nâng cao" },
+];
 
 export function CourseInfoTab({ course, onUpdated }: CourseInfoTabProps) {
   const [form, setForm] = useState<CourseInfoForm>({
@@ -23,6 +32,7 @@ export function CourseInfoTab({ course, onUpdated }: CourseInfoTabProps) {
     description: course.description,
     price: String(course.price),
     category: course.category || "",
+    level: course.level || "Beginner",
     duration: course.duration || "",
     thumbnail: course.thumbnail || "",
   });
@@ -81,6 +91,7 @@ export function CourseInfoTab({ course, onUpdated }: CourseInfoTabProps) {
           description: form.description.trim(),
           price: Number(form.price),
           category: form.category,
+          level: form.level,
           duration: form.duration.trim(),
           thumbnail: form.thumbnail.trim(),
         }),
@@ -148,7 +159,7 @@ export function CourseInfoTab({ course, onUpdated }: CourseInfoTabProps) {
           />
         </label>
 
-        <div className="grid gap-5 md:grid-cols-3">
+        <div className="grid gap-5 md:grid-cols-4">
           <label className="block text-sm font-semibold text-slate-700">
             Học phí (VNĐ)
             <input
@@ -175,6 +186,19 @@ export function CourseInfoTab({ course, onUpdated }: CourseInfoTabProps) {
               <option value="Listening">Nghe</option>
               <option value="Grammar">Ngữ pháp</option>
               <option value="Vocabulary">Từ vựng</option>
+            </select>
+          </label>
+
+          <label className="block text-sm font-semibold text-slate-700">
+            Trình độ
+            <select
+              value={form.level}
+              onChange={(event) => setForm({ ...form, level: event.target.value })}
+              className={inputClass}
+            >
+              {levelOptions.map((level) => (
+                <option key={level.value} value={level.value}>{level.label}</option>
+              ))}
             </select>
           </label>
 

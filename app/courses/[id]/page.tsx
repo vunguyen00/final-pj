@@ -12,10 +12,8 @@ import {
   getCourseDuration,
   getCourseLanguage,
   getCourseLevel,
-  getCourseType,
   getLanguageLabel,
   getLevelLabel,
-  getProductTypeLabel,
 } from "@/app/components/learningMarketplace";
 
 async function getCourse(id: string) {
@@ -24,6 +22,7 @@ async function getCourse(id: string) {
       where: { id },
       include: {
         instructor: { select: { id: true, username: true } },
+        language: { select: { name: true, code: true } },
         modules: { include: { lessons: true }, orderBy: { order: "asc" } },
         tests: { select: { id: true, name: true, maxScore: true, timeLimit: true, _count: { select: { questions: true } } } },
         _count: { select: { enrollments: true } },
@@ -48,7 +47,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
     ? await prisma.enrollment.findUnique({ where: { userId_courseId: { userId: user.id, courseId: course.id } } })
     : null;
   const language = getCourseLanguage(course);
-  const type = getCourseType(course);
+  const category = course.category?.trim() || "Chưa phân loại";
   const [reviews, canReview, existingReview] = await Promise.all([
     getCourseReviews(course.id),
     user?.role === "STUDENT" ? canReviewCourse(user.id, course.id) : Promise.resolve(false),
@@ -65,7 +64,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
             <BadgeGroup>
               <Badge>{getLanguageLabel(language)}</Badge>
               <Badge className="bg-secondary text-secondary-foreground">{getLevelLabel(getCourseLevel(course))}</Badge>
-              <Badge className="bg-secondary text-secondary-foreground">{getProductTypeLabel(type)}</Badge>
+              <Badge className="bg-secondary text-secondary-foreground">{category}</Badge>
               <Badge className="bg-secondary text-secondary-foreground">{getCertification(course)}</Badge>
               {reviews.length ? <Badge className="bg-accent/20 text-accent">{averageRating.toFixed(1)} sao ({reviews.length})</Badge> : null}
             </BadgeGroup>

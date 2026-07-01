@@ -15,6 +15,7 @@ type StudentsState = {
   editingUser: ManagedUser | null;
   editForm: EditForm;
   selectedCertificates: CertificateSummary[] | null;
+  selectedCoursesUser: Pick<ManagedUser, "username" | "courses"> | null;
 };
 
 type StudentsAction =
@@ -24,6 +25,7 @@ type StudentsAction =
   | { type: "CLOSE_EDIT" }
   | { type: "UPDATE_EDIT_FORM"; form: Partial<EditForm> }
   | { type: "SET_CERTIFICATES"; certificates: CertificateSummary[] | null }
+  | { type: "SET_COURSES_USER"; user: Pick<ManagedUser, "username" | "courses"> | null }
   | { type: "APPLY_USER_UPDATE"; user: Pick<ManagedUser, "id" | "email" | "role" | "isBanned"> };
 
 type Summary = {
@@ -40,6 +42,7 @@ function createInitialState(initialData: StudentsManagementData): StudentsState 
     editingUser: null,
     editForm: { email: "", role: "STUDENT" },
     selectedCertificates: null,
+    selectedCoursesUser: null,
   };
 }
 
@@ -64,6 +67,8 @@ function studentsReducer(state: StudentsState, action: StudentsAction): Students
       return { ...state, editForm: { ...state.editForm, ...action.form } };
     case "SET_CERTIFICATES":
       return { ...state, selectedCertificates: action.certificates };
+    case "SET_COURSES_USER":
+      return { ...state, selectedCoursesUser: action.user };
     case "APPLY_USER_UPDATE":
       return {
         ...state,
@@ -104,7 +109,7 @@ function buildSummary(users: ManagedUser[]): Summary {
 
 export default function StudentsManagement({ initialData }: { initialData: StudentsManagementData }) {
   const [state, dispatch] = useReducer(studentsReducer, initialData, createInitialState);
-  const { users, message, search, editingUser, editForm, selectedCertificates } = state;
+  const { users, message, search, editingUser, editForm, selectedCertificates, selectedCoursesUser } = state;
   const isAdmin = initialData.viewerRole === "ADMIN";
   const filteredUsers = useMemo(() => filterUsers(users, search), [search, users]);
   const summary = useMemo(() => buildSummary(users), [users]);
@@ -161,6 +166,7 @@ export default function StudentsManagement({ initialData }: { initialData: Stude
           isAdmin={isAdmin}
           onEdit={(user) => dispatch({ type: "OPEN_EDIT", user })}
           onShowCertificates={(certificates) => dispatch({ type: "SET_CERTIFICATES", certificates })}
+          onShowCourses={(user) => dispatch({ type: "SET_COURSES_USER", user })}
           onToggleBan={(user) => void patchUser(user, { isBanned: !user.isBanned })}
         />
       </div>
@@ -179,6 +185,13 @@ export default function StudentsManagement({ initialData }: { initialData: Stude
         <CertificatesModal
           certificates={selectedCertificates}
           onClose={() => dispatch({ type: "SET_CERTIFICATES", certificates: null })}
+        />
+      ) : null}
+
+      {selectedCoursesUser ? (
+        <CoursesModal
+          user={selectedCoursesUser}
+          onClose={() => dispatch({ type: "SET_COURSES_USER", user: null })}
         />
       ) : null}
     </main>
@@ -249,12 +262,14 @@ function UsersTable({
   isAdmin,
   onEdit,
   onShowCertificates,
+  onShowCourses,
   onToggleBan,
 }: {
   users: ManagedUser[];
   isAdmin: boolean;
   onEdit: (user: ManagedUser) => void;
   onShowCertificates: (certificates: CertificateSummary[]) => void;
+  onShowCourses: (user: Pick<ManagedUser, "username" | "courses">) => void;
   onToggleBan: (user: ManagedUser) => void;
 }) {
   return (
@@ -280,6 +295,7 @@ function UsersTable({
                 isAdmin={isAdmin}
                 onEdit={onEdit}
                 onShowCertificates={onShowCertificates}
+                onShowCourses={onShowCourses}
                 onToggleBan={onToggleBan}
               />
             ))}
@@ -299,12 +315,14 @@ function UserRow({
   isAdmin,
   onEdit,
   onShowCertificates,
+  onShowCourses,
   onToggleBan,
 }: {
   user: ManagedUser;
   isAdmin: boolean;
   onEdit: (user: ManagedUser) => void;
   onShowCertificates: (certificates: CertificateSummary[]) => void;
+  onShowCourses: (user: Pick<ManagedUser, "username" | "courses">) => void;
   onToggleBan: (user: ManagedUser) => void;
 }) {
   return (
@@ -318,12 +336,14 @@ function UserRow({
         {user.courses.length === 0 ? (
           <span className="text-slate-400">Chưa tham gia khóa học</span>
         ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {user.courses.map((course) => (
-              <span key={`${user.id}-${course.id}`} className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-                {course.name}
-              </span>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onShowCourses({ username: user.username, courses: user.courses })}
+              className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Xem chi tiết
+            </button>
           </div>
         )}
       </td>
@@ -470,6 +490,41 @@ function CertificatesModal({
               </a>
             ))
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CoursesModal({
+  user,
+  onClose,
+}: {
+  user: Pick<ManagedUser, "username" | "courses">;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/50 p-4">
+      <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold text-slate-950">Khóa học tham gia</h2>
+            <p className="mt-1 text-sm text-slate-500">{user.username}</p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-lg px-2 py-1 text-sm text-slate-500 hover:bg-slate-100">
+            Đóng
+          </button>
+        </div>
+
+        <div className="mt-4 max-h-[60vh] space-y-2 overflow-y-auto">
+          {user.courses.map((course) => (
+            <div key={course.id} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <p className="font-semibold text-slate-950">{course.name}</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Tham gia ngày {new Date(course.enrolledAt).toLocaleDateString("vi-VN")}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
     </div>

@@ -5,17 +5,14 @@ import { Badge, BadgeGroup } from "@/components/base/badge";
 import { CardGrid } from "@/components/base/grid";
 import { Hero } from "@/components/base/hero";
 import { Section } from "@/components/base/section";
+import { CourseFilterPanel } from "./CourseFilterPanel";
 import {
-  LANGUAGES,
-  LEVELS,
-  PRODUCT_TYPES,
   getCourseDuration,
   getCourseLanguage,
   getCourseLevel,
   getCourseType,
   getLanguageLabel,
   getLevelLabel,
-  getProductTypeLabel,
   priceLabel,
 } from "@/app/components/learningMarketplace";
 
@@ -25,6 +22,7 @@ async function getCourses() {
       where: { status: "ACTIVE" },
       include: {
         instructor: { select: { id: true, username: true } },
+        language: { select: { name: true, code: true } },
         _count: { select: { enrollments: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -32,23 +30,6 @@ async function getCourses() {
   } catch {
     return [];
   }
-}
-
-const tabs = [
-  { key: "popular", label: "Phổ biến" },
-  { key: "new", label: "Mới nhất" },
-  { key: "combo", label: "Combo" },
-  { key: "skill", label: "Theo kỹ năng" },
-  { key: "cert", label: "Luyện thi chứng chỉ" },
-];
-
-function buildHref(params: Record<string, string | undefined>) {
-  const query = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value && value !== "all") query.set(key, value);
-  });
-  const qs = query.toString();
-  return qs ? `/courses?${qs}` : "/courses";
 }
 
 export default async function CoursesPage({
@@ -93,26 +74,7 @@ export default async function CoursesPage({
       />
 
       <Section padding="md">
-        <div className="rounded-xl border border-border bg-card p-4">
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {tabs.map((tab) => (
-              <Link
-                key={tab.key}
-                href={buildHref({ ...params, tab: tab.key })}
-                className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition ${
-                  activeTab === tab.key ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:opacity-90"
-                }`}
-              >
-                {tab.label}
-              </Link>
-            ))}
-          </div>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
-            <Filter label="Ngôn ngữ" name="language" values={["all", ...LANGUAGES]} params={params} />
-            <Filter label="Trình độ" name="level" values={["all", ...LEVELS]} params={params} />
-            <Filter label="Loại khóa học" name="type" values={["all", ...PRODUCT_TYPES]} params={params} />
-          </div>
-        </div>
+        <CourseFilterPanel params={params} />
       </Section>
 
       <Section background="muted" padding="md">
@@ -120,7 +82,7 @@ export default async function CoursesPage({
           {filteredCourses.map((course) => {
             const isEnrolled = enrolledIds.has(course.id);
             const language = getCourseLanguage(course);
-            const type = getCourseType(course);
+            const category = course.category?.trim() || "Chưa phân loại";
             return (
               <article key={course.id} className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
                 <Link href={`/courses/${course.id}`} className="block">
@@ -136,7 +98,7 @@ export default async function CoursesPage({
                   <BadgeGroup>
                     <Badge>{getLanguageLabel(language)}</Badge>
                     <Badge className="bg-muted text-muted-foreground">{getLevelLabel(getCourseLevel(course))}</Badge>
-                    <Badge className="bg-secondary text-secondary-foreground">{getProductTypeLabel(type)}</Badge>
+                    <Badge className="bg-secondary text-secondary-foreground">{category}</Badge>
                   </BadgeGroup>
                   <Link href={`/courses/${course.id}`}>
                     <h3 className="mt-3 line-clamp-2 text-lg font-semibold text-foreground hover:text-primary">{course.name}</h3>
@@ -171,42 +133,5 @@ export default async function CoursesPage({
         ) : null}
       </Section>
     </main>
-  );
-}
-
-function Filter({
-  label,
-  name,
-  values,
-  params,
-}: {
-  label: string;
-  name: string;
-  values: readonly string[];
-  params: Record<string, string | undefined>;
-}) {
-  return (
-    <div>
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-      <div className="flex gap-2 overflow-x-auto md:block">
-        {values.map((value) => (
-          <Link
-            key={value}
-            href={buildHref({ ...params, [name]: value })}
-            className={`mb-2 inline-block whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold ${
-              (params[name] || "all") === value ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
-            }`}
-          >
-            {value === "all"
-              ? "Tất cả"
-              : name === "language"
-                ? getLanguageLabel(value)
-                : name === "level"
-                  ? getLevelLabel(value)
-                  : getProductTypeLabel(value)}
-          </Link>
-        ))}
-      </div>
-    </div>
   );
 }

@@ -14,6 +14,7 @@ export default async function StudentPage() {
         course: {
           include: {
             instructor: { select: { username: true } },
+            language: { select: { name: true, code: true } },
             modules: { include: { lessons: true }, orderBy: { order: "asc" } },
             _count: { select: { enrollments: true } },
           },
@@ -23,7 +24,11 @@ export default async function StudentPage() {
     }),
     prisma.course.findMany({
       where: { status: "ACTIVE" },
-      include: { instructor: { select: { username: true } }, _count: { select: { enrollments: true } } },
+      include: {
+        instructor: { select: { username: true } },
+        language: { select: { name: true, code: true } },
+        _count: { select: { enrollments: true } },
+      },
       orderBy: { createdAt: "desc" },
       take: 6,
     }),

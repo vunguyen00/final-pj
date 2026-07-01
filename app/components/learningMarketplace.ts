@@ -18,9 +18,14 @@ export type CourseLike = {
   name: string;
   description?: string | null;
   category?: string | null;
+  level?: string | null;
   duration?: string | null;
   lessons?: number;
   price?: number;
+  language?: {
+    name?: string | null;
+    code?: string | null;
+  } | null;
 };
 
 const languageHints: Array<[LanguageName, string[]]> = [
@@ -43,6 +48,9 @@ export function courseText(course: CourseLike) {
 }
 
 export function getCourseLanguage(course: CourseLike): LanguageName {
+  const directLanguage = normalizeLanguage(course.language?.name || course.language?.code);
+  if (directLanguage) return directLanguage;
+
   const text = courseText(course);
   return languageHints.find(([, hints]) => hints.some((hint) => text.includes(hint)))?.[0] ?? "English";
 }
@@ -53,12 +61,36 @@ export function getCourseType(course: CourseLike): ProductType {
 }
 
 export function getCourseLevel(course: CourseLike) {
+  const directLevel = normalizeLevel(course.level);
+  if (directLevel) return directLevel;
+
   const text = courseText(course);
   if (/(advanced|c1|c2|n1|hsk 6|topik 6)/.test(text)) return "Advanced";
   if (/(upper|b2|n2|hsk 5|topik 5)/.test(text)) return "Upper Intermediate";
   if (/(intermediate|b1|n3|hsk 3|hsk 4|topik 3|topik 4)/.test(text)) return "Intermediate";
   if (/(elementary|a2|n4|hsk 2|topik 2)/.test(text)) return "Elementary";
   return "Beginner";
+}
+
+function normalizeLanguage(value?: string | null): LanguageName | null {
+  const text = String(value || "").trim().toLowerCase();
+  if (!text) return null;
+  if (["english", "en", "tieng anh", "tiếng anh"].includes(text)) return "English";
+  if (["chinese", "zh", "cn", "mandarin", "tieng trung", "tiếng trung"].includes(text)) return "Chinese";
+  if (["japanese", "ja", "jp", "tieng nhat", "tiếng nhật"].includes(text)) return "Japanese";
+  if (["korean", "ko", "kr", "tieng han", "tiếng hàn"].includes(text)) return "Korean";
+  return null;
+}
+
+function normalizeLevel(value?: string | null): CourseLevel | null {
+  const text = String(value || "").trim().toLowerCase();
+  if (!text) return null;
+  if (["beginner", "moi bat dau", "mới bắt đầu"].includes(text)) return "Beginner";
+  if (["elementary", "so cap", "sơ cấp"].includes(text)) return "Elementary";
+  if (["intermediate", "trung cap", "trung cấp"].includes(text)) return "Intermediate";
+  if (["upper intermediate", "trung cap cao", "trung cấp cao"].includes(text)) return "Upper Intermediate";
+  if (["advanced", "nang cao", "nâng cao"].includes(text)) return "Advanced";
+  return null;
 }
 
 const languageLabels: Record<LanguageName, string> = {

@@ -23,6 +23,7 @@ export type Course = {
   description: string;
   price: number;
   category: string | null;
+  level: string | null;
   duration: string | null;
   thumbnail: string | null;
   status: string;

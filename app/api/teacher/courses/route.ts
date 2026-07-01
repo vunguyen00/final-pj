@@ -70,7 +70,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { name, description, price, category, duration, thumbnail, status, languageId } = body;
+    const { name, description, price, category, level, duration, thumbnail, status, languageId } = body;
 
     if (!name || !description || price === undefined) {
       return NextResponse.json(
@@ -119,6 +119,7 @@ export async function POST(request: Request) {
         description,
         price: normalizedPrice,
         category: category || null,
+        level: level || null,
         duration: duration || null,
         thumbnail: thumbnail || null,
         status: nextStatus,

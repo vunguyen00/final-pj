@@ -8,9 +8,7 @@ import { Section, SectionHeader } from "@/components/base/section";
 import { formatCount, getPublicTeachers } from "@/lib/public-teachers";
 import {
   getCourseLanguage,
-  getCourseType,
   getLanguageLabel,
-  getProductTypeLabel,
   priceLabel,
 } from "@/app/components/learningMarketplace";
 
@@ -18,7 +16,11 @@ async function getHomeCourses() {
   try {
     return await prisma.course.findMany({
       where: { status: "ACTIVE" },
-      include: { instructor: { select: { username: true } }, _count: { select: { enrollments: true } } },
+      include: {
+        instructor: { select: { username: true } },
+        language: { select: { name: true, code: true } },
+        _count: { select: { enrollments: true } },
+      },
       orderBy: { createdAt: "desc" },
       take: 8,
     });
@@ -79,7 +81,7 @@ export default async function HomePage() {
               <div className="space-y-3 p-4">
                 <BadgeGroup>
                   <Badge>{getLanguageLabel(getCourseLanguage(course))}</Badge>
-                  <Badge className="bg-muted text-muted-foreground">{getProductTypeLabel(getCourseType(course))}</Badge>
+                  <Badge className="bg-muted text-muted-foreground">{course.category?.trim() || "Chưa phân loại"}</Badge>
                 </BadgeGroup>
                 <h3 className="line-clamp-2 text-lg font-semibold text-foreground">{course.name}</h3>
                 <p className="text-sm text-muted-foreground">{course.instructor?.username || "Giảng viên"} - {course._count.enrollments} học viên</p>
