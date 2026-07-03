@@ -26,6 +26,8 @@ model User {
   payments                    Payment[]
   wallet                      Wallet?
   courses                     Course[]
+  refundRequests              CourseRefundRequest[]               @relation("RefundRequestStudent")
+  reviewedRefundRequests      CourseRefundRequest[]               @relation("RefundRequestReviewer")
   aiAssessments               AiAssessment[]
   pointTransactions           PointTransaction[]
   learningActivities          LearningActivity[]
@@ -93,6 +95,7 @@ model Course {
   tests              Test[]
   feedbacks          Feedback[]
   orderItems         OrderItem[]
+  refundRequests     CourseRefundRequest[]
   aiAssessments      AiAssessment[]
   pointTransactions  PointTransaction[]
   learningActivities LearningActivity[]
@@ -484,6 +487,37 @@ model OrderItem {
 
   order  Order  @relation(fields: [orderId], references: [id])
   course Course @relation(fields: [courseId], references: [id])
+  refundRequest CourseRefundRequest?
+}
+
+enum CourseRefundRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model CourseRefundRequest {
+  id            String                    @id @default(uuid())
+  studentId     String
+  courseId      String
+  orderItemId   String                    @unique
+  amount        Int
+  reason        String
+  status        CourseRefundRequestStatus @default(PENDING)
+  adminNote     String?
+  reviewedById  String?
+  processedAt   DateTime?
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  student    User      @relation("RefundRequestStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  course     Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  orderItem  OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  reviewedBy User?     @relation("RefundRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([studentId, createdAt])
+  @@index([courseId, createdAt])
+  @@index([status, createdAt])
 }
 
 enum TeacherRevenueWithdrawalStatus {

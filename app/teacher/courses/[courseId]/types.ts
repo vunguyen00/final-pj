@@ -28,6 +28,11 @@ export type Course = {
   thumbnail: string | null;
   status: string;
   createdAt: string;
+  instructor: {
+    id: string;
+    username: string;
+    email: string;
+  } | null;
   _count: {
     enrollments: number;
     modules: number;

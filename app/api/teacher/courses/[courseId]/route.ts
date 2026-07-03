@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { getCourseAutoApprovalSetting } from "@/lib/course-approval";
+import { sendBasicEmail } from "@/lib/mailer";
 
 const COURSE_STATUSES = new Set(["ACTIVE", "LOCKED", "PENDING_APPROVAL", "REJECTED"]);
 
@@ -115,6 +116,9 @@ export async function PUT(
 
     const course = await prisma.course.findUnique({
       where: { id: courseId },
+      include: {
+        instructor: { select: { id: true, username: true, email: true } },
+      },
     });
 
     if (!course) {
@@ -235,6 +239,9 @@ export async function PATCH(
 
     const course = await prisma.course.findUnique({
       where: { id: courseId },
+      include: {
+        instructor: { select: { id: true, username: true, email: true } },
+      },
     });
 
     if (!course) {
@@ -272,6 +279,42 @@ export async function PATCH(
         where: { id: courseId },
         data: { status: newStatus },
       });
+
+      if (newStatus === "LOCKED" && course.instructorId && course.instructor) {
+        const title = "Khoa hoc cua ban da bi khoa";
+        const body = `Khoa hoc "${course.name}" da bi admin khoa. Vui long kiem tra lai noi dung khoa hoc hoac lien he admin neu can ho tro.`;
+
+        await prisma.notification.create({
+          data: {
+            userId: course.instructorId,
+            title,
+            body,
+          },
+        });
+
+        try {
+          await sendBasicEmail(course.instructor.email, title, body);
+          await prisma.emailLog.create({
+            data: {
+              userId: course.instructorId,
+              to: course.instructor.email,
+              subject: title,
+              status: "SENT",
+              sentAt: new Date(),
+            },
+          });
+        } catch (emailError) {
+          await prisma.emailLog.create({
+            data: {
+              userId: course.instructorId,
+              to: course.instructor.email,
+              subject: title,
+              status: "FAILED",
+              error: emailError instanceof Error ? emailError.message.slice(0, 500) : "Unknown email error",
+            },
+          });
+        }
+      }
       return NextResponse.json({ course: updatedCourse });
     }
 

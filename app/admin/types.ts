@@ -40,3 +40,15 @@ export type AdminManagedTest = {
   createdAt: string;
   _count: { questions: number; attempts: number };
 };
+
+export type AdminCourseRefund = {
+  id: string;
+  amount: number;
+  reason: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  adminNote: string | null;
+  processedAt: string | null;
+  createdAt: string;
+  student: { id: string; username: string; email: string };
+  course: { id: string; name: string };
+};

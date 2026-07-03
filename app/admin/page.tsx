@@ -1,10 +1,12 @@
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Suspense } from "react";
 import AdminShell from "./AdminShell";
 import { getDashboardAnalytics } from "@/lib/admin-analytics";
 import { getTeacherEntranceSetting, getActiveLanguages } from "@/lib/teacher-onboarding";
 import { getCourseAutoApprovalSetting } from "@/lib/course-approval";
 import type { AdminManagedTest } from "./types";
+import type { AdminCourseRefund } from "./types";
 import type { AdminWithdrawal } from "./AdminRevenueWithdrawals";
 
 export default async function AdminPage() {
@@ -19,6 +21,7 @@ export default async function AdminPage() {
     courses,
     adminManagedTests,
     withdrawals,
+    refunds,
   ] = await Promise.all([
     getTeacherEntranceSetting(),
     getCourseAutoApprovalSetting(),
@@ -91,6 +94,14 @@ export default async function AdminPage() {
       orderBy: { createdAt: "desc" },
       take: 200,
     }),
+    prisma.courseRefundRequest.findMany({
+      include: {
+        student: { select: { id: true, username: true, email: true } },
+        course: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    }),
   ]);
 
   const attemptIds = applicationsRaw.flatMap((application) => application.entranceAttemptId ? [application.entranceAttemptId] : []);
@@ -111,50 +122,63 @@ export default async function AdminPage() {
 
   return (
     <div className="mt-6">
-      <AdminShell
-        initialEnabled={Boolean(setting.enabled)}
-        initialCourseAutoApproval={Boolean(courseApprovalSetting.enabled)}
-        initialLanguages={languages}
-        initialApplications={applications}
-        initialCourses={courses.map((course) => ({
-          id: course.id,
-          name: course.name,
-          description: course.description,
-          status: course.status,
-          createdAt: course.createdAt.toISOString(),
-          instructor: course.instructor
-            ? {
-                id: course.instructor.id,
-                username: course.instructor.username,
-                email: course.instructor.email,
-              }
-            : null,
-          language: course.language,
-          registeredLanguage: course.instructor?.teacherApplications[0]?.language ?? null,
-          _count: course._count,
-        }))}
-        initialAdminManagedTests={adminManagedTests.map((test) => ({
-          ...test,
-          kind: test.kind as AdminManagedTest["kind"],
-          createdAt: test.createdAt.toISOString(),
-        }))}
-        analyticsInitialData={analyticsInitialData}
-        initialWithdrawals={withdrawals.map((item) => ({
-          ...item,
-          status: item.status as AdminWithdrawal["status"],
-          createdAt: item.createdAt.toISOString(),
-          processedAt: item.processedAt?.toISOString() ?? null,
-          complaint: item.complaint
-            ? {
-                ...item.complaint,
-                status: item.complaint.status as NonNullable<AdminWithdrawal["complaint"]>["status"],
-                reason: item.complaint.reason as NonNullable<AdminWithdrawal["complaint"]>["reason"],
-                createdAt: item.complaint.createdAt.toISOString(),
-                resolvedAt: item.complaint.resolvedAt?.toISOString() ?? null,
-              }
-            : null,
-        }))}
-      />
+      <Suspense fallback={<div className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">Dang tai trang quan tri...</div>}>
+        <AdminShell
+          initialEnabled={Boolean(setting.enabled)}
+          initialCourseAutoApproval={Boolean(courseApprovalSetting.enabled)}
+          initialLanguages={languages}
+          initialApplications={applications}
+          initialCourses={courses.map((course) => ({
+            id: course.id,
+            name: course.name,
+            description: course.description,
+            status: course.status,
+            createdAt: course.createdAt.toISOString(),
+            instructor: course.instructor
+              ? {
+                  id: course.instructor.id,
+                  username: course.instructor.username,
+                  email: course.instructor.email,
+                }
+              : null,
+            language: course.language,
+            registeredLanguage: course.instructor?.teacherApplications[0]?.language ?? null,
+            _count: course._count,
+          }))}
+          initialAdminManagedTests={adminManagedTests.map((test) => ({
+            ...test,
+            kind: test.kind as AdminManagedTest["kind"],
+            createdAt: test.createdAt.toISOString(),
+          }))}
+          analyticsInitialData={analyticsInitialData}
+          initialWithdrawals={withdrawals.map((item) => ({
+            ...item,
+            status: item.status as AdminWithdrawal["status"],
+            createdAt: item.createdAt.toISOString(),
+            processedAt: item.processedAt?.toISOString() ?? null,
+            complaint: item.complaint
+              ? {
+                  ...item.complaint,
+                  status: item.complaint.status as NonNullable<AdminWithdrawal["complaint"]>["status"],
+                  reason: item.complaint.reason as NonNullable<AdminWithdrawal["complaint"]>["reason"],
+                  createdAt: item.complaint.createdAt.toISOString(),
+                  resolvedAt: item.complaint.resolvedAt?.toISOString() ?? null,
+                }
+              : null,
+          }))}
+          initialRefunds={refunds.map((item) => ({
+            id: item.id,
+            amount: item.amount,
+            reason: item.reason,
+            status: item.status as AdminCourseRefund["status"],
+            adminNote: item.adminNote,
+            processedAt: item.processedAt?.toISOString() ?? null,
+            createdAt: item.createdAt.toISOString(),
+            student: item.student,
+            course: item.course,
+          }))}
+        />
+      </Suspense>
     </div>
   );
 }

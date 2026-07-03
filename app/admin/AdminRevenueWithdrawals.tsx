@@ -53,6 +53,11 @@ export default function AdminRevenueWithdrawals({ initialWithdrawals }: { initia
   const pendingCount = useMemo(() => withdrawals.filter((item) => item.status === "PENDING").length, [withdrawals]);
   const approvedCount = useMemo(() => withdrawals.filter((item) => item.status === "APPROVED").length, [withdrawals]);
   const openComplaintCount = useMemo(() => withdrawals.filter((item) => item.complaint?.status === "OPEN").length, [withdrawals]);
+  const paidCount = useMemo(() => withdrawals.filter((item) => item.status === "PAID").length, [withdrawals]);
+  const totalPendingAmount = useMemo(() => withdrawals.filter((item) => item.status === "PENDING").reduce((sum, item) => sum + item.amount, 0), [withdrawals]);
+  const totalApprovedAmount = useMemo(() => withdrawals.filter((item) => item.status === "APPROVED").reduce((sum, item) => sum + item.amount, 0), [withdrawals]);
+  const totalPaidAmount = useMemo(() => withdrawals.filter((item) => item.status === "PAID").reduce((sum, item) => sum + item.amount, 0), [withdrawals]);
+  const openComplaintAmount = useMemo(() => withdrawals.filter((item) => item.complaint?.status === "OPEN").reduce((sum, item) => sum + item.amount, 0), [withdrawals]);
 
   async function processWithdrawal(item: AdminWithdrawal, action: "APPROVE" | "PAY" | "REJECT") {
     const note = action === "REJECT" ? window.prompt("Lý do từ chối yêu cầu rút tiền?")?.trim() : "";
@@ -123,7 +128,23 @@ export default function AdminRevenueWithdrawals({ initialWithdrawals }: { initia
         <Summary label="Tổng yêu cầu" value={withdrawals.length} tone="slate" />
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-slate-950">So do xu ly rut doanh thu</h2>
+            <p className="text-sm text-slate-500">Theo doi nhanh tu luc giang vien gui yeu cau den khi da chuyen tien.</p>
+          </div>
+          <p className="text-sm font-semibold text-slate-500">{withdrawals.length} yeu cau</p>
+        </div>
+        <div className="mt-5 grid gap-3 lg:grid-cols-4">
+          <PipelineStep label="1. Cho duyet" count={pendingCount} amount={totalPendingAmount} tone="amber" />
+          <PipelineStep label="2. Cho chuyen" count={approvedCount} amount={totalApprovedAmount} tone="blue" />
+          <PipelineStep label="3. Da thanh toan" count={paidCount} amount={totalPaidAmount} tone="emerald" />
+          <PipelineStep label="4. Can xem lai" count={openComplaintCount} amount={openComplaintAmount} tone="rose" />
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-5 py-4">
           <h2 className="text-xl font-bold text-slate-950">Yêu cầu rút doanh thu giảng viên</h2>
           <p className="mt-1 text-sm text-slate-500">Duyệt thông tin nhận tiền, xác nhận chuyển khoản và xử lý khiếu nại nếu giao dịch đã đóng nhưng giáo viên báo chưa nhận đủ.</p>
@@ -193,6 +214,28 @@ function Action({ children, danger = false, ...props }: ButtonHTMLAttributes<HTM
   return <button type="button" {...props} className={`rounded-lg px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50 ${danger ? "bg-rose-600 hover:bg-rose-700" : "bg-blue-600 hover:bg-blue-700"}`}>{children}</button>;
 }
 
+function PipelineStep({ label, count, amount, tone }: { label: string; count: number; amount: number; tone: "amber" | "blue" | "emerald" | "rose" }) {
+  const toneClass = {
+    amber: "border-amber-200 bg-amber-50 text-amber-900",
+    blue: "border-blue-200 bg-blue-50 text-blue-900",
+    emerald: "border-emerald-200 bg-emerald-50 text-emerald-900",
+    rose: "border-rose-200 bg-rose-50 text-rose-900",
+  }[tone];
+
+  return (
+    <article className={`rounded-xl border p-4 ${toneClass}`}>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-bold">{label}</p>
+        <span className="rounded-full bg-white/70 px-2 py-0.5 text-xs font-black">{count}</span>
+      </div>
+      <p className="mt-4 text-xl font-black">{money.format(amount)}</p>
+      <div className="mt-3 h-2 rounded-full bg-white/70">
+        <div className="h-2 rounded-full bg-current" style={{ width: `${Math.min(100, Math.max(8, count * 18))}%` }} />
+      </div>
+    </article>
+  );
+}
+
 function Summary({ label, value, tone }: { label: string; value: number; tone: "amber" | "blue" | "rose" | "slate" }) {
-  return <article className={`rounded-2xl border p-5 shadow-sm ${summaryColors[tone]}`}><p className="text-sm font-semibold opacity-70">{label}</p><p className="mt-2 text-3xl font-black">{value}</p></article>;
+  return <article className={`rounded-xl border p-4 shadow-sm ${summaryColors[tone]}`}><p className="text-sm font-semibold opacity-70">{label}</p><p className="mt-2 text-3xl font-black">{value}</p></article>;
 }

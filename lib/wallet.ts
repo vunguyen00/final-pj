@@ -35,7 +35,7 @@ export function isValidTopUpAmount(amount: unknown) {
 }
 
 async function calculateLedgerBalance(userId: string) {
-  const [totalTopUp, totalSpent, aiPointPurchases] = await prisma.$transaction([
+  const [totalTopUp, totalSpent, totalRefunded, aiPointPurchases] = await prisma.$transaction([
     prisma.payment.aggregate({
       _sum: { amount: true },
       where: {
@@ -47,6 +47,13 @@ async function calculateLedgerBalance(userId: string) {
       _sum: { price: true },
       where: {
         order: { userId },
+      },
+    }),
+    prisma.courseRefundRequest.aggregate({
+      _sum: { amount: true },
+      where: {
+        studentId: userId,
+        status: "APPROVED",
       },
     }),
     prisma.pointTransaction.findMany({
@@ -63,7 +70,7 @@ async function calculateLedgerBalance(userId: string) {
     return sum + (Number.isFinite(cost) ? cost : 0);
   }, 0);
 
-  return Math.round((totalTopUp._sum.amount ?? 0) - (totalSpent._sum.price ?? 0) - totalAiPointSpent);
+  return Math.round((totalTopUp._sum.amount ?? 0) - (totalSpent._sum.price ?? 0) + (totalRefunded._sum.amount ?? 0) - totalAiPointSpent);
 }
 
 export async function getOrCreateWallet(userId: string) {
@@ -325,7 +332,7 @@ export async function confirmTopUpFromIpn(params: {
 
 export type WalletTransaction = {
   id: string;
-  type: "TOP_UP" | "PURCHASE" | "AI_POINT_PURCHASE";
+  type: "TOP_UP" | "PURCHASE" | "AI_POINT_PURCHASE" | "COURSE_REFUND";
   amount: number;
   status: string;
   createdAt: string;
@@ -334,7 +341,7 @@ export type WalletTransaction = {
 };
 
 export async function getWalletTransactions(userId: string): Promise<WalletTransaction[]> {
-  const [topUps, purchases, aiPointPurchases] = await prisma.$transaction([
+  const [topUps, purchases, aiPointPurchases, courseRefunds] = await prisma.$transaction([
     prisma.payment.findMany({
       where: {
         userId,
@@ -376,6 +383,21 @@ export async function getWalletTransactions(userId: string): Promise<WalletTrans
       orderBy: { createdAt: "desc" },
       take: 50,
     }),
+    prisma.courseRefundRequest.findMany({
+      where: {
+        studentId: userId,
+      },
+      select: {
+        id: true,
+        amount: true,
+        status: true,
+        processedAt: true,
+        createdAt: true,
+        course: { select: { name: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
   ]);
 
   const txTopUp: WalletTransaction[] = topUps.map((item) => ({
@@ -409,7 +431,16 @@ export async function getWalletTransactions(userId: string): Promise<WalletTrans
     };
   });
 
-  return [...txTopUp, ...txPurchase, ...txAiPointPurchase]
+  const txCourseRefunds: WalletTransaction[] = courseRefunds.map((item) => ({
+    id: `course-refund-${item.id}`,
+    type: "COURSE_REFUND",
+    amount: item.amount,
+    status: item.status,
+    createdAt: (item.processedAt ?? item.createdAt).toISOString(),
+    courseName: item.course.name,
+  }));
+
+  return [...txTopUp, ...txPurchase, ...txAiPointPurchase, ...txCourseRefunds]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 100);
 }

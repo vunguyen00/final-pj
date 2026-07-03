@@ -11,7 +11,7 @@ type BeanPoints = {
 
 type WalletTx = {
   id: string;
-  type: "TOP_UP" | "PURCHASE" | "AI_POINT_PURCHASE";
+  type: "TOP_UP" | "PURCHASE" | "AI_POINT_PURCHASE" | "COURSE_REFUND";
   amount: number;
   status: string;
   createdAt: string;
@@ -131,20 +131,33 @@ function statusLabel(status: string) {
   if (status === "SUCCESS") return "Thành công";
   if (status === "PENDING") return "Đang chờ";
   if (status === "FAILED") return "Thất bại";
+  if (status === "APPROVED") return "Da duyet";
+  if (status === "REJECTED") return "Tu choi";
   return status;
 }
 
 function statusClass(status: string) {
-  if (status === "SUCCESS") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (status === "SUCCESS" || status === "APPROVED") return "border-emerald-200 bg-emerald-50 text-emerald-700";
   if (status === "PENDING") return "border-amber-200 bg-amber-50 text-amber-700";
-  if (status === "FAILED") return "border-rose-200 bg-rose-50 text-rose-700";
+  if (status === "FAILED" || status === "REJECTED") return "border-rose-200 bg-rose-50 text-rose-700";
   return "border-slate-200 bg-slate-50 text-slate-600";
 }
 
 function transactionLabel(tx: WalletTx) {
   if (tx.type === "TOP_UP") return "Nạp tiền";
   if (tx.type === "AI_POINT_PURCHASE") return `Mua ${formatBeans(tx.points ?? 0)}`;
+  if (tx.type === "COURSE_REFUND") return `Hoan tien khoa hoc${tx.courseName ? `: ${tx.courseName}` : ""}`;
   return `Mua khóa học${tx.courseName ? `: ${tx.courseName}` : ""}`;
+}
+
+function isCreditTransaction(tx: WalletTx) {
+  return (tx.type === "TOP_UP" && tx.status === "SUCCESS") || (tx.type === "COURSE_REFUND" && tx.status === "APPROVED");
+}
+
+function transactionSign(tx: WalletTx) {
+  if (isCreditTransaction(tx)) return "+";
+  if (tx.type === "PURCHASE" || tx.type === "AI_POINT_PURCHASE") return "-";
+  return "";
 }
 
 export default function WalletClient({ initialData, initialNotice, canTopUp = true }: Props) {
@@ -392,8 +405,8 @@ export default function WalletClient({ initialData, initialNotice, canTopUp = tr
                     </div>
                     <p className="text-xs text-slate-500">{new Date(tx.createdAt).toLocaleString("vi-VN")}</p>
                   </div>
-                  <p className={`shrink-0 font-semibold ${tx.type === "TOP_UP" ? "text-emerald-700" : "text-rose-700"}`}>
-                    {tx.type === "TOP_UP" && tx.status === "SUCCESS" ? "+" : tx.type === "PURCHASE" || tx.type === "AI_POINT_PURCHASE" ? "-" : ""}
+                  <p className={`shrink-0 font-semibold ${isCreditTransaction(tx) ? "text-emerald-700" : "text-rose-700"}`}>
+                    {transactionSign(tx)}
                     {formatVnd(tx.amount)}
                   </p>
                 </div>
