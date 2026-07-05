@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-type CourseStatus = "ACTIVE" | "LOCKED" | "PENDING_APPROVAL" | "REJECTED";
+type CourseStatus = "ACTIVE" | "LOCKED" | "PENDING_APPROVAL" | "PENDING_DELETE" | "REJECTED";
 
 type Course = {
   id: string;
@@ -16,6 +16,7 @@ type Course = {
   duration: string | null;
   thumbnail: string | null;
   status: CourseStatus;
+  deleteRequestedFromStatus: CourseStatus | null;
   createdAt: string;
   instructorId: string | null;
   language: {
@@ -64,6 +65,7 @@ function getStatusUi(status: CourseStatus) {
   if (status === "ACTIVE") return { label: "Hoạt động", className: "bg-green-100 text-green-700" };
   if (status === "LOCKED") return { label: "Đã khóa", className: "bg-red-100 text-red-700" };
   if (status === "PENDING_APPROVAL") return { label: "Chờ duyệt", className: "bg-amber-100 text-amber-700" };
+  if (status === "PENDING_DELETE") return { label: "Chờ duyệt xóa", className: "bg-orange-100 text-orange-700" };
   return { label: "Bị từ chối", className: "bg-rose-100 text-rose-700" };
 }
 
@@ -208,7 +210,7 @@ export default function TeacherCoursesPage() {
       const res = await fetch(`/api/teacher/courses/${courseId}`, { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        setMessage("Xóa khóa học thành công.");
+        setMessage(data?.requiresApproval ? "Yêu cầu xóa khóa học đã được gửi tới admin duyệt." : "Xóa khóa học thành công.");
         await fetchCourses();
       } else {
         setMessage(data?.error || "Không thể xóa khóa học.");
@@ -361,7 +363,14 @@ export default function TeacherCoursesPage() {
                               {course.status === "ACTIVE" ? "Khóa" : "Mở"}
                             </button>
                           ) : null}
-                          <button type="button" onClick={() => void handleDelete(course.id)} className="rounded-lg p-2 text-red-600 hover:bg-red-50" title="Xóa" aria-label="Xóa khóa học">
+                          <button
+                            type="button"
+                            onClick={() => void handleDelete(course.id)}
+                            disabled={course.status === "PENDING_DELETE"}
+                            className="rounded-lg p-2 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+                            title={course.status === "PENDING_DELETE" ? "Đang chờ admin duyệt xóa" : "Xóa"}
+                            aria-label={course.status === "PENDING_DELETE" ? "Đang chờ admin duyệt xóa" : "Xóa khóa học"}
+                          >
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
                               <polyline points="3 6 5 6 21 6" />
                               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />

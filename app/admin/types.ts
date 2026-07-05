@@ -22,7 +22,8 @@ export type Course = {
   id: string;
   name: string;
   description: string;
-  status: "ACTIVE" | "LOCKED" | "PENDING_APPROVAL" | "REJECTED";
+  status: "ACTIVE" | "LOCKED" | "PENDING_APPROVAL" | "PENDING_DELETE" | "REJECTED";
+  deleteRequestedFromStatus: "ACTIVE" | "LOCKED" | "PENDING_APPROVAL" | "PENDING_DELETE" | "REJECTED" | null;
   createdAt: string;
   instructor: { id: string; username: string; email: string } | null;
   language: { id: string; name: string; code: string } | null;

@@ -133,6 +133,7 @@ export default async function AdminPage() {
             name: course.name,
             description: course.description,
             status: course.status,
+            deleteRequestedFromStatus: course.deleteRequestedFromStatus,
             createdAt: course.createdAt.toISOString(),
             instructor: course.instructor
               ? {

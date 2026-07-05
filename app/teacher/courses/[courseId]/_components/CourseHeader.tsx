@@ -14,6 +14,8 @@ export function CourseHeader({ course }: CourseHeaderProps) {
         ? "Đã khóa"
         : course.status === "PENDING_APPROVAL"
           ? "Chờ duyệt"
+          : course.status === "PENDING_DELETE"
+            ? "Chờ duyệt xóa"
           : "Bị từ chối";
   const statusClass =
     course.status === "ACTIVE"
@@ -22,6 +24,8 @@ export function CourseHeader({ course }: CourseHeaderProps) {
         ? "bg-red-100 text-red-700"
         : course.status === "PENDING_APPROVAL"
           ? "bg-amber-100 text-amber-700"
+          : course.status === "PENDING_DELETE"
+            ? "bg-orange-100 text-orange-700"
           : "bg-rose-100 text-rose-700";
 
   return (

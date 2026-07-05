@@ -52,7 +52,7 @@ export function CourseFilterPanel({ params }: { params: Record<string, string | 
       <dialog
         ref={dialogRef}
         aria-label="Bộ lọc khóa học"
-        className="w-[min(calc(100vw-2rem),64rem)] max-w-5xl overflow-hidden rounded-xl border border-border bg-card p-0 text-foreground shadow-2xl backdrop:bg-slate-950/50"
+        className="fixed left-1/2 top-1/2 m-0 w-[min(calc(100vw-2rem),64rem)] max-w-5xl -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-xl border border-border bg-card p-0 text-foreground shadow-2xl backdrop:bg-slate-950/50"
       >
           <div className="flex max-h-[90vh] w-full flex-col overflow-hidden">
             <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">

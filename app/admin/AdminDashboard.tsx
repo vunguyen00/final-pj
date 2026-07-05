@@ -8,6 +8,7 @@ function statusLabel(status: Course["status"]) {
   if (status === "ACTIVE") return "Đang hoạt động";
   if (status === "LOCKED") return "Đã khóa";
   if (status === "PENDING_APPROVAL") return "Chờ duyệt";
+  if (status === "PENDING_DELETE") return "Chờ duyệt xóa";
   return "Bị từ chối";
 }
 
@@ -15,6 +16,7 @@ function statusClass(status: Course["status"]) {
   if (status === "ACTIVE") return "bg-emerald-100 text-emerald-700";
   if (status === "LOCKED") return "bg-slate-200 text-slate-700";
   if (status === "PENDING_APPROVAL") return "bg-amber-100 text-amber-700";
+  if (status === "PENDING_DELETE") return "bg-orange-100 text-orange-700";
   return "bg-red-100 text-red-700";
 }
 
@@ -48,7 +50,7 @@ export default function AdminDashboard({
   const [currentTs] = useState(() => Date.now());
 
   const pendingCourses = useMemo(
-    () => courses.filter((course) => course.status === "PENDING_APPROVAL"),
+    () => courses.filter((course) => course.status === "PENDING_APPROVAL" || course.status === "PENDING_DELETE"),
     [courses],
   );
 
@@ -145,9 +147,10 @@ export default function AdminDashboard({
   }
 
   async function reviewCourse(course: Course, decision: "APPROVE" | "REJECT") {
+    const isDeleteRequest = course.status === "PENDING_DELETE";
     const rejectionReason =
       decision === "REJECT"
-        ? window.prompt("Lý do từ chối khóa học?") || ""
+        ? window.prompt(isDeleteRequest ? "Lý do từ chối yêu cầu xóa?" : "Lý do từ chối khóa học?") || ""
         : "";
     const response = await fetch(`/api/teacher/courses/${course.id}`, {
       method: "PATCH",
@@ -157,15 +160,23 @@ export default function AdminDashboard({
     const data = await response.json().catch(() => ({}));
 
     if (response.ok) {
-      setCourses((previous) =>
-        previous.map((item) =>
-          item.id === course.id ? { ...item, status: data.course.status } : item,
-        ),
-      );
+      if (data?.deleted) {
+        setCourses((previous) => previous.filter((item) => item.id !== course.id));
+      } else {
+        setCourses((previous) =>
+          previous.map((item) =>
+            item.id === course.id ? { ...item, status: data.course.status, deleteRequestedFromStatus: data.course.deleteRequestedFromStatus ?? null } : item,
+          ),
+        );
+      }
       setMessage(
-        decision === "APPROVE"
-          ? "Đã duyệt khóa học."
-          : "Đã từ chối khóa học.",
+        isDeleteRequest
+          ? decision === "APPROVE"
+            ? "Đã duyệt xóa khóa học."
+            : "Đã từ chối yêu cầu xóa khóa học."
+          : decision === "APPROVE"
+            ? "Đã duyệt khóa học."
+            : "Đã từ chối khóa học.",
       );
     } else {
       setMessage(data?.error || "Không thể duyệt khóa học.");
@@ -191,6 +202,7 @@ export default function AdminDashboard({
               <p className="text-xs text-slate-500">Cho phép học viên nộp hồ sơ</p>
             </div>
             <button
+              type="button"
               onClick={() => void toggleTeacherEntrance(!enabled)}
               className={`rounded-lg px-3 py-2 text-sm font-semibold text-white ${
                 enabled
@@ -213,6 +225,7 @@ export default function AdminDashboard({
               <p className="text-xs text-slate-500">Khóa mới chuyển thẳng sang hoạt động</p>
             </div>
             <button
+              type="button"
               onClick={() => void toggleCourseAutoApproval(!courseAutoApproval)}
               className={`rounded-lg px-3 py-2 text-sm font-semibold text-white ${
                 courseAutoApproval
@@ -235,6 +248,7 @@ export default function AdminDashboard({
               <p className="text-xs text-slate-500">{applications.length} hồ sơ tất cả</p>
             </div>
             <button
+              type="button"
               onClick={() => setShowApplications(true)}
               className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
             >
@@ -251,7 +265,7 @@ export default function AdminDashboard({
               Duyệt khóa học giảng viên
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Hiện có <strong>{pendingCourses.length}</strong> khóa học đang chờ duyệt.
+              Hiện có <strong>{pendingCourses.length}</strong> yêu cầu khóa học đang chờ duyệt.
             </p>
           </div>
           <Link
@@ -270,6 +284,7 @@ export default function AdminDashboard({
           ) : (
             pendingCourses.map((course) => {
               const language = course.language ?? course.registeredLanguage;
+              const isDeleteRequest = course.status === "PENDING_DELETE";
 
               return (
                 <article
@@ -309,16 +324,18 @@ export default function AdminDashboard({
                         Xem chi tiết
                       </Link>
                       <button
+                        type="button"
                         onClick={() => void reviewCourse(course, "APPROVE")}
                         className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
                       >
-                        Duyệt
+                        {isDeleteRequest ? "Duyệt xóa" : "Duyệt"}
                       </button>
                       <button
+                        type="button"
                         onClick={() => void reviewCourse(course, "REJECT")}
                         className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700"
                       >
-                        Từ chối
+                        {isDeleteRequest ? "Từ chối xóa" : "Từ chối"}
                       </button>
                     </div>
                   </div>
@@ -348,6 +365,7 @@ export default function AdminDashboard({
                   </p>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setShowApplications(false)}
                   className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                 >
@@ -409,6 +427,7 @@ export default function AdminDashboard({
                           {!["APPROVED", "REJECTED"].includes(application.status) ? (
                             <>
                               <button
+                                type="button"
                                 onClick={() =>
                                   void reviewTeacherApplication(application, "APPROVE")
                                 }
@@ -417,6 +436,7 @@ export default function AdminDashboard({
                                 Duyệt
                               </button>
                               <button
+                                type="button"
                                 onClick={() =>
                                   void reviewTeacherApplication(application, "REJECT")
                                 }

@@ -24,6 +24,7 @@ const statusUi: Record<string, { label: string; className: string }> = {
   ACTIVE: { label: "Đang mở", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
   LOCKED: { label: "Đã khóa", className: "bg-slate-100 text-slate-700 ring-slate-200" },
   PENDING_APPROVAL: { label: "Chờ duyệt", className: "bg-amber-50 text-amber-700 ring-amber-200" },
+  PENDING_DELETE: { label: "Chờ duyệt xóa", className: "bg-orange-50 text-orange-700 ring-orange-200" },
   REJECTED: { label: "Bị từ chối", className: "bg-rose-50 text-rose-700 ring-rose-200" },
 };
 

@@ -4,7 +4,56 @@ import { getCurrentUser } from "@/lib/auth";
 import { getCourseAutoApprovalSetting } from "@/lib/course-approval";
 import { sendBasicEmail } from "@/lib/mailer";
 
-const COURSE_STATUSES = new Set(["ACTIVE", "LOCKED", "PENDING_APPROVAL", "REJECTED"]);
+const COURSE_STATUSES = new Set(["ACTIVE", "LOCKED", "PENDING_APPROVAL", "PENDING_DELETE", "REJECTED"]);
+
+async function deleteCourseWithRelations(courseId: string) {
+  await prisma.$transaction(async (tx) => {
+    const tests = await tx.test.findMany({
+      where: { courseId },
+      select: { id: true },
+    });
+    const testIds = tests.map((test) => test.id);
+
+    if (testIds.length > 0) {
+      const attempts = await tx.testAttempt.findMany({
+        where: { testId: { in: testIds } },
+        select: { id: true },
+      });
+      const attemptIds = attempts.map((attempt) => attempt.id);
+
+      if (attemptIds.length > 0) {
+        await tx.antiCheatLog.deleteMany({
+          where: { testAttemptId: { in: attemptIds } },
+        });
+        await tx.cheatingLog.deleteMany({
+          where: { attemptId: { in: attemptIds } },
+        });
+      }
+
+      await tx.testAttempt.deleteMany({
+        where: { testId: { in: testIds } },
+      });
+      await tx.answer.deleteMany({
+        where: { question: { testId: { in: testIds } } },
+      });
+      await tx.question.deleteMany({
+        where: { testId: { in: testIds } },
+      });
+    }
+
+    await tx.courseRefundRequest.deleteMany({ where: { courseId } });
+    await tx.aiAssessment.deleteMany({ where: { courseId } });
+    await tx.pointTransaction.deleteMany({ where: { courseId } });
+    await tx.learningActivity.deleteMany({ where: { courseId } });
+    await tx.test.deleteMany({ where: { courseId } });
+    await tx.lesson.deleteMany({ where: { module: { courseId } } });
+    await tx.module.deleteMany({ where: { courseId } });
+    await tx.enrollment.deleteMany({ where: { courseId } });
+    await tx.feedback.deleteMany({ where: { courseId } });
+    await tx.orderItem.deleteMany({ where: { courseId } });
+    await tx.course.delete({ where: { id: courseId } });
+  });
+}
 
 export async function GET(
   request: NextRequest,
@@ -135,6 +184,13 @@ export async function PUT(
       );
     }
 
+    if (user.role === "TEACHER" && course.status === "PENDING_DELETE") {
+      return NextResponse.json(
+        { error: "Course deletion is pending admin approval" },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
     const { name, description, price, category, level, duration, thumbnail, status, languageId } = body;
 
@@ -170,6 +226,7 @@ export async function PUT(
           );
         }
         updateData.status = status;
+        updateData.deleteRequestedFromStatus = null;
       }
     } else {
       if (!course.languageId) {
@@ -185,6 +242,7 @@ export async function PUT(
       if (course.status !== "LOCKED") {
         const autoApproval = await getCourseAutoApprovalSetting();
         updateData.status = autoApproval.enabled ? "ACTIVE" : "PENDING_APPROVAL";
+        updateData.deleteRequestedFromStatus = null;
       }
     }
 
@@ -334,6 +392,45 @@ export async function PATCH(
         );
       }
 
+      if (course.status === "PENDING_DELETE") {
+        if (decision === "APPROVE") {
+          await deleteCourseWithRelations(courseId);
+          if (course.instructorId) {
+            await prisma.notification.create({
+              data: {
+                userId: course.instructorId,
+                title: "Yêu cầu xóa khóa học đã được duyệt",
+                body: `Khóa học "${course.name}" đã được admin duyệt xóa.`,
+              },
+            });
+          }
+          return NextResponse.json({ deleted: true, courseId });
+        }
+
+        const restoredStatus = course.deleteRequestedFromStatus ?? "ACTIVE";
+        const updatedCourse = await prisma.course.update({
+          where: { id: courseId },
+          data: {
+            status: restoredStatus,
+            deleteRequestedFromStatus: null,
+          },
+        });
+
+        if (course.instructorId) {
+          await prisma.notification.create({
+            data: {
+              userId: course.instructorId,
+              title: "Yêu cầu xóa khóa học bị từ chối",
+              body: body.rejectionReason?.trim()
+                ? `Yêu cầu xóa khóa học "${course.name}" bị từ chối. Lý do: ${body.rejectionReason.trim()}`
+                : `Yêu cầu xóa khóa học "${course.name}" bị từ chối.`,
+            },
+          });
+        }
+
+        return NextResponse.json({ course: updatedCourse });
+      }
+
       const approvedApplication =
         !course.languageId && course.instructorId
           ? await prisma.teacherApplication.findFirst({
@@ -346,6 +443,7 @@ export async function PATCH(
         where: { id: courseId },
         data: {
           status: decision === "APPROVE" ? "ACTIVE" : "REJECTED",
+          deleteRequestedFromStatus: null,
           ...(approvedApplication
             ? { languageId: approvedApplication.languageId }
             : {}),
@@ -377,6 +475,12 @@ export async function PATCH(
           { status: 400 }
         );
       }
+      if (course.status === "PENDING_DELETE") {
+        return NextResponse.json(
+          { error: "Course deletion is pending admin approval" },
+          { status: 400 }
+        );
+      }
       const autoApproval = await getCourseAutoApprovalSetting();
       const approvedApplication = !course.languageId
         ? await prisma.teacherApplication.findFirst({
@@ -389,6 +493,7 @@ export async function PATCH(
         where: { id: courseId },
         data: {
           status: autoApproval.enabled ? "ACTIVE" : "PENDING_APPROVAL",
+          deleteRequestedFromStatus: null,
           ...(approvedApplication
             ? { languageId: approvedApplication.languageId }
             : {}),
@@ -443,62 +548,47 @@ export async function DELETE(
       );
     }
 
-    // Check if course has enrollments
-    const enrollmentCount = await prisma.enrollment.count({
-      where: { courseId },
-    });
+    if (user.role === "ADMIN") {
+      await deleteCourseWithRelations(courseId);
+      return NextResponse.json({ success: true });
+    }
 
-    if (enrollmentCount > 0) {
-      // Instead of deleting, lock the course
-      const lockedCourse = await prisma.course.update({
-        where: { id: courseId },
-        data: { status: "LOCKED" },
-      });
-      return NextResponse.json({ 
-        course: lockedCourse,
-        message: "Course has enrollments, so it has been locked instead of deleted"
+    if (course.status === "PENDING_DELETE") {
+      return NextResponse.json({
+        course,
+        requiresApproval: true,
+        message: "Course deletion is already pending admin approval",
       });
     }
 
-    // Delete related records first
-    await prisma.testAttempt.deleteMany({
-      where: { test: { courseId } },
-    });
-
-    await prisma.question.deleteMany({
-      where: { test: { courseId } },
-    });
-
-    await prisma.test.deleteMany({
-      where: { courseId },
-    });
-
-    await prisma.lesson.deleteMany({
-      where: { module: { courseId } },
-    });
-
-    await prisma.module.deleteMany({
-      where: { courseId },
-    });
-
-    await prisma.enrollment.deleteMany({
-      where: { courseId },
-    });
-
-    await prisma.feedback.deleteMany({
-      where: { courseId },
-    });
-
-    await prisma.orderItem.deleteMany({
-      where: { courseId },
-    });
-
-    // Delete the course
-    await prisma.course.delete({
+    const updatedCourse = await prisma.course.update({
       where: { id: courseId },
+      data: {
+        status: "PENDING_DELETE",
+        deleteRequestedFromStatus: course.status,
+      },
     });
 
-    return NextResponse.json({ success: true });
+    const admins = await prisma.user.findMany({
+      where: { role: "ADMIN" },
+      select: { id: true },
+    });
+
+    if (admins.length > 0) {
+      await prisma.notification.createMany({
+        data: admins.map((admin) => ({
+          userId: admin.id,
+          title: "Yêu cầu xóa khóa học",
+          body: `Giảng viên yêu cầu xóa khóa học "${course.name}". Vui lòng duyệt trong trang quản trị.`,
+        })),
+      });
+    }
+
+    return NextResponse.json({
+      course: updatedCourse,
+      requiresApproval: true,
+      message: "Course deletion request has been sent to admin for approval",
+    });
   } catch (error) {
     console.error("Error deleting course:", error);
     return NextResponse.json(
