@@ -44,7 +44,7 @@ export async function POST(request: Request) {
 
     if (!email || !password) {
       return NextResponse.json(
-        { error: "Vui long nhap day du email va password." },
+        { error: "Vui lòng nhập đầy đủ email và password." },
         { status: 400 },
       );
     }
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
 
     if (user.isBanned) {
       return NextResponse.json(
-        { error: "Tai khoan dang bi khoa. Vui long lien he admin." },
+        { error: "Tài khoản đang bị khóa. Vui lòng liên hệ admin." },
         { status: 403 },
       );
     }
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(
-      { error: "Loi co so du lieu. Vui long thu lai." },
+      { error: "Lỗi cơ sở dữ liệu. Vui lòng thử lại." },
       { status: 500 },
     );
   }

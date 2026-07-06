@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { normalizeCourseThumbnailUrl } from "@/lib/course-thumbnail";
 import { prisma } from "@/lib/prisma";
 import { Badge, BadgeGroup } from "@/components/base/badge";
 import { FeatureList, Stats } from "@/components/base/content";
@@ -65,30 +66,33 @@ export default async function HomePage() {
           subtitle="Những lộ trình được nhiều học viên lựa chọn."
         />
         <CardGrid cols={4} gap="md">
-          {featured.map((course) => (
-            <Link
-              key={course.id}
-              href={`/courses/${course.id}`}
-              className="block overflow-hidden rounded-xl border border-border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-            >
-              <div className="aspect-video bg-muted">
-                {course.thumbnail ? (
-                  <img src={course.thumbnail} alt={course.name} className="h-full w-full object-cover" />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-sm font-semibold text-muted-foreground">{getLanguageLabel(getCourseLanguage(course))}</div>
-                )}
-              </div>
-              <div className="space-y-3 p-4">
-                <BadgeGroup>
-                  <Badge>{getLanguageLabel(getCourseLanguage(course))}</Badge>
-                  <Badge className="bg-muted text-muted-foreground">{course.category?.trim() || "Chưa phân loại"}</Badge>
-                </BadgeGroup>
-                <h3 className="line-clamp-2 text-lg font-semibold text-foreground">{course.name}</h3>
-                <p className="text-sm text-muted-foreground">{course.instructor?.username || "Giảng viên"} - {course._count.enrollments} học viên</p>
-                <p className="text-base font-semibold text-primary">{priceLabel(course.price)}</p>
-              </div>
-            </Link>
-          ))}
+          {featured.map((course) => {
+            const thumbnailUrl = normalizeCourseThumbnailUrl(course.thumbnail);
+            return (
+              <Link
+                key={course.id}
+                href={`/courses/${course.id}`}
+                className="block overflow-hidden rounded-xl border border-border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              >
+                <div className="aspect-video bg-muted">
+                  {thumbnailUrl ? (
+                    <img src={thumbnailUrl} alt={course.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-sm font-semibold text-muted-foreground">{getLanguageLabel(getCourseLanguage(course))}</div>
+                  )}
+                </div>
+                <div className="space-y-3 p-4">
+                  <BadgeGroup>
+                    <Badge>{getLanguageLabel(getCourseLanguage(course))}</Badge>
+                    <Badge className="bg-muted text-muted-foreground">{course.category?.trim() || "Chưa phân loại"}</Badge>
+                  </BadgeGroup>
+                  <h3 className="line-clamp-2 text-lg font-semibold text-foreground">{course.name}</h3>
+                  <p className="text-sm text-muted-foreground">{course.instructor?.username || "Giảng viên"} - {course._count.enrollments} học viên</p>
+                  <p className="text-base font-semibold text-primary">{priceLabel(course.price)}</p>
+                </div>
+              </Link>
+            );
+          })}
         </CardGrid>
       </Section>
 

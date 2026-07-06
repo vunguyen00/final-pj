@@ -122,7 +122,7 @@ export default async function AdminPage() {
 
   return (
     <div className="mt-6">
-      <Suspense fallback={<div className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">Dang tai trang quan tri...</div>}>
+      <Suspense fallback={<div className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">Đang tải trang quản trị...</div>}>
         <AdminShell
           initialEnabled={Boolean(setting.enabled)}
           initialCourseAutoApproval={Boolean(courseApprovalSetting.enabled)}

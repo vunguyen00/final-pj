@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { CourseHeader } from "./_components/CourseHeader";
 import { CourseTabs, type CourseTab } from "./_components/CourseTabs";
@@ -25,9 +25,14 @@ export default function CourseDetailPage() {
   const [showModuleModal, setShowModuleModal] = useState(false);
   const [editingModule, setEditingModule] = useState<Module | null>(null);
   const [moduleName, setModuleName] = useState("");
+  const [isSavingModule, setIsSavingModule] = useState(false);
+  const savingModuleRef = useRef(false);
 
   const [showTestModal, setShowTestModal] = useState(false);
   const [testForm, setTestForm] = useState<TestForm>(initialTestForm);
+  const [isCreatingTest, setIsCreatingTest] = useState(false);
+  const creatingTestRef = useRef(false);
+  const [deletingTestId, setDeletingTestId] = useState<string | null>(null);
 
   const fetchCourseData = useCallback(async () => {
     try {
@@ -48,6 +53,7 @@ export default function CourseDetailPage() {
   useEffect(() => {
     async function checkAuthAndFetchData() {
       try {
+        const courseDataPromise = fetchCourseData();
         const res = await fetch("/api/auth/me");
         if (!res.ok) {
           router.push("/auth/login");
@@ -58,7 +64,7 @@ export default function CourseDetailPage() {
           router.push("/");
           return;
         }
-        await fetchCourseData();
+        await courseDataPromise;
       } catch (error) {
         console.error("Auth check failed:", error);
         router.push("/auth/login");
@@ -70,11 +76,16 @@ export default function CourseDetailPage() {
 
   const handleSaveModule = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (savingModuleRef.current) return;
+
     const trimmedName = moduleName.trim();
     if (!trimmedName) {
       alert("Vui lòng nhập tên chương.");
       return;
     }
+
+    savingModuleRef.current = true;
+    setIsSavingModule(true);
 
     try {
       const url = editingModule
@@ -100,21 +111,35 @@ export default function CourseDetailPage() {
     } catch (error) {
       console.error("Error saving module:", error);
       alert(editingModule ? "Lỗi khi cập nhật chương." : "Lỗi khi tạo chương.");
+    } finally {
+      savingModuleRef.current = false;
+      setIsSavingModule(false);
     }
   };
 
   const handleDeleteModule = async (moduleId: string) => {
-    if (!confirm("Ban co chac chan muon xoa module nay?")) return;
+    if (!confirm("Bạn có chắc chắn muốn xóa chương này?")) return;
     try {
       const res = await fetch(`/api/teacher/courses/${courseId}/modules/${moduleId}`, { method: "DELETE" });
-      if (res.ok) fetchCourseData();
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        await fetchCourseData();
+      } else {
+        alert(data?.error || "Không thể xóa chương.");
+      }
     } catch (error) {
       console.error("Error deleting module:", error);
+      alert("Lỗi khi xóa chương.");
     }
   };
 
   const handleCreateTest = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (creatingTestRef.current) return;
+
+    creatingTestRef.current = true;
+    setIsCreatingTest(true);
+
     try {
       const res = await fetch("/api/teacher/tests", {
         method: "POST",
@@ -131,40 +156,58 @@ export default function CourseDetailPage() {
       if (res.ok) {
         setShowTestModal(false);
         setTestForm(initialTestForm);
-        fetchCourseData();
+        await fetchCourseData();
       } else {
-        const message = data?.details ? `${data.error || "Khong the tao bai test"}: ${data.details}` : data?.error || "Khong the tao bai test";
+        const message = data?.details ? `${data.error || "Không thể tạo bài test"}: ${data.details}` : data?.error || "Không thể tạo bài test";
         alert(message);
       }
     } catch (error) {
       console.error("Error creating test:", error);
-      alert("Loi khi tao bai test");
+      alert("Lỗi khi tạo bài test.");
+    } finally {
+      creatingTestRef.current = false;
+      setIsCreatingTest(false);
     }
   };
 
   const handleDeleteTest = async (testId: string) => {
-    if (!confirm("Ban co chac chan muon xoa bai test nay?")) return;
+    if (deletingTestId) return;
+    if (!confirm("Bạn có chắc chắn muốn xóa bài test này?")) return;
+    setDeletingTestId(testId);
     try {
       const res = await fetch(`/api/teacher/tests/${testId}`, { method: "DELETE" });
-      if (res.ok) fetchCourseData();
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        await fetchCourseData();
+      } else {
+        alert(data?.error || "Không thể xóa bài test.");
+      }
     } catch (error) {
       console.error("Error deleting test:", error);
+      alert("Lỗi khi xóa bài test.");
+    } finally {
+      setDeletingTestId(null);
     }
   };
 
   const openModuleCreateModal = () => {
     setEditingModule(null);
     setModuleName("");
+    setIsSavingModule(false);
+    savingModuleRef.current = false;
     setShowModuleModal(true);
   };
 
   const openModuleEditModal = (module: Module) => {
     setEditingModule(module);
     setModuleName(module.name);
+    setIsSavingModule(false);
+    savingModuleRef.current = false;
     setShowModuleModal(true);
   };
 
   const closeModuleModal = () => {
+    if (savingModuleRef.current) return;
     setShowModuleModal(false);
     setEditingModule(null);
     setModuleName("");
@@ -172,6 +215,8 @@ export default function CourseDetailPage() {
 
   const openTestCreateModal = () => {
     setTestForm(initialTestForm);
+    setIsCreatingTest(false);
+    creatingTestRef.current = false;
     setShowTestModal(true);
   };
 
@@ -217,7 +262,7 @@ export default function CourseDetailPage() {
         )}
 
         {activeTab === "tests" && (
-          <TestsTab tests={tests} modulesCount={modules.length} onOpenCreateModal={openTestCreateModal} onDeleteTest={handleDeleteTest} />
+          <TestsTab tests={tests} modulesCount={modules.length} deletingTestId={deletingTestId} onOpenCreateModal={openTestCreateModal} onDeleteTest={handleDeleteTest} />
         )}
       </div>
 
@@ -225,6 +270,7 @@ export default function CourseDetailPage() {
         isOpen={showModuleModal}
         moduleName={moduleName}
         isEditing={Boolean(editingModule)}
+        isSubmitting={isSavingModule}
         onChangeName={setModuleName}
         onClose={closeModuleModal}
         onSubmit={handleSaveModule}
@@ -233,8 +279,11 @@ export default function CourseDetailPage() {
       <TestModal
         isOpen={showTestModal}
         form={testForm}
+        isSubmitting={isCreatingTest}
         onChangeForm={setTestForm}
-        onClose={() => setShowTestModal(false)}
+        onClose={() => {
+          if (!creatingTestRef.current) setShowTestModal(false);
+        }}
         onSubmit={handleCreateTest}
       />
     </div>

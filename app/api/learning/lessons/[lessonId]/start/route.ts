@@ -26,7 +26,7 @@ export async function POST(
     });
 
     if (!lesson) {
-      return NextResponse.json({ error: "Khong tim thay bai hoc." }, { status: 404 });
+      return NextResponse.json({ error: "Không tìm thấy bài học." }, { status: 404 });
     }
 
     const courseId = lesson.module.course.id;
@@ -39,13 +39,13 @@ export async function POST(
     const canAccess = isAdmin || isInstructor || Boolean(enrollment);
 
     if (!canAccess) {
-      return NextResponse.json({ error: "Ban chua dang ky khoa hoc." }, { status: 403 });
+      return NextResponse.json({ error: "Bạn chưa đăng ký khóa học." }, { status: 403 });
     }
 
     const start = await ensureLessonStart(user.id, courseId, lessonId);
 
     return NextResponse.json({ ok: true, startedAt: start.createdAt });
   } catch {
-    return NextResponse.json({ error: "Loi he thong." }, { status: 500 });
+    return NextResponse.json({ error: "Lỗi hệ thống." }, { status: 500 });
   }
 }

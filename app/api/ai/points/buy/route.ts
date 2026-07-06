@@ -30,6 +30,6 @@ export async function POST(request: Request) {
     }
 
     console.error("[AI_POINTS][BUY] unexpected error", error);
-    return NextResponse.json({ error: "Loi he thong." }, { status: 500 });
+    return NextResponse.json({ error: "Lỗi hệ thống." }, { status: 500 });
   }
 }

@@ -15,7 +15,7 @@ export async function PATCH(
 
     const { userId } = await params;
     if (userId === admin.id) {
-      return NextResponse.json({ error: "Admin khong the tu khoa tai khoan cua minh." }, { status: 400 });
+      return NextResponse.json({ error: "Admin không thể tự khóa tài khoản của mình." }, { status: 400 });
     }
 
     const body = await request.json();
@@ -34,7 +34,7 @@ export async function PATCH(
 
     return NextResponse.json({ user: updated });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Loi he thong.";
+    const message = error instanceof Error ? error.message : "Lỗi hệ thống.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

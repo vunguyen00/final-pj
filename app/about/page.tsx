@@ -7,8 +7,8 @@ export default function AboutPage() {
     <main className="min-h-screen bg-background">
       <Section background="muted" padding="lg">
         <SectionHeader
-          title="Ve FinnCenter"
-          subtitle="Nen tang hoc ngoai ngu giup nguoi hoc Viet Nam tiep can lo trinh chat luong cao va kha thi." 
+          title="Về FinnCenter"
+          subtitle="Nền tảng học ngoại ngữ giúp người học Việt Nam tiếp cận lộ trình chất lượng cao và khả thi."
           centered
         />
       </Section>
@@ -16,54 +16,54 @@ export default function AboutPage() {
       <Section padding="md">
         <div className="grid gap-8 lg:grid-cols-[1.3fr_0.7fr]">
           <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
-            <h2 className="text-2xl font-semibold text-foreground">Su menh cua chung toi</h2>
+            <h2 className="text-2xl font-semibold text-foreground">Sứ mệnh của chúng tôi</h2>
             <p className="leading-relaxed text-muted-foreground">
-              FinnCenter duoc xay dung de mo rong co hoi hoc ngoai ngu thong qua khoa hoc thuc te, giang vien co kinh nghiem,
-              va he thong theo doi tien do ro rang.
+              FinnCenter được xây dựng để mở rộng cơ hội học ngoại ngữ thông qua khóa học thực tế, giảng viên có kinh nghiệm,
+              và hệ thống theo dõi tiến độ rõ ràng.
             </p>
             <p className="leading-relaxed text-muted-foreground">
-              Chung toi tin rang moi hoc vien deu can mot lo trinh phu hop muc tieu ca nhan, de hoc nhanh hon va ung dung duoc ngay.
+              Chúng tôi tin rằng mỗi học viên đều cần một lộ trình phù hợp mục tiêu cá nhân, để học nhanh hơn và ứng dụng được ngay.
             </p>
           </div>
           <Stats
             className="lg:grid-cols-1"
             stats={[
-              { label: "Hoc vien", value: "50,000+" },
-              { label: "Khoa hoc", value: "200+" },
-              { label: "Giang vien", value: "50+" },
-              { label: "Danh gia", value: "4.8/5" },
+              { label: "Học viên", value: "50,000+" },
+              { label: "Khóa học", value: "200+" },
+              { label: "Giảng viên", value: "50+" },
+              { label: "Đánh giá", value: "4.8/5" },
             ]}
           />
         </div>
       </Section>
 
       <Section background="muted" padding="md">
-        <SectionHeader title="Gia tri cot loi" centered />
+        <SectionHeader title="Giá trị cốt lõi" centered />
         <FeatureList
           items={[
             {
-              title: "Chat luong",
-              description: "Noi dung duoc xay dung theo muc tieu dau ra ro rang va do luong duoc.",
+              title: "Chất lượng",
+              description: "Nội dung được xây dựng theo mục tiêu đầu ra rõ ràng và đo lường được.",
             },
             {
-              title: "Ca nhan hoa",
-              description: "Moi hoc vien co lo trinh rieng dua tren trinh do va nhu cau thuc te.",
+              title: "Cá nhân hóa",
+              description: "Mỗi học viên có lộ trình riêng dựa trên trình độ và nhu cầu thực tế.",
             },
             {
-              title: "Tin cay",
-              description: "Chinh sach minh bach, tien do ro rang, va ho tro xuyen suot qua trinh hoc.",
+              title: "Tin cậy",
+              description: "Chính sách minh bạch, tiến độ rõ ràng, và hỗ trợ xuyên suốt quá trình học.",
             },
           ]}
         />
       </Section>
 
       <Section padding="md">
-        <SectionHeader title="Doi ngu lanh dao" centered />
+        <SectionHeader title="Đội ngũ lãnh đạo" centered />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {[
-            ["Nguyen Van A", "CEO & Founder"],
-            ["Tran Thi B", "COO"],
-            ["Le Van C", "CTO"],
+            ["Nguyễn Văn A", "CEO & Founder"],
+            ["Trần Thị B", "COO"],
+            ["Lê Văn C", "CTO"],
           ].map(([name, role]) => (
             <article key={name} className="rounded-xl border border-border bg-card p-5 text-center">
               <div className="mx-auto h-20 w-20 rounded-full bg-muted" />
@@ -76,14 +76,14 @@ export default function AboutPage() {
 
       <Section background="muted" padding="sm">
         <div className="rounded-2xl border border-border bg-card p-6 text-center">
-          <h2 className="text-2xl font-semibold text-foreground">San sang bat dau?</h2>
-          <p className="mt-2 text-muted-foreground">Tham gia cung hang nghin hoc vien trong hanh trinh chinh phuc ngoai ngu.</p>
+          <h2 className="text-2xl font-semibold text-foreground">Sẵn sàng bắt đầu?</h2>
+          <p className="mt-2 text-muted-foreground">Tham gia cùng hàng nghìn học viên trong hành trình chinh phục ngoại ngữ.</p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Link href="/auth/register" className="rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground">
-              Dang ky ngay
+              Đăng ký ngay
             </Link>
             <Link href="/courses" className="rounded-lg border border-border bg-background px-5 py-3 text-sm font-semibold text-foreground">
-              Kham pha khoa hoc
+              Khám phá khóa học
             </Link>
           </div>
         </div>

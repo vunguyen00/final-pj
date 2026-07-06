@@ -31,7 +31,7 @@ export async function POST(
     });
 
     if (!lesson) {
-      return NextResponse.json({ error: "Khong tim thay bai hoc." }, { status: 404 });
+      return NextResponse.json({ error: "Không tìm thấy bài học." }, { status: 404 });
     }
 
     const courseId = lesson.module.course.id;
@@ -44,7 +44,7 @@ export async function POST(
     const canAccess = isAdmin || isInstructor || Boolean(enrollment);
 
     if (!canAccess) {
-      return NextResponse.json({ error: "Ban chua dang ky khoa hoc." }, { status: 403 });
+      return NextResponse.json({ error: "Bạn chưa đăng ký khóa học." }, { status: 403 });
     }
 
     if (!lesson.videoUrl) {
@@ -65,7 +65,7 @@ export async function POST(
       const noSeek = body?.noSeek === true;
       if (!watchedFull || !noSeek) {
         return NextResponse.json(
-          { error: "Bai co video yeu cau xem het va khong tua." },
+          { error: "Bài có video yêu cầu xem hết và không tua." },
           { status: 400 },
         );
       }
@@ -81,6 +81,6 @@ export async function POST(
 
     return NextResponse.json({ ok: true });
   } catch {
-    return NextResponse.json({ error: "Loi he thong." }, { status: 500 });
+    return NextResponse.json({ error: "Lỗi hệ thống." }, { status: 500 });
   }
 }

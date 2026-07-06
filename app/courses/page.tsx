@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { authenticate } from "@/lib/auth";
+import { normalizeCourseThumbnailUrl } from "@/lib/course-thumbnail";
 import { prisma } from "@/lib/prisma";
 import { Badge, BadgeGroup } from "@/components/base/badge";
 import { CardGrid } from "@/components/base/grid";
@@ -83,12 +84,13 @@ export default async function CoursesPage({
             const isEnrolled = enrolledIds.has(course.id);
             const language = getCourseLanguage(course);
             const category = course.category?.trim() || "Chưa phân loại";
+            const thumbnailUrl = normalizeCourseThumbnailUrl(course.thumbnail);
             return (
               <article key={course.id} className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
                 <Link href={`/courses/${course.id}`} className="block">
                   <div className="relative aspect-video bg-muted">
-                    {course.thumbnail ? (
-                      <img src={course.thumbnail} alt={course.name} className="h-full w-full object-cover" />
+                    {thumbnailUrl ? (
+                      <img src={thumbnailUrl} alt={course.name} className="h-full w-full object-cover" />
                     ) : (
                       <div className="flex h-full items-center justify-center text-sm font-semibold text-muted-foreground">{getLanguageLabel(language)}</div>
                     )}

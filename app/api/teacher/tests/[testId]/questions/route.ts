@@ -105,7 +105,7 @@ export async function POST(
 
     const parsedScore = score ? parseFloat(score) : 10;
     if (!Number.isFinite(parsedScore) || parsedScore <= 0) {
-      return NextResponse.json({ error: "Diem so phai lon hon 0" }, { status: 400 });
+      return NextResponse.json({ error: "Điểm số phải lớn hơn 0" }, { status: 400 });
     }
 
     const scoreAggregate = await prisma.question.aggregate({

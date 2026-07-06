@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { isLikelyImageSearchUrl, normalizeCourseThumbnailUrl } from "@/lib/course-thumbnail";
 
 type CourseStatus = "ACTIVE" | "LOCKED" | "PENDING_APPROVAL" | "PENDING_DELETE" | "REJECTED";
 
@@ -80,32 +81,9 @@ export default function TeacherCoursesPage() {
   const [formData, setFormData] = useState(defaultForm);
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
   const [thumbnailUploadError, setThumbnailUploadError] = useState("");
+  const [thumbnailPreviewError, setThumbnailPreviewError] = useState("");
 
-  useEffect(() => {
-    void checkAuthAndFetchCourses();
-  }, []);
-
-  async function checkAuthAndFetchCourses() {
-    try {
-      const res = await fetch("/api/auth/me");
-      if (!res.ok) {
-        router.push("/auth/login");
-        return;
-      }
-      const data = await res.json();
-      setUser(data.user);
-      if (data.user.role !== "TEACHER" && data.user.role !== "ADMIN") {
-        router.push("/");
-        return;
-      }
-      await fetchCourses();
-    } catch (error) {
-      console.error("Auth check failed:", error);
-      router.push("/auth/login");
-    }
-  }
-
-  async function fetchCourses() {
+  const fetchCourses = useCallback(async () => {
     try {
       const res = await fetch("/api/teacher/courses");
       if (res.ok) {
@@ -117,7 +95,36 @@ export default function TeacherCoursesPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  const checkAuthAndFetchCourses = useCallback(async () => {
+    try {
+      const coursesPromise = fetchCourses();
+      const res = await fetch("/api/auth/me");
+      if (!res.ok) {
+        router.push("/auth/login");
+        return;
+      }
+      const data = await res.json();
+      setUser(data.user);
+      if (data.user.role !== "TEACHER" && data.user.role !== "ADMIN") {
+        router.push("/");
+        return;
+      }
+      await coursesPromise;
+    } catch (error) {
+      console.error("Auth check failed:", error);
+      router.push("/auth/login");
+    }
+  }, [fetchCourses, router]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      void checkAuthAndFetchCourses();
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
+  }, [checkAuthAndFetchCourses]);
 
   const handleThumbnailUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -143,6 +150,7 @@ export default function TeacherCoursesPage() {
       }
 
       setFormData((current) => ({ ...current, thumbnail: data.url }));
+      setThumbnailPreviewError("");
     } catch (error) {
       console.error("Error uploading thumbnail:", error);
       setThumbnailUploadError("Lỗi khi tải ảnh lên.");
@@ -153,6 +161,7 @@ export default function TeacherCoursesPage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    const normalizedThumbnail = normalizeCourseThumbnailUrl(formData.thumbnail);
     try {
       const url = editingCourse ? `/api/teacher/courses/${editingCourse.id}` : "/api/teacher/courses";
       const method = editingCourse ? "PUT" : "POST";
@@ -160,7 +169,7 @@ export default function TeacherCoursesPage() {
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, thumbnail: normalizedThumbnail }),
       });
       const data = await res.json().catch(() => ({}));
 
@@ -191,6 +200,7 @@ export default function TeacherCoursesPage() {
   const handleEdit = (course: Course) => {
     setEditingCourse(course);
     setThumbnailUploadError("");
+    setThumbnailPreviewError("");
     setFormData({
       name: course.name,
       description: course.description,
@@ -246,6 +256,7 @@ export default function TeacherCoursesPage() {
   const resetForm = () => {
     setFormData(defaultForm);
     setThumbnailUploadError("");
+    setThumbnailPreviewError("");
   };
 
   const openCreateModal = () => {
@@ -253,6 +264,8 @@ export default function TeacherCoursesPage() {
     resetForm();
     setShowModal(true);
   };
+
+  const thumbnailPreviewUrl = normalizeCourseThumbnailUrl(formData.thumbnail);
 
   if (loading) {
     return (
@@ -308,20 +321,21 @@ export default function TeacherCoursesPage() {
               <tbody className="divide-y divide-slate-200 bg-white">
                 {courses.map((course) => {
                   const ui = getStatusUi(course.status);
+                  const courseThumbnailUrl = normalizeCourseThumbnailUrl(course.thumbnail);
                   return (
                     <tr key={course.id} className="hover:bg-slate-50">
                       <td className="whitespace-nowrap px-6 py-4">
                         <div className="flex items-center">
                           <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-slate-100">
-                            {course.thumbnail ? (
-                              <img src={course.thumbnail} alt={course.name} className="h-full w-full object-cover" />
+                            {courseThumbnailUrl ? (
+                              <img src={courseThumbnailUrl} alt={course.name} className="h-full w-full object-cover" />
                             ) : (
                               <div className="flex h-full w-full items-center justify-center text-slate-400">N/A</div>
                             )}
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-slate-900">{course.name}</div>
-                            <div className="text-sm text-slate-500">{course._count.modules} modules - {course._count.tests} tests</div>
+                            <div className="text-sm text-slate-500">{course._count.modules} chương - {course._count.tests} bài test</div>
                           </div>
                         </div>
                       </td>
@@ -455,10 +469,22 @@ export default function TeacherCoursesPage() {
                   onChange={(event) => {
                     setFormData({ ...formData, thumbnail: event.target.value });
                     setThumbnailUploadError("");
+                    setThumbnailPreviewError("");
+                  }}
+                  onBlur={() => {
+                    const normalized = normalizeCourseThumbnailUrl(formData.thumbnail);
+                    if (normalized && normalized !== formData.thumbnail.trim()) {
+                      setFormData((current) => ({ ...current, thumbnail: normalized }));
+                    }
                   }}
                   placeholder="Nhập URL ảnh hoặc tải ảnh lên bên dưới"
                   className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 />
+                {isLikelyImageSearchUrl(formData.thumbnail) && normalizeCourseThumbnailUrl(formData.thumbnail) === formData.thumbnail.trim() ? (
+                  <p className="mt-2 text-xs text-amber-700">
+                    Link này là trang tìm kiếm, không phải ảnh trực tiếp. Hãy mở ảnh rồi sao chép địa chỉ ảnh hoặc tải ảnh từ máy.
+                  </p>
+                ) : null}
                 <div className="mt-2 flex items-center gap-3">
                   <label className={`inline-flex cursor-pointer items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 ${uploadingThumbnail ? "pointer-events-none opacity-60" : ""}`}>
                     {uploadingThumbnail ? "Đang tải ảnh..." : "Chọn ảnh từ máy"}
@@ -473,9 +499,16 @@ export default function TeacherCoursesPage() {
                   <span className="text-xs text-slate-500">JPEG, PNG, WebP hoặc GIF, tối đa 5 MB</span>
                 </div>
                 {thumbnailUploadError ? <p className="mt-2 text-xs text-red-600">{thumbnailUploadError}</p> : null}
-                {formData.thumbnail ? (
+                {thumbnailPreviewError ? <p className="mt-2 text-xs text-red-600">{thumbnailPreviewError}</p> : null}
+                {thumbnailPreviewUrl ? (
                   <div className="mt-3 h-32 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                    <img src={formData.thumbnail} alt="Xem trước thumbnail" className="h-full w-full object-cover" />
+                    <img
+                      src={thumbnailPreviewUrl}
+                      alt="Xem trước thumbnail"
+                      className="h-full w-full object-cover"
+                      onLoad={() => setThumbnailPreviewError("")}
+                      onError={() => setThumbnailPreviewError("Không thể hiển thị ảnh từ link này. Vui lòng dùng link ảnh trực tiếp hoặc tải ảnh từ máy.")}
+                    />
                   </div>
                 ) : null}
               </div>

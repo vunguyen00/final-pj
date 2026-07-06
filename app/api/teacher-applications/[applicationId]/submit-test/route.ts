@@ -39,17 +39,17 @@ export async function POST(
     }
 
     if (application.status !== "DRAFT") {
-      return NextResponse.json({ error: "Bai test da duoc nop hoac ho so khong con o trang thai draft." }, { status: 400 });
+      return NextResponse.json({ error: "Bài test đã được nộp hoặc hồ sơ không còn ở trạng thái draft." }, { status: 400 });
     }
 
     const test = application.entranceTest;
     if (!test) {
-      return NextResponse.json({ error: "Ho so khong co bai test dau vao." }, { status: 400 });
+      return NextResponse.json({ error: "Hồ sơ không có bài test đầu vào." }, { status: 400 });
     }
 
     const totalQuestionScore = test.questions.reduce((sum, question) => sum + Number(question.score || 0), 0);
     if (!isTestReady(totalQuestionScore)) {
-      return NextResponse.json({ error: `Bai test dau vao chua hop le. Tong diem cau hoi phai bang ${FIXED_TEST_MAX_SCORE}.` }, { status: 400 });
+      return NextResponse.json({ error: `Bài test đầu vào chưa hợp lệ. Tổng điểm câu hỏi phải bằng ${FIXED_TEST_MAX_SCORE}.` }, { status: 400 });
     }
 
     let earned = 0;
@@ -69,7 +69,7 @@ export async function POST(
     const failedAiResult = aiInputs.some((input) => aiResults.get(input.questionId)?.failed);
     if (failedAiResult) {
       return NextResponse.json(
-        { error: "AI dang tam thoi qua tai. Bai thi chua duoc nop, vui long thu lai." },
+        { error: "AI đang tạm thời quá tải. Bài thi chưa được nộp, vui lòng thử lại." },
         { status: 503 },
       );
     }
@@ -182,7 +182,7 @@ export async function POST(
     try {
       await sendBasicEmail(
         user.email,
-        "Ho so dang ky giang vien dang cho review",
+        "Hồ sơ đăng ký giảng viên đang chờ review",
         "Ban da nop bai test dau vao. Admin se review ho so cua ban.",
       );
     } catch {
@@ -199,7 +199,7 @@ export async function POST(
       questionResults,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Loi he thong.";
+    const message = error instanceof Error ? error.message : "Lỗi hệ thống.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

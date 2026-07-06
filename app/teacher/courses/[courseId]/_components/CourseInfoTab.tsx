@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ChangeEvent, type FormEvent } from "react";
+import { isLikelyImageSearchUrl, normalizeCourseThumbnailUrl } from "@/lib/course-thumbnail";
 import type { Course } from "../types";
 
 type CourseInfoTabProps = {
@@ -40,6 +41,7 @@ export function CourseInfoTab({ course, onUpdated }: CourseInfoTabProps) {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const thumbnailPreviewUrl = normalizeCourseThumbnailUrl(form.thumbnail);
 
   const inputClass =
     "mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
@@ -93,7 +95,7 @@ export function CourseInfoTab({ course, onUpdated }: CourseInfoTabProps) {
           category: form.category,
           level: form.level,
           duration: form.duration.trim(),
-          thumbnail: form.thumbnail.trim(),
+          thumbnail: normalizeCourseThumbnailUrl(form.thumbnail),
         }),
       });
       const data = await response.json().catch(() => ({}));
@@ -219,10 +221,21 @@ export function CourseInfoTab({ course, onUpdated }: CourseInfoTabProps) {
             <input
               value={form.thumbnail}
               onChange={(event) => setForm({ ...form, thumbnail: event.target.value })}
+              onBlur={() => {
+                const normalized = normalizeCourseThumbnailUrl(form.thumbnail);
+                if (normalized && normalized !== form.thumbnail.trim()) {
+                  setForm((current) => ({ ...current, thumbnail: normalized }));
+                }
+              }}
               placeholder="Nhập URL ảnh hoặc tải ảnh lên"
               className={inputClass}
             />
           </label>
+          {isLikelyImageSearchUrl(form.thumbnail) && normalizeCourseThumbnailUrl(form.thumbnail) === form.thumbnail.trim() ? (
+            <p className="mt-2 text-xs text-amber-700">
+              Link này là trang tìm kiếm, không phải ảnh trực tiếp. Hãy mở ảnh rồi sao chép địa chỉ ảnh hoặc tải ảnh từ máy.
+            </p>
+          ) : null}
 
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <label
@@ -242,13 +255,10 @@ export function CourseInfoTab({ course, onUpdated }: CourseInfoTabProps) {
             <span className="text-xs text-slate-500">JPEG, PNG, WebP hoặc GIF, tối đa 5 MB</span>
           </div>
 
-          {form.thumbnail ? (
-            <div
-              role="img"
-              aria-label="Xem trước ảnh khóa học"
-              className="mt-4 h-48 max-w-xl rounded-xl border border-slate-200 bg-slate-100 bg-cover bg-center"
-              style={{ backgroundImage: `url(${JSON.stringify(form.thumbnail)})` }}
-            />
+          {thumbnailPreviewUrl ? (
+            <div className="mt-4 h-48 max-w-xl overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+              <img src={thumbnailPreviewUrl} alt="Xem trước ảnh khóa học" className="h-full w-full object-cover" />
+            </div>
           ) : null}
         </div>
 

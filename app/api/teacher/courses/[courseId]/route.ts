@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { getCourseAutoApprovalSetting } from "@/lib/course-approval";
+import { normalizeCourseThumbnailUrl } from "@/lib/course-thumbnail";
 import { sendBasicEmail } from "@/lib/mailer";
 
 const COURSE_STATUSES = new Set(["ACTIVE", "LOCKED", "PENDING_APPROVAL", "PENDING_DELETE", "REJECTED"]);
@@ -200,7 +201,7 @@ export async function PUT(
       ...(category !== undefined && { category }),
       ...(level !== undefined && { level }),
       ...(duration !== undefined && { duration }),
-      ...(thumbnail !== undefined && { thumbnail }),
+      ...(thumbnail !== undefined && { thumbnail: normalizeCourseThumbnailUrl(thumbnail) || null }),
     };
 
     if (price !== undefined) {
@@ -339,8 +340,8 @@ export async function PATCH(
       });
 
       if (newStatus === "LOCKED" && course.instructorId && course.instructor) {
-        const title = "Khoa hoc cua ban da bi khoa";
-        const body = `Khoa hoc "${course.name}" da bi admin khoa. Vui long kiem tra lai noi dung khoa hoc hoac lien he admin neu can ho tro.`;
+        const title = "Khóa học của bạn đã bị khóa";
+        const body = `Khóa học "${course.name}" đã bị admin khóa. Vui lòng kiểm tra lại nội dung khóa học hoặc liên hệ admin nếu cần hỗ trợ.`;
 
         await prisma.notification.create({
           data: {

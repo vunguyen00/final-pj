@@ -4,6 +4,42 @@ import { getCurrentUser } from "@/lib/auth";
 import { FIXED_TEST_MAX_SCORE } from "@/lib/test-rules";
 import { Prisma } from "@/app/generated/prisma/client";
 
+async function deleteTestWithRelations(testId: string) {
+  await prisma.$transaction(async (tx) => {
+    const attempts = await tx.testAttempt.findMany({
+      where: { testId },
+      select: { id: true },
+    });
+    const attemptIds = attempts.map((attempt) => attempt.id);
+
+    if (attemptIds.length > 0) {
+      await tx.antiCheatLog.deleteMany({
+        where: { testAttemptId: { in: attemptIds } },
+      });
+      await tx.cheatingLog.deleteMany({
+        where: { attemptId: { in: attemptIds } },
+      });
+      await tx.testAttempt.deleteMany({
+        where: { id: { in: attemptIds } },
+      });
+    }
+
+    await tx.answer.deleteMany({
+      where: { question: { testId } },
+    });
+    await tx.question.deleteMany({
+      where: { testId },
+    });
+    await tx.teacherApplication.updateMany({
+      where: { entranceTestId: testId },
+      data: { entranceTestId: null, entranceAttemptId: null },
+    });
+    await tx.test.delete({
+      where: { id: testId },
+    });
+  });
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ testId: string }> }
@@ -237,9 +273,7 @@ export async function DELETE(
       );
     }
 
-    await prisma.test.delete({
-      where: { id: testId },
-    });
+    await deleteTestWithRelations(testId);
 
     return NextResponse.json({ message: "Test deleted successfully" });
   } catch (error) {

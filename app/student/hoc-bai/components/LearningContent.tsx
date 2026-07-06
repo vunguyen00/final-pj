@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
 type Lesson = {
@@ -50,14 +50,14 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
 
   const allDone = progress === 100;
 
-  async function startReading(lessonId: string) {
+  const startReading = useCallback(async (lessonId: string) => {
     setErrors((prev) => ({ ...prev, [lessonId]: "" }));
 
     const response = await fetch(`/api/learning/lessons/${lessonId}/start`, { method: "POST" });
     const data = await response.json();
 
     if (!response.ok) {
-      setErrors((prev) => ({ ...prev, [lessonId]: data.error ?? "Khong the bat dau hoc." }));
+      setErrors((prev) => ({ ...prev, [lessonId]: data.error ?? "Không thể bắt đầu học." }));
       return;
     }
 
@@ -70,9 +70,9 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
     }, 1000);
 
     window.setTimeout(() => window.clearInterval(interval), MIN_READING_SECONDS * 1000 + 5000);
-  }
+  }, []);
 
-  async function markDone(lesson: Lesson, options?: { watchedFull?: boolean }) {
+  const markDone = useCallback(async (lesson: Lesson, options?: { watchedFull?: boolean }) => {
     if (completed[lesson.id] || loadingLesson === lesson.id) return;
 
     setLoadingLesson(lesson.id);
@@ -94,7 +94,7 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
 
       const data = await response.json();
       if (!response.ok) {
-        setErrors((prev) => ({ ...prev, [lesson.id]: data.error ?? "Khong the danh dau hoan thanh." }));
+        setErrors((prev) => ({ ...prev, [lesson.id]: data.error ?? "Không thể đánh dấu hoàn thành." }));
         return;
       }
 
@@ -102,13 +102,15 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
     } finally {
       setLoadingLesson("");
     }
-  }
+  }, [completed, loadingLesson, videoFull]);
 
   function remainingReadingSeconds(lessonId: string) {
     const startedAt = readingStarts[lessonId];
     if (!startedAt) return MIN_READING_SECONDS;
 
-    const now = readingNow[lessonId] ?? Date.now();
+    const now = readingNow[lessonId];
+    if (!now) return MIN_READING_SECONDS;
+
     const elapsed = Math.floor((now - startedAt) / 1000);
     return Math.max(0, MIN_READING_SECONDS - elapsed);
   }
@@ -142,12 +144,8 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
     }
   }
 
-  if (!selectedLesson) {
-    return <p className="text-slate-600">Khoa hoc chua co bai hoc.</p>;
-  }
-
-  const readingRemain = remainingReadingSeconds(selectedLesson.id);
-  const canCompleteReading = readingRemain === 0;
+  const readingRemain = selectedLesson ? remainingReadingSeconds(selectedLesson.id) : MIN_READING_SECONDS;
+  const canCompleteReading = selectedLesson ? readingRemain === 0 : false;
 
   useEffect(() => {
     if (!selectedLesson || selectedLesson.videoUrl) return;
@@ -157,7 +155,7 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
 
     startedReadingRef.current[selectedLesson.id] = true;
     void startReading(selectedLesson.id);
-  }, [completed, readingStarts, selectedLesson]);
+  }, [completed, readingStarts, selectedLesson, startReading]);
 
   useEffect(() => {
     if (!selectedLesson || selectedLesson.videoUrl) return;
@@ -165,15 +163,23 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
     if (!canCompleteReading) return;
     if (loadingLesson === selectedLesson.id) return;
 
-    void markDone(selectedLesson);
-  }, [canCompleteReading, completed, loadingLesson, selectedLesson]);
+    const timeout = window.setTimeout(() => {
+      void markDone(selectedLesson);
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
+  }, [canCompleteReading, completed, loadingLesson, markDone, selectedLesson]);
+
+  if (!selectedLesson) {
+    return <p className="text-slate-600">Khóa học chưa có bài học.</p>;
+  }
 
   return (
     <div className="grid h-full min-h-0 gap-4 lg:grid-cols-10">
       <aside className="lg:col-span-3 flex h-full min-h-0 flex-col rounded-xl border border-slate-200 bg-white text-slate-900">
         <div className="border-b border-slate-200 px-4 py-3">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Muc luc bai hoc</p>
-          <p className="mt-1 text-sm text-slate-600">Tien do: {progress}%</p>
+          <p className="text-xs uppercase tracking-wide text-slate-500">Mục lục bài học</p>
+          <p className="mt-1 text-sm text-slate-600">Tiến độ: {progress}%</p>
         </div>
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
           {modules.map((module, moduleIndex) => (
@@ -198,7 +204,7 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
                       <div>
                         <span className="line-clamp-1">{moduleIndex + 1}.{lessonIndex + 1} {lesson.title}</span>
                         <p className={`mt-1 text-xs ${active ? "text-blue-100" : done ? "text-emerald-600" : "text-slate-500"}`}>
-                          {done ? "Da hoan thanh" : "Chua hoan thanh"}
+                          {done ? "Đã hoàn thành" : "Chưa hoàn thành"}
                         </p>
                       </div>
                     </button>
@@ -214,10 +220,10 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
         <div className="flex items-start justify-between gap-4">
           <h3 className="text-lg font-semibold text-slate-900">{selectedLesson.title}</h3>
           {completed[selectedLesson.id] ? (
-            <p className="text-sm font-medium text-emerald-600">Da hoan thanh bai hoc nay</p>
+            <p className="text-sm font-medium text-emerald-600">Đã hoàn thành bài học này</p>
           ) : (
             <p className="text-sm font-medium text-slate-500">
-              {loadingLesson === selectedLesson.id ? "Dang luu..." : "Chua hoan thanh"}
+              {loadingLesson === selectedLesson.id ? "Đang lưu..." : "Chưa hoàn thành"}
             </p>
           )}
         </div>
@@ -249,17 +255,17 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
             >
               <source key={selectedLesson.videoUrl} src={selectedLesson.videoUrl} />
             </video>
-            <p className="mt-2 text-xs text-slate-600">Yeu cau: xem het video. Thanh tua se bi khoa trong qua trinh hoc.</p>
+            <p className="mt-2 text-xs text-slate-600">Yêu cầu: xem hết video. Thanh tua sẽ bị khóa trong quá trình học.</p>
           </div>
         ) : (
           !completed[selectedLesson.id] ? (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-              <p className="text-sm text-amber-900">Bai khong co video: can hoc toi thieu 10 phut.</p>
+              <p className="text-sm text-amber-900">Bài không có video: cần học tối thiểu 10 phút.</p>
               {!readingStarts[selectedLesson.id] ? (
-                <p className="mt-2 text-sm font-medium text-amber-800">Dang bat dau tinh gio...</p>
+                <p className="mt-2 text-sm font-medium text-amber-800">Đang bắt đầu tính giờ...</p>
               ) : (
                 <p className="mt-2 text-sm font-medium text-amber-800">
-                  Con lai: {Math.floor(readingRemain / 60)}:{String(readingRemain % 60).padStart(2, "0")}
+                  Còn lại: {Math.floor(readingRemain / 60)}:{String(readingRemain % 60).padStart(2, "0")}
                 </p>
               )}
             </div>
@@ -271,12 +277,12 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
 
           {allDone ? (
             <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-3">
-              <p className="text-sm font-medium text-blue-800">Ban da hoan thanh 100% noi dung. Tiep theo: lam bai test.</p>
+              <p className="text-sm font-medium text-blue-800">Bạn đã hoàn thành 100% nội dung. Tiếp theo: làm bài test.</p>
               <Link
                 href={`/student/tests?courseId=${courseId}`}
                 className="mt-2 inline-block rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white"
               >
-                Chuyen sang bai test
+                Chuyển sang bài test
               </Link>
             </div>
           ) : null}

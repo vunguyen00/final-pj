@@ -5,6 +5,7 @@ import type { TestForm } from "../types";
 type TestModalProps = {
   isOpen: boolean;
   form: TestForm;
+  isSubmitting: boolean;
   onChangeForm: (form: TestForm) => void;
   onClose: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -13,6 +14,7 @@ type TestModalProps = {
 export function TestModal({
   isOpen,
   form,
+  isSubmitting,
   onChangeForm,
   onClose,
   onSubmit,
@@ -39,9 +41,10 @@ export function TestModal({
               type="text"
               required
               value={form.name}
+              disabled={isSubmitting}
               onChange={(event) => onChangeForm({ ...form, name: event.target.value })}
               placeholder="Ví dụ: Bài kiểm tra cuối khóa"
-              className={inputClass}
+              className={`${inputClass} disabled:cursor-not-allowed disabled:bg-slate-100`}
             />
           </label>
 
@@ -50,11 +53,12 @@ export function TestModal({
             <textarea
               rows={3}
               value={form.description}
+              disabled={isSubmitting}
               onChange={(event) =>
                 onChangeForm({ ...form, description: event.target.value })
               }
               placeholder="Nêu yêu cầu và những lưu ý dành cho học viên..."
-              className={inputClass}
+              className={`${inputClass} disabled:cursor-not-allowed disabled:bg-slate-100`}
             />
           </label>
 
@@ -72,10 +76,11 @@ export function TestModal({
                 max={FIXED_TEST_MAX_SCORE}
                 required
                 value={form.passingScore}
+                disabled={isSubmitting}
                 onChange={(event) =>
                   onChangeForm({ ...form, passingScore: event.target.value })
                 }
-                className={inputClass}
+                className={`${inputClass} disabled:cursor-not-allowed disabled:bg-slate-100`}
               />
             </label>
 
@@ -86,11 +91,12 @@ export function TestModal({
                   type="number"
                   min={1}
                   value={form.timeLimit}
+                  disabled={isSubmitting}
                   onChange={(event) =>
                     onChangeForm({ ...form, timeLimit: event.target.value })
                   }
                   placeholder="Không giới hạn"
-                  className={`${inputClass} pr-16`}
+                  className={`${inputClass} pr-16 disabled:cursor-not-allowed disabled:bg-slate-100`}
                 />
                 <span className="pointer-events-none absolute bottom-2.5 right-3 text-sm font-medium text-slate-500">
                   phút
@@ -108,6 +114,7 @@ export function TestModal({
             <input
               type="checkbox"
               checked={form.shuffleQuestions}
+              disabled={isSubmitting}
               onChange={(event) =>
                 onChangeForm({
                   ...form,
@@ -130,15 +137,17 @@ export function TestModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              disabled={isSubmitting}
+              className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Hủy
             </button>
             <button
               type="submit"
-              className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+              disabled={isSubmitting}
+              className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Tạo bài test
+              {isSubmitting ? "Đang tạo..." : "Tạo bài test"}
             </button>
           </div>
         </form>

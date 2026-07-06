@@ -37,7 +37,7 @@ export function ForgotPasswordForm() {
 
       if (checkData.role === "ADMIN") {
         const adminMessage =
-          "Tai khoan admin phai lien he quan tri he thong de duoc cap mat khau moi. Khong the dat lai mat khau bang OTP.";
+          "Tài khoản admin phải liên hệ quản trị hệ thống để được cấp mật khẩu mới. Không thể đặt lại mật khẩu bằng OTP.";
         updateForm({ error: adminMessage, loading: false });
         window.alert(adminMessage);
         return;

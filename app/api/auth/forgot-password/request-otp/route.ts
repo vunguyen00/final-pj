@@ -25,7 +25,7 @@ export async function POST(request: Request) {
       typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
 
     if (!email) {
-      return NextResponse.json({ error: "Vui long nhap email." }, { status: 400 });
+      return NextResponse.json({ error: "Vui lòng nhập email." }, { status: 400 });
     }
 
     const user = await prisma.user.findUnique({
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
       select: { id: true, email: true, role: true },
     });
 
-    // Tra loi chung de tranh de lo email ton tai hay khong ton tai.
+    // Trả lời chung để tránh để lộ email tồn tại hay không tồn tại.
     const genericResponse = NextResponse.json({
       ok: true,
       message: "Neu email ton tai, he thong da gui OTP dat lai mat khau.",
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "Tai khoan admin khong duoc dat lai mat khau bang OTP. Vui long lien he quan tri he thong de duoc cap mat khau moi.",
+            "Tài khoản admin không được đặt lại mật khẩu bằng OTP. Vui lòng liên hệ quản trị hệ thống để được cấp mật khẩu mới.",
         },
         { status: 403 },
       );
@@ -76,13 +76,13 @@ export async function POST(request: Request) {
       });
 
       return NextResponse.json(
-        { error: "Khong gui duoc OTP. Vui long kiem tra cau hinh email trong .env." },
+        { error: "Không gửi được OTP. Vui lòng kiểm tra cấu hình email trong .env." },
         { status: 500 },
       );
     }
 
     return genericResponse;
   } catch {
-    return NextResponse.json({ error: "Loi he thong." }, { status: 500 });
+    return NextResponse.json({ error: "Lỗi hệ thống." }, { status: 500 });
   }
 }

@@ -220,7 +220,7 @@ export default function TeacherRegistrationPage() {
     setSubmitting(false);
 
     if (!response.ok) {
-      setMessage(data?.error || "Khong the nop ho so.");
+      setMessage(data?.error || "Không thể nộp hồ sơ.");
       return;
     }
 
@@ -233,7 +233,7 @@ export default function TeacherRegistrationPage() {
     setAnswers({});
     setFiles([]);
     setExpiryDates([]);
-    setMessage(data.application.entranceTest ? "Da luu chung chi. Bat dau bai test." : "Da nop ho so, cho admin review.");
+    setMessage(data.application.entranceTest ? "Đã lưu chứng chỉ. Bắt đầu bài test." : "Đã nộp hồ sơ, chờ admin review.");
     await loadData();
   }
 
@@ -241,7 +241,7 @@ export default function TeacherRegistrationPage() {
     if (!activeApplication || submitting) return;
     if (Object.values(speakingBusyRef.current).some(Boolean)) {
       setMessage(
-        "Hay dung ghi am va doi he thong phan tich am thanh xong truoc khi nop bai.",
+        "Hãy dừng ghi âm và đợi hệ thống phân tích âm thanh xong trước khi nộp bài.",
       );
       return;
     }
@@ -254,10 +254,10 @@ export default function TeacherRegistrationPage() {
     const data = await response.json().catch(() => ({}));
     setSubmitting(false);
     if (!response.ok) {
-      setMessage(data?.error || "Khong the nop bai test.");
+      setMessage(data?.error || "Không thể nộp bài test.");
       return;
     }
-    setMessage("Da nop bai test. Ho so dang cho admin review.");
+    setMessage("Đã nộp bài test. Hồ sơ đang chờ admin review.");
     setSubmittedQuestionResults(data.questionResults || []);
     setActiveApplication(null);
     setTimeLeft(null);
@@ -287,10 +287,10 @@ export default function TeacherRegistrationPage() {
     return (
       <main className="min-h-screen bg-slate-50 p-6">
         <div className="mx-auto max-w-3xl rounded-xl border border-slate-200 bg-white p-6">
-          <h1 className="text-2xl font-bold text-slate-900">Dang ky giang vien</h1>
-          <p className="mt-3 text-slate-600">Chuc nang dang ky giang vien dang tam tat.</p>
+          <h1 className="text-2xl font-bold text-slate-900">Đăng ký giảng viên</h1>
+          <p className="mt-3 text-slate-600">Chức năng đăng ký giảng viên đang tạm tắt.</p>
           <Link href="/" className="mt-5 inline-block rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">
-            Ve trang chu
+            Về trang chủ
           </Link>
         </div>
       </main>
@@ -303,8 +303,8 @@ export default function TeacherRegistrationPage() {
         <section className="rounded-xl border border-slate-200 bg-white p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-slate-950">Dang ky giang vien</h1>
-              <p className="mt-2 text-slate-600">Chon ngon ngu, upload chung chi va hoan thanh bai test dau vao.</p>
+              <h1 className="text-3xl font-bold text-slate-950">Đăng ký giảng viên</h1>
+              <p className="mt-2 text-slate-600">Chọn ngôn ngữ, upload chứng chỉ và hoàn thành bài test đầu vào.</p>
             </div>
             {timeLeft !== null ? (
               <div className={`rounded-lg px-4 py-2 text-lg font-bold ${timeLeft < 300 ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"}`}>
@@ -318,7 +318,7 @@ export default function TeacherRegistrationPage() {
 
         {submittedQuestionResults.some((item) => item.aiEvaluation) ? (
           <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
-            <h2 className="text-xl font-bold text-slate-950">Nhan xet AI sau khi cham</h2>
+            <h2 className="text-xl font-bold text-slate-950">Nhận xét AI sau khi chấm</h2>
             <div className="mt-4 space-y-4">
               {submittedQuestionResults.filter((item) => item.aiEvaluation).map((item) => {
                 const evaluation = item.aiEvaluation!;
@@ -326,25 +326,25 @@ export default function TeacherRegistrationPage() {
                   <article key={item.questionId} className="rounded-lg border border-slate-200 p-4">
                     <p className="font-semibold text-slate-900">{item.content}</p>
                     <p className="mt-2 text-sm font-semibold text-blue-700">
-                      {item.earnedScore}/{item.score} diem - AI {evaluation.overallScore}/10 - Bam de {Math.round(evaluation.taskRelevance ?? 0)}/100
+                      {item.earnedScore}/{item.score} điểm - AI {evaluation.overallScore}/10 - Bám đề {Math.round(evaluation.taskRelevance ?? 0)}/100
                     </p>
                     {evaluation.onTopic === false ? (
                       <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">
-                        Lac de: {evaluation.offTopicReason || "Cau tra loi chua dung trong tam de bai."}
+                        Lạc đề: {evaluation.offTopicReason || "Câu trả lời chưa đúng trọng tâm đề bài."}
                       </p>
                     ) : null}
                     <p className="mt-3 text-sm leading-6 text-slate-700">
                       {evaluation.detailedComment || evaluation.summary}
                     </p>
                     {evaluation.weaknesses.length ? (
-                      <p className="mt-2 text-sm text-slate-700">Can cai thien: {evaluation.weaknesses.join("; ")}</p>
+                      <p className="mt-2 text-sm text-slate-700">Cần cải thiện: {evaluation.weaknesses.join("; ")}</p>
                     ) : null}
                     {evaluation.suggestions.length ? (
-                      <p className="mt-2 text-sm text-slate-700">Goi y: {evaluation.suggestions.join("; ")}</p>
+                      <p className="mt-2 text-sm text-slate-700">Gợi ý: {evaluation.suggestions.join("; ")}</p>
                     ) : null}
                     {evaluation.sampleAnswer ? (
                       <div className="mt-4 rounded-lg bg-slate-50 p-4">
-                        <p className="text-sm font-semibold text-slate-900">Bai mau dung de</p>
+                        <p className="text-sm font-semibold text-slate-900">Bài mẫu đúng đề</p>
                         <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-700">{evaluation.sampleAnswer}</p>
                       </div>
                     ) : null}
@@ -362,8 +362,8 @@ export default function TeacherRegistrationPage() {
               {questions.map((question, index) => (
                 <article key={question.id} className="rounded-lg border border-slate-200 p-4">
                   <div className="flex items-center gap-2 text-sm text-slate-500">
-                    <span className="font-semibold text-slate-900">Cau {index + 1}</span>
-                    <span>{question.score} diem</span>
+                    <span className="font-semibold text-slate-900">Câu {index + 1}</span>
+                    <span>{question.score} điểm</span>
                   </div>
                   {question.audioUrl ? <audio controls={!testLocked} className="mt-3 w-full max-w-md" src={question.audioUrl} /> : null}
                   <p className="mt-3 font-medium text-slate-900">{question.content}</p>
@@ -421,17 +421,17 @@ export default function TeacherRegistrationPage() {
               disabled={testLocked}
               className="mt-6 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              {submitting ? "Dang nop..." : "Nop bai test"}
+              {submitting ? "Đang nộp..." : "Nộp bài test"}
             </button>
           </section>
         ) : (
           <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
-            <h2 className="text-xl font-bold text-slate-950">Ho so moi</h2>
+            <h2 className="text-xl font-bold text-slate-950">Hồ sơ mới</h2>
             <form onSubmit={submitCertificates} className="mt-5 grid gap-4">
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-slate-700">Ngon ngu apply</span>
+                <span className="mb-1 block text-sm font-medium text-slate-700">Ngôn ngữ apply</span>
                 <select value={languageId} onChange={(event) => setLanguageId(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2">
-                  <option value="">Chon ngon ngu</option>
+                  <option value="">Chọn ngôn ngữ</option>
                   {languages.map((language) => (
                     <option key={language.id} value={language.id}>
                       {language.name}
@@ -440,7 +440,7 @@ export default function TeacherRegistrationPage() {
                 </select>
               </label>
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-slate-700">Chung chi JPG, PNG hoac PDF</span>
+                <span className="mb-1 block text-sm font-medium text-slate-700">Chứng chỉ JPG, PNG hoặc PDF</span>
                 <input
                   type="file"
                   accept=".jpg,.jpeg,.png,.pdf"
@@ -464,21 +464,21 @@ export default function TeacherRegistrationPage() {
                 </div>
               ))}
               <button disabled={submitting} className="w-fit rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
-                {submitting ? "Dang luu..." : "Tiep tuc"}
+                {submitting ? "Đang lưu..." : "Tiếp tục"}
               </button>
             </form>
           </section>
         )}
 
         <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
-          <h2 className="text-xl font-bold text-slate-950">Lich su apply</h2>
+          <h2 className="text-xl font-bold text-slate-950">Lịch sử apply</h2>
           <div className="mt-4 space-y-3">
-            {latestApplications.length === 0 ? <p className="text-sm text-slate-500">Chua co ho so nao.</p> : null}
+            {latestApplications.length === 0 ? <p className="text-sm text-slate-500">Chưa có hồ sơ nào.</p> : null}
             {latestApplications.map((application) => (
               <div key={application.id} className="rounded-lg border border-slate-200 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="font-semibold text-slate-900">
-                    Lan #{application.attemptNo} - {application.language.name}
+                    Lần #{application.attemptNo} - {application.language.name}
                   </p>
                   <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">{application.status}</span>
                 </div>

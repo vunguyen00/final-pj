@@ -4,6 +4,7 @@ import type { Test } from "../types";
 type TestsTabProps = {
   tests: Test[];
   modulesCount: number;
+  deletingTestId: string | null;
   onOpenCreateModal: () => void;
   onDeleteTest: (testId: string) => void;
 };
@@ -11,6 +12,7 @@ type TestsTabProps = {
 export function TestsTab({
   tests,
   modulesCount,
+  deletingTestId,
   onOpenCreateModal,
   onDeleteTest,
 }: TestsTabProps) {
@@ -80,9 +82,10 @@ export function TestsTab({
               <button
                 type="button"
                 onClick={() => onDeleteTest(test.id)}
-                className="rounded-xl border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50"
+                disabled={deletingTestId === test.id}
+                className="rounded-xl border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Xóa
+                {deletingTestId === test.id ? "Đang xóa..." : "Xóa"}
               </button>
             </div>
           </div>

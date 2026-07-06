@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     const code = typeof body.code === "string" ? body.code.trim().toLowerCase() : "";
 
     if (!name || !code) {
-      return NextResponse.json({ error: "Vui long nhap ten va ma ngon ngu." }, { status: 400 });
+      return NextResponse.json({ error: "Vui lòng nhập tên và mã ngôn ngữ." }, { status: 400 });
     }
 
     const language = await prisma.learningLanguage.create({
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ language }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Loi he thong.";
+    const message = error instanceof Error ? error.message : "Lỗi hệ thống.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

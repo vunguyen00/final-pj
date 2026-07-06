@@ -59,13 +59,13 @@ export async function POST(request: Request) {
 
     if (!username || !email || !password || !confirmPassword) {
       return NextResponse.json(
-        { error: "Vui long nhap day du username, email, mat khau va xac nhan mat khau." },
+        { error: "Vui lòng nhập đầy đủ username, email, mật khẩu và xác nhận mật khẩu." },
         { status: 400 },
       );
     }
 
     if (password !== confirmPassword) {
-      return NextResponse.json({ error: "Xac nhan mat khau khong khop." }, { status: 400 });
+      return NextResponse.json({ error: "Xác nhận mật khẩu không khớp." }, { status: 400 });
     }
 
     const passwordError = validateStrongPassword(password);
@@ -134,7 +134,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(
-      { error: "Loi co so du lieu. Vui long thu lai." },
+      { error: "Lỗi cơ sở dữ liệu. Vui lòng thử lại." },
       { status: 500 },
     );
   }

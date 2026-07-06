@@ -34,12 +34,34 @@ const navItems = [
   { href: "/teachers", label: "Giảng viên", match: (path: string) => path.startsWith("/teachers") },
 ] satisfies MatchedNavItem[];
 
-const SEEN_NOTIFICATION_IDS_KEY = "seen-notification-ids:v1";
+const SEEN_NOTIFICATION_IDS_KEY = "seen-notification-ids:v2";
+
+function getSeenNotificationIdsKey(userId: string) {
+  return `${SEEN_NOTIFICATION_IDS_KEY}:${userId}`;
+}
+
+function readSeenNotificationIds(userId: string) {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(getSeenNotificationIdsKey(userId)) || "[]") as string[]);
+  } catch {
+    return new Set<string>();
+  }
+}
+
+function writeSeenNotificationIds(userId: string, ids: string[]) {
+  try {
+    localStorage.setItem(getSeenNotificationIdsKey(userId), JSON.stringify(ids.slice(-100)));
+  } catch {
+    // Local storage may be unavailable in private mode; server readAt still prevents repeats.
+  }
+}
 
 function startNotificationPolling({
+  userId,
   onShow,
   onHide,
 }: {
+  userId: string;
   onShow: (notification: AppNotification) => void;
   onHide: (notificationId: string) => void;
 }) {
@@ -54,13 +76,18 @@ function startNotificationPolling({
       const data = (await response.json().catch(() => ({}))) as { notifications?: AppNotification[] };
       if (!response.ok || !data.notifications?.length || cancelled) return;
 
-      const seen = new Set(JSON.parse(sessionStorage.getItem(SEEN_NOTIFICATION_IDS_KEY) || "[]") as string[]);
+      const seen = readSeenNotificationIds(userId);
       const nextToast = data.notifications.find((item) => !seen.has(item.id));
       if (!nextToast) return;
 
       seen.add(nextToast.id);
-      sessionStorage.setItem(SEEN_NOTIFICATION_IDS_KEY, JSON.stringify([...seen].slice(-50)));
+      writeSeenNotificationIds(userId, [...seen]);
       onShow(nextToast);
+      void fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: [nextToast.id] }),
+      }).catch(() => undefined);
       window.setTimeout(() => {
         if (!cancelled) onHide(nextToast.id);
       }, 6500);
@@ -103,6 +130,7 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
     if (!user) return;
 
     return startNotificationPolling({
+      userId: user.id,
       onShow: setToast,
       onHide: (notificationId) => setToast((current) => (current?.id === notificationId ? null : current)),
     });
@@ -114,13 +142,13 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
   const studentLinks =
     user
       ? [
-          { href: user.role === "ADMIN" ? "/admin" : "/student", label: "Tổng quan" },
           { href: "/student/tests", label: "Bài test" },
           { href: "/student/results", label: "Kết quả" },
           { href: "/student/speaking-ai", label: "Speaking AI" },
           { href: "/student/writing-ai", label: "Writing AI" },
-          { href: "/student/rewards", label: "Điểm đậu" },
+          ...(user.role === "ADMIN" ? [] : [{ href: "/student/rewards", label: "Điểm đậu" }]),
           ...(user.role === "ADMIN" ? [] : [{ href: "/student/wallet", label: "Ví tiền" }]),
+          { href: user.role === "ADMIN" ? "/admin" : "/student", label: "Tổng quan" },
         ] satisfies BasicNavItem[]
       : [];
 
@@ -134,7 +162,7 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
               <p className="text-sm font-bold text-slate-950">{toast.title}</p>
               <p className="mt-1 text-sm leading-5 text-slate-600">{toast.body}</p>
             </div>
-            <button type="button" onClick={() => setToast(null)} className="rounded-md px-2 py-1 text-sm font-bold text-slate-500 hover:bg-slate-100" aria-label="Dong thong bao">
+            <button type="button" onClick={() => setToast(null)} className="rounded-md px-2 py-1 text-sm font-bold text-slate-500 hover:bg-slate-100" aria-label="Đóng thông báo">
               x
             </button>
           </div>

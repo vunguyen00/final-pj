@@ -27,14 +27,14 @@ export function LoginForm() {
 
       const data = await response.json();
       if (!response.ok) {
-        setError(data.error ?? "Dang nhap that bai.");
+        setError(data.error ?? "Đăng nhập thất bại.");
         return;
       }
 
       router.push(data.redirectTo ?? "/");
       window.location.href = data.redirectTo ?? "/";
     } catch {
-      setError("Loi mang. Vui long thu lai.");
+      setError("Lỗi mạng. Vui lòng thử lại.");
     } finally {
       setLoading(false);
     }

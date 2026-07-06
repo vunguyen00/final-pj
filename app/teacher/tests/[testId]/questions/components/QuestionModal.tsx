@@ -8,6 +8,7 @@ type Props = {
   onClose: () => void;
   onSubmit: (e: React.FormEvent) => void;
   setForm: (updater: (prev: QuestionForm) => QuestionForm) => void;
+  isSubmitting: boolean;
   uploadingAudio: boolean;
   audioUploadMessage: string;
   onAudioUpload: (file: File | null) => void;
@@ -22,6 +23,7 @@ export function QuestionModal({
   onClose,
   onSubmit,
   setForm,
+  isSubmitting,
   uploadingAudio,
   audioUploadMessage,
   onAudioUpload,
@@ -60,8 +62,9 @@ export function QuestionModal({
             <label className="block text-sm font-medium text-slate-700">Dạng câu hỏi</label>
             <select
               value={form.kind}
+              disabled={isSubmitting}
               onChange={(e) => handleTypeSelect(e.target.value as QuestionKind)}
-              className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+              className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100"
             >
               {QUESTION_KIND_OPTIONS.map((opt) => (
                 <option key={opt.value || "empty"} value={opt.value}>
@@ -77,8 +80,9 @@ export function QuestionModal({
               required
               rows={3}
               value={form.content}
+              disabled={isSubmitting}
               onChange={(e) => setForm((prev) => ({ ...prev, content: e.target.value }))}
-              className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+              className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100"
             />
           </div>
 
@@ -88,16 +92,17 @@ export function QuestionModal({
               <input
                 type="text"
                 value={form.audioUrl}
+                disabled={isSubmitting}
                 onChange={(e) => setForm((prev) => ({ ...prev, audioUrl: e.target.value }))}
                 placeholder="https://example.com/audio.mp3"
-                className="block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+                className="block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100"
               />
               <label className="block text-sm font-medium text-slate-700">
                 Hoặc tải file audio lên
                 <input
                   type="file"
                   accept="audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/ogg,audio/webm,audio/mp4,audio/aac"
-                  disabled={uploadingAudio}
+                  disabled={uploadingAudio || isSubmitting}
                   onChange={(e) => onAudioUpload(e.target.files?.[0] || null)}
                   className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal focus:border-slate-500 focus:outline-none"
                 />
@@ -121,8 +126,9 @@ export function QuestionModal({
             <input
               type="number"
               value={form.score}
+              disabled={isSubmitting}
               onChange={(e) => setForm((prev) => ({ ...prev, score: e.target.value }))}
-              className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+              className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100"
             />
           </div>
 
@@ -133,15 +139,17 @@ export function QuestionModal({
                 <div key={index} className="flex items-center gap-2">
                   <button
                     type="button"
+                    disabled={isSubmitting}
                     onClick={() => handleSetCorrect(index)}
-                    className={`h-6 w-6 rounded-full border-2 ${answer.isCorrect ? "border-green-500 bg-green-500" : "border-slate-300"}`}
+                    className={`h-6 w-6 rounded-full border-2 disabled:cursor-not-allowed disabled:opacity-60 ${answer.isCorrect ? "border-green-500 bg-green-500" : "border-slate-300"}`}
                   />
                   <input
                     type="text"
                     value={answer.content}
+                    disabled={isSubmitting}
                     onChange={(e) => handleAnswerChange(index, "content", e.target.value)}
                     placeholder={`Đáp án ${index + 1}`}
-                    className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+                    className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100"
                   />
                 </div>
               ))}
@@ -154,8 +162,9 @@ export function QuestionModal({
               <textarea
                 rows={3}
                 value={form.answers[0]?.content || ""}
+                disabled={isSubmitting}
                 onChange={(e) => handleAnswerChange(0, "content", e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+                className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100"
               />
             </div>
           )}
@@ -171,8 +180,9 @@ export function QuestionModal({
             <textarea
               rows={2}
               value={form.explanation}
+              disabled={isSubmitting}
               onChange={(e) => setForm((prev) => ({ ...prev, explanation: e.target.value }))}
-              className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+              className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100"
             />
           </div>
 
@@ -181,9 +191,10 @@ export function QuestionModal({
             <textarea
               rows={4}
               value={form.hint}
+              disabled={isSubmitting}
               onChange={(e) => setForm((prev) => ({ ...prev, hint: e.target.value }))}
               placeholder={"Nhập mỗi ý trên một dòng, ví dụ:\n- Xác định từ khóa chính\n- Chú ý thì của động từ"}
-              className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+              className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100"
             />
             <p className="mt-1 text-xs text-slate-500">
               Mỗi dòng sẽ được hiển thị thành một gạch đầu dòng cho người làm bài.
@@ -191,11 +202,11 @@ export function QuestionModal({
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
-            <button type="button" onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-sm">
+            <button type="button" onClick={onClose} disabled={isSubmitting} className="rounded-lg border border-slate-300 px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60">
               Hủy
             </button>
-            <button type="submit" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white">
-              {isEditing ? "Lưu thay đổi" : "Thêm câu hỏi"}
+            <button type="submit" disabled={isSubmitting || uploadingAudio} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60">
+              {isSubmitting ? "Đang lưu..." : isEditing ? "Lưu thay đổi" : "Thêm câu hỏi"}
             </button>
           </div>
         </form>

@@ -23,14 +23,14 @@ export async function POST(request: Request) {
 
     if (!email || !otp || !newPassword || !confirmPassword) {
       return NextResponse.json(
-        { error: "Vui long nhap day du email, OTP, mat khau moi va xac nhan." },
+        { error: "Vui lòng nhập đầy đủ email, OTP, mật khẩu mới và xác nhận." },
         { status: 400 },
       );
     }
 
     if (newPassword !== confirmPassword) {
       return NextResponse.json(
-        { error: "Xac nhan mat khau khong khop." },
+        { error: "Xác nhận mật khẩu không khớp." },
         { status: 400 },
       );
     }
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
 
     if (!activeOtp) {
       return NextResponse.json(
-        { error: "OTP khong hop le hoac da het han." },
+        { error: "OTP không hợp lệ hoặc đã hết hạn." },
         { status: 400 },
       );
     }
@@ -72,14 +72,14 @@ export async function POST(request: Request) {
     });
 
     if (!user) {
-      return NextResponse.json({ error: "Tai khoan khong ton tai." }, { status: 404 });
+      return NextResponse.json({ error: "Tài khoản không tồn tại." }, { status: 404 });
     }
 
     if (user.role === "ADMIN") {
       return NextResponse.json(
         {
           error:
-            "Tai khoan admin khong duoc dat lai mat khau bang OTP. Vui long lien he quan tri he thong de duoc cap mat khau moi.",
+            "Tài khoản admin không được đặt lại mật khẩu bằng OTP. Vui lòng liên hệ quản trị hệ thống để được cấp mật khẩu mới.",
         },
         { status: 403 },
       );
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
       });
 
       return NextResponse.json(
-        { error: "OTP da vuot qua so lan thu. Vui long yeu cau ma moi." },
+        { error: "OTP đã vượt quá số lần thử. Vui lòng yêu cầu mã mới." },
         { status: 429 },
       );
     }
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
       });
 
       return NextResponse.json(
-        { error: "OTP khong dung." },
+        { error: "OTP không đúng." },
         { status: 400 },
       );
     }
@@ -135,9 +135,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true,
-      message: "Dat lai mat khau thanh cong. Ban co the dang nhap lai.",
+      message: "Đặt lại mật khẩu thành công. Bạn có thể đăng nhập lại.",
     });
   } catch {
-    return NextResponse.json({ error: "Loi he thong." }, { status: 500 });
+    return NextResponse.json({ error: "Lỗi hệ thống." }, { status: 500 });
   }
 }

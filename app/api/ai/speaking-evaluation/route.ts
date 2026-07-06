@@ -307,7 +307,7 @@ export async function POST(request: NextRequest) {
     const message = error instanceof Error ? error.message : "Failed to evaluate speaking.";
     if (message === "AI_EVALUATION_FAILED") {
       return NextResponse.json(
-        { error: "AI dang tam thoi qua tai. Vui long thu lai sau." },
+        { error: "AI đang tạm thời quá tải. Vui lòng thử lại sau." },
         { status: 503 },
       );
     }

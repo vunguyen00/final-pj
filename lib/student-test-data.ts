@@ -111,7 +111,7 @@ export async function getStudentTestPayload(
     return {
       ok: false,
       status: 400,
-      error: `Bai test chua hop le. Tong diem cau hoi phai bang ${FIXED_TEST_MAX_SCORE}.`,
+      error: `Bài test chưa hợp lệ. Tổng điểm câu hỏi phải bằng ${FIXED_TEST_MAX_SCORE}.`,
       details: { totalQuestionScore },
     };
   }
@@ -152,7 +152,7 @@ export async function getStudentTestPayload(
       return {
         ok: false,
         status: 403,
-        error: "Ban can hoan thanh 100% bai hoc truoc khi lam test.",
+        error: "Bạn cần hoàn thành 100% bài học trước khi làm test.",
         details: { progress },
       };
     }

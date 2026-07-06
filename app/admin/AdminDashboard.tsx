@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Application, Course } from "./types";
 
 function statusLabel(status: Course["status"]) {
@@ -48,6 +48,10 @@ export default function AdminDashboard({
   const [showApplications, setShowApplications] = useState(false);
   const [applicationSearch, setApplicationSearch] = useState("");
   const [currentTs] = useState(() => Date.now());
+  const [updatingTeacherEntrance, setUpdatingTeacherEntrance] = useState(false);
+  const [updatingCourseAutoApproval, setUpdatingCourseAutoApproval] = useState(false);
+  const [reviewingApplicationId, setReviewingApplicationId] = useState<string | null>(null);
+  const [reviewingCourseId, setReviewingCourseId] = useState<string | null>(null);
 
   const pendingCourses = useMemo(
     () => courses.filter((course) => course.status === "PENDING_APPROVAL" || course.status === "PENDING_DELETE"),
@@ -71,44 +75,56 @@ export default function AdminDashboard({
   }, [applicationSearch, applications]);
 
   async function toggleTeacherEntrance(nextEnabled: boolean) {
+    if (updatingTeacherEntrance) return;
+    setUpdatingTeacherEntrance(true);
     setMessage("");
-    const response = await fetch("/api/admin/teacher-entrance", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled: nextEnabled }),
-    });
-    const data = await response.json().catch(() => ({}));
+    try {
+      const response = await fetch("/api/admin/teacher-entrance", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: nextEnabled }),
+      });
+      const data = await response.json().catch(() => ({}));
 
-    if (response.ok) {
-      setEnabled(nextEnabled);
-      setMessage(
-        nextEnabled
-          ? `Đã bật đăng ký. Email gửi thành công: ${data.notified ?? 0}.`
-          : "Đã tắt đăng ký giảng viên.",
-      );
-    } else {
-      setMessage(data?.error || "Không thể cập nhật cài đặt.");
+      if (response.ok) {
+        setEnabled(nextEnabled);
+        setMessage(
+          nextEnabled
+            ? `Đã bật đăng ký. Email gửi thành công: ${data.notified ?? 0}.`
+            : "Đã tắt đăng ký giảng viên.",
+        );
+      } else {
+        setMessage(data?.error || "Không thể cập nhật cài đặt.");
+      }
+    } finally {
+      setUpdatingTeacherEntrance(false);
     }
   }
 
   async function toggleCourseAutoApproval(nextEnabled: boolean) {
+    if (updatingCourseAutoApproval) return;
+    setUpdatingCourseAutoApproval(true);
     setMessage("");
-    const response = await fetch("/api/admin/course-approval", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled: nextEnabled }),
-    });
-    const data = await response.json().catch(() => ({}));
+    try {
+      const response = await fetch("/api/admin/course-approval", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: nextEnabled }),
+      });
+      const data = await response.json().catch(() => ({}));
 
-    if (response.ok) {
-      setCourseAutoApproval(nextEnabled);
-      setMessage(
-        nextEnabled
-          ? "Đã bật tự động duyệt khóa học."
-          : "Đã tắt tự động duyệt khóa học.",
-      );
-    } else {
-      setMessage(data?.error || "Không thể cập nhật chế độ tự động duyệt.");
+      if (response.ok) {
+        setCourseAutoApproval(nextEnabled);
+        setMessage(
+          nextEnabled
+            ? "Đã bật tự động duyệt khóa học."
+            : "Đã tắt tự động duyệt khóa học.",
+        );
+      } else {
+        setMessage(data?.error || "Không thể cập nhật chế độ tự động duyệt.");
+      }
+    } finally {
+      setUpdatingCourseAutoApproval(false);
     }
   }
 
@@ -116,78 +132,109 @@ export default function AdminDashboard({
     application: Application,
     action: "APPROVE" | "REJECT",
   ) {
+    if (reviewingApplicationId) return;
     const rejectionReason =
       action === "REJECT" ? window.prompt("Lý do từ chối?") || "" : "";
-    const response = await fetch(
-      `/api/admin/teacher-applications/${application.id}/review`,
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, rejectionReason }),
-      },
-    );
-    const data = await response.json().catch(() => ({}));
+    setReviewingApplicationId(application.id);
+    setMessage("");
+    try {
+      const response = await fetch(
+        `/api/admin/teacher-applications/${application.id}/review`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action, rejectionReason }),
+        },
+      );
+      const data = await response.json().catch(() => ({}));
 
-    if (response.ok) {
-      setApplications((previous) =>
-        previous.map((item) =>
-          item.id === application.id
-            ? { ...item, status: data.status, rejectionReason }
-            : item,
-        ),
-      );
-      setMessage(
-        action === "APPROVE"
-          ? "Đã duyệt hồ sơ giảng viên."
-          : "Đã từ chối hồ sơ giảng viên.",
-      );
-    } else {
-      setMessage(data?.error || "Không thể duyệt hồ sơ.");
+      if (response.ok) {
+        setApplications((previous) =>
+          previous.map((item) =>
+            item.id === application.id
+              ? { ...item, status: data.status, rejectionReason }
+              : item,
+          ),
+        );
+        setMessage(
+          action === "APPROVE"
+            ? "Đã duyệt hồ sơ giảng viên."
+            : "Đã từ chối hồ sơ giảng viên.",
+        );
+      } else {
+        setMessage(data?.error || "Không thể duyệt hồ sơ.");
+      }
+    } finally {
+      setReviewingApplicationId(null);
     }
   }
 
   async function reviewCourse(course: Course, decision: "APPROVE" | "REJECT") {
+    if (reviewingCourseId) return;
     const isDeleteRequest = course.status === "PENDING_DELETE";
     const rejectionReason =
       decision === "REJECT"
         ? window.prompt(isDeleteRequest ? "Lý do từ chối yêu cầu xóa?" : "Lý do từ chối khóa học?") || ""
         : "";
-    const response = await fetch(`/api/teacher/courses/${course.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "reviewCourse", decision, rejectionReason }),
-    });
-    const data = await response.json().catch(() => ({}));
+    setReviewingCourseId(course.id);
+    setMessage("");
+    try {
+      const response = await fetch(`/api/teacher/courses/${course.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reviewCourse", decision, rejectionReason }),
+      });
+      const data = await response.json().catch(() => ({}));
 
-    if (response.ok) {
-      if (data?.deleted) {
-        setCourses((previous) => previous.filter((item) => item.id !== course.id));
-      } else {
-        setCourses((previous) =>
-          previous.map((item) =>
-            item.id === course.id ? { ...item, status: data.course.status, deleteRequestedFromStatus: data.course.deleteRequestedFromStatus ?? null } : item,
-          ),
+      if (response.ok) {
+        if (data?.deleted) {
+          setCourses((previous) => previous.filter((item) => item.id !== course.id));
+        } else {
+          setCourses((previous) =>
+            previous.map((item) =>
+              item.id === course.id ? { ...item, status: data.course.status, deleteRequestedFromStatus: data.course.deleteRequestedFromStatus ?? null } : item,
+            ),
+          );
+        }
+        setMessage(
+          isDeleteRequest
+            ? decision === "APPROVE"
+              ? "Đã duyệt xóa khóa học."
+              : "Đã từ chối yêu cầu xóa khóa học."
+            : decision === "APPROVE"
+              ? "Đã duyệt khóa học."
+              : "Đã từ chối khóa học.",
         );
+      } else {
+        setMessage(data?.error || "Không thể duyệt khóa học.");
       }
-      setMessage(
-        isDeleteRequest
-          ? decision === "APPROVE"
-            ? "Đã duyệt xóa khóa học."
-            : "Đã từ chối yêu cầu xóa khóa học."
-          : decision === "APPROVE"
-            ? "Đã duyệt khóa học."
-            : "Đã từ chối khóa học.",
-      );
-    } else {
-      setMessage(data?.error || "Không thể duyệt khóa học.");
+    } finally {
+      setReviewingCourseId(null);
     }
   }
+
+  useEffect(() => {
+    if (!message) return;
+
+    const timeout = window.setTimeout(() => setMessage(""), 5000);
+    return () => window.clearTimeout(timeout);
+  }, [message]);
 
   return (
     <div className="space-y-5">
       {message ? (
-        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
-          {message}
+        <div className="fixed right-4 top-20 z-[90] w-[min(calc(100vw-2rem),24rem)] rounded-xl border border-blue-200 bg-white p-4 text-sm text-slate-700 shadow-2xl">
+          <div className="flex items-start justify-between gap-3">
+            <p className="font-semibold text-blue-700">{message}</p>
+            <button
+              type="button"
+              onClick={() => setMessage("")}
+              className="rounded-md px-2 py-1 text-sm font-bold text-slate-500 hover:bg-slate-100"
+              aria-label="Đóng thông báo"
+            >
+              x
+            </button>
+          </div>
         </div>
       ) : null}
 
@@ -204,13 +251,14 @@ export default function AdminDashboard({
             <button
               type="button"
               onClick={() => void toggleTeacherEntrance(!enabled)}
-              className={`rounded-lg px-3 py-2 text-sm font-semibold text-white ${
+              disabled={updatingTeacherEntrance}
+              className={`rounded-lg px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 ${
                 enabled
                   ? "bg-red-600 hover:bg-red-700"
                   : "bg-blue-600 hover:bg-blue-700"
               }`}
             >
-              {enabled ? "Tắt" : "Bật"}
+              {updatingTeacherEntrance ? "Đang lưu..." : enabled ? "Tắt" : "Bật"}
             </button>
           </div>
         </article>
@@ -227,13 +275,14 @@ export default function AdminDashboard({
             <button
               type="button"
               onClick={() => void toggleCourseAutoApproval(!courseAutoApproval)}
-              className={`rounded-lg px-3 py-2 text-sm font-semibold text-white ${
+              disabled={updatingCourseAutoApproval}
+              className={`rounded-lg px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 ${
                 courseAutoApproval
                   ? "bg-red-600 hover:bg-red-700"
                   : "bg-emerald-600 hover:bg-emerald-700"
               }`}
             >
-              {courseAutoApproval ? "Tắt" : "Bật"}
+              {updatingCourseAutoApproval ? "Đang lưu..." : courseAutoApproval ? "Tắt" : "Bật"}
             </button>
           </div>
         </article>
@@ -312,7 +361,7 @@ export default function AdminDashboard({
                         {course.description}
                       </p>
                       <p className="mt-2 text-xs text-slate-500">
-                        {course._count.modules} modules - {course._count.tests} tests -{" "}
+                        {course._count.modules} chương - {course._count.tests} bài test -{" "}
                         {course._count.enrollments} học viên
                       </p>
                     </div>
@@ -326,16 +375,18 @@ export default function AdminDashboard({
                       <button
                         type="button"
                         onClick={() => void reviewCourse(course, "APPROVE")}
-                        className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                        disabled={Boolean(reviewingCourseId)}
+                        className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {isDeleteRequest ? "Duyệt xóa" : "Duyệt"}
+                        {reviewingCourseId === course.id ? "Đang xử lý..." : isDeleteRequest ? "Duyệt xóa" : "Duyệt"}
                       </button>
                       <button
                         type="button"
                         onClick={() => void reviewCourse(course, "REJECT")}
-                        className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                        disabled={Boolean(reviewingCourseId)}
+                        className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {isDeleteRequest ? "Từ chối xóa" : "Từ chối"}
+                        {reviewingCourseId === course.id ? "Đang xử lý..." : isDeleteRequest ? "Từ chối xóa" : "Từ chối"}
                       </button>
                     </div>
                   </div>
@@ -431,18 +482,20 @@ export default function AdminDashboard({
                                 onClick={() =>
                                   void reviewTeacherApplication(application, "APPROVE")
                                 }
-                                className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                                disabled={Boolean(reviewingApplicationId)}
+                                className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                               >
-                                Duyệt
+                                {reviewingApplicationId === application.id ? "Đang xử lý..." : "Duyệt"}
                               </button>
                               <button
                                 type="button"
                                 onClick={() =>
                                   void reviewTeacherApplication(application, "REJECT")
                                 }
-                                className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                                disabled={Boolean(reviewingApplicationId)}
+                                className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                               >
-                                Từ chối
+                                {reviewingApplicationId === application.id ? "Đang xử lý..." : "Từ chối"}
                               </button>
                             </>
                           ) : null}

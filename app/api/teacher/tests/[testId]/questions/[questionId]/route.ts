@@ -118,7 +118,7 @@ export async function PUT(
       parsedScore = parseFloat(score);
       if (!Number.isFinite(parsedScore) || parsedScore <= 0) {
         return NextResponse.json(
-          { error: "Diem so phai lon hon 0" },
+          { error: "Điểm số phải lớn hơn 0" },
           { status: 400 }
         );
       }
@@ -264,8 +264,14 @@ export async function DELETE(
       );
     }
 
-    await prisma.question.delete({
-      where: { id: questionId },
+    await prisma.$transaction(async (tx) => {
+      await tx.answer.deleteMany({
+        where: { questionId },
+      });
+
+      await tx.question.delete({
+        where: { id: questionId },
+      });
     });
 
     return NextResponse.json({ message: "Question deleted successfully" });

@@ -66,6 +66,6 @@ export async function POST(
 
     return NextResponse.json({ ok: true });
   } catch {
-    return NextResponse.json({ error: "Loi he thong." }, { status: 500 });
+    return NextResponse.json({ error: "Lỗi hệ thống." }, { status: 500 });
   }
 }

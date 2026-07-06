@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { getCourseAutoApprovalSetting } from "@/lib/course-approval";
+import { normalizeCourseThumbnailUrl } from "@/lib/course-thumbnail";
 
 const COURSE_STATUSES = new Set(["ACTIVE", "LOCKED", "PENDING_APPROVAL", "PENDING_DELETE", "REJECTED"]);
 
@@ -121,7 +122,7 @@ export async function POST(request: Request) {
         category: category || null,
         level: level || null,
         duration: duration || null,
-        thumbnail: thumbnail || null,
+        thumbnail: normalizeCourseThumbnailUrl(thumbnail) || null,
         status: nextStatus,
         instructorId: user.id,
         languageId:

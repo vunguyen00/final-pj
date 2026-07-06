@@ -61,7 +61,7 @@ export async function POST(
 
     const totalQuestionScore = test.questions.reduce((sum, question) => sum + Number(question.score || 0), 0);
     if (!isTestReady(totalQuestionScore)) {
-      return NextResponse.json({ error: `Bai test chua hop le. Tong diem cau hoi phai bang ${FIXED_TEST_MAX_SCORE}.` }, { status: 400 });
+      return NextResponse.json({ error: `Bài test chưa hợp lệ. Tổng điểm câu hỏi phải bằng ${FIXED_TEST_MAX_SCORE}.` }, { status: 400 });
     }
 
     if (test.kind === "TEACHER_ENTRANCE") {
@@ -158,8 +158,8 @@ export async function POST(
       return NextResponse.json(
         {
           error: invalidResponse
-            ? "AI tra ve ket qua cham bai khong hop le. Bai test chua duoc nop, vui long thu lai."
-            : "AI dang tam thoi khong kha dung. Bai test chua duoc nop, vui long thu lai.",
+            ? "AI trả về kết quả chấm bài không hợp lệ. Bài test chưa được nộp, vui lòng thử lại."
+            : "AI đang tạm thời không khả dụng. Bài test chưa được nộp, vui lòng thử lại.",
         },
         { status: invalidResponse ? 502 : 503 },
       );

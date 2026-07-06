@@ -31,6 +31,6 @@ export async function PATCH(
 
     return NextResponse.json({ ok: true, savedAt: new Date().toISOString() });
   } catch {
-    return NextResponse.json({ error: "Loi he thong." }, { status: 500 });
+    return NextResponse.json({ error: "Lỗi hệ thống." }, { status: 500 });
   }
 }

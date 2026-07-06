@@ -38,7 +38,7 @@ export async function PUT(request: Request) {
 
       for (const student of students) {
         const subject = "Mo dang ky tro thanh giang vien";
-        const text = "He thong da mo dang ky dau vao giang vien. Ban co the vao menu tai khoan de nop ho so.";
+        const text = "Hệ thống đã mở đăng ký đầu vào giảng viên. Bạn có thể vào menu tài khoản để nộp hồ sơ.";
         try {
           await sendBasicEmail(student.email, subject, text);
           await prisma.emailLog.create({
@@ -60,7 +60,7 @@ export async function PUT(request: Request) {
         await prisma.notification.create({
           data: {
             userId: student.id,
-            title: "Dang ky giang vien da mo",
+            title: "Đăng ký giảng viên đã mở",
             body: text,
           },
         });
@@ -69,7 +69,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json({ enabled, notified });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Loi he thong.";
+    const message = error instanceof Error ? error.message : "Lỗi hệ thống.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

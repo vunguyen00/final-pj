@@ -31,7 +31,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Verify email error:", error);
     return NextResponse.json(
-      { exists: false, error: "Loi server" },
+      { exists: false, error: "Lỗi server" },
       { status: 500 },
     );
   }

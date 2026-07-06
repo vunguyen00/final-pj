@@ -29,7 +29,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json({ enabled });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Loi he thong.";
+    const message = error instanceof Error ? error.message : "Lỗi hệ thống.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

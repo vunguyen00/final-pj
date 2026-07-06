@@ -26,7 +26,7 @@ export async function PUT(request: Request) {
     const body = (await request.json()) as { examType?: string; durationSeconds?: number };
     const examType = String(body.examType || "").toUpperCase();
     if (examType !== "IELTS" && examType !== "HSK") {
-      return NextResponse.json({ error: "Exam type khong hop le." }, { status: 400 });
+      return NextResponse.json({ error: "Exam type không hợp lệ." }, { status: 400 });
     }
 
     const setting = await setSpeakingAiSetting({
@@ -36,7 +36,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json(setting);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Loi he thong.";
+    const message = error instanceof Error ? error.message : "Lỗi hệ thống.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -90,7 +90,6 @@ export default async function StudentPage() {
               <Link href="/courses" className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted">
                 Browse courses
               </Link>
-              <LogoutButton />
             </div>
           </div>
         </section>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge, BadgeGroup } from "@/components/base/badge";
 import { Section, SectionHeader } from "@/components/base/section";
+import { normalizeCourseThumbnailUrl } from "@/lib/course-thumbnail";
 import { formatCount, getPublicTeacherDetail } from "@/lib/public-teachers";
 
 interface Props {
@@ -52,34 +53,37 @@ export default async function TeacherDetailPage({ params }: Props) {
             <article className="rounded-xl border border-border bg-card p-6">
               <SectionHeader title="Khóa học nổi bật" className="mb-3" />
               <div className="space-y-3">
-                {teacher.topCourses.map((course) => (
-                  <Link
-                    key={course.id}
-                    href={`/courses/${course.id}`}
-                    className="grid gap-4 rounded-lg border border-border p-4 transition hover:bg-muted sm:grid-cols-[120px_1fr]"
-                  >
-                    <div className="aspect-video overflow-hidden rounded-lg bg-muted">
-                      {course.thumbnail ? (
-                        <img src={course.thumbnail} alt={course.name} className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="flex h-full items-center justify-center text-xs font-semibold text-muted-foreground">
-                          {course.language || "FinnCenter"}
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <BadgeGroup>
-                        {course.language ? <Badge>{course.language}</Badge> : null}
-                        {course.category ? <Badge className="bg-secondary text-secondary-foreground">{course.category}</Badge> : null}
-                      </BadgeGroup>
-                      <h3 className="mt-2 font-medium text-foreground">{course.name}</h3>
-                      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{course.description}</p>
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        {formatCount(course.studentsCount)} lượt đăng ký - {course.averageRating > 0 ? course.averageRating.toFixed(1) : "Chưa có"} sao ({formatCount(course.reviewsCount)} đánh giá)
-                      </p>
-                    </div>
-                  </Link>
-                ))}
+                {teacher.topCourses.map((course) => {
+                  const thumbnailUrl = normalizeCourseThumbnailUrl(course.thumbnail);
+                  return (
+                    <Link
+                      key={course.id}
+                      href={`/courses/${course.id}`}
+                      className="grid gap-4 rounded-lg border border-border p-4 transition hover:bg-muted sm:grid-cols-[120px_1fr]"
+                    >
+                      <div className="aspect-video overflow-hidden rounded-lg bg-muted">
+                        {thumbnailUrl ? (
+                          <img src={thumbnailUrl} alt={course.name} className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-xs font-semibold text-muted-foreground">
+                            {course.language || "FinnCenter"}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <BadgeGroup>
+                          {course.language ? <Badge>{course.language}</Badge> : null}
+                          {course.category ? <Badge className="bg-secondary text-secondary-foreground">{course.category}</Badge> : null}
+                        </BadgeGroup>
+                        <h3 className="mt-2 font-medium text-foreground">{course.name}</h3>
+                        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{course.description}</p>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          {formatCount(course.studentsCount)} lượt đăng ký - {course.averageRating > 0 ? course.averageRating.toFixed(1) : "Chưa có"} sao ({formatCount(course.reviewsCount)} đánh giá)
+                        </p>
+                      </div>
+                    </Link>
+                  );
+                })}
                 {teacher.topCourses.length === 0 ? (
                   <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
                     Giảng viên chưa có khóa học đang mở.

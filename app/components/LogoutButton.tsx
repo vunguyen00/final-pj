@@ -27,7 +27,7 @@ export function LogoutButton() {
       disabled={loading}
       className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-70"
     >
-      {loading ? "Dang xuat..." : "Dang xuat"}
+      {loading ? "Đang xuất..." : "Đăng xuất"}
     </button>
   );
 }

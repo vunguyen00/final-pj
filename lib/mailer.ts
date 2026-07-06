@@ -73,7 +73,7 @@ export async function sendPasswordResetOtpEmail(
         <p>Ma OTP cua ban la:</p>
         <p style="font-size: 28px; font-weight: 700; letter-spacing: 4px;">${otpCode}</p>
         <p>Ma co hieu luc trong <strong>${expiresMinutes} phut</strong>.</p>
-        <p>Neu khong phai ban, vui long bo qua email nay.</p>
+        <p>Nếu không phải bạn, vui lòng bỏ qua email này.</p>
       </div>
     `,
   });
@@ -90,13 +90,13 @@ export async function sendCourseCertificateEmail(
   await transporter.sendMail({
     from: config.from,
     to,
-    subject: `Chung chi hoan thanh khoa hoc: ${courseName}`,
-    text: `Chuc mung ${username}! Ban da hoan thanh khoa hoc ${courseName} va du dieu kien nhan chung chi.`,
+    subject: `Chứng chỉ hoàn thành khóa học: ${courseName}`,
+    text: `Chúc mừng ${username}! Bạn đã hoàn thành khóa học ${courseName} và đủ điều kiện nhận chứng chỉ.`,
     html: `
       <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">
         <h2>Chuc mung ${username}!</h2>
-        <p>Ban da hoan thanh khoa hoc <strong>${courseName}</strong>.</p>
-        <p>Chung chi hoan thanh da duoc ghi nhan trong he thong.</p>
+        <p>Bạn đã hoàn thành khóa học <strong>${courseName}</strong>.</p>
+        <p>Chứng chỉ hoàn thành đã được ghi nhận trong hệ thống.</p>
         <p>Cam on ban da hoc cung FinnCenter.</p>
       </div>
     `,

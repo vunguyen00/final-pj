@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { authenticate } from "@/lib/auth";
+import { normalizeCourseThumbnailUrl } from "@/lib/course-thumbnail";
 import { prisma } from "@/lib/prisma";
 import EnrollCourseCard from "./components/EnrollCourseCard";
 import CourseReviewForm from "./components/CourseReviewForm";
@@ -48,6 +49,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
     : null;
   const language = getCourseLanguage(course);
   const category = course.category?.trim() || "Chưa phân loại";
+  const thumbnailUrl = normalizeCourseThumbnailUrl(course.thumbnail);
   const [reviews, canReview, existingReview] = await Promise.all([
     getCourseReviews(course.id),
     user?.role === "STUDENT" ? canReviewCourse(user.id, course.id) : Promise.resolve(false),
@@ -78,8 +80,8 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
             </div>
           </div>
           <div className="overflow-hidden rounded-2xl border border-border bg-muted">
-            {course.thumbnail ? (
-              <img src={course.thumbnail} alt={course.name} className="aspect-video w-full object-cover" />
+            {thumbnailUrl ? (
+              <img src={thumbnailUrl} alt={course.name} className="aspect-video w-full object-cover" />
             ) : (
               <div className="flex aspect-video items-center justify-center text-2xl font-semibold text-muted-foreground">{getLanguageLabel(language)}</div>
             )}

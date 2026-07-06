@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 
 type Lesson = {
@@ -24,7 +24,6 @@ type Course = {
 };
 
 export default function TeacherModulePage() {
-  const router = useRouter();
   const params = useParams();
   const courseId = params.courseId as string;
   const moduleId = params.moduleId as string;
@@ -40,12 +39,10 @@ export default function TeacherModulePage() {
     videoUrl: "",
   });
   const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [isSavingLesson, setIsSavingLesson] = useState(false);
+  const savingLessonRef = useRef(false);
 
-  useEffect(() => {
-    fetchModule();
-  }, [courseId, moduleId]);
-
-  const fetchModule = async () => {
+  const fetchModule = useCallback(async () => {
     try {
       const res = await fetch(`/api/teacher/courses/${courseId}/modules/${moduleId}`);
       if (res.ok) {
@@ -63,10 +60,23 @@ export default function TeacherModulePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [courseId, moduleId]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      void fetchModule();
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
+  }, [fetchModule]);
 
   const handleCreateLesson = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (savingLessonRef.current || uploadingVideo) return;
+
+    savingLessonRef.current = true;
+    setIsSavingLesson(true);
+
     try {
       const res = await fetch(`/api/teacher/courses/${courseId}/modules/${moduleId}/lessons`, {
         method: "POST",
@@ -76,16 +86,28 @@ export default function TeacherModulePage() {
       if (res.ok) {
         setShowModal(false);
         setLessonForm({ title: "", content: "", videoUrl: "" });
-        fetchModule();
+        await fetchModule();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data?.error || "Không thể thêm bài học.");
       }
     } catch (error) {
       console.error("Error creating lesson:", error);
+      alert("Lỗi khi thêm bài học.");
+    } finally {
+      savingLessonRef.current = false;
+      setIsSavingLesson(false);
     }
   };
 
   const handleUpdateLesson = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingLesson) return;
+    if (savingLessonRef.current || uploadingVideo) return;
+
+    savingLessonRef.current = true;
+    setIsSavingLesson(true);
+
     try {
       const res = await fetch(`/api/teacher/courses/${courseId}/modules/${moduleId}/lessons/${editingLesson.id}`, {
         method: "PUT",
@@ -96,10 +118,17 @@ export default function TeacherModulePage() {
         setShowModal(false);
         setEditingLesson(null);
         setLessonForm({ title: "", content: "", videoUrl: "" });
-        fetchModule();
+        await fetchModule();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data?.error || "Không thể cập nhật bài học.");
       }
     } catch (error) {
       console.error("Error updating lesson:", error);
+      alert("Lỗi khi cập nhật bài học.");
+    } finally {
+      savingLessonRef.current = false;
+      setIsSavingLesson(false);
     }
   };
 
@@ -110,7 +139,7 @@ export default function TeacherModulePage() {
         method: "DELETE",
       });
       if (res.ok) {
-        fetchModule();
+        await fetchModule();
       }
     } catch (error) {
       console.error("Error deleting lesson:", error);
@@ -120,6 +149,8 @@ export default function TeacherModulePage() {
   const openCreateModal = () => {
     setEditingLesson(null);
     setLessonForm({ title: "", content: "", videoUrl: "" });
+    setIsSavingLesson(false);
+    savingLessonRef.current = false;
     setShowModal(true);
   };
 
@@ -130,6 +161,8 @@ export default function TeacherModulePage() {
       content: lesson.content,
       videoUrl: lesson.videoUrl || "",
     });
+    setIsSavingLesson(false);
+    savingLessonRef.current = false;
     setShowModal(true);
   };
 
@@ -165,6 +198,7 @@ export default function TeacherModulePage() {
               <p className="mt-1 text-sm text-slate-600">Khóa học: {course?.name}</p>
             </div>
             <button
+              type="button"
               onClick={openCreateModal}
               className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
             >
@@ -209,16 +243,20 @@ export default function TeacherModulePage() {
                   </div>
                   <div className="flex gap-2">
                     <button
+                      type="button"
                       onClick={() => openEditModal(lesson)}
                       className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"
+                      aria-label="Chỉnh sửa bài học"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
                         <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
                       </svg>
                     </button>
                     <button
+                      type="button"
                       onClick={() => handleDeleteLesson(lesson.id)}
                       className="rounded-lg p-2 text-red-600 hover:bg-red-50"
+                      aria-label="Xóa bài học"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
                         <polyline points="3 6 5 6 21 6" />
@@ -242,39 +280,46 @@ export default function TeacherModulePage() {
             </h2>
             <form onSubmit={editingLesson ? handleUpdateLesson : handleCreateLesson} className="mt-4 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700">Tiêu đề *</label>
+                <label htmlFor="lesson-title" className="block text-sm font-medium text-slate-700">Tiêu đề *</label>
                 <input
+                  id="lesson-title"
                   type="text"
                   required
                   value={lessonForm.title}
+                  disabled={isSavingLesson}
                   onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })}
-                  className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-black placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-black placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500 disabled:cursor-not-allowed disabled:bg-slate-100"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">Nội dung *</label>
+                <label htmlFor="lesson-content" className="block text-sm font-medium text-slate-700">Nội dung *</label>
                 <textarea
+                  id="lesson-content"
                   required
                   rows={5}
                   value={lessonForm.content}
+                  disabled={isSavingLesson}
                   onChange={(e) => setLessonForm({ ...lessonForm, content: e.target.value })}
-                  className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-black placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-black placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500 disabled:cursor-not-allowed disabled:bg-slate-100"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">Video</label>
+                <label htmlFor="lesson-video" className="block text-sm font-medium text-slate-700">Video</label>
                 <div className="mt-1 space-y-2">
                   {lessonForm.videoUrl ? (
                     <div className="relative rounded-lg border border-slate-200 bg-slate-50 p-3">
                       <video
                         src={lessonForm.videoUrl}
                         controls
+                        aria-label="Xem trước video bài học"
                         className="h-40 w-full rounded-lg object-contain"
                       />
                       <button
                         type="button"
+                        disabled={isSavingLesson}
                         onClick={() => setLessonForm({ ...lessonForm, videoUrl: "" })}
-                        className="absolute right-2 top-2 rounded-full bg-red-500 p-1 text-white hover:bg-red-600"
+                        className="absolute right-2 top-2 rounded-full bg-red-500 p-1 text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                        aria-label="Xóa video"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
                           <line x1="18" x2="6" y1="6" y2="18" />
@@ -291,10 +336,11 @@ export default function TeacherModulePage() {
                       <span className="mt-2 text-sm text-slate-600">Tải lên video</span>
                       <span className="text-xs text-slate-400">MP4, WebM, MOV (tối đa 500MB)</span>
                       <input
+                        id="lesson-video"
                         type="file"
                         accept="video/mp4,video/webm,video/quicktime"
                         className="hidden"
-                        disabled={uploadingVideo}
+                        disabled={uploadingVideo || isSavingLesson}
                         onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
@@ -310,11 +356,11 @@ export default function TeacherModulePage() {
                             if (res.ok && data.url) {
                               setLessonForm({ ...lessonForm, videoUrl: data.url });
                             } else {
-                              alert(data.error || "Upload failed");
+                              alert(data.error || "Không thể tải video.");
                             }
                           } catch (error) {
                             console.error("Error uploading video:", error);
-                            alert("Lỗi khi tải video");
+                            alert("Lỗi khi tải video.");
                           } finally {
                             setUploadingVideo(false);
                           }
@@ -333,19 +379,26 @@ export default function TeacherModulePage() {
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
+                  disabled={isSavingLesson}
                   onClick={() => {
+                    if (savingLessonRef.current) return;
                     setShowModal(false);
                     setEditingLesson(null);
                   }}
-                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                  disabled={isSavingLesson || uploadingVideo}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {editingLesson ? "Lưu thay đổi" : "Thêm bài học"}
+                  {isSavingLesson
+                    ? "Đang lưu..."
+                    : editingLesson
+                      ? "Lưu thay đổi"
+                      : "Thêm bài học"}
                 </button>
               </div>
             </form>

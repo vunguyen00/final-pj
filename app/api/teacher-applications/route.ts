@@ -112,18 +112,18 @@ export async function POST(request: Request) {
     const files = formData.getAll("certificates").filter((item): item is File => item instanceof File);
 
     if (!languageId) {
-      return NextResponse.json({ error: "Vui long chon ngon ngu apply." }, { status: 400 });
+      return NextResponse.json({ error: "Vui lòng chọn ngôn ngữ apply." }, { status: 400 });
     }
 
     const language = await prisma.learningLanguage.findFirst({
       where: { id: languageId, isActive: true },
     });
     if (!language) {
-      return NextResponse.json({ error: "Ngon ngu khong hop le." }, { status: 400 });
+      return NextResponse.json({ error: "Ngôn ngữ không hợp lệ." }, { status: 400 });
     }
 
     if (files.length === 0 || files.length > MAX_CERTIFICATES) {
-      return NextResponse.json({ error: "Vui long upload tu 1 den 3 file chung chi." }, { status: 400 });
+      return NextResponse.json({ error: "Vui lòng upload từ 1 đến 3 file chứng chỉ." }, { status: 400 });
     }
 
     for (const [index, file] of files.entries()) {
@@ -134,7 +134,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Moi file toi da 10MB." }, { status: 400 });
       }
       if (!expiryDates[index] || Number.isNaN(Date.parse(expiryDates[index]))) {
-        return NextResponse.json({ error: "Vui long nhap expiry date cho tung chung chi." }, { status: 400 });
+        return NextResponse.json({ error: "Vui lòng nhập expiry date cho từng chứng chỉ." }, { status: 400 });
       }
     }
 
@@ -187,7 +187,7 @@ export async function POST(request: Request) {
       await sendBasicEmail(
         user.email,
         "Da nhan ho so dang ky giang vien",
-        "Ho so dang ky giang vien cua ban da duoc ghi nhan.",
+        "Hồ sơ đăng ký giảng viên của bạn đã được ghi nhận.",
       );
     } catch {
       // Email errors are logged in the admin setting flow; application submission must not fail on SMTP config.
@@ -200,7 +200,7 @@ export async function POST(request: Request) {
       },
     }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Loi he thong.";
+    const message = error instanceof Error ? error.message : "Lỗi hệ thống.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -29,7 +29,7 @@ export async function PUT(
     });
 
     if (!application) {
-      return NextResponse.json({ error: "Khong tim thay ho so." }, { status: 404 });
+      return NextResponse.json({ error: "Không tìm thấy hồ sơ." }, { status: 404 });
     }
 
     const nextStatus = action === "APPROVE" ? "APPROVED" : "REJECTED";
@@ -55,10 +55,10 @@ export async function PUT(
       await tx.notification.create({
         data: {
           userId: application.userId,
-          title: action === "APPROVE" ? "Ho so giang vien da duoc duyet" : "Ho so giang vien bi tu choi",
+          title: action === "APPROVE" ? "Hồ sơ giảng viên đã được duyệt" : "Hồ sơ giảng viên bị từ chối",
           body:
             action === "APPROVE"
-              ? "Tai khoan cua ban da duoc chuyen sang Teacher."
+              ? "Tài khoản của bạn đã được chuyển sang Teacher."
               : rejectionReason || "Admin da tu choi ho so giang vien cua ban.",
         },
       });
@@ -77,10 +77,10 @@ export async function PUT(
     try {
       await sendBasicEmail(
         application.user.email,
-        action === "APPROVE" ? "Ho so giang vien da duoc approve" : "Ho so giang vien bi reject",
+        action === "APPROVE" ? "Hồ sơ giảng viên đã được approve" : "Hồ sơ giảng viên bị reject",
         action === "APPROVE"
-          ? "Tai khoan cua ban da duoc chuyen sang Teacher. Ban co the tao khoa hoc ngay."
-          : rejectionReason || "Ho so cua ban chua duoc approve.",
+          ? "Tài khoản của bạn đã được chuyển sang Teacher. Bạn có thể tạo khóa học ngay."
+          : rejectionReason || "Hồ sơ của bạn chưa được approve.",
       );
     } catch {
       // Review state is the source of truth; SMTP failures should not block admin action.
@@ -88,7 +88,7 @@ export async function PUT(
 
     return NextResponse.json({ ok: true, status: nextStatus });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Loi he thong.";
+    const message = error instanceof Error ? error.message : "Lỗi hệ thống.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

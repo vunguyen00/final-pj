@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { QuestionCard } from "./components/QuestionCard";
@@ -39,6 +39,8 @@ export default function TeacherTestQuestionsPage() {
   const [materialMessage, setMaterialMessage] = useState("");
   const [uploadingAudio, setUploadingAudio] = useState(false);
   const [audioUploadMessage, setAudioUploadMessage] = useState("");
+  const [isSavingQuestion, setIsSavingQuestion] = useState(false);
+  const savingQuestionRef = useRef(false);
 
   const totalQuestionScore = useMemo(() => questions.reduce((sum, question) => sum + Number(question.score || 0), 0), [questions]);
   const remainingScore = getRemainingQuestionScore(totalQuestionScore);
@@ -199,6 +201,8 @@ export default function TeacherTestQuestionsPage() {
     setEditingQuestion(null);
     setQuestionForm(createDefaultForm());
     setAudioUploadMessage("");
+    setIsSavingQuestion(false);
+    savingQuestionRef.current = false;
     setShowModal(true);
   };
 
@@ -206,6 +210,8 @@ export default function TeacherTestQuestionsPage() {
     const kind = inferKindFromQuestion(question);
     setEditingQuestion(question);
     setAudioUploadMessage("");
+    setIsSavingQuestion(false);
+    savingQuestionRef.current = false;
     setQuestionForm({
       kind,
       type: question.type,
@@ -238,6 +244,8 @@ export default function TeacherTestQuestionsPage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (savingQuestionRef.current || uploadingAudio) return;
+
     if (!test) {
       alert("Bài test không tồn tại hoặc bạn không có quyền truy cập.");
       return;
@@ -247,6 +255,9 @@ export default function TeacherTestQuestionsPage() {
       alert(validationError);
       return;
     }
+
+    savingQuestionRef.current = true;
+    setIsSavingQuestion(true);
 
     const kindPayload = mapKindToPayload(questionForm.kind as QuestionKind);
     const payload = {
@@ -286,6 +297,9 @@ export default function TeacherTestQuestionsPage() {
     } catch (error) {
       console.error("Error saving question:", error);
       alert("Lỗi khi lưu câu hỏi.");
+    } finally {
+      savingQuestionRef.current = false;
+      setIsSavingQuestion(false);
     }
   };
 
@@ -510,12 +524,14 @@ export default function TeacherTestQuestionsPage() {
         isEditing={Boolean(editingQuestion)}
         form={questionForm}
         onClose={() => {
+          if (savingQuestionRef.current) return;
           setShowModal(false);
           setEditingQuestion(null);
           setAudioUploadMessage("");
         }}
         onSubmit={handleSubmit}
         setForm={(updater) => setQuestionForm((prev) => updater(prev))}
+        isSubmitting={isSavingQuestion}
         uploadingAudio={uploadingAudio}
         audioUploadMessage={audioUploadMessage}
         onAudioUpload={uploadQuestionAudio}
