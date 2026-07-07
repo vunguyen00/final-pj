@@ -15,8 +15,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <>
       <Header showOnAdmin />
-      <div className={`${manrope.variable} ${spaceGrotesk.variable} min-h-screen bg-[radial-gradient(circle_at_top_left,_#e0f2fe_0%,_#f8fafc_42%,_#ecfeff_100%)] p-4 md:p-6`}>
-        <div className="mx-auto max-w-[1500px] [font-family:var(--font-manrope)]">
+      <div className={`${manrope.variable} ${spaceGrotesk.variable} min-h-screen bg-slate-50 px-4 py-6 sm:px-6 lg:px-8`}>
+        <div className="mx-auto max-w-[1440px] [font-family:var(--font-manrope)]">
           {children}
         </div>
       </div>

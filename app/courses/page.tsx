@@ -1,20 +1,14 @@
-import Link from "next/link";
 import { authenticate } from "@/lib/auth";
-import { normalizeCourseThumbnailUrl } from "@/lib/course-thumbnail";
 import { prisma } from "@/lib/prisma";
-import { Badge, BadgeGroup } from "@/components/base/badge";
 import { CardGrid } from "@/components/base/grid";
 import { Hero } from "@/components/base/hero";
 import { Section } from "@/components/base/section";
+import { CourseCard } from "@/components/base/course-card";
 import { CourseFilterPanel } from "./CourseFilterPanel";
 import {
-  getCourseDuration,
   getCourseLanguage,
   getCourseLevel,
   getCourseType,
-  getLanguageLabel,
-  getLevelLabel,
-  priceLabel,
 } from "@/app/components/learningMarketplace";
 
 async function getCourses() {
@@ -36,10 +30,9 @@ async function getCourses() {
 export default async function CoursesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ language?: string; level?: string; type?: string; tab?: string; skill?: string }>;
+  searchParams: Promise<{ language?: string; level?: string; type?: string; tab?: string; skill?: string; q?: string; sort?: string }>;
 }) {
-  const params = await searchParams;
-  const [courses, user] = await Promise.all([getCourses(), authenticate()]);
+  const [params, courses, user] = await Promise.all([searchParams, getCourses(), authenticate()]);
   const enrolledIds = new Set<string>();
 
   if (user) {
@@ -47,15 +40,19 @@ export default async function CoursesPage({
     enrollments.forEach((item) => enrolledIds.add(item.courseId));
   }
 
+  const keyword = params.q?.trim().toLocaleLowerCase("vi") ?? "";
+
   let filteredCourses = courses.filter((course) => {
     const language = getCourseLanguage(course);
     const level = getCourseLevel(course);
     const type = getCourseType(course);
+    const searchable = `${course.name} ${course.description ?? ""} ${course.category ?? ""} ${course.instructor?.username ?? ""}`.toLocaleLowerCase("vi");
 
     if (params.skill && course.category?.toLowerCase() !== params.skill.toLowerCase()) return false;
     if (params.language && params.language !== "all" && language !== params.language) return false;
     if (params.level && params.level !== "all" && level !== params.level) return false;
     if (params.type && params.type !== "all" && type !== params.type) return false;
+    if (keyword && !searchable.includes(keyword)) return false;
     return true;
   });
 
@@ -64,6 +61,10 @@ export default async function CoursesPage({
   if (activeTab === "combo") filteredCourses = filteredCourses.filter((course) => getCourseType(course) === "Combo course");
   if (activeTab === "skill") filteredCourses = filteredCourses.filter((course) => getCourseType(course) === "Skill training");
   if (activeTab === "cert") filteredCourses = filteredCourses.filter((course) => getCourseType(course) === "Certification prep");
+
+  if (params.sort === "price-asc") filteredCourses = filteredCourses.sort((a, b) => Number(a.price ?? 0) - Number(b.price ?? 0));
+  if (params.sort === "price-desc") filteredCourses = filteredCourses.sort((a, b) => Number(b.price ?? 0) - Number(a.price ?? 0));
+  if (params.sort === "name") filteredCourses = filteredCourses.sort((a, b) => a.name.localeCompare(b.name, "vi"));
 
   return (
     <main className="min-h-screen bg-background">
@@ -74,59 +75,12 @@ export default async function CoursesPage({
         primaryAction={{ label: "Xem tất cả", href: "/courses" }}
       />
 
-      <Section padding="md">
-        <CourseFilterPanel params={params} />
-      </Section>
-
       <Section background="muted" padding="md">
-        <CardGrid cols={3} gap="md">
-          {filteredCourses.map((course) => {
-            const isEnrolled = enrolledIds.has(course.id);
-            const language = getCourseLanguage(course);
-            const category = course.category?.trim() || "Chưa phân loại";
-            const thumbnailUrl = normalizeCourseThumbnailUrl(course.thumbnail);
-            return (
-              <article key={course.id} className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-                <Link href={`/courses/${course.id}`} className="block">
-                  <div className="relative aspect-video bg-muted">
-                    {thumbnailUrl ? (
-                      <img src={thumbnailUrl} alt={course.name} className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-sm font-semibold text-muted-foreground">{getLanguageLabel(language)}</div>
-                    )}
-                  </div>
-                </Link>
-                <div className="p-5">
-                  <BadgeGroup>
-                    <Badge>{getLanguageLabel(language)}</Badge>
-                    <Badge className="bg-muted text-muted-foreground">{getLevelLabel(getCourseLevel(course))}</Badge>
-                    <Badge className="bg-secondary text-secondary-foreground">{category}</Badge>
-                  </BadgeGroup>
-                  <Link href={`/courses/${course.id}`}>
-                    <h3 className="mt-3 line-clamp-2 text-lg font-semibold text-foreground hover:text-primary">{course.name}</h3>
-                  </Link>
-                  <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{course.description}</p>
-                  <div className="mt-4 grid grid-cols-2 gap-2 text-sm text-muted-foreground">
-                    <span>Giảng viên: {course.instructor?.username || "Chưa cập nhật"}</span>
-                    <span>{getCourseDuration(course)}</span>
-                    <span>{course.lessons} bài học</span>
-                    <span>{course._count.enrollments} học viên</span>
-                  </div>
-                  <div className="mt-5 flex items-center justify-between border-t border-border pt-4">
-                    <span className="text-lg font-semibold text-foreground">{priceLabel(course.price)}</span>
-                    <Link
-                      href={isEnrolled ? `/student/hoc-bai?courseId=${course.id}` : `/courses/${course.id}`}
-                      className={`rounded-lg px-4 py-2 text-sm font-semibold ${
-                        isEnrolled ? "bg-accent/15 text-accent" : "bg-primary text-primary-foreground"
-                      }`}
-                    >
-                      {isEnrolled ? "Tiếp tục học" : "Xem khóa học"}
-                    </Link>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
+        <CourseFilterPanel params={params} resultCount={filteredCourses.length} />
+        <CardGrid cols={3} gap="md" className="mt-6">
+          {filteredCourses.map((course) => (
+            <CourseCard key={course.id} course={course} isEnrolled={enrolledIds.has(course.id)} />
+          ))}
         </CardGrid>
         {filteredCourses.length === 0 ? (
           <div className="mt-6 rounded-xl border border-dashed border-border bg-card p-10 text-center text-muted-foreground">

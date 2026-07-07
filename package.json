@@ -6,7 +6,7 @@
     "postinstall": "prisma generate",
     "dev": "next dev",
     "dev:next": "next dev -H ::",
-    "dev:tunnel": "cloudflared tunnel run finncenter",
+    "dev:tunnel": "set TUNNEL_TRANSPORT_PROTOCOL=http2&& cloudflared tunnel run finncenter",
     "dev:ollama": "ollama serve",
     "docker:up": "docker start musing_curie",
     "dev:all": "npm run docker:up && concurrently -n next,tunnel,ollama -c green,cyan,magenta \"npm:dev:next\" \"npm:dev:tunnel\" \"npm:dev:ollama\"",

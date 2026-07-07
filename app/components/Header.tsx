@@ -34,6 +34,33 @@ const navItems = [
   { href: "/teachers", label: "Giảng viên", match: (path: string) => path.startsWith("/teachers") },
 ] satisfies MatchedNavItem[];
 
+const studentNavItems = [
+  { href: "/student/tests", label: "Bài test" },
+  { href: "/student/results", label: "Kết quả" },
+  { href: "/student/wallet", label: "Ví tiền" },
+  { href: "/student", label: "Tổng quan" },
+] satisfies BasicNavItem[];
+
+const teacherNavItems = [
+  { href: "/teacher", label: "Tổng quan" },
+  { href: "/teacher/courses", label: "Khóa học của tôi" },
+  { href: "/teacher/tests", label: "Bài test" },
+  { href: "/teacher/students", label: "Học viên" },
+] satisfies BasicNavItem[];
+
+const adminNavItems = [
+  { href: "/admin", label: "Tổng quan" },
+  { href: "/student/tests", label: "Bài test" },
+  { href: "/student/results", label: "Kết quả" },
+  { href: "/student/rewards", label: "Điểm đậu" },
+  { href: "/student/wallet", label: "Ví tiền" },
+] satisfies BasicNavItem[];
+
+const aiNavItems = [
+  { href: "/student/speaking-ai", label: "Nói với AI" },
+  { href: "/student/writing-ai", label: "Luyện viết với AI" },
+] satisfies BasicNavItem[];
+
 const SEEN_NOTIFICATION_IDS_KEY = "seen-notification-ids:v2";
 
 function getSeenNotificationIdsKey(userId: string) {
@@ -139,18 +166,17 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
   const hideHeader = pathname.startsWith("/auth") || (pathname.startsWith("/admin") && !showOnAdmin);
   if (hideHeader) return null;
 
-  const studentLinks =
-    user
-      ? [
-          { href: "/student/tests", label: "Bài test" },
-          { href: "/student/results", label: "Kết quả" },
-          { href: "/student/speaking-ai", label: "Speaking AI" },
-          { href: "/student/writing-ai", label: "Writing AI" },
-          ...(user.role === "ADMIN" ? [] : [{ href: "/student/rewards", label: "Điểm đậu" }]),
-          ...(user.role === "ADMIN" ? [] : [{ href: "/student/wallet", label: "Ví tiền" }]),
-          { href: user.role === "ADMIN" ? "/admin" : "/student", label: "Tổng quan" },
-        ] satisfies BasicNavItem[]
-      : [];
+  const baseLinks = user ? navItems.filter((item) => item.href !== "/teachers") : navItems;
+  const roleLinks = !user
+    ? []
+    : user.role === "ADMIN"
+      ? adminNavItems
+      : user.role === "TEACHER"
+        ? teacherNavItems
+        : studentNavItems;
+  const navigationLinks = [...baseLinks, ...roleLinks];
+  const showAiMenu = Boolean(user);
+  const aiActive = aiNavItems.some((item) => pathname === item.href);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/90 backdrop-blur">
@@ -175,7 +201,7 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">
-          {[...navItems, ...studentLinks].map((item) => {
+          {navigationLinks.map((item) => {
             const active = hasMatch(item) ? item.match(pathname) : pathname === item.href;
             return (
               <Link
@@ -190,6 +216,32 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
               </Link>
             );
           })}
+          {showAiMenu ? (
+            <div className="group relative">
+              <button
+                type="button"
+                className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                  aiActive ? "bg-secondary text-secondary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+                aria-haspopup="menu"
+              >
+                AI luyện tập
+              </button>
+              <div className="invisible absolute right-0 top-full z-50 mt-2 min-w-44 rounded-lg border border-border bg-card p-2 opacity-0 shadow-lg transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+                {aiNavItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`block rounded-md px-3 py-2 text-sm font-medium ${
+                      pathname === item.href ? "bg-secondary text-secondary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </nav>
 
         <div className="flex items-center gap-2">
@@ -207,11 +259,21 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
 
       {open ? (
         <nav className="border-t border-border bg-card px-4 py-3 md:hidden">
-          {[...navItems, ...studentLinks].map((item) => (
+          {navigationLinks.map((item) => (
             <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className="block rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted">
               {item.label}
             </Link>
           ))}
+          {showAiMenu ? (
+            <div className="mt-2 border-t border-border pt-2">
+              <p className="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">AI luyện tập</p>
+              {aiNavItems.map((item) => (
+                <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className="block rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted">
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          ) : null}
         </nav>
       ) : null}
     </header>

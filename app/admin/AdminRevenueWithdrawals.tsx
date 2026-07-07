@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ButtonHTMLAttributes } from "react";
+import { Fragment, useMemo, useState, type ButtonHTMLAttributes } from "react";
 
 type WithdrawalComplaint = {
   id: string;
@@ -46,10 +46,15 @@ const summaryColors = {
   slate: "border-slate-200 bg-white text-slate-900",
 };
 
+function formatDate(value: string | null) {
+  return value ? new Date(value).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" }) : "-";
+}
+
 export default function AdminRevenueWithdrawals({ initialWithdrawals }: { initialWithdrawals: AdminWithdrawal[] }) {
   const [withdrawals, setWithdrawals] = useState(initialWithdrawals);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const pendingCount = useMemo(() => withdrawals.filter((item) => item.status === "PENDING").length, [withdrawals]);
   const approvedCount = useMemo(() => withdrawals.filter((item) => item.status === "APPROVED").length, [withdrawals]);
   const openComplaintCount = useMemo(() => withdrawals.filter((item) => item.complaint?.status === "OPEN").length, [withdrawals]);
@@ -149,7 +154,126 @@ export default function AdminRevenueWithdrawals({ initialWithdrawals }: { initia
           <h2 className="text-xl font-bold text-slate-950">Yêu cầu rút doanh thu giảng viên</h2>
           <p className="mt-1 text-sm text-slate-500">Duyệt thông tin nhận tiền, xác nhận chuyển khoản và xử lý khiếu nại nếu giao dịch đã đóng nhưng giáo viên báo chưa nhận đủ.</p>
         </div>
-        <div className="divide-y divide-slate-100">
+        {withdrawals.length === 0 ? (
+          <p className="px-5 py-12 text-center text-sm text-slate-500">Chưa có yêu cầu rút doanh thu.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-[1180px] w-full border-collapse text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Giảng viên</th>
+                  <th className="px-4 py-3 font-semibold">Email</th>
+                  <th className="px-4 py-3 font-semibold">Thời gian gửi</th>
+                  <th className="px-4 py-3 text-right font-semibold">Số tiền</th>
+                  <th className="px-4 py-3 font-semibold">Ngân hàng</th>
+                  <th className="px-4 py-3 font-semibold">Số tài khoản</th>
+                  <th className="px-4 py-3 font-semibold">Chủ tài khoản</th>
+                  <th className="px-4 py-3 font-semibold">Trạng thái</th>
+                  <th className="px-4 py-3 text-right font-semibold">Hành động</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {withdrawals.map((item) => {
+                  const complaintUi = item.complaint ? complaintStatusUi[item.complaint.status] : null;
+                  const expanded = expandedId === item.id;
+
+                  return (
+                    <Fragment key={item.id}>
+                      <tr className="align-top hover:bg-slate-50/70">
+                        <td className="max-w-[180px] px-4 py-4">
+                          <p className="truncate font-bold text-slate-950">{item.teacher.username}</p>
+                          {item.complaint ? <p className="mt-1 text-xs font-semibold text-amber-700">Có khiếu nại</p> : null}
+                        </td>
+                        <td className="max-w-[240px] px-4 py-4">
+                          <p className="truncate text-slate-600">{item.teacher.email}</p>
+                        </td>
+                        <td className="px-4 py-4 text-slate-600">{formatDate(item.createdAt)}</td>
+                        <td className="px-4 py-4 text-right text-base font-black text-emerald-700">{money.format(item.amount)}</td>
+                        <td className="max-w-[180px] px-4 py-4 font-semibold text-slate-900">
+                          <p className="truncate">{item.bankName}</p>
+                        </td>
+                        <td className="px-4 py-4 font-mono text-sm text-slate-700">{item.accountNumber}</td>
+                        <td className="max-w-[200px] px-4 py-4">
+                          <p className="truncate text-slate-700">{item.accountName}</p>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${item.status === "PAID" ? "bg-emerald-50 text-emerald-700" : item.status === "REJECTED" ? "bg-rose-50 text-rose-700" : item.status === "APPROVED" ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>
+                            {statusText[item.status]}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setExpandedId(expanded ? null : item.id)}
+                              className="h-9 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                            >
+                              {expanded ? "Thu gọn" : "Chi tiết"}
+                            </button>
+                            {item.status === "PENDING" ? (
+                              <>
+                                <Action disabled={processingId === `withdrawal:${item.id}`} onClick={() => void processWithdrawal(item, "APPROVE")}>Duyệt</Action>
+                                <Action danger disabled={processingId === `withdrawal:${item.id}`} onClick={() => void processWithdrawal(item, "REJECT")}>Từ chối</Action>
+                              </>
+                            ) : null}
+                            {item.status === "APPROVED" ? (
+                              <>
+                                <Action disabled={processingId === `withdrawal:${item.id}`} onClick={() => void processWithdrawal(item, "PAY")}>Đã chuyển</Action>
+                                <Action danger disabled={processingId === `withdrawal:${item.id}`} onClick={() => void processWithdrawal(item, "REJECT")}>Từ chối</Action>
+                              </>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                      {expanded ? (
+                        <tr>
+                          <td colSpan={9} className="bg-slate-50 px-4 py-4">
+                            <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
+                              <div className="rounded-lg border border-slate-200 bg-white p-4">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Ghi chú giao dịch</p>
+                                <p className="mt-2 text-sm leading-6 text-slate-700">{item.note || "Không có ghi chú."}</p>
+                                {item.processedAt ? <p className="mt-2 text-xs text-slate-500">Xử lý lúc {formatDate(item.processedAt)}</p> : null}
+                              </div>
+                              <div className="rounded-lg border border-amber-200 bg-white p-4">
+                                {item.complaint && complaintUi ? (
+                                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                                    <div>
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <p className="text-sm font-bold text-amber-950">Khiếu nại: {complaintReasonText[item.complaint.reason]}</p>
+                                        <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${complaintUi.className}`}>{complaintUi.label}</span>
+                                      </div>
+                                      <p className="mt-2 text-sm leading-6 text-slate-700">{item.complaint.message}</p>
+                                      <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-600">
+                                        <span>Gửi lúc {formatDate(item.complaint.createdAt)}</span>
+                                        {item.complaint.reportedAmount !== null ? <span>Thực nhận {money.format(item.complaint.reportedAmount)}</span> : null}
+                                        {item.complaint.resolvedAt ? <span>Xử lý lúc {formatDate(item.complaint.resolvedAt)}</span> : null}
+                                      </div>
+                                      {item.complaint.adminNote ? <p className="mt-2 text-xs font-semibold text-slate-700">Ghi chú admin: {item.complaint.adminNote}</p> : null}
+                                    </div>
+                                    {item.complaint.status === "OPEN" ? (
+                                      <div className="grid shrink-0 grid-cols-2 gap-2">
+                                        <Action disabled={processingId === `complaint:${item.complaint.id}`} onClick={() => void processComplaint(item, "RESOLVE")}>Đóng</Action>
+                                        <Action danger disabled={processingId === `complaint:${item.complaint.id}`} onClick={() => void processComplaint(item, "REJECT")}>Từ chối</Action>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                ) : (
+                                  <p className="text-sm text-slate-500">Yêu cầu này chưa có khiếu nại.</p>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="hidden">
           {withdrawals.map((item) => {
             const complaintUi = item.complaint ? complaintStatusUi[item.complaint.status] : null;
 

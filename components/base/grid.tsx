@@ -50,7 +50,7 @@ export function GridCard({
   footer?: ReactNode;
 }) {
   const body = (
-    <article className={cn("h-full rounded-2xl border border-border bg-card p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md", className)}>
+    <article className={cn("h-full rounded-lg border border-border bg-card p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md", className)}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-foreground">{icon}</div>
         {badge ? <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">{badge}</span> : null}

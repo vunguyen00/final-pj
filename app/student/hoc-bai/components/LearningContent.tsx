@@ -49,6 +49,7 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
   }, [completed, lessons]);
 
   const allDone = progress === 100;
+  const testHref = `/student/tests?courseId=${courseId}`;
 
   const startReading = useCallback(async (lessonId: string) => {
     setErrors((prev) => ({ ...prev, [lessonId]: "" }));
@@ -275,18 +276,19 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
           <p className="mt-4 whitespace-pre-line text-sm leading-6 text-slate-700">{selectedLesson.content}</p>
           {errors[selectedLesson.id] ? <p className="mt-2 text-sm text-red-600">{errors[selectedLesson.id]}</p> : null}
 
-          {allDone ? (
-            <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-3">
-              <p className="text-sm font-medium text-blue-800">Bạn đã hoàn thành 100% nội dung. Tiếp theo: làm bài test.</p>
-              <Link
-                href={`/student/tests?courseId=${courseId}`}
-                className="mt-2 inline-block rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white"
-              >
-                Chuyển sang bài test
-              </Link>
-            </div>
-          ) : null}
         </div>
+
+        {allDone ? (
+          <div className="mt-4 flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-medium text-blue-700">Bạn đã hoàn thành 100% nội dung. Tiếp theo: làm bài test.</p>
+            <Link
+              href={testHref}
+              className="inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 sm:w-auto"
+            >
+              Làm bài test
+            </Link>
+          </div>
+        ) : null}
       </section>
     </div>
   );

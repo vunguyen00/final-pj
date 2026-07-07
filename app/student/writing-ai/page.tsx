@@ -299,17 +299,18 @@ export default function WritingAiPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 py-8">
-      <div className={`mx-auto space-y-6 px-4 ${hasChart ? "max-w-[1500px]" : "max-w-6xl"}`}>
+    <main className="min-h-screen bg-slate-50 py-6 md:py-8">
+      <div className={`mx-auto space-y-6 px-4 sm:px-6 lg:px-8 ${hasChart ? "max-w-[1440px]" : "max-w-6xl"}`}>
         <WritingHero role={user?.role} loading={state.loading} onOpenSetup={() => dispatch({ type: "SET_SETUP_OPEN", setupOpen: true })} />
-        <div className={hasChart ? "grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(520px,1fr)]" : ""}>
+        <div className={hasChart ? "grid items-start gap-6 lg:grid-cols-12" : ""}>
           {state.chartData && state.taskType === "task_1" ? (
-            <aside className="lg:sticky lg:top-24">
+            <aside className="lg:sticky lg:top-24 lg:col-span-5">
               <TestMaterialPanel material={{ title: "Dữ liệu Writing Task 1", data: state.chartData }} />
             </aside>
           ) : null}
 
           <WritingForm
+            className={hasChart ? "lg:col-span-7" : ""}
             state={state}
             meta={writingMeta}
             role={user?.role}
@@ -351,8 +352,8 @@ function getWritingMeta(state: WritingState) {
 
 function WritingHero({ role, loading, onOpenSetup }: { role?: string; loading: boolean; onOpenSetup: () => void }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <section className="rounded-lg border border-slate-200 bg-white p-5 md:p-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
             Chấm điểm miễn phí · Nhận xét AI {role !== "ADMIN" ? "-3 hạt đậu" : "miễn phí cho quản trị viên"}
@@ -376,6 +377,7 @@ function WritingHero({ role, loading, onOpenSetup }: { role?: string; loading: b
 }
 
 function WritingForm({
+  className = "",
   state,
   meta,
   role,
@@ -384,6 +386,7 @@ function WritingForm({
   onEssayChange,
   onSubmit,
 }: {
+  className?: string;
   state: WritingState;
   meta: ReturnType<typeof getWritingMeta>;
   role?: string;
@@ -398,9 +401,9 @@ function WritingForm({
         event.preventDefault();
         void onSubmit(false);
       }}
-      className="rounded-xl border border-slate-200 bg-white p-5"
+      className={`rounded-lg border border-slate-200 bg-white p-5 ${className}`}
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="space-y-2">
         <label htmlFor="writing-task-type" className="text-sm font-semibold text-slate-700">
           Dạng bài Writing
         </label>
@@ -443,17 +446,26 @@ function WritingForm({
         id="writing-essay"
         value={state.essay}
         onChange={(event) => onEssayChange(event.target.value)}
-        rows={16}
+        rows={10}
         placeholder="Nhập bài viết của bạn..."
-        className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-sm leading-7 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+        className="mt-2 min-h-[320px] w-full resize-y rounded-lg border border-slate-300 px-4 py-3 text-sm leading-7 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
       />
       <p className="mt-2 text-right text-xs font-semibold text-slate-500">
         {meta.essayLength} {meta.usesCharacterCount ? "ký tự" : "từ"} · mục tiêu tham khảo {meta.targetLength} {meta.usesCharacterCount ? "ký tự" : "từ"}
       </p>
 
       {state.error ? <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{state.error}</p> : null}
+      {state.loading ? (
+        <p className="mt-3 rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm font-semibold text-blue-700">
+          Hệ thống đang chấm bài, kết quả sẽ hiển thị ngay bên dưới form.
+        </p>
+      ) : !state.result ? (
+        <p className="mt-3 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
+          Kết quả chấm điểm và nhận xét AI sẽ xuất hiện tại đây sau khi gửi bài.
+        </p>
+      ) : null}
 
-      <div className="mt-4 flex flex-wrap gap-3">
+      <div className="mt-4 flex flex-wrap gap-3 border-t border-slate-100 pt-4">
         <button type="submit" disabled={state.loading} className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white disabled:bg-slate-300">
           {state.loading && state.submitAction === "score" ? "Đang chấm điểm..." : "Chấm điểm miễn phí"}
         </button>

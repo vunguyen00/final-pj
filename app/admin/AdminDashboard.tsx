@@ -325,7 +325,84 @@ export default function AdminDashboard({
           </Link>
         </div>
 
-        <div className="mt-4 space-y-3">
+        {pendingCourses.length === 0 ? (
+          <p className="mt-4 rounded-lg bg-slate-50 p-4 text-sm text-slate-600">
+            Không có khóa học chờ duyệt.
+          </p>
+        ) : (
+          <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
+            <table className="min-w-[1040px] w-full border-collapse bg-white text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Khóa học</th>
+                  <th className="px-4 py-3 font-semibold">Giảng viên</th>
+                  <th className="px-4 py-3 font-semibold">Ngôn ngữ</th>
+                  <th className="px-4 py-3 text-center font-semibold">Chương</th>
+                  <th className="px-4 py-3 text-center font-semibold">Bài test</th>
+                  <th className="px-4 py-3 text-center font-semibold">Học viên</th>
+                  <th className="px-4 py-3 font-semibold">Trạng thái</th>
+                  <th className="px-4 py-3 text-right font-semibold">Hành động</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {pendingCourses.map((course) => {
+                  const language = course.language ?? course.registeredLanguage;
+                  const isDeleteRequest = course.status === "PENDING_DELETE";
+
+                  return (
+                    <tr key={course.id} className="align-top hover:bg-slate-50/70">
+                      <td className="max-w-[320px] px-4 py-4">
+                        <p className="truncate font-bold text-slate-950">{course.name}</p>
+                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{course.description}</p>
+                      </td>
+                      <td className="max-w-[240px] px-4 py-4">
+                        <p className="truncate font-semibold text-slate-900">{course.instructor?.username || "Không rõ"}</p>
+                        <p className="truncate text-xs text-slate-500">{course.instructor?.email || "Không có email"}</p>
+                      </td>
+                      <td className="px-4 py-4 text-slate-700">{language?.name || "Chưa xác định"}</td>
+                      <td className="px-4 py-4 text-center font-semibold text-slate-700">{course._count.modules}</td>
+                      <td className="px-4 py-4 text-center font-semibold text-slate-700">{course._count.tests}</td>
+                      <td className="px-4 py-4 text-center font-semibold text-slate-700">{course._count.enrollments}</td>
+                      <td className="px-4 py-4">
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${statusClass(course.status)}`}>
+                          {statusLabel(course.status)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex justify-end gap-2">
+                          <Link
+                            href={`/teacher/courses/${course.id}`}
+                            className="inline-flex h-9 items-center rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                          >
+                            Chi tiết
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => void reviewCourse(course, "APPROVE")}
+                            disabled={Boolean(reviewingCourseId)}
+                            className="inline-flex h-9 items-center rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {reviewingCourseId === course.id ? "Đang xử lý..." : isDeleteRequest ? "Duyệt xóa" : "Duyệt"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void reviewCourse(course, "REJECT")}
+                            disabled={Boolean(reviewingCourseId)}
+                            className="inline-flex h-9 items-center rounded-lg bg-red-600 px-3 text-xs font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {reviewingCourseId === course.id ? "Đang xử lý..." : isDeleteRequest ? "Từ chối xóa" : "Từ chối"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="hidden">
           {pendingCourses.length === 0 ? (
             <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
               Không có khóa học chờ duyệt.
@@ -425,6 +502,7 @@ export default function AdminDashboard({
               </div>
               <input
                 type="search"
+                aria-label="Tìm hồ sơ đăng ký giảng viên"
                 value={applicationSearch}
                 onChange={(event) => setApplicationSearch(event.target.value)}
                 placeholder="Tìm theo tên người dùng hoặc email..."

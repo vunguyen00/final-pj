@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ButtonHTMLAttributes } from "react";
+import { Fragment, useMemo, useState, type ButtonHTMLAttributes } from "react";
 import type { AdminCourseRefund } from "./types";
 
 const money = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 });
@@ -10,11 +10,16 @@ const statusCopy = {
   REJECTED: { label: "Đã từ chối", className: "bg-rose-50 text-rose-700 border-rose-200" },
 } satisfies Record<AdminCourseRefund["status"], { label: string; className: string }>;
 
+function formatDate(value: string | null) {
+  return value ? new Date(value).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" }) : "-";
+}
+
 export default function AdminCourseRefunds({ initialRefunds }: { initialRefunds: AdminCourseRefund[] }) {
   const [refunds, setRefunds] = useState(initialRefunds);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [currentTs] = useState(() => Date.now());
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const stats = useMemo(() => {
     const pending = refunds.filter((item) => item.status === "PENDING");
@@ -72,7 +77,91 @@ export default function AdminCourseRefunds({ initialRefunds }: { initialRefunds:
           <p className="mt-1 text-sm text-slate-500">Duyệt để cộng tiền lại vào ví học viên và hủy quyền truy cập khóa học.</p>
         </div>
 
-        <div className="divide-y divide-slate-100">
+        {refunds.length === 0 ? (
+          <p className="px-5 py-12 text-center text-sm text-slate-500">Chưa có yêu cầu hoàn tiền.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-[1040px] w-full border-collapse text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Học viên</th>
+                  <th className="px-4 py-3 font-semibold">Email</th>
+                  <th className="px-4 py-3 font-semibold">Thời gian gửi</th>
+                  <th className="px-4 py-3 font-semibold">Khóa học</th>
+                  <th className="px-4 py-3 text-right font-semibold">Số tiền</th>
+                  <th className="px-4 py-3 font-semibold">Trạng thái</th>
+                  <th className="px-4 py-3 text-right font-semibold">Hành động</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {refunds.map((item) => {
+                  const status = statusCopy[item.status];
+                  const expanded = expandedId === item.id;
+
+                  return (
+                    <Fragment key={item.id}>
+                      <tr className="align-top hover:bg-slate-50/70">
+                        <td className="max-w-[180px] px-4 py-4">
+                          <p className="truncate font-bold text-slate-950">{item.student.username}</p>
+                        </td>
+                        <td className="max-w-[240px] px-4 py-4">
+                          <p className="truncate text-slate-600">{item.student.email}</p>
+                        </td>
+                        <td className="px-4 py-4 text-slate-600">{formatDate(item.createdAt)}</td>
+                        <td className="max-w-[320px] px-4 py-4">
+                          <p className="truncate font-semibold text-slate-900">{item.course.name}</p>
+                          <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{item.reason}</p>
+                        </td>
+                        <td className="px-4 py-4 text-right text-base font-black text-emerald-700">{money.format(item.amount)}</td>
+                        <td className="px-4 py-4">
+                          <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${status.className}`}>{status.label}</span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setExpandedId(expanded ? null : item.id)}
+                              className="h-9 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                            >
+                              {expanded ? "Thu gọn" : "Chi tiết"}
+                            </button>
+                            {item.status === "PENDING" ? (
+                              <>
+                                <Action disabled={processingId === item.id} onClick={() => void processRefund(item, "APPROVE")}>Duyệt</Action>
+                                <Action danger disabled={processingId === item.id} onClick={() => void processRefund(item, "REJECT")}>Từ chối</Action>
+                              </>
+                            ) : (
+                              <span className="inline-flex h-9 items-center text-xs font-semibold text-slate-400">Đã xử lý</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                      {expanded ? (
+                        <tr>
+                          <td colSpan={7} className="bg-slate-50 px-4 py-4">
+                            <div className="grid gap-4 lg:grid-cols-2">
+                              <div className="rounded-lg border border-slate-200 bg-white p-4">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Lý do hoàn tiền</p>
+                                <p className="mt-2 text-sm leading-6 text-slate-700">{item.reason}</p>
+                              </div>
+                              <div className="rounded-lg border border-slate-200 bg-white p-4">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Ghi chú xử lý</p>
+                                <p className="mt-2 text-sm leading-6 text-slate-700">{item.adminNote || "Không có ghi chú."}</p>
+                                {item.processedAt ? <p className="mt-2 text-xs text-slate-500">Xử lý lúc {formatDate(item.processedAt)}</p> : null}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="hidden">
           {refunds.map((item) => {
             const status = statusCopy[item.status];
             return (

@@ -61,27 +61,29 @@ export default function AdminShell({
   }
 
   return (
-    <div>
-      <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-5">
+      <div className="flex flex-col items-start gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Bảng quản trị</h1>
           <p className="text-sm text-muted-foreground">Duyệt nội dung và theo dõi hệ thống</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {adminTabs.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setTab(item.id)}
-              className={`rounded-md px-3 py-2 text-sm font-medium ${
-                currentTab === item.id
-                  ? "bg-primary text-primary-foreground"
-                  : "border border-border bg-card text-foreground"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
+        <div className="w-full overflow-x-auto lg:w-auto">
+          <div className="flex min-w-max gap-2">
+            {adminTabs.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setTab(item.id)}
+                className={`rounded-lg px-3 py-2 text-sm font-medium ${
+                  currentTab === item.id
+                    ? "bg-primary text-primary-foreground"
+                    : "border border-border bg-card text-foreground hover:bg-muted"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

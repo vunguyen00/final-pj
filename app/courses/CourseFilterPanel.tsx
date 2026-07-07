@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef } from "react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import {
   LANGUAGES,
   LEVELS,
@@ -22,119 +22,135 @@ const tabs = [
 function buildHref(params: Record<string, string | undefined>) {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
-    if (value && value !== "all") query.set(key, value);
+    const nextValue = value?.trim();
+    if (nextValue && nextValue !== "all") query.set(key, nextValue);
   });
   const qs = query.toString();
   return qs ? `/courses?${qs}` : "/courses";
 }
 
-export function CourseFilterPanel({ params }: { params: Record<string, string | undefined> }) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
+export function CourseFilterPanel({
+  params,
+  resultCount,
+}: {
+  params: Record<string, string | undefined>;
+  resultCount: number;
+}) {
   const activeTab = params.tab || "popular";
-  const activeFilterCount = ["language", "level", "type"].filter((key) => params[key] && params[key] !== "all").length;
+  const activeFilterCount = ["q", "language", "level", "type", "sort"].filter((key) => {
+    const value = params[key]?.trim();
+    return value && value !== "all";
+  }).length;
 
   return (
-    <>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-sm font-semibold text-foreground">Tìm khóa học phù hợp</p>
-          <p className="mt-1 text-sm text-muted-foreground">Lọc nhanh theo ngôn ngữ, trình độ và loại khóa học.</p>
+          <p className="text-base font-semibold text-foreground">Tìm khóa học phù hợp</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {resultCount.toLocaleString("vi-VN")} khóa học phù hợp
+            {activeFilterCount ? ` · ${activeFilterCount} bộ lọc đang bật` : ""}
+          </p>
         </div>
-        <button
-          type="button"
-          onClick={() => dialogRef.current?.showModal()}
-          className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
-        >
-          Bộ lọc{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
-        </button>
+
+        <div className="overflow-x-auto pb-1">
+          <div className="flex min-w-max gap-2">
+            {tabs.map((tab) => (
+              <Link
+                key={tab.key}
+                href={buildHref({ ...params, tab: tab.key })}
+                className={`rounded-full px-3.5 py-2 text-sm font-semibold transition ${
+                  activeTab === tab.key ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:opacity-90"
+                }`}
+              >
+                {tab.label}
+              </Link>
+            ))}
+          </div>
+        </div>
       </div>
 
-      <dialog
-        ref={dialogRef}
-        aria-label="Bộ lọc khóa học"
-        className="fixed left-1/2 top-1/2 m-0 w-[min(calc(100vw-2rem),64rem)] max-w-5xl -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-xl border border-border bg-card p-0 text-foreground shadow-2xl backdrop:bg-slate-950/50"
-      >
-          <div className="flex max-h-[90vh] w-full flex-col overflow-hidden">
-            <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
-              <div>
-                <h2 className="text-lg font-bold text-foreground">Bộ lọc khóa học</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Chọn tiêu chí để thu hẹp danh sách khóa học.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => dialogRef.current?.close()}
-                className="rounded-lg border border-border px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted"
-              >
-                Đóng
-              </button>
-            </div>
+      <form action="/courses" className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1.3fr)_1fr_1fr_1fr_1fr_auto_auto]">
+        {activeTab !== "popular" ? <input type="hidden" name="tab" value={activeTab} /> : null}
+        {params.skill ? <input type="hidden" name="skill" value={params.skill} /> : null}
 
-            <div className="flex-1 overflow-y-auto p-5">
-              <div className="flex flex-wrap gap-2">
-                {tabs.map((tab) => (
-                  <Link
-                    key={tab.key}
-                    href={buildHref({ ...params, tab: tab.key })}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                      activeTab === tab.key ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:opacity-90"
-                    }`}
-                  >
-                    {tab.label}
-                  </Link>
-                ))}
-              </div>
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tìm kiếm</span>
+          <input
+            type="search"
+            name="q"
+            defaultValue={params.q ?? ""}
+            placeholder="Tên khóa học, giảng viên..."
+            className="h-10 w-full rounded-lg border border-input bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+          />
+        </label>
 
-              <div className="mt-6 grid gap-6 lg:grid-cols-3">
-                <Filter label="Ngôn ngữ" name="language" values={["all", ...LANGUAGES]} params={params} />
-                <Filter label="Trình độ" name="level" values={["all", ...LEVELS]} params={params} />
-                <Filter label="Loại khóa học" name="type" values={["all", ...PRODUCT_TYPES]} params={params} />
-              </div>
-            </div>
-          </div>
-      </dialog>
-    </>
+        <FilterSelect label="Ngôn ngữ" name="language" value={params.language ?? "all"}>
+          <option value="all">Tất cả</option>
+          {LANGUAGES.map((language) => (
+            <option key={language} value={language}>
+              {getLanguageLabel(language)}
+            </option>
+          ))}
+        </FilterSelect>
+
+        <FilterSelect label="Trình độ" name="level" value={params.level ?? "all"}>
+          <option value="all">Tất cả</option>
+          {LEVELS.map((level) => (
+            <option key={level} value={level}>
+              {getLevelLabel(level)}
+            </option>
+          ))}
+        </FilterSelect>
+
+        <FilterSelect label="Loại khóa" name="type" value={params.type ?? "all"}>
+          <option value="all">Tất cả</option>
+          {PRODUCT_TYPES.map((type) => (
+            <option key={type} value={type}>
+              {getProductTypeLabel(type)}
+            </option>
+          ))}
+        </FilterSelect>
+
+        <FilterSelect label="Sắp xếp" name="sort" value={params.sort ?? ""}>
+          <option value="">Mặc định</option>
+          <option value="price-asc">Giá tăng dần</option>
+          <option value="price-desc">Giá giảm dần</option>
+          <option value="name">Tên A-Z</option>
+        </FilterSelect>
+
+        <button type="submit" className="h-10 self-end rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90">
+          Áp dụng
+        </button>
+        <Link href="/courses" className="flex h-10 items-center justify-center self-end rounded-lg border border-border bg-white px-4 text-sm font-semibold text-foreground hover:bg-muted">
+          Đặt lại
+        </Link>
+      </form>
+    </div>
   );
 }
 
-function Filter({
+function FilterSelect({
   label,
   name,
-  values,
-  params,
+  value,
+  children,
 }: {
   label: string;
   name: string;
-  values: readonly string[];
-  params: Record<string, string | undefined>;
+  value: string;
+  children: ReactNode;
 }) {
   return (
-    <section>
-      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-      <div className="flex flex-wrap gap-2">
-        {values.map((value) => {
-          const active = (params[name] || "all") === value;
-          const labelText =
-            value === "all"
-              ? "Tất cả"
-              : name === "language"
-                ? getLanguageLabel(value)
-                : name === "level"
-                  ? getLevelLabel(value)
-                  : getProductTypeLabel(value);
-
-          return (
-            <Link
-              key={value}
-              href={buildHref({ ...params, [name]: value })}
-              className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${
-                active ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:opacity-90"
-              }`}
-            >
-              {labelText}
-            </Link>
-          );
-        })}
-      </div>
-    </section>
+    <label className="block">
+      <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
+      <select
+        name={name}
+        defaultValue={value}
+        className="h-10 w-full rounded-lg border border-input bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+      >
+        {children}
+      </select>
+    </label>
   );
 }

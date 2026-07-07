@@ -13,7 +13,7 @@ const bgMap: Record<SectionBackground, string> = {
 const padMap: Record<SectionPadding, string> = {
   sm: "py-10 md:py-12",
   md: "py-14 md:py-16",
-  lg: "py-16 md:py-20 lg:py-24",
+  lg: "py-14 md:py-16 lg:py-20",
 };
 
 export function Section({
@@ -46,9 +46,9 @@ export function SectionHeader({
   className?: string;
 }) {
   return (
-    <div className={cn("mb-8 space-y-2 md:mb-10", centered && "text-center", className)}>
+    <div className={cn("mb-8 space-y-2", centered && "text-center", className)}>
       <h2 className="text-balance font-serif text-3xl font-semibold text-foreground md:text-4xl">{title}</h2>
-      {subtitle ? <p className="mx-auto max-w-3xl text-base text-muted-foreground md:text-lg">{subtitle}</p> : null}
+      {subtitle ? <p className={cn("max-w-3xl text-base text-muted-foreground md:text-lg", centered && "mx-auto")}>{subtitle}</p> : null}
     </div>
   );
 }
