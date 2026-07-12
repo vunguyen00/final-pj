@@ -13,6 +13,14 @@ type ComplaintReason = "NOT_RECEIVED" | "WRONG_AMOUNT" | "OTHER";
 type ComplaintStatus = "OPEN" | "RESOLVED" | "REJECTED";
 type ActivityTab = "notifications" | "withdrawals";
 type RevenueNotification = { id: string; title: string; body: string; readAt: string | null; createdAt: string };
+type TeacherBankAccount = {
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+  branch: string | null;
+  verificationStatus: "UNVERIFIED" | "VERIFIED" | "REJECTED";
+  updatedAt: string;
+};
 
 const NOTIFICATION_PAGE_SIZE = 20;
 
@@ -33,7 +41,7 @@ type Withdrawal = {
   bankName: string;
   accountNumber: string;
   accountName: string;
-  status: "PENDING" | "APPROVED" | "PAID" | "REJECTED";
+  status: "PENDING" | "APPROVED" | "PAID" | "COMPLETED" | "REJECTED";
   note: string | null;
   createdAt: string;
   complaint: WithdrawalComplaint | null;
@@ -43,6 +51,7 @@ const statusLabel = {
   PENDING: "Chờ xử lý",
   APPROVED: "Đã duyệt",
   PAID: "Đã thanh toán",
+  COMPLETED: "Đã hoàn thành",
   REJECTED: "Từ chối",
 };
 
@@ -62,20 +71,23 @@ const fieldClassName = "w-full rounded-lg border border-slate-300 px-3 py-2.5 te
 
 export function RevenueWithdrawalPanel({
   availableRevenue,
+  bankAccount,
   unreadNotificationCount,
   withdrawals,
   notifications,
 }: {
   availableRevenue: number;
+  bankAccount: TeacherBankAccount | null;
   unreadNotificationCount: number;
   withdrawals: Withdrawal[];
   notifications: RevenueNotification[];
 }) {
   const router = useRouter();
   const [amount, setAmount] = useState("");
-  const [bankName, setBankName] = useState("");
-  const [accountNumber, setAccountNumber] = useState("");
-  const [accountName, setAccountName] = useState("");
+  const [bankName, setBankName] = useState(bankAccount?.bankName ?? "");
+  const [bankBranch, setBankBranch] = useState(bankAccount?.branch ?? "");
+  const [accountNumber, setAccountNumber] = useState(bankAccount?.accountNumber ?? "");
+  const [accountName, setAccountName] = useState(bankAccount?.accountName ?? "");
   const [withdrawalLoading, setWithdrawalLoading] = useState(false);
   const [complaintLoading, setComplaintLoading] = useState(false);
   const [error, setError] = useState("");
@@ -102,7 +114,7 @@ export function RevenueWithdrawalPanel({
       const response = await fetch("/api/teacher/revenue-withdrawals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: Number(amount), bankName, accountNumber, accountName }),
+        body: JSON.stringify({ amount: Number(amount), bankName, bankBranch, accountNumber, accountName }),
       });
       const data = (await response.json()) as { error?: string };
       if (!response.ok) {
@@ -291,13 +303,16 @@ export function RevenueWithdrawalPanel({
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
-              <p className="text-sm text-slate-600">Khoản này chỉ đến từ doanh thu bán khóa học, hoàn toàn tách biệt với ví nạp tiền.</p>
+              <p className="text-sm text-slate-600">Khoản này chỉ đến từ doanh thu bán khóa học, tách biệt với các thanh toán mua khóa học hoặc thanh toán AI theo lượt.</p>
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <Field label="Số tiền (VND)">
                   <input aria-label="Số tiền muốn rút" inputMode="numeric" min="1" max={availableRevenue} required value={amount} onChange={(event) => setAmount(event.target.value.replace(/\D/g, ""))} className={fieldClassName} placeholder="Ví dụ: 500000" />
                 </Field>
                 <Field label="Ngân hàng">
                   <input required maxLength={100} value={bankName} onChange={(event) => setBankName(event.target.value)} className={fieldClassName} placeholder="Tên ngân hàng" />
+                </Field>
+                <Field label="Chi nhánh">
+                  <input maxLength={100} value={bankBranch} onChange={(event) => setBankBranch(event.target.value)} className={fieldClassName} placeholder="Chi nhánh (nếu có)" />
                 </Field>
                 <Field label="Số tài khoản">
                   <input inputMode="numeric" required minLength={6} maxLength={30} value={accountNumber} onChange={(event) => setAccountNumber(event.target.value.replace(/\D/g, ""))} className={fieldClassName} placeholder="Số tài khoản nhận tiền" />
@@ -364,7 +379,7 @@ export function RevenueWithdrawalPanel({
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-bold text-slate-950">{currency.format(item.amount)}</p>
-                            <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-bold ${item.status === "REJECTED" ? "bg-rose-50 text-rose-700" : item.status === "PAID" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                            <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-bold ${item.status === "REJECTED" ? "bg-rose-50 text-rose-700" : item.status === "PAID" || item.status === "COMPLETED" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
                               {statusLabel[item.status]}
                             </span>
                           </div>
@@ -385,7 +400,7 @@ export function RevenueWithdrawalPanel({
                           ) : null}
                         </div>
                         <div className="flex shrink-0 items-start justify-end">
-                          {item.status === "PAID" && !item.complaint ? (
+                          {(item.status === "PAID" || item.status === "COMPLETED") && !item.complaint ? (
                             <button type="button" onClick={() => openComplaint(item)} className="rounded-lg border border-amber-300 px-3 py-2 text-xs font-bold text-amber-700 hover:bg-amber-50">
                               Khiếu nại
                             </button>

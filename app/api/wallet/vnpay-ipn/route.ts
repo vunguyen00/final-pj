@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { AI_POINT_PAYMENT_PURPOSE, confirmAiPointPaymentFromVnpay } from "@/lib/ai-points";
+import { confirmCoursePaymentFromVnpay } from "@/lib/course-payment";
 import { confirmTopUpFromIpn, findTopUpByTxnRef, PAYMENT_STATUS } from "@/lib/wallet";
 import { getVnpayConfig, verifyVnpParams } from "@/lib/vnpay";
 
@@ -27,6 +29,38 @@ export async function GET(request: NextRequest) {
     if (!payment) {
       console.warn("[VNPAY][IPN] order not found", { txnRef });
       return NextResponse.json({ RspCode: "01", Message: "Order not found" });
+    }
+
+    if (payment.courseId) {
+      if (payment.amount * 100 !== amountInMinorUnit) {
+        return NextResponse.json({ RspCode: "04", Message: "Invalid amount" });
+      }
+      await confirmCoursePaymentFromVnpay({
+        txnRef,
+        responseCode,
+        transactionStatus,
+        bankCode: query.vnp_BankCode,
+        payDate: query.vnp_PayDate,
+        transactionNo: query.vnp_TransactionNo,
+        rawResponse: query,
+      });
+      return NextResponse.json({ RspCode: "00", Message: "Confirm Success" });
+    }
+
+    if (payment.purpose === AI_POINT_PAYMENT_PURPOSE) {
+      if (payment.amount * 100 !== amountInMinorUnit) {
+        return NextResponse.json({ RspCode: "04", Message: "Invalid amount" });
+      }
+      await confirmAiPointPaymentFromVnpay({
+        txnRef,
+        responseCode,
+        transactionStatus,
+        bankCode: query.vnp_BankCode,
+        payDate: query.vnp_PayDate,
+        transactionNo: query.vnp_TransactionNo,
+        rawResponse: query,
+      });
+      return NextResponse.json({ RspCode: "00", Message: "Confirm Success" });
     }
 
     const expectedMinorUnit = payment.amount * 100;

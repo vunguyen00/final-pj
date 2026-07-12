@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { LogoutButton } from "@/app/components/LogoutButton";
 import { getCourseDuration, getCourseLanguage, getCourseLevel, getCourseType, priceLabel } from "@/app/components/learningMarketplace";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";

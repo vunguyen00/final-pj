@@ -41,6 +41,7 @@ export type TestResultData = {
   isPassed: boolean;
   courseId: string | null;
   courseName: string;
+  language: { name: string; code: string } | null;
   totalQuestions: number;
   correctAnswers: number;
   submittedAnswers: unknown[];
@@ -71,8 +72,9 @@ export async function getStudentTestAttemptResult(
       test: {
         include: {
           course: {
-            select: { id: true, name: true, instructorId: true },
+            select: { id: true, name: true, instructorId: true, language: { select: { name: true, code: true } } },
           },
+          language: { select: { name: true, code: true } },
         },
       },
     },
@@ -84,7 +86,11 @@ export async function getStudentTestAttemptResult(
     maxScore: number;
     isPassed: boolean;
     submittedAt: Date;
-    test: { passingScore: number; course: { id: string; name: string; instructorId: string | null } | null };
+    test: {
+      passingScore: number;
+      language: { name: string; code: string } | null;
+      course: { id: string; name: string; instructorId: string | null; language: { name: string; code: string } | null } | null;
+    };
   }) | null;
 
   if (!attempt || attempt.testId !== testId) {
@@ -110,6 +116,7 @@ export async function getStudentTestAttemptResult(
     isPassed: attempt.isPassed,
     courseId: attempt.test.course?.id ?? null,
     courseName: attempt.test.course?.name ?? "Public practice",
+    language: attempt.test.language ?? attempt.test.course?.language ?? null,
     totalQuestions: Number(stored.totalQuestions ?? 0),
     correctAnswers: Number(stored.correctAnswers ?? 0),
     submittedAnswers: Array.isArray(stored.submittedAnswers) ? stored.submittedAnswers : [],

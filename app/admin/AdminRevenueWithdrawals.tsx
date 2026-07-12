@@ -19,7 +19,7 @@ export type AdminWithdrawal = {
   bankName: string;
   accountNumber: string;
   accountName: string;
-  status: "PENDING" | "APPROVED" | "PAID" | "REJECTED";
+  status: "PENDING" | "APPROVED" | "PAID" | "COMPLETED" | "REJECTED";
   note: string | null;
   createdAt: string;
   processedAt: string | null;
@@ -28,7 +28,7 @@ export type AdminWithdrawal = {
 };
 
 const money = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 });
-const statusText = { PENDING: "Chờ duyệt", APPROVED: "Đã duyệt", PAID: "Đã thanh toán", REJECTED: "Đã từ chối" };
+const statusText = { PENDING: "Chờ duyệt", APPROVED: "Đã duyệt", PAID: "Đã thanh toán", COMPLETED: "Đã hoàn thành", REJECTED: "Đã từ chối" };
 const complaintReasonText = {
   NOT_RECEIVED: "Tiền chưa về tài khoản",
   WRONG_AMOUNT: "Số tiền nhận chưa đúng",
@@ -58,15 +58,17 @@ export default function AdminRevenueWithdrawals({ initialWithdrawals }: { initia
   const pendingCount = useMemo(() => withdrawals.filter((item) => item.status === "PENDING").length, [withdrawals]);
   const approvedCount = useMemo(() => withdrawals.filter((item) => item.status === "APPROVED").length, [withdrawals]);
   const openComplaintCount = useMemo(() => withdrawals.filter((item) => item.complaint?.status === "OPEN").length, [withdrawals]);
-  const paidCount = useMemo(() => withdrawals.filter((item) => item.status === "PAID").length, [withdrawals]);
+  const paidCount = useMemo(() => withdrawals.filter((item) => item.status === "PAID" || item.status === "COMPLETED").length, [withdrawals]);
   const totalPendingAmount = useMemo(() => withdrawals.filter((item) => item.status === "PENDING").reduce((sum, item) => sum + item.amount, 0), [withdrawals]);
   const totalApprovedAmount = useMemo(() => withdrawals.filter((item) => item.status === "APPROVED").reduce((sum, item) => sum + item.amount, 0), [withdrawals]);
-  const totalPaidAmount = useMemo(() => withdrawals.filter((item) => item.status === "PAID").reduce((sum, item) => sum + item.amount, 0), [withdrawals]);
+  const totalPaidAmount = useMemo(() => withdrawals.filter((item) => item.status === "PAID" || item.status === "COMPLETED").reduce((sum, item) => sum + item.amount, 0), [withdrawals]);
   const openComplaintAmount = useMemo(() => withdrawals.filter((item) => item.complaint?.status === "OPEN").reduce((sum, item) => sum + item.amount, 0), [withdrawals]);
 
   async function processWithdrawal(item: AdminWithdrawal, action: "APPROVE" | "PAY" | "REJECT") {
     const note = action === "REJECT" ? window.prompt("Lý do từ chối yêu cầu rút tiền?")?.trim() : "";
     if (action === "REJECT" && !note) return;
+    const systemBankName = action === "PAY" ? window.prompt("Tài khoản/ngân hàng nguồn đã dùng để chuyển khoản?", "")?.trim() ?? "" : "";
+    const transferTransactionCode = action === "PAY" ? window.prompt("Mã giao dịch chuyển khoản (nếu có)?", "")?.trim() ?? "" : "";
 
     setProcessingId(`withdrawal:${item.id}`);
     setMessage("");
@@ -74,7 +76,7 @@ export default function AdminRevenueWithdrawals({ initialWithdrawals }: { initia
       const response = await fetch(`/api/admin/revenue-withdrawals/${item.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, note }),
+        body: JSON.stringify({ action, note, systemBankName, transferTransactionCode }),
       });
       const data = (await response.json()) as { error?: string; withdrawal?: AdminWithdrawal };
       if (!response.ok || !data.withdrawal) {
@@ -197,7 +199,7 @@ export default function AdminRevenueWithdrawals({ initialWithdrawals }: { initia
                           <p className="truncate text-slate-700">{item.accountName}</p>
                         </td>
                         <td className="px-4 py-4">
-                          <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${item.status === "PAID" ? "bg-emerald-50 text-emerald-700" : item.status === "REJECTED" ? "bg-rose-50 text-rose-700" : item.status === "APPROVED" ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>
+                          <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${item.status === "PAID" || item.status === "COMPLETED" ? "bg-emerald-50 text-emerald-700" : item.status === "REJECTED" ? "bg-rose-50 text-rose-700" : item.status === "APPROVED" ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>
                             {statusText[item.status]}
                           </span>
                         </td>
@@ -295,7 +297,7 @@ export default function AdminRevenueWithdrawals({ initialWithdrawals }: { initia
                   {item.note ? <p className="mt-1 text-xs text-rose-600">{item.note}</p> : null}
                 </div>
                 <div className="flex min-w-48 flex-col items-stretch gap-2">
-                  <span className={`rounded-full px-3 py-1 text-center text-xs font-bold ${item.status === "PAID" ? "bg-emerald-50 text-emerald-700" : item.status === "REJECTED" ? "bg-rose-50 text-rose-700" : item.status === "APPROVED" ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>{statusText[item.status]}</span>
+                  <span className={`rounded-full px-3 py-1 text-center text-xs font-bold ${item.status === "PAID" || item.status === "COMPLETED" ? "bg-emerald-50 text-emerald-700" : item.status === "REJECTED" ? "bg-rose-50 text-rose-700" : item.status === "APPROVED" ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>{statusText[item.status]}</span>
                   {item.status === "PENDING" ? <div className="grid grid-cols-2 gap-2"><Action disabled={processingId === `withdrawal:${item.id}`} onClick={() => void processWithdrawal(item, "APPROVE")}>Duyệt</Action><Action danger disabled={processingId === `withdrawal:${item.id}`} onClick={() => void processWithdrawal(item, "REJECT")}>Từ chối</Action></div> : null}
                   {item.status === "APPROVED" ? <div className="grid grid-cols-2 gap-2"><Action disabled={processingId === `withdrawal:${item.id}`} onClick={() => void processWithdrawal(item, "PAY")}>Đã chuyển</Action><Action danger disabled={processingId === `withdrawal:${item.id}`} onClick={() => void processWithdrawal(item, "REJECT")}>Từ chối</Action></div> : null}
                 </div>

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { hashPassword } from "@/lib/auth";
 import { sendPasswordResetOtpEmail } from "@/lib/mailer";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -26,6 +27,27 @@ export async function POST(request: Request) {
 
     if (!email) {
       return NextResponse.json({ error: "Vui lòng nhập email." }, { status: 400 });
+    }
+
+    const ip = getClientIp(request);
+    const ipLimit = checkRateLimit({
+      key: `password-reset:ip:${ip}`,
+      limit: 10,
+      windowMs: 60 * 60 * 1000,
+    });
+    const emailLimit = checkRateLimit({
+      key: `password-reset:email:${email}`,
+      limit: 3,
+      windowMs: 60 * 60 * 1000,
+    });
+    if (!ipLimit.ok || !emailLimit.ok) {
+      return NextResponse.json(
+        {
+          error: "Bạn đã yêu cầu OTP quá nhiều lần. Vui lòng thử lại sau.",
+          retryAfter: Math.max(ipLimit.retryAfter, emailLimit.retryAfter),
+        },
+        { status: 429 },
+      );
     }
 
     const user = await prisma.user.findUnique({

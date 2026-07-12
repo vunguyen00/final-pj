@@ -1,6 +1,5 @@
 import { getAiPointsSummary } from "@/lib/ai-points";
 import { requireUser } from "@/lib/auth";
-import { getUserBalance, getWalletTransactions } from "@/lib/wallet";
 import WalletClient, { type WalletData } from "./WalletClient";
 
 type PageProps = {
@@ -11,24 +10,16 @@ type PageProps = {
 };
 
 const EMPTY_WALLET_DATA: WalletData = {
-  balance: 0,
   aiPoints: { earned: 0, spent: 0, available: 0, pointPriceVnd: 1000 },
   transactions: [],
 };
 
 function paymentMessage(payment: string | null, code: string | null) {
-  if (payment === "success") {
-    return "Nạp tiền thành công. Số dư ví đã được cập nhật.";
-  }
-  if (payment === "failed") {
-    return `Thanh toán không thành công${code ? ` (mã: ${code})` : ""}.`;
-  }
-  if (payment === "pending") {
-    return "Thanh toán đã được ghi nhận và đang chờ VNPAY xác nhận.";
-  }
-  if (payment === "invalid_signature") {
-    return "Không thể xác thực chữ ký trả về từ VNPAY. Giao dịch chưa được cộng vào ví.";
-  }
+  if (payment === "success") return "Mua điểm đậu thành công. Số điểm đã được cộng vào tài khoản.";
+  if (payment === "failed") return `Thanh toán không thành công${code ? ` (mã: ${code})` : ""}.`;
+  if (payment === "cancelled") return "Bạn đã hủy thanh toán mua điểm đậu.";
+  if (payment === "pending") return "Thanh toán đã được ghi nhận và đang chờ VNPay xác nhận.";
+  if (payment === "invalid_signature") return "Không thể xác thực chữ ký trả về từ VNPay.";
   return "";
 }
 
@@ -45,42 +36,43 @@ export default async function StudentWalletPage({ searchParams }: PageProps) {
       <WalletClient
         initialData={EMPTY_WALLET_DATA}
         initialNotice={{
-          message: notice.message || "Admin không sử dụng ví.",
-          isError: true,
+          message: notice.message || "Admin không cần mua điểm đậu.",
+          isError: Boolean(notice.message),
         }}
-        canTopUp={false}
+        canBuy={false}
       />
     );
   }
 
   let walletData = EMPTY_WALLET_DATA;
-  let canTopUp = false;
   let walletNotice = notice;
+  let canBuy = true;
 
   try {
-    const [balance, aiPoints, transactions] = await Promise.all([
-      getUserBalance(user.id),
-      getAiPointsSummary(user.id),
-      getWalletTransactions(user.id),
-    ]);
-
+    const aiPoints = await getAiPointsSummary(user.id);
     walletData = {
-      balance,
       aiPoints: {
         earned: aiPoints.earned,
         spent: aiPoints.spent,
         available: aiPoints.available,
         pointPriceVnd: aiPoints.pointPriceVnd,
       },
-      transactions,
+      transactions: aiPoints.history.map((item) => ({
+        id: item.id,
+        type: item.type,
+        amount: item.amount,
+        balanceAfter: item.balanceAfter,
+        description: item.description,
+        createdAt: item.createdAt.toISOString(),
+      })),
     };
-    canTopUp = true;
   } catch {
     walletNotice = {
-      message: notice.message || "Không tải được ví.",
+      message: notice.message || "Không tải được điểm đậu.",
       isError: true,
     };
+    canBuy = false;
   }
 
-  return <WalletClient initialData={walletData} initialNotice={walletNotice} canTopUp={canTopUp} />;
+  return <WalletClient initialData={walletData} initialNotice={walletNotice} canBuy={canBuy} />;
 }

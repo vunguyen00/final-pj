@@ -11,7 +11,6 @@ import { sendCourseCertificateEmail } from "@/lib/mailer";
 import {
   AI_POINT_PRICE_VND,
   getAiPointsSummary,
-  grantCourseCompletionPoints,
   recordLearningActivity,
   SPEAKING_AI_COST,
   spendAiPoints,
@@ -22,6 +21,7 @@ import {
   evaluateTestAiAnswers,
   isTestAiAnswerCorrect,
 } from "@/lib/test-ai-evaluation";
+import { verifyTestAttemptToken } from "@/lib/test-attempt-token";
 import { FIXED_TEST_MAX_SCORE, isTestReady } from "@/lib/test-rules";
 
 export async function POST(
@@ -39,6 +39,7 @@ export async function POST(
     const body = await request.json();
     const answers = (body.answers ?? {}) as Record<string, string>;
     const includeAiFeedback = body.includeAiFeedback === true;
+    const attemptToken = typeof body.attemptToken === "string" ? body.attemptToken : "";
 
     const test = await prisma.test.findUnique({
       where: { id: testId },
@@ -66,6 +67,23 @@ export async function POST(
 
     if (test.kind === "TEACHER_ENTRANCE") {
       return NextResponse.json({ error: "Teacher entrance tests are only available from the teacher registration flow." }, { status: 403 });
+    }
+
+    const tokenResult = verifyTestAttemptToken({
+      token: attemptToken,
+      userId: user.id,
+      testId,
+    });
+    if (!tokenResult.ok) {
+      return NextResponse.json(
+        {
+          error:
+            tokenResult.reason === "EXPIRED"
+              ? "Đã hết thời gian làm bài. Bài nộp không được chấp nhận."
+              : "Phiên làm bài không hợp lệ. Vui lòng tải lại bài test.",
+        },
+        { status: tokenResult.reason === "EXPIRED" ? 408 : 400 },
+      );
     }
 
     const isOwnerPreview =
@@ -135,7 +153,7 @@ export async function POST(
       if (pointsBefore.available < feedbackCost) {
         return NextResponse.json(
           {
-            error: `Không đủ hạt đậu để nhận xét AI. Cần ${feedbackCost} hạt đậu, hiện có ${pointsBefore.available} hạt đậu. Vào Ví tiền để mua thêm hạt đậu.`,
+            error: `Vui lòng thanh toán lượt nhận xét AI trước khi sử dụng.`,
             requiresPointPurchase: true,
             neededPoints: feedbackCost,
             neededBeans: feedbackCost,
@@ -147,6 +165,7 @@ export async function POST(
           { status: 400 },
         );
       }
+
     }
 
     const aiResults = await evaluateTestAiAnswers(aiInputs);
@@ -259,10 +278,7 @@ export async function POST(
             feedbackMode === "SPEAKING" ? "SPEAKING_AI" : "WRITING_AI",
             `TEST_PREVIEW:${testId}:${Date.now()}`,
           )
-        : {
-            spent: 0,
-            available: (await getAiPointsSummary(user.id)).available,
-          };
+        : { spent: 0, available: (await getAiPointsSummary(user.id)).available };
 
       return NextResponse.json({
         attemptId: previewAttemptId,
@@ -272,6 +288,7 @@ export async function POST(
         isPassed,
         courseId: test.course?.id ?? null,
         courseName: test.course?.name ?? "Public practice",
+        language: test.language ?? test.course?.language ?? null,
         courseCompleted: false,
         certificateSent: false,
         previewMode: true,
@@ -307,9 +324,7 @@ export async function POST(
           aiFeedbackPurchased: includeAiFeedback && aiInputs.length > 0,
           aiFeedbackCost: shouldChargeFeedback ? feedbackCost : 0,
         },
-        startedAt: new Date(
-          Date.now() - (test.timeLimit ? test.timeLimit * 60 * 1000 : 0),
-        ),
+        startedAt: new Date(tokenResult.payload.startedAt),
         submittedAt: new Date(),
         isPassed,
       } as never,
@@ -323,10 +338,7 @@ export async function POST(
           feedbackMode === "SPEAKING" ? "SPEAKING_AI" : "WRITING_AI",
           `TEST_ATTEMPT:${testAttempt.id}`,
         )
-      : {
-          spent: 0,
-          available: (await getAiPointsSummary(user.id)).available,
-        };
+      : { spent: 0, available: (await getAiPointsSummary(user.id)).available };
 
     await recordLearningActivity({
       userId: user.id,
@@ -337,13 +349,10 @@ export async function POST(
 
     let courseCompleted = false;
     let certificateSent = false;
-    let aiPointsAwarded = 0;
 
     if (isPassed && test.kind === "COURSE" && test.courseId && test.course) {
       await markCourseCompleted(user.id, test.courseId);
       courseCompleted = true;
-      const pointResult = await grantCourseCompletionPoints(user.id, test.courseId);
-      aiPointsAwarded = pointResult.points;
 
       const alreadySent = await hasCertificateSent(user.id, test.courseId);
       if (!alreadySent) {
@@ -352,8 +361,6 @@ export async function POST(
         certificateSent = true;
       }
     }
-
-    const aiPoints = await getAiPointsSummary(user.id);
 
     return NextResponse.json({
       attemptId: testAttempt.id,
@@ -364,18 +371,28 @@ export async function POST(
       isPassed,
       courseId: test.course?.id ?? null,
       courseName: test.course?.name ?? "Public practice",
+      language: test.language ?? test.course?.language ?? null,
       courseCompleted,
       certificateSent,
-      aiPointsAwarded,
-      aiPoints,
       totalQuestions: test.questions.length,
       correctAnswers: questionResults.filter((q) => q.isCorrect === true).length,
       questionResults,
       scoreOnlyAiFeedback,
       aiFeedbackPurchased: includeAiFeedback && aiInputs.length > 0,
       aiFeedbackCost: feedbackPointResult.spent,
+      points: feedbackPointResult,
     });
   } catch (error) {
+    if (error instanceof Error && error.message === "INSUFFICIENT_POINTS") {
+      return NextResponse.json(
+        {
+          error: "Thanh toán lượt nhận xét AI không hợp lệ hoặc đã được sử dụng.",
+          requiresPointPurchase: true,
+          pointPriceVnd: AI_POINT_PRICE_VND,
+        },
+        { status: 400 },
+      );
+    }
     console.error("Error submitting test:", error);
     return NextResponse.json({ error: "Failed to submit test" }, { status: 500 });
   }

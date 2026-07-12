@@ -3,8 +3,8 @@ import path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import {
-  getAiPointsSummary,
   AI_POINT_PRICE_VND,
+  getAiPointsSummary,
   recordLearningActivity,
   SPEAKING_AI_COST,
   spendAiPoints,
@@ -16,6 +16,12 @@ import { canUseAiForCourse, shouldChargeAiPoints } from "@/lib/ai-access";
 import { evaluateTestAiAnswers } from "@/lib/test-ai-evaluation";
 import { evaluateIeltsSpeaking } from "@/lib/ielts-grading";
 import { buildSpeakingAssessmentPayload } from "@/lib/ielts-assessment";
+import {
+  formatUploadLimit,
+  getAllowedUpload,
+  MAX_AUDIO_UPLOAD_BYTES,
+  validateUploadSignature,
+} from "@/lib/upload-validation";
 import type { IeltsSpeakingEvaluation } from "@/lib/ielts-rubric";
 import type { Prisma } from "@/app/generated/prisma/client";
 import {
@@ -24,23 +30,26 @@ import {
   normalizeSpeakingLanguage,
 } from "@/lib/speaking-languages";
 
-function audioExtension(type: string) {
-  if (type.includes("mpeg") || type.includes("mp3")) return "mp3";
-  if (type.includes("wav")) return "wav";
-  if (type.includes("ogg")) return "ogg";
-  return "webm";
-}
-
 async function saveSpeakingAudio(file: File | null, userId: string) {
   if (!file || file.size === 0) return null;
+  if (file.size > MAX_AUDIO_UPLOAD_BYTES) {
+    throw new Error("INVALID_AUDIO_FILE");
+  }
+
+  const uploadType = getAllowedUpload(file.type, ["audio"]);
+  if (!uploadType) {
+    throw new Error("INVALID_AUDIO_FILE");
+  }
 
   const uploadsDir = path.join(process.cwd(), "public", "uploads", "speaking");
   await mkdir(uploadsDir, { recursive: true });
 
-  const extension = audioExtension(file.type);
-  const filename = `${Date.now()}-${userId.slice(0, 8)}.${extension}`;
+  const filename = `${Date.now()}-${userId.slice(0, 8)}.${uploadType.extension}`;
   const diskPath = path.join(uploadsDir, filename);
   const buffer = Buffer.from(await file.arrayBuffer());
+  if (!validateUploadSignature(buffer, file.type)) {
+    throw new Error("INVALID_AUDIO_FILE");
+  }
   await writeFile(diskPath, buffer);
 
   return `/uploads/speaking/${filename}`;
@@ -97,7 +106,7 @@ export async function POST(request: NextRequest) {
       if (pointsBefore.available < SPEAKING_AI_COST) {
         return NextResponse.json(
           {
-            error: "Không đủ hạt đậu để sử dụng Speaking AI. Vào Ví tiền để mua thêm hạt đậu.",
+            error: "Vui lòng thanh toán lượt nhận xét Speaking AI trước khi sử dụng.",
             requiresPointPurchase: true,
             neededPoints: SPEAKING_AI_COST,
             neededBeans: SPEAKING_AI_COST,
@@ -109,6 +118,7 @@ export async function POST(request: NextRequest) {
           { status: 400 },
         );
       }
+
     }
 
     const healthy = await ollamaService.healthCheck();
@@ -309,6 +319,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "AI đang tạm thời quá tải. Vui lòng thử lại sau." },
         { status: 503 },
+      );
+    }
+    if (message === "INVALID_AUDIO_FILE") {
+      return NextResponse.json(
+        { error: `File audio khong hop le hoac vuot qua gioi han ${formatUploadLimit(MAX_AUDIO_UPLOAD_BYTES)}.` },
+        { status: 400 },
+      );
+    }
+    if (message === "INSUFFICIENT_POINTS") {
+      return NextResponse.json(
+        {
+          error: "Thanh toán lượt nhận xét AI không hợp lệ hoặc đã được sử dụng.",
+          requiresPointPurchase: true,
+          neededPoints: SPEAKING_AI_COST,
+          pointPriceVnd: AI_POINT_PRICE_VND,
+        },
+        { status: 400 },
       );
     }
     if (message.includes("too short") || message.includes("too long")) {

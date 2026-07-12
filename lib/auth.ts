@@ -15,7 +15,11 @@ const AUTH_ALG = "HS256";
 const AUTH_SECRET =
   process.env.AUTH_SECRET ??
   process.env.JWT_SECRET ??
-  "dev_auth_secret_change_me";
+  (process.env.NODE_ENV === "production" ? "" : "dev_auth_secret_change_me");
+
+if (!AUTH_SECRET) {
+  throw new Error("AUTH_SECRET is required in production.");
+}
 
 export type AppRole = keyof typeof Role;
 
@@ -203,16 +207,25 @@ export async function authenticate() {
       role: true,
       phoneNumber: true,
       isBanned: true,
+      accountStatus: true,
       learningLanguageId: true,
     },
   });
 
-  if (!user || user.isBanned) {
+  if (!user || user.isBanned || user.accountStatus !== "ACTIVE") {
     await clearAuthCookie();
     return null;
   }
 
-  return user;
+  return {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    role: user.role,
+    phoneNumber: user.phoneNumber,
+    isBanned: user.isBanned,
+    learningLanguageId: user.learningLanguageId,
+  };
 }
 
 export const getCurrentUser = authenticate;

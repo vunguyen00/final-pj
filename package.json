@@ -10,6 +10,7 @@
     "dev:ollama": "ollama serve",
     "docker:up": "docker start musing_curie",
     "dev:all": "npm run docker:up && concurrently -n next,tunnel,ollama -c green,cyan,magenta \"npm:dev:next\" \"npm:dev:tunnel\" \"npm:dev:ollama\"",
+    "seed:demo": "node scripts/seed-demo-data.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

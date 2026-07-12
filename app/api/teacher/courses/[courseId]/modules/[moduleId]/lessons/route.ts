@@ -28,11 +28,11 @@ export async function GET(
       );
     }
 
-    const module = await prisma.module.findUnique({
+    const courseModule = await prisma.module.findUnique({
       where: { id: moduleId },
     });
 
-    if (!module || module.courseId !== courseId) {
+    if (!courseModule || courseModule.courseId !== courseId) {
       return NextResponse.json(
         { error: "Module not found" },
         { status: 404 }
@@ -80,11 +80,11 @@ export async function POST(
       );
     }
 
-    const module = await prisma.module.findUnique({
+    const courseModule = await prisma.module.findUnique({
       where: { id: moduleId },
     });
 
-    if (!module || module.courseId !== courseId) {
+    if (!courseModule || courseModule.courseId !== courseId) {
       return NextResponse.json(
         { error: "Module not found" },
         { status: 404 }

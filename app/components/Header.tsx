@@ -37,7 +37,7 @@ const navItems = [
 const studentNavItems = [
   { href: "/student/tests", label: "Bài test" },
   { href: "/student/results", label: "Kết quả" },
-  { href: "/student/wallet", label: "Ví tiền" },
+  { href: "/student/wallet", label: "Điểm đậu" },
   { href: "/student", label: "Tổng quan" },
 ] satisfies BasicNavItem[];
 
@@ -53,13 +53,19 @@ const adminNavItems = [
   { href: "/student/tests", label: "Bài test" },
   { href: "/student/results", label: "Kết quả" },
   { href: "/student/rewards", label: "Điểm đậu" },
-  { href: "/student/wallet", label: "Ví tiền" },
+  { href: "/student/wallet", label: "Điểm đậu" },
 ] satisfies BasicNavItem[];
 
 const aiNavItems = [
   { href: "/student/speaking-ai", label: "Nói với AI" },
   { href: "/student/writing-ai", label: "Luyện viết với AI" },
 ] satisfies BasicNavItem[];
+
+function getNavigationLabel(item: BasicNavItem | MatchedNavItem) {
+  if (item.href === "/student/wallet") return "Điểm đậu";
+  if (item.href === "/student/rewards") return "Điểm đậu";
+  return item.label;
+}
 
 const SEEN_NOTIFICATION_IDS_KEY = "seen-notification-ids:v2";
 
@@ -212,7 +218,7 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
                   active ? "bg-secondary text-secondary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
               >
-                {item.label}
+                {getNavigationLabel(item)}
               </Link>
             );
           })}
@@ -261,7 +267,7 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
         <nav className="border-t border-border bg-card px-4 py-3 md:hidden">
           {navigationLinks.map((item) => (
             <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className="block rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted">
-              {item.label}
+              {getNavigationLabel(item)}
             </Link>
           ))}
           {showAiMenu ? (

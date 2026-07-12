@@ -20,8 +20,6 @@ export type ManagedUser = {
   email: string;
   role?: string;
   isBanned?: boolean;
-  balance?: number;
-  points?: number;
   courses: CourseEnrollment[];
   certificates?: CertificateSummary[];
 };
@@ -109,56 +107,12 @@ async function getAdminManagedUsers(): Promise<ManagedUser[]> {
     take: 200,
   });
 
-  const userIds = users.map((user) => user.id);
-  const [topUps, purchases, pointGroups] = await Promise.all([
-    prisma.payment.findMany({
-      where: {
-        status: "SUCCESS",
-        userId: { in: userIds },
-      },
-      select: {
-        amount: true,
-        userId: true,
-      },
-    }),
-    prisma.orderItem.findMany({
-      where: { order: { userId: { in: userIds } } },
-      select: {
-        price: true,
-        order: { select: { userId: true } },
-      },
-    }),
-    prisma.pointTransaction.groupBy({
-      by: ["userId"],
-      where: {
-        userId: { in: userIds },
-        OR: [
-          { type: { in: ["AI_POINTS_PURCHASE", "AI_POINTS_ADMIN_GRANT"] } },
-          { type: { endsWith: "_SPENT" } },
-        ],
-      },
-      _sum: { amount: true },
-    }),
-  ]);
-
-  const balances = new Map<string, number>();
-  for (const topUp of topUps) {
-    balances.set(topUp.userId, (balances.get(topUp.userId) ?? 0) + topUp.amount);
-  }
-  for (const purchase of purchases) {
-    balances.set(purchase.order.userId, (balances.get(purchase.order.userId) ?? 0) - purchase.price);
-  }
-
-  const points = new Map(pointGroups.map((group) => [group.userId, group._sum.amount ?? 0]));
-
   return users.map((user) => ({
     id: user.id,
     username: user.username,
     email: user.email,
     role: user.role,
     isBanned: user.isBanned,
-    balance: balances.get(user.id) ?? 0,
-    points: Math.max(0, points.get(user.id) ?? 0),
     courses: user.enrollments.map((enrollment) => ({
       ...enrollment.course,
       enrolledAt: enrollment.createdAt.toISOString(),

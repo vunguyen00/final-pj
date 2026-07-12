@@ -525,12 +525,12 @@ export function LearningActivityPanel({ data }: { data: AnalyticsPayload }) {
 export function PointsLanguageSection({ data }: { data: AnalyticsPayload }) {
   return (
     <section className="grid gap-5 xl:grid-cols-3">
-      <Panel title="Điểm đậu Analytics" subtitle="Hạt đậu đã mua/cấp, đã dùng, tăng trưởng">
+      <Panel title="AI theo lượt Analytics" subtitle="Lượt AI đã thanh toán, đã dùng, tăng trưởng">
         <div className="grid gap-3 sm:grid-cols-2">
-          <KpiCard title="Hạt đậu đã có" value={formatNumber(data.pointAnalytics.issued)} tone="emerald" />
-          <KpiCard title="Hạt đậu đã dùng" value={formatNumber(data.pointAnalytics.used)} tone="rose" />
+          <KpiCard title="Đơn vị đã thanh toán" value={formatNumber(data.pointAnalytics.issued)} tone="emerald" />
+          <KpiCard title="Đơn vị đã dùng" value={formatNumber(data.pointAnalytics.used)} tone="rose" />
           <KpiCard title="TB mỗi học viên" value={formatNumber(data.pointAnalytics.averagePerStudent, 2)} tone="sky" />
-          <KpiCard title="Top học viên" value={data.pointAnalytics.topStudents[0]?.username ?? "-"} subtitle={`${formatNumber(data.pointAnalytics.topStudents[0]?.points ?? 0)} hạt`} />
+          <KpiCard title="Top học viên" value={data.pointAnalytics.topStudents[0]?.username ?? "-"} subtitle={`${formatNumber(data.pointAnalytics.topStudents[0]?.points ?? 0)} đơn vị`} />
         </div>
         <div className="mt-4">
           <AreaChart data={data.pointAnalytics.growthSeries} color="#16a34a" />
@@ -578,9 +578,9 @@ export function PointsLanguageSection({ data }: { data: AnalyticsPayload }) {
 export function RankingsSection({ data }: { data: AnalyticsPayload }) {
   return (
     <section className="grid gap-5 xl:grid-cols-3">
-      <Panel title="Top 10 Học viên" subtitle="Học nhiều nhất / Điểm cao nhất / Điểm đậu">
+      <Panel title="Top 10 Học viên" subtitle="Học nhiều nhất / Điểm cao nhất / Lượt AI">
         <SimpleTable
-          headers={["Tên", "Học nhiều", "Điểm cao nhất", "Hạt đậu"]}
+          headers={["Tên", "Học nhiều", "Điểm cao nhất", "Đơn vị AI"]}
           rows={data.rankings.students.mostLearning.map((item, index) => [
             item.username,
             formatNumber(item.value),

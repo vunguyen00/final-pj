@@ -14,8 +14,8 @@ import {
   getCourseLanguage,
   getCourseLevel,
   getLanguageLabel,
-  getLevelLabel,
 } from "@/app/components/learningMarketplace";
+import { getLearningUiLabels } from "@/lib/test-language-labels";
 
 async function getCourse(id: string) {
   try {
@@ -48,7 +48,19 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
     ? await prisma.enrollment.findUnique({ where: { userId_courseId: { userId: user.id, courseId: course.id } } })
     : null;
   const language = getCourseLanguage(course);
-  const category = course.category?.trim() || "Chưa phân loại";
+  const ui = getLearningUiLabels(course.language?.code || course.language?.name || language);
+  const level = getCourseLevel(course);
+  const levelLabel =
+    level === "Advanced"
+      ? ui.levels.advanced
+      : level === "Upper Intermediate"
+        ? ui.levels.upperIntermediate
+        : level === "Intermediate"
+          ? ui.levels.intermediate
+          : level === "Elementary"
+            ? ui.levels.elementary
+            : ui.levels.beginner;
+  const category = course.category?.trim() || ui.course.uncategorized;
   const thumbnailUrl = normalizeCourseThumbnailUrl(course.thumbnail);
   const [reviews, canReview, existingReview] = await Promise.all([
     getCourseReviews(course.id),
@@ -65,18 +77,18 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
           <div>
             <BadgeGroup>
               <Badge>{getLanguageLabel(language)}</Badge>
-              <Badge className="bg-secondary text-secondary-foreground">{getLevelLabel(getCourseLevel(course))}</Badge>
+              <Badge className="bg-secondary text-secondary-foreground">{levelLabel}</Badge>
               <Badge className="bg-secondary text-secondary-foreground">{category}</Badge>
               <Badge className="bg-secondary text-secondary-foreground">{getCertification(course)}</Badge>
-              {reviews.length ? <Badge className="bg-accent/20 text-accent">{averageRating.toFixed(1)} sao ({reviews.length})</Badge> : null}
+              {reviews.length ? <Badge className="bg-accent/20 text-accent">{averageRating.toFixed(1)} {ui.course.stars} ({reviews.length})</Badge> : null}
             </BadgeGroup>
             <h1 className="mt-5 text-pretty font-serif text-4xl font-semibold text-foreground">{course.name}</h1>
             <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted-foreground">{course.description}</p>
             <div className="mt-6 grid gap-3 text-sm text-muted-foreground sm:grid-cols-4">
-              <Stat label="Giảng viên" value={course.instructor?.username || "Chưa cập nhật"} />
-              <Stat label="Thời lượng" value={getCourseDuration(course)} />
-              <Stat label="Bài học" value={`${totalLessons || course.lessons}`} />
-              <Stat label="Học viên" value={`${course._count.enrollments}`} />
+              <Stat label={ui.course.instructor} value={course.instructor?.username || ui.course.teacherFallback} />
+              <Stat label={ui.course.duration} value={getCourseDuration(course)} />
+              <Stat label={ui.course.lessons} value={`${totalLessons || course.lessons}`} />
+              <Stat label={ui.course.students} value={`${course._count.enrollments}`} />
             </div>
           </div>
           <div className="overflow-hidden rounded-2xl border border-border bg-muted">
@@ -93,14 +105,14 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
         <div className="grid gap-8 lg:grid-cols-3">
           <section className="space-y-6 lg:col-span-2">
             <div className="rounded-xl border border-border bg-card p-5">
-              <h2 className="text-2xl font-semibold text-foreground">Lộ trình học tập</h2>
-              <p className="mt-2 text-sm text-muted-foreground">Các chương, bài học, bài luyện tập và nội dung chuẩn bị cho chứng chỉ.</p>
+              <h2 className="text-2xl font-semibold text-foreground">{ui.course.learningPath}</h2>
+              <p className="mt-2 text-sm text-muted-foreground">{ui.course.learningPathDescription}</p>
               <div className="mt-5 space-y-3">
                 {course.modules.map((module, index) => (
                   <div key={module.id} className="rounded-xl border border-border">
                     <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                      <h3 className="font-semibold text-foreground">Chương {index + 1}: {module.name}</h3>
-                      <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">{module.lessons.length} bài học</span>
+                      <h3 className="font-semibold text-foreground">{ui.course.chapter(index + 1)}: {module.name}</h3>
+                      <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">{ui.course.lessonCount(module.lessons.length)}</span>
                     </div>
                     <div className="divide-y divide-border">
                       {module.lessons.map((lesson, lessonIndex) => (
@@ -109,7 +121,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
                           <span>{lesson.title}</span>
                         </div>
                       ))}
-                      {module.lessons.length === 0 ? <p className="px-4 py-3 text-sm text-muted-foreground">Chưa có bài học.</p> : null}
+                      {module.lessons.length === 0 ? <p className="px-4 py-3 text-sm text-muted-foreground">{ui.course.noLessons}</p> : null}
                     </div>
                   </div>
                 ))}
@@ -117,41 +129,41 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
             </div>
 
             <div className="rounded-xl border border-border bg-card p-5">
-              <h2 className="text-2xl font-semibold text-foreground">Bài kiểm tra và đánh giá chứng chỉ</h2>
+              <h2 className="text-2xl font-semibold text-foreground">{ui.course.testsTitle}</h2>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {course.tests.map((test) => (
                   <div key={test.id} className="rounded-xl border border-border p-4">
                     <p className="font-semibold text-foreground">{test.name}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">{test._count.questions} câu hỏi - Tối đa {test.maxScore} điểm</p>
-                    <p className="mt-1 text-sm text-muted-foreground">{test.timeLimit ? `${test.timeLimit} phút` : "Không giới hạn thời gian"}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{ui.course.questionCount(test._count.questions)} - {ui.course.maxScore(test.maxScore)}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{test.timeLimit ? ui.course.minuteCount(test.timeLimit) : ui.course.noTimeLimit}</p>
                   </div>
                 ))}
-                {course.tests.length === 0 ? <p className="text-sm text-muted-foreground">Khóa học chưa có bài kiểm tra.</p> : null}
+                {course.tests.length === 0 ? <p className="text-sm text-muted-foreground">{ui.course.noTests}</p> : null}
               </div>
             </div>
 
             <div className="rounded-xl border border-border bg-card p-5">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h2 className="text-2xl font-semibold text-foreground">Đánh giá khóa học</h2>
+                  <h2 className="text-2xl font-semibold text-foreground">{ui.course.reviewsTitle}</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {reviews.length
-                      ? `Tổng điểm ${totalRatingPoints.toFixed(1)} từ ${reviews.length} đánh giá. Trung bình ${averageRating.toFixed(1)} / 5.`
-                      : "Chưa có đánh giá nào cho khóa học này."}
+                      ? ui.course.ratingSummary(totalRatingPoints.toFixed(1), reviews.length, averageRating.toFixed(1))
+                      : ui.course.noReviews}
                   </p>
                 </div>
               </div>
 
               <div className="mt-5">
                 {user?.role === "STUDENT" ? (
-                  <CourseReviewForm courseId={course.id} canReview={canReview} existingReview={existingReview} />
+                  <CourseReviewForm courseId={course.id} languageCode={course.language?.code} canReview={canReview} existingReview={existingReview} />
                 ) : user ? (
                   <div className="rounded-xl border border-border bg-muted p-4 text-sm text-muted-foreground">
-                    Chỉ học viên đã hoàn thành khóa học và đạt bài test mới có thể đánh giá.
+                    {ui.course.completedOnlyReview}
                   </div>
                 ) : (
                   <div className="rounded-xl border border-border bg-muted p-4 text-sm text-muted-foreground">
-                    Đăng nhập bằng tài khoản học viên để đánh giá sau khi hoàn thành khóa học.
+                    {ui.course.loginToReview}
                   </div>
                 )}
               </div>
@@ -161,12 +173,12 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
                   <article key={review.id} className="rounded-xl border border-border bg-muted p-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="font-semibold text-foreground">{review.username}</p>
-                      <p className="text-sm font-semibold text-primary">{review.rating.toFixed(1)} / 5 sao</p>
+                      <p className="text-sm font-semibold text-primary">{review.rating.toFixed(1)} / 5 {ui.course.stars}</p>
                     </div>
                     {review.comment ? (
                       <p className="mt-2 text-sm leading-6 text-muted-foreground">{review.comment}</p>
                     ) : (
-                      <p className="mt-2 text-sm leading-6 text-muted-foreground">Người học không để lại bình luận.</p>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">{ui.course.noComment}</p>
                     )}
                   </article>
                 ))}
@@ -179,17 +191,14 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
               <EnrollCourseCard courseId={course.id} price={course.price} initiallyEnrolled={Boolean(enrollment)} canLearnDirectly={canLearnDirectly} />
             ) : (
               <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
-                Đăng nhập để đăng ký khóa học và theo dõi tiến độ.
-                <Link href="/auth/login" className="mt-4 block rounded-lg bg-primary px-4 py-2 text-center font-semibold text-primary-foreground">Đăng nhập</Link>
+                {ui.course.loginPrompt}
+                <Link href="/auth/login" className="mt-4 block rounded-lg bg-primary px-4 py-2 text-center font-semibold text-primary-foreground">{ui.course.login}</Link>
               </div>
             )}
             <div className="rounded-xl border border-border bg-card p-5">
-              <h3 className="font-semibold text-foreground">Nội dung bao gồm</h3>
+              <h3 className="font-semibold text-foreground">{ui.course.includes}</h3>
               <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-                <li>Huy hiệu trình độ và lộ trình hướng tới chứng chỉ</li>
-                <li>Bài luyện tập và theo dõi tiến độ hoàn thành</li>
-                <li>Chương trình học do giảng viên xây dựng</li>
-                <li>Đề thi thử khi khóa học có hỗ trợ</li>
+                {ui.course.includesItems.map((item) => <li key={item}>{item}</li>)}
               </ul>
             </div>
           </aside>

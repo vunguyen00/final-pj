@@ -1,7 +1,6 @@
 ﻿import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getUserBalance } from "@/lib/wallet";
 import { getAiPointsSummary } from "@/lib/ai-points";
 import ProfileSettings from "./ProfileSettings";
 
@@ -19,7 +18,7 @@ export default async function ProfilePage() {
   const user = await requireUser();
   const isAdmin = user.role === "ADMIN";
 
-  const [enrollments, feedbacks, balance, aiPoints] = await Promise.all([
+  const [enrollments, feedbacks, aiPoints] = await Promise.all([
     prisma.enrollment.findMany({
       where: { userId: user.id },
       include: {
@@ -42,7 +41,6 @@ export default async function ProfilePage() {
       },
       select: { courseId: true, content: true },
     }),
-    getUserBalance(user.id),
     getAiPointsSummary(user.id),
   ]);
 
@@ -76,21 +74,15 @@ export default async function ProfilePage() {
               <p className="mt-1 font-semibold text-slate-900">{getRoleLabel(user.role)}</p>
             </div>
             {!isAdmin && (
-              <>
-                <div className="rounded-lg border border-slate-200 p-4">
-                  <p className="text-sm text-slate-500">Số dư còn lại</p>
-                  <p className="mt-1 font-semibold text-slate-900">{Math.round(balance).toLocaleString("vi-VN")}đ</p>
-                </div>
-                <div className="rounded-lg border border-slate-200 p-4">
-                  <p className="text-sm text-slate-500">Điểm hiện có</p>
-                  <p className="mt-1 font-semibold text-slate-900">{aiPoints.available.toLocaleString("vi-VN")}</p>
-                </div>
-              </>
+              <div className="rounded-lg border border-slate-200 p-4">
+                <p className="text-sm text-slate-500">Điểm đậu hiện có</p>
+                <p className="mt-1 font-semibold text-slate-900">{aiPoints.available.toLocaleString("vi-VN")}</p>
+              </div>
             )}
           </div>
           <div className="mt-4">
             {!isAdmin && (
-              <Link href="/student/wallet" className="text-sm font-medium text-blue-600 hover:text-blue-700">Nạp tiền</Link>
+              <Link href="/student/wallet" className="text-sm font-medium text-blue-600 hover:text-blue-700">Mua điểm đậu</Link>
             )}
           </div>
         </section>

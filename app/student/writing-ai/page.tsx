@@ -92,6 +92,18 @@ type WritingAction =
   | { type: "SUBMIT_SUCCESS"; result: EvaluationResponse }
   | { type: "SUBMIT_FINISH" };
 
+const WRITING_PAYMENT_DRAFT_KEY = "writing-ai-payment-draft";
+
+function readWritingPaymentDraft() {
+  if (typeof window === "undefined") return null;
+  try {
+    return JSON.parse(window.localStorage.getItem(WRITING_PAYMENT_DRAFT_KEY) || "null") as Partial<WritingState> | null;
+  } catch {
+    window.localStorage.removeItem(WRITING_PAYMENT_DRAFT_KEY);
+    return null;
+  }
+}
+
 const DEFAULT_TASK_PROMPTS: Record<WritingLanguage, Record<IeltsWritingTaskType, string>> = {
   ENGLISH: {
     task_1:
@@ -113,17 +125,23 @@ const DEFAULT_TASK_PROMPTS: Record<WritingLanguage, Record<IeltsWritingTaskType,
   },
 };
 
+const DEFAULT_TASK_PROMPT_SET = new Set(
+  Object.values(DEFAULT_TASK_PROMPTS).flatMap((prompts) => Object.values(prompts)),
+);
+
 function createInitialState(): WritingState {
+  const restored = readWritingPaymentDraft();
+
   return {
-    writingLanguage: "ENGLISH",
-    taskType: "task_2",
-    taskPrompt: DEFAULT_TASK_PROMPTS.ENGLISH.task_2,
-    essay: "",
-    chartData: null,
+    writingLanguage: restored?.writingLanguage || "ENGLISH",
+    taskType: restored?.taskType || "task_2",
+    taskPrompt: restored?.taskPrompt || DEFAULT_TASK_PROMPTS.ENGLISH.task_2,
+    essay: restored?.essay || "",
+    chartData: restored?.chartData || null,
     setupOpen: true,
     topicMode: "custom",
-    topicInput: "",
-    selectedTopic: "",
+    topicInput: restored?.topicInput || "",
+    selectedTopic: restored?.selectedTopic || "",
     generatingPrompt: false,
     promptError: "",
     loading: false,
@@ -134,7 +152,7 @@ function createInitialState(): WritingState {
 }
 
 function isDefaultTaskPrompt(prompt: string) {
-  return Object.values(DEFAULT_TASK_PROMPTS).some((prompts) => Object.values(prompts).includes(prompt));
+  return DEFAULT_TASK_PROMPT_SET.has(prompt);
 }
 
 function toDisplayCriterionName(key: string) {
@@ -217,6 +235,28 @@ export default function WritingAiPage() {
   const hasChart = state.taskType === "task_1" && Boolean(state.chartData);
   const writingMeta = getWritingMeta(state);
 
+  function redirectToBeanPurchase() {
+    window.localStorage.setItem(
+      WRITING_PAYMENT_DRAFT_KEY,
+      JSON.stringify({
+        writingLanguage: state.writingLanguage,
+        taskType: state.taskType,
+        taskPrompt: state.taskPrompt,
+        essay: state.essay,
+        chartData: state.chartData,
+        topicInput: state.topicInput,
+        selectedTopic: state.selectedTopic,
+      }),
+    );
+
+    const response = { ok: true };
+    const data = {} as { paymentUrl?: string; error?: string };
+    if (false && (!response.ok || !data.paymentUrl)) {
+      throw new Error(data.error || "Không tạo được giao dịch thanh toán.");
+    }
+    window.location.href = "/student/wallet";
+  }
+
   async function generateWritingPrompt() {
     const topic = state.topicInput.trim();
     if (state.topicMode === "custom" && !topic) {
@@ -287,9 +327,14 @@ export default function WritingAiPage() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
+        if (data.requiresPointPurchase) {
+          redirectToBeanPurchase();
+          return;
+        }
         dispatch({ type: "SUBMIT_ERROR", error: data.error || "Không chấm được bài viết." });
         return;
       }
+      window.localStorage.removeItem(WRITING_PAYMENT_DRAFT_KEY);
       dispatch({ type: "SUBMIT_SUCCESS", result: data });
     } catch {
       dispatch({ type: "SUBMIT_ERROR", error: "Không chấm được bài viết." });
@@ -356,7 +401,7 @@ function WritingHero({ role, loading, onOpenSetup }: { role?: string; loading: b
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
-            Chấm điểm miễn phí · Nhận xét AI {role !== "ADMIN" ? "-3 hạt đậu" : "miễn phí cho quản trị viên"}
+            Chấm điểm miễn phí · Nhận xét AI {role !== "ADMIN" ? "thanh toán theo lượt" : "miễn phí cho quản trị viên"}
           </p>
           <h1 className="mt-2 text-3xl font-bold text-slate-950">Chấm bài viết theo tiêu chuẩn bài thi thật</h1>
           <p className="mt-2 max-w-3xl text-slate-600">
@@ -470,7 +515,7 @@ function WritingForm({
           {state.loading && state.submitAction === "score" ? "Đang chấm điểm..." : "Chấm điểm miễn phí"}
         </button>
         <button type="button" onClick={() => void onSubmit(true)} disabled={state.loading} className="rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white disabled:bg-slate-300">
-          {state.loading && state.submitAction === "feedback" ? "AI đang nhận xét..." : role !== "ADMIN" ? "Nhận xét AI (-3 hạt đậu)" : "Nhận xét AI"}
+          {state.loading && state.submitAction === "feedback" ? "AI đang nhận xét..." : role !== "ADMIN" ? "Nhận xét AI (trừ 3 đậu)" : "Chấm điểm"}
         </button>
       </div>
     </form>
@@ -483,10 +528,10 @@ function WritingResult({ result, role }: { result: EvaluationResponse; role?: st
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4">
         <p className="text-sm font-semibold text-red-600">
           {result.scoreOnly
-            ? "Chấm điểm miễn phí · Không trừ hạt đậu"
+            ? "Chấm điểm miễn phí"
             : role !== "ADMIN"
-              ? `Nhận xét AI · -${result.points?.spent ?? 3} hạt đậu`
-              : "Nhận xét AI · Không trừ hạt đậu"}
+              ? "Nhận xét AI · Đã thanh toán"
+              : "Nhận xét AI · Miễn phí cho quản trị viên"}
         </p>
         <Link href={`/student/results/${result.assessmentId}`} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">
           Xem chi tiết đã lưu

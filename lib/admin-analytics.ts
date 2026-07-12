@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { REVENUE_ELIGIBLE_ORDER_ITEM_WHERE } from "@/lib/teacher-revenue";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const APP_STATUSES = ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "APPROVED", "REJECTED", "EXPIRED"] as const;
@@ -519,7 +520,10 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
       select: { id: true, amount: true, createdAt: true, status: true },
     }),
     prisma.orderItem.findMany({
-      where: { order: { createdAt: dateFilter } },
+      where: {
+        order: { createdAt: dateFilter },
+        ...REVENUE_ELIGIBLE_ORDER_ITEM_WHERE,
+      },
       select: {
         id: true,
         price: true,

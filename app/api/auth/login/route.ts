@@ -7,6 +7,7 @@ import {
 } from "@/lib/auth";
 import { getDatabaseUrlTarget } from "@/lib/database-url";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 function getErrorDetails(error: unknown) {
   if (error instanceof Error) {
@@ -49,6 +50,27 @@ export async function POST(request: Request) {
       );
     }
 
+    const ip = getClientIp(request);
+    const ipLimit = checkRateLimit({
+      key: `login:ip:${ip}`,
+      limit: 30,
+      windowMs: 15 * 60 * 1000,
+    });
+    const emailLimit = checkRateLimit({
+      key: `login:email:${email}`,
+      limit: 8,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (!ipLimit.ok || !emailLimit.ok) {
+      return NextResponse.json(
+        {
+          error: "Bạn đăng nhập sai quá nhiều lần. Vui lòng thử lại sau.",
+          retryAfter: Math.max(ipLimit.retryAfter, emailLimit.retryAfter),
+        },
+        { status: 429 },
+      );
+    }
+
     const user = await prisma.user.findUnique({
       where: { email },
       select: {
@@ -56,6 +78,7 @@ export async function POST(request: Request) {
         password: true,
         role: true,
         isBanned: true,
+        accountStatus: true,
       },
     });
 
@@ -69,6 +92,17 @@ export async function POST(request: Request) {
     if (user.isBanned) {
       return NextResponse.json(
         { error: "Tài khoản đang bị khóa. Vui lòng liên hệ admin." },
+        { status: 403 },
+      );
+    }
+
+    if (user.accountStatus !== "ACTIVE") {
+      return NextResponse.json(
+        {
+          error: "Tai khoan chua duoc xac thuc OTP qua email.",
+          requiresVerification: true,
+          email,
+        },
         { status: 403 },
       );
     }

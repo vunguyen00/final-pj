@@ -102,7 +102,7 @@ export async function POST(
       orderBy: { order: "desc" },
     });
 
-    const module = await prisma.module.create({
+    const courseModule = await prisma.module.create({
       data: {
         courseId,
         name,
@@ -110,7 +110,7 @@ export async function POST(
       },
     });
 
-    return NextResponse.json({ module }, { status: 201 });
+    return NextResponse.json({ module: courseModule }, { status: 201 });
   } catch (error) {
     console.error("Error creating module:", error);
     return NextResponse.json(

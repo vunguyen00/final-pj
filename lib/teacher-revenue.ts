@@ -1,4 +1,8 @@
-export const RESERVED_WITHDRAWAL_STATUSES = ["PENDING", "APPROVED", "PAID"] as const;
+export const RESERVED_WITHDRAWAL_STATUSES = ["PENDING", "APPROVED", "PAID", "COMPLETED"] as const;
+
+export const REVENUE_ELIGIBLE_ORDER_ITEM_WHERE = {
+  refundRequest: { isNot: { status: "APPROVED" } },
+} as const;
 
 export function calculateAvailableTeacherRevenue(
   earnedRevenue: number,

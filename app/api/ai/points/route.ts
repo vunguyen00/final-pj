@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
 import { getAiPointsSummary } from "@/lib/ai-points";
 

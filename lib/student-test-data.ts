@@ -3,6 +3,7 @@ import { SPEAKING_AI_COST, WRITING_AI_COST } from "@/lib/ai-points";
 import { getCurrentUser } from "@/lib/auth";
 import { getCourseProgressPercent } from "@/lib/learning-progress";
 import { prisma } from "@/lib/prisma";
+import { createTestAttemptToken } from "@/lib/test-attempt-token";
 import { FIXED_TEST_MAX_SCORE, isTestReady } from "@/lib/test-rules";
 import type { ChartMaterialData } from "@/lib/test-material";
 
@@ -35,6 +36,9 @@ export type StudentTestInfo = {
   materialType: string | null;
   materialData: ChartMaterialData | null;
   previewMode: boolean;
+  attemptToken: string;
+  attemptStartedAt: string;
+  attemptExpiresAt: string | null;
   aiFeedbackCost: number;
   chargeAiFeedback: boolean;
 };
@@ -196,6 +200,15 @@ export async function getStudentTestPayload(
     : test.questions.some((question) => question.type === "ESSAY")
       ? WRITING_AI_COST
       : 0;
+  const tokenStartedAt = new Date();
+  const attemptToken = createTestAttemptToken({
+    userId: user.id,
+    testId: test.id,
+    timeLimitMinutes: test.timeLimit,
+  });
+  const attemptExpiresAt = test.timeLimit
+    ? new Date(tokenStartedAt.getTime() + test.timeLimit * 60 * 1000)
+    : null;
 
   return {
     ok: true,
@@ -218,6 +231,9 @@ export async function getStudentTestPayload(
         materialType: test.materialType,
         materialData: test.materialData as ChartMaterialData | null,
         previewMode: isOwnerPreview,
+        attemptToken,
+        attemptStartedAt: tokenStartedAt.toISOString(),
+        attemptExpiresAt: attemptExpiresAt?.toISOString() ?? null,
         aiFeedbackCost,
         chargeAiFeedback: shouldChargeAiPoints(user.role),
       },

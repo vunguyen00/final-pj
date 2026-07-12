@@ -1,9 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getVnpayConfig, verifyVnpParams } from "@/lib/vnpay";
+import { AI_POINT_PAYMENT_PURPOSE, confirmAiPointPaymentFromVnpay } from "@/lib/ai-points";
+import { confirmCoursePaymentFromVnpay, getCoursePaymentStatusByTxnRef } from "@/lib/course-payment";
 import { confirmTopUpFromIpn, getTopUpStatusByTxnRef, PAYMENT_STATUS } from "@/lib/wallet";
 
 function walletRedirect(baseUrl: string, payment: string, code?: string) {
   const url = new URL("/wallet", baseUrl);
+  url.searchParams.set("payment", payment);
+  if (code) {
+    url.searchParams.set("code", code);
+  }
+  return NextResponse.redirect(url);
+}
+
+function courseRedirect(baseUrl: string, courseId: string | null, payment: string, code?: string) {
+  const url = new URL(courseId ? `/courses/${courseId}` : "/courses", baseUrl);
+  url.searchParams.set("payment", payment);
+  if (code) {
+    url.searchParams.set("code", code);
+  }
+  return NextResponse.redirect(url);
+}
+
+function beansRedirect(baseUrl: string, payment: string, code?: string) {
+  const url = new URL("/student/wallet", baseUrl);
   url.searchParams.set("payment", payment);
   if (code) {
     url.searchParams.set("code", code);
@@ -33,6 +53,68 @@ export async function GET(request: NextRequest) {
 
     if (!txnRef) {
       return walletRedirect(redirectBaseUrl, "failed", "01");
+    }
+
+    const coursePayment = await getCoursePaymentStatusByTxnRef(txnRef);
+    if (coursePayment?.courseId) {
+      if (coursePayment.amount * 100 !== amountInMinorUnit) {
+        return courseRedirect(redirectBaseUrl, coursePayment.courseId, "failed", "04");
+      }
+
+      if (coursePayment.status === "PAID") {
+        return courseRedirect(redirectBaseUrl, coursePayment.courseId, "success");
+      }
+
+      const result = await confirmCoursePaymentFromVnpay({
+        txnRef,
+        responseCode,
+        transactionStatus,
+        bankCode: query.vnp_BankCode,
+        payDate: query.vnp_PayDate,
+        transactionNo: query.vnp_TransactionNo,
+        rawResponse: query,
+      });
+
+      if (result.kind === "SUCCESS" || result.kind === "ALREADY_PAID") {
+        return courseRedirect(redirectBaseUrl, coursePayment.courseId, "success");
+      }
+
+      return courseRedirect(
+        redirectBaseUrl,
+        coursePayment.courseId,
+        responseCode === "24" ? "cancelled" : "failed",
+        responseCode,
+      );
+    }
+
+    if (coursePayment?.purpose === AI_POINT_PAYMENT_PURPOSE) {
+      if (coursePayment.amount * 100 !== amountInMinorUnit) {
+        return beansRedirect(redirectBaseUrl, "failed", "04");
+      }
+
+      if (coursePayment.status === "PAID") {
+        return beansRedirect(redirectBaseUrl, "success");
+      }
+
+      const result = await confirmAiPointPaymentFromVnpay({
+        txnRef,
+        responseCode,
+        transactionStatus,
+        bankCode: query.vnp_BankCode,
+        payDate: query.vnp_PayDate,
+        transactionNo: query.vnp_TransactionNo,
+        rawResponse: query,
+      });
+
+      if (result.kind === "SUCCESS" || result.kind === "ALREADY_PAID") {
+        return beansRedirect(redirectBaseUrl, "success");
+      }
+
+      return beansRedirect(
+        redirectBaseUrl,
+        responseCode === "24" ? "cancelled" : "failed",
+        responseCode,
+      );
     }
 
     const payment = await getTopUpStatusByTxnRef(txnRef);

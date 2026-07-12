@@ -66,11 +66,14 @@ export async function POST(
       }))
       .filter((input) => input.answer);
     const aiResults = await evaluateTestAiAnswers(aiInputs);
-    const failedAiResult = aiInputs.some((input) => aiResults.get(input.questionId)?.failed);
+    const failedAiResult = aiInputs
+      .map((input) => aiResults.get(input.questionId))
+      .find((result) => result?.failed);
     if (failedAiResult) {
+      const invalidResponse = failedAiResult.failureReason === "invalid_response";
       return NextResponse.json(
         { error: "AI đang tạm thời quá tải. Bài thi chưa được nộp, vui lòng thử lại." },
-        { status: 503 },
+        { status: invalidResponse ? 502 : 503 },
       );
     }
 

@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import {
-  ROLE_HOME,
-  createAuthToken,
   hashPassword,
-  setAuthCookie,
   validateStrongPassword,
 } from "@/lib/auth";
 import { getDatabaseUrlTarget } from "@/lib/database-url";
 import { prisma } from "@/lib/prisma";
+import {
+  createAndSendRegistrationOtp,
+  getRequestSecurityContext,
+} from "@/lib/registration-otp";
 
 function getErrorDetails(error: unknown) {
   if (error instanceof Error) {
@@ -77,10 +78,10 @@ export async function POST(request: Request) {
       where: {
         email,
       },
-      select: { id: true },
+      select: { id: true, accountStatus: true },
     });
 
-    if (existingUser) {
+    if (existingUser?.accountStatus === "ACTIVE") {
       return NextResponse.json(
         { error: "Email da ton tai." },
         { status: 409 },
@@ -88,18 +89,33 @@ export async function POST(request: Request) {
     }
 
     const passwordHash = hashPassword(password);
-    const user = await prisma.user.create({
-      data: {
-        username,
-        email,
-        password: passwordHash,
-        role: "STUDENT",
-      },
-      select: {
-        id: true,
-        role: true,
-      },
-    });
+    const user = existingUser
+      ? await prisma.user.update({
+          where: { id: existingUser.id },
+          data: {
+            username,
+            password: passwordHash,
+            role: "STUDENT",
+            accountStatus: "PENDING_VERIFICATION",
+          },
+          select: {
+            id: true,
+            role: true,
+          },
+        })
+      : await prisma.user.create({
+          data: {
+            username,
+            email,
+            password: passwordHash,
+            role: "STUDENT",
+            accountStatus: "PENDING_VERIFICATION",
+          },
+          select: {
+            id: true,
+            role: true,
+          },
+        });
 
     const persistedUser = await prisma.user.findUnique({
       where: { id: user.id },
@@ -113,12 +129,33 @@ export async function POST(request: Request) {
       throw new Error("User create succeeded but record was not found after write.");
     }
 
-    const token = createAuthToken(user.id, user.role);
-    await setAuthCookie(token);
+    const securityContext = getRequestSecurityContext(request);
+    const otpResult = await createAndSendRegistrationOtp({
+      userId: user.id,
+      email,
+      requestIp: securityContext.requestIp,
+      deviceFingerprint: securityContext.deviceFingerprint,
+    });
+
+    if (!otpResult.ok) {
+      return NextResponse.json(
+        {
+          error:
+            otpResult.reason === "COOLDOWN"
+              ? `Vui long doi ${otpResult.retryAfter} giay truoc khi gui lai OTP.`
+              : "Ban da yeu cau OTP qua nhieu lan. Vui long thu lai sau.",
+          retryAfter: otpResult.retryAfter,
+        },
+        { status: 429 },
+      );
+    }
 
     return NextResponse.json({
       ok: true,
-      redirectTo: ROLE_HOME[user.role],
+      requiresOtp: true,
+      email,
+      expiresAt: otpResult.expiresAt.toISOString(),
+      resendAvailableAt: otpResult.resendAvailableAt.toISOString(),
     });
   } catch (error) {
     if (isUniqueConstraintError(error)) {

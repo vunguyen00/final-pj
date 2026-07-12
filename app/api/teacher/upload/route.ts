@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { getCurrentUser } from "@/lib/auth";
+import { getAllowedUpload, validateUploadSignature } from "@/lib/upload-validation";
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,9 +26,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file type
-    const allowedTypes = ["video/mp4", "video/webm", "video/quicktime", "video/x-msvideo"];
-    if (!allowedTypes.includes(file.type)) {
+    const uploadType = getAllowedUpload(file.type, ["video"]);
+    if (!uploadType) {
       return NextResponse.json(
         { error: "Invalid file type. Only video files are allowed." },
         { status: 400 }
@@ -42,25 +43,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create uploads directory if it doesn't exist
     const uploadsDir = join(process.cwd(), "public", "videos");
-    try {
-      await mkdir(uploadsDir, { recursive: true });
-    } catch (error) {
-      // Directory might already exist
-    }
+    await mkdir(uploadsDir, { recursive: true });
 
-    // Generate unique filename
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const extension = file.name.split(".").pop();
-    const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}.${extension}`;
+    if (!validateUploadSignature(buffer, file.type)) {
+      return NextResponse.json(
+        { error: "Invalid video file content." },
+        { status: 400 }
+      );
+    }
+
+    const filename = `${Date.now()}-${randomUUID()}.${uploadType.extension}`;
     const filepath = join(uploadsDir, filename);
 
-    // Save file
     await writeFile(filepath, buffer);
 
-    // Return the URL
     const videoUrl = `/videos/${filename}`;
 
     return NextResponse.json({ 

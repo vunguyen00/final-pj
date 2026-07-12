@@ -6,10 +6,10 @@ import {
   getCourseLanguage,
   getCourseLevel,
   getLanguageLabel,
-  getLevelLabel,
   priceLabel,
   type CourseLike,
 } from "@/app/components/learningMarketplace";
+import { getLearningUiLabels } from "@/lib/test-language-labels";
 
 type CourseCardCourse = CourseLike & {
   id: string;
@@ -30,11 +30,23 @@ export function CourseCard({
   compact?: boolean;
 }) {
   const language = getCourseLanguage(course);
+  const ui = getLearningUiLabels(course.language?.code || course.language?.name || language);
+  const level = getCourseLevel(course);
   const thumbnailUrl = normalizeCourseThumbnailUrl(course.thumbnail);
   const courseHref = href ?? `/courses/${course.id}`;
   const actionHref = isEnrolled ? `/student/hoc-bai?courseId=${course.id}` : courseHref;
-  const category = course.category?.trim() || "Chưa phân loại";
+  const category = course.category?.trim() || ui.course.categoryFallback;
   const enrollments = course._count?.enrollments ?? 0;
+  const levelLabel =
+    level === "Advanced"
+      ? ui.levels.advanced
+      : level === "Upper Intermediate"
+        ? ui.levels.upperIntermediate
+        : level === "Intermediate"
+          ? ui.levels.intermediate
+          : level === "Elementary"
+            ? ui.levels.elementary
+            : ui.levels.beginner;
 
   return (
     <article className="flex h-full flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
@@ -52,7 +64,7 @@ export function CourseCard({
       <div className="flex flex-1 flex-col p-4 md:p-5">
         <BadgeGroup>
           <Badge>{getLanguageLabel(language)}</Badge>
-          <Badge className="bg-muted text-muted-foreground">{getLevelLabel(getCourseLevel(course))}</Badge>
+          <Badge className="bg-muted text-muted-foreground">{levelLabel}</Badge>
           {!compact ? <Badge className="bg-secondary text-secondary-foreground">{category}</Badge> : null}
         </BadgeGroup>
 
@@ -66,10 +78,10 @@ export function CourseCard({
         ) : null}
 
         <div className="mt-4 grid grid-cols-2 gap-2 text-sm text-muted-foreground">
-          <span className="truncate">{course.instructor?.username || "Giảng viên"}</span>
+          <span className="truncate">{course.instructor?.username || ui.course.teacherFallback}</span>
           <span>{getCourseDuration(course)}</span>
-          <span>{course.lessons ?? 0} bài học</span>
-          <span>{enrollments} học viên</span>
+          <span>{ui.course.lessonUnit(course.lessons ?? 0)}</span>
+          <span>{ui.course.studentUnit(enrollments)}</span>
         </div>
 
         <div className="mt-auto flex items-center justify-between gap-3 border-t border-border pt-4">
@@ -80,7 +92,7 @@ export function CourseCard({
               isEnrolled ? "bg-accent/15 text-accent" : "bg-primary text-primary-foreground"
             }`}
           >
-            {isEnrolled ? "Tiếp tục học" : "Xem khóa học"}
+            {isEnrolled ? ui.course.continueLearning : ui.course.viewCourse}
           </Link>
         </div>
       </div>

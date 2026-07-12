@@ -45,7 +45,10 @@ const CRITERION_LABELS: Record<string, string> = {
 };
 
 function asStringArray(value: unknown): string[] {
-  if (Array.isArray(value)) return value.map((item) => String(item)).filter(Boolean);
+  if (Array.isArray(value)) return value.flatMap((item) => {
+    const text = String(item);
+    return text ? [text] : [];
+  });
   if (typeof value === "string" && value.trim()) return [value.trim()];
   return [];
 }
@@ -86,17 +89,24 @@ function formatCriterionLabel(key: string) {
 export default async function ResultDetailPage({ params }: { params: Promise<{ resultId: string }> }) {
   const user = await requireRole("STUDENT", "TEACHER", "ADMIN");
   const { resultId } = await params;
+  let detail: ResultDetail | null = null;
+  let loadFailed = false;
 
   try {
-    const detail = await getStudentResultDetail(user, resultId);
-    if (!detail) {
-      return <ResultError message="Không tìm thấy kết quả." />;
-    }
-
-    return <ResultDetailView detail={detail} />;
+    detail = await getStudentResultDetail(user, resultId);
   } catch {
+    loadFailed = true;
+  }
+
+  if (loadFailed) {
     return <ResultError message="Bạn không có quyền xem kết quả này." />;
   }
+
+  if (!detail) {
+    return <ResultError message="Không tìm thấy kết quả." />;
+  }
+
+  return <ResultDetailView detail={detail} />;
 }
 
 function ResultError({ message }: { message: string }) {
@@ -184,9 +194,11 @@ function ResultDetailView({ detail }: { detail: ResultDetail }) {
               {scoreOnly ? "Kết quả chấm theo từng câu" : "Nhận xét AI theo từng câu"}
             </h2>
             <div className="mt-4 space-y-4">
-              {questionResults.filter((item) => item.aiEvaluation).map((item) => (
-                <QuestionEvaluation key={item.questionId || item.content || `${item.earnedScore}-${item.score}`} item={item} scoreOnly={scoreOnly} />
-              ))}
+              {questionResults.reduce<ReactNode[]>((items, item) => {
+                if (!item.aiEvaluation) return items;
+                items.push(<QuestionEvaluation key={item.questionId || item.content || `${item.earnedScore}-${item.score}`} item={item} scoreOnly={scoreOnly} />);
+                return items;
+              }, [])}
             </div>
           </section>
         ) : null}

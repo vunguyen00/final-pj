@@ -10,23 +10,30 @@ import {
   OllamaMessage,
 } from "./types";
 
+const DEFAULT_CLOUD_MODEL = "minimax-m3:cloud";
+
+function positiveIntegerFromEnv(name: string, fallback: number) {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback;
+}
+
 const DEFAULT_CONFIG: AIServiceConfig = {
   ollamaUrl: process.env.OLLAMA_URL || "http://127.0.0.1:11434",
-  model: process.env.OLLAMA_MODEL || "gemma4:31b-cloud",
+  model: process.env.OLLAMA_MODEL || DEFAULT_CLOUD_MODEL,
   temperature: 0,
   top_p: 0.1,
-  timeout: 60000,
-  maxRetries: 2,
+  timeout: positiveIntegerFromEnv("OLLAMA_TIMEOUT_MS", 180000),
+  maxRetries: positiveIntegerFromEnv("OLLAMA_MAX_RETRIES", 4),
 };
 
 const ALLOWED_CLOUD_MODELS = new Set([
-  "gemma4:31b-cloud",
-  "nemotron-3-super:cloud",
+  DEFAULT_CLOUD_MODEL,
 ]);
 
 class OllamaService {
   private config: AIServiceConfig;
   private readonly maxOutputTokens: number;
+  private readonly retryDelayMs: number;
 
   constructor(config?: Partial<AIServiceConfig>) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -34,6 +41,7 @@ class OllamaService {
     this.maxOutputTokens = Number.isFinite(configuredMax)
       ? Math.max(256, Math.floor(configuredMax))
       : 7000;
+    this.retryDelayMs = positiveIntegerFromEnv("OLLAMA_RETRY_DELAY_MS", 1500);
   }
 
   /**
@@ -86,7 +94,8 @@ class OllamaService {
           error: errorMessage,
         });
         if (attempt < this.config.maxRetries) {
-          await new Promise((resolve) => setTimeout(resolve, 500));
+          const retryDelay = this.retryDelayMs * attempt;
+          await new Promise((resolve) => setTimeout(resolve, retryDelay));
         }
       }
     }
@@ -167,7 +176,7 @@ class OllamaService {
   }
 
   private resolveModel(): string {
-    const configured = this.config.model?.trim() || "gemma4:31b-cloud";
+    const configured = this.config.model?.trim() || DEFAULT_CLOUD_MODEL;
     if (!ALLOWED_CLOUD_MODELS.has(configured)) {
       throw new Error(
         `OLLAMA_MODEL must be one of: ${[...ALLOWED_CLOUD_MODELS].join(", ")}`,

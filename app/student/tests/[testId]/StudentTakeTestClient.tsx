@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FormattedHint } from "@/app/components/FormattedHint";
 import { SpeakingAnswerInput } from "@/app/components/SpeakingAnswerInput";
 import { TestMaterialPanel } from "@/app/components/TestMaterialPanel";
+import { getLearningUiLabels } from "@/lib/test-language-labels";
 import type { ChartMaterialData } from "@/lib/test-material";
 import { getSpeechRecognitionLocale } from "@/lib/test-rules";
 
@@ -36,6 +37,9 @@ type TestInfo = {
   materialUrl: string | null;
   materialType: string | null;
   materialData: ChartMaterialData | null;
+  attemptToken: string;
+  attemptStartedAt: string;
+  attemptExpiresAt: string | null;
   aiFeedbackCost: number;
   chargeAiFeedback: boolean;
 };
@@ -64,24 +68,10 @@ type StudentTakeTestClientProps = {
 const EMPTY_QUESTIONS: Question[] = [];
 const EMPTY_ATTEMPTS: AttemptHistoryItem[] = [];
 
-const QUESTION_TYPES = [
-  { value: "MULTIPLE_CHOICE", label: "Trắc nghiệm" },
-  { value: "FILL_IN_BLANK", label: "Điền từ" },
-  { value: "ESSAY", label: "Bài viết AI" },
-  { value: "TRUE_FALSE", label: "Đúng/Sai" },
-  { value: "SPEAKING", label: "Bài nói AI" },
-];
-
 function formatTime(seconds: number) {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
-}
-
-function assessmentLabel(mode: TestInfo["assessmentMode"]) {
-  if (mode === "WRITING") return "Chấm bài viết bằng AI";
-  if (mode === "SPEAKING") return "Chấm bài nói bằng AI";
-  return "Chấm đáp án";
 }
 
 function toVttCueText(text: string) {
@@ -112,7 +102,17 @@ export default function StudentTakeTestClient({
   const questions = initialData?.questions ?? EMPTY_QUESTIONS;
   const attemptHistory = initialData?.attempts ?? EMPTY_ATTEMPTS;
   const error = initialError;
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const ui = getLearningUiLabels(test?.language?.code);
+  const answersStorageKey = `test-answers-${testId}`;
+  const [answers, setAnswers] = useState<Record<string, string>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      return JSON.parse(sessionStorage.getItem(answersStorageKey) || "{}") as Record<string, string>;
+    } catch {
+      sessionStorage.removeItem(answersStorageKey);
+      return {};
+    }
+  });
   const [submitting, setSubmitting] = useState(false);
   const [submitAction, setSubmitAction] = useState<"score" | "feedback" | null>(null);
   const [timeLeft, setTimeLeft] = useState<number | null>(
@@ -125,7 +125,7 @@ export default function StudentTakeTestClient({
     Record<string, boolean>
   >({});
 
-  const answersRef = useRef<Record<string, string>>({});
+  const answersRef = useRef<Record<string, string>>(answers);
   const speakingBusyRef = useRef<Record<string, boolean>>({});
   const submittingRef = useRef(false);
   const autoSubmitTriggeredRef = useRef(false);
@@ -161,9 +161,7 @@ export default function StudentTakeTestClient({
         if (skipConfirmation) {
           autoSubmitTriggeredRef.current = false;
         } else {
-          window.alert(
-            "Hãy dừng ghi âm và đợi hệ thống phân tích âm thanh xong trước khi chấm điểm.",
-          );
+          window.alert(ui.test.stopRecordingAlert);
         }
         return;
       }
@@ -175,9 +173,7 @@ export default function StudentTakeTestClient({
       if (
         !skipConfirmation &&
         unanswered.length > 0 &&
-        !window.confirm(
-          `Còn ${unanswered.length} câu chưa trả lời. Bạn có chắc muốn nộp bài?`,
-        )
+        !window.confirm(ui.test.unansweredConfirm(unanswered.length))
       ) {
         return;
       }
@@ -187,18 +183,47 @@ export default function StudentTakeTestClient({
       setSubmitAction(includeAiFeedback ? "feedback" : "score");
 
       try {
+        const paymentTxnRef = "";
+        if (false && includeAiFeedback && test?.chargeAiFeedback && !paymentTxnRef) {
+          sessionStorage.setItem(answersStorageKey, JSON.stringify(currentAnswers));
+          const paymentResponse = await fetch("/api/ai/points/buy", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              feature: "TEST_AI_FEEDBACK",
+              returnTo: `${window.location.pathname}${window.location.search}`,
+            }),
+          });
+          const payment = (await paymentResponse.json().catch(() => ({}))) as { paymentUrl?: string; error?: string };
+          if (!paymentResponse.ok || !payment.paymentUrl) {
+            window.alert(payment.error || ui.test.paymentFailed);
+            submittingRef.current = false;
+            setSubmitting(false);
+            setSubmitAction(null);
+            return;
+          }
+          window.location.href = String(payment.paymentUrl);
+          return;
+        }
+
         const response = await fetch(`/api/student/tests/${testId}/submit`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             answers: currentAnswers,
             includeAiFeedback,
+            attemptToken: test?.attemptToken,
           }),
         });
         const data = await response.json().catch(() => ({}));
 
         if (!response.ok) {
-          window.alert(data.error || "Không thể nộp bài. Vui lòng thử lại.");
+          if (data.requiresPointPurchase) {
+            sessionStorage.setItem(answersStorageKey, JSON.stringify(currentAnswers));
+            window.location.href = "/student/wallet";
+            return;
+          }
+          window.alert(data.error || ui.test.submitFailed);
           submittingRef.current = false;
           setSubmitting(false);
           setSubmitAction(null);
@@ -206,6 +231,7 @@ export default function StudentTakeTestClient({
         }
 
         sessionStorage.removeItem(deadlineStorageKey);
+        sessionStorage.removeItem(answersStorageKey);
         sessionStorage.setItem(
           `test-result-${data.attemptId}`,
           JSON.stringify(data),
@@ -213,13 +239,13 @@ export default function StudentTakeTestClient({
         router.push(`/student/tests/${testId}/result/${data.attemptId}`);
       } catch (submitError) {
         console.error("Error submitting test:", submitError);
-        window.alert("Không thể nộp bài. Vui lòng kiểm tra kết nối và thử lại.");
+        window.alert(ui.test.connectionFailed);
         submittingRef.current = false;
         setSubmitting(false);
         setSubmitAction(null);
       }
     },
-    [deadlineStorageKey, questions, router, testId],
+    [answersStorageKey, deadlineStorageKey, questions, router, test, testId, ui],
   );
 
   useEffect(() => {
@@ -228,15 +254,16 @@ export default function StudentTakeTestClient({
       return;
     }
 
+    const serverDeadline = test.attemptExpiresAt ? new Date(test.attemptExpiresAt).getTime() : 0;
     const storedDeadline = Number(sessionStorage.getItem(deadlineStorageKey));
     const deadline =
-      Number.isFinite(storedDeadline) && storedDeadline > 0
+      Number.isFinite(storedDeadline) && storedDeadline > 0 && (!serverDeadline || storedDeadline <= serverDeadline)
         ? storedDeadline
-        : Date.now() + test.timeLimit * 60 * 1000;
+        : serverDeadline || Date.now() + test.timeLimit * 60 * 1000;
 
     sessionStorage.setItem(deadlineStorageKey, String(deadline));
     deadlineRef.current = deadline;
-  }, [deadlineStorageKey, test?.timeLimit]);
+  }, [deadlineStorageKey, test?.attemptExpiresAt, test?.timeLimit]);
 
   useEffect(() => {
     if (timeLeft === null || submitting) return;
@@ -264,6 +291,7 @@ export default function StudentTakeTestClient({
     setAnswers((previous) => {
       const next = { ...previous, [questionId]: answer };
       answersRef.current = next;
+      sessionStorage.setItem(answersStorageKey, JSON.stringify(next));
       return next;
     });
   }
@@ -274,6 +302,7 @@ export default function StudentTakeTestClient({
     setAnswers((previous) => {
       const next = { ...previous, [questionId]: answer };
       answersRef.current = next;
+      sessionStorage.setItem(answersStorageKey, JSON.stringify(next));
       return next;
     });
   }
@@ -289,6 +318,7 @@ export default function StudentTakeTestClient({
   }
 
   const speechLocale = getSpeechRecognitionLocale(test?.language?.code);
+  const trueFalseLabels = ui.trueFalse;
   const hasSpeakingQuestion = questions.some(
     (question) => question.type === "SPEAKING",
   );
@@ -296,7 +326,6 @@ export default function StudentTakeTestClient({
     (question) => question.type === "ESSAY",
   );
   const hasAiQuestions = hasSpeakingQuestion || hasWritingQuestion;
-  const aiFeedbackCost = test?.aiFeedbackCost ?? 0;
   const hasTestMaterial = Boolean(
     test?.materialTitle ||
       test?.materialContent ||
@@ -310,7 +339,7 @@ export default function StudentTakeTestClient({
         <div className="text-center">
           <div className="mx-auto h-11 w-11 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600" />
           <p className="mt-4 text-sm font-medium text-slate-500">
-            Đang chuẩn bị bài test...
+            {ui.test.loading}
           </p>
         </div>
       </main>
@@ -322,13 +351,13 @@ export default function StudentTakeTestClient({
       <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
         <div className="w-full max-w-md rounded-2xl border border-red-200 bg-white p-6 text-center shadow-sm">
           <p className="font-semibold text-red-700">
-            {error || "Không tìm thấy bài test."}
+            {error || ui.test.notFound}
           </p>
           <Link
             href="/student/tests"
             className="mt-4 inline-flex rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
           >
-            Quay lại danh sách bài test
+            {ui.test.backToTests}
           </Link>
         </div>
       </main>
@@ -342,10 +371,10 @@ export default function StudentTakeTestClient({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
-                {test.language?.name || "Ngôn ngữ chung"}
+                {test.language?.name || ui.test.commonLanguage}
               </span>
               <span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-700">
-                {assessmentLabel(test.assessmentMode)}
+                {ui.assessment[test.assessmentMode]}
               </span>
             </div>
             <h1 className="mt-2 truncate text-xl font-bold text-slate-950">
@@ -356,7 +385,7 @@ export default function StudentTakeTestClient({
 
           <div className="flex flex-wrap items-center gap-3">
             <div className="rounded-xl bg-slate-100 px-4 py-2 text-center">
-              <p className="text-xs font-medium text-slate-500">Đã trả lời</p>
+              <p className="text-xs font-medium text-slate-500">{ui.test.answered}</p>
               <p className="font-bold text-slate-900">
                 {answeredCount}/{questions.length}
               </p>
@@ -369,21 +398,21 @@ export default function StudentTakeTestClient({
                     : "bg-emerald-50 text-emerald-700"
                 }`}
               >
-                <p className="text-xs font-semibold">Thời gian còn lại</p>
+                <p className="text-xs font-semibold">{ui.test.timeLeft}</p>
                 <p className="font-mono text-xl font-black">
                   {formatTime(timeLeft)}
                 </p>
               </div>
             ) : (
               <div className="rounded-xl bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700">
-                Không giới hạn thời gian
+                {ui.test.noTimeLimit}
               </div>
             )}
             <Link
               href="/student/tests"
               className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
             >
-              Thoát
+              {ui.test.exit}
             </Link>
           </div>
         </div>
@@ -396,15 +425,14 @@ export default function StudentTakeTestClient({
       >
         {test.description ? (
           <section className="mb-5 rounded-2xl border border-blue-100 bg-blue-50 p-5 text-sm leading-6 text-blue-950">
-            <p className="font-bold">Hướng dẫn làm bài</p>
+            <p className="font-bold">{ui.test.instructions}</p>
             <p className="mt-1 whitespace-pre-wrap">{test.description}</p>
           </section>
         ) : null}
 
         {isExpired ? (
           <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
-            Đã hết thời gian. Toàn bộ câu trả lời đã được khóa và hệ thống đang
-            tự động nộp bài.
+            {ui.test.expiredNotice}
           </div>
         ) : null}
 
@@ -444,11 +472,10 @@ export default function StudentTakeTestClient({
                   {index + 1}
                 </span>
                 <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
-                  {QUESTION_TYPES.find((item) => item.value === question.type)
-                    ?.label || question.type}
+                  {ui.questionTypes[question.type as keyof typeof ui.questionTypes] || question.type}
                 </span>
                 <span className="text-sm font-semibold text-slate-500">
-                  {question.score} điểm
+                  {question.score} {ui.test.points}
                 </span>
               </div>
 
@@ -470,7 +497,7 @@ export default function StudentTakeTestClient({
                       label={test.language?.name || "Captions"}
                       default
                     />
-                    Trình duyệt của bạn không hỗ trợ phát âm thanh.
+                    {ui.test.unsupportedAudio}
                   </audio>
                 </div>
               ) : null}
@@ -485,8 +512,12 @@ export default function StudentTakeTestClient({
                     disabled={isInteractionLocked}
                     className="space-y-2.5"
                   >
-                    {question.answers.map((answer) => {
+                    {question.answers.map((answer, answerIndex) => {
                       const selected = answers[question.id] === answer.id;
+                      const answerLabel =
+                        question.type === "TRUE_FALSE"
+                          ? trueFalseLabels[answerIndex] ?? answer.content
+                          : answer.content;
                       return (
                         <label
                           key={answer.id}
@@ -510,7 +541,7 @@ export default function StudentTakeTestClient({
                             }
                             className="h-4 w-4 accent-blue-600"
                           />
-                          <span className="text-slate-800">{answer.content}</span>
+                          <span className="text-slate-800">{answerLabel}</span>
                         </label>
                       );
                     })}
@@ -525,7 +556,7 @@ export default function StudentTakeTestClient({
                       handleAnswerChange(question.id, event.target.value)
                     }
                     disabled={isInteractionLocked}
-                    placeholder="Nhập đáp án..."
+                    placeholder={ui.test.fillPlaceholder}
                     className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100"
                   />
                 ) : null}
@@ -537,7 +568,7 @@ export default function StudentTakeTestClient({
                       handleAnswerChange(question.id, event.target.value)
                     }
                     disabled={isInteractionLocked}
-                    placeholder="Viết câu trả lời của bạn..."
+                    placeholder={ui.test.essayPlaceholder}
                     rows={7}
                     className="w-full rounded-xl border border-slate-300 px-4 py-3 leading-7 text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100"
                   />
@@ -560,17 +591,17 @@ export default function StudentTakeTestClient({
                     <div>
                       <div className="flex items-center justify-between gap-3">
                         <p className="text-sm font-semibold text-slate-700">
-                          Nội dung nhận diện
+                          {ui.test.transcriptTitle}
                         </p>
                       </div>
                       <output
                         aria-live="polite"
-                        aria-label="Nội dung nhận diện giọng nói"
+                        aria-label={ui.test.transcriptAria}
                         className="mt-2 block min-h-32 max-h-52 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-normal leading-7 text-slate-900"
                       >
                         {answers[question.id] || (
                           <span className="text-slate-400">
-                            Nội dung sẽ xuất hiện tại đây sau khi bạn nói...
+                            {ui.test.transcriptEmpty}
                           </span>
                         )}
                       </output>
@@ -584,10 +615,10 @@ export default function StudentTakeTestClient({
         </div>
 
         <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-950">Lịch sử làm bài</h2>
+          <h2 className="text-lg font-bold text-slate-950">{ui.test.historyTitle}</h2>
           {attemptHistory.length === 0 ? (
             <p className="mt-2 text-sm text-slate-500">
-              Bạn chưa có lần làm bài nào.
+              {ui.test.noAttempts}
             </p>
           ) : (
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -599,7 +630,7 @@ export default function StudentTakeTestClient({
                 >
                   <div>
                     <p className="text-sm font-semibold text-slate-900">
-                      Lần làm #{attempt.attemptNo}
+                      {ui.test.attempt(attempt.attemptNo)}
                     </p>
                     <p className="text-xs text-slate-500">
                       {new Date(attempt.submittedAt).toLocaleString("vi-VN")}
@@ -616,7 +647,7 @@ export default function StudentTakeTestClient({
                           : "text-amber-700"
                       }`}
                     >
-                      {attempt.isPassed ? "Đạt" : "Chưa đạt"}
+                      {attempt.isPassed ? ui.test.passed : ui.test.notPassed}
                     </p>
                   </div>
                 </Link>
@@ -634,11 +665,11 @@ export default function StudentTakeTestClient({
           >
             {submitting
               ? submitAction === "feedback"
-                ? "Đang nhận xét..."
-                : "Đang chấm điểm..."
+                ? ui.reviewing
+                : ui.scoring
               : isExpired
-                ? "Đã hết thời gian"
-                : "Chấm điểm miễn phí"}
+                ? ui.expired
+                : ui.submit}
           </button>
           {hasAiQuestions ? (
             <button
@@ -649,11 +680,11 @@ export default function StudentTakeTestClient({
             >
               {submitting
                 ? submitAction === "feedback"
-                  ? "AI đang nhận xét..."
-                  : "Vui lòng đợi..."
+                  ? ui.aiReviewing
+                  : ui.waiting
                 : test.chargeAiFeedback
-                  ? `Nhận xét AI (-${aiFeedbackCost} điểm)`
-                  : "Nhận xét AI (miễn phí)"}
+                  ? ui.aiFeedbackWithCost(test.aiFeedbackCost)
+                  : ui.score}
             </button>
           ) : null}
         </div>

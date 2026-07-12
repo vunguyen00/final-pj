@@ -9,7 +9,6 @@ type User = {
   email: string;
   role: string;
   avatarUrl?: string | null;
-  balance?: number;
   aiPoints?: {
     available: number;
   };
@@ -24,7 +23,6 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const teacherRegistrationEnabled = user.role === "STUDENT" && Boolean(user.teacherRegistrationEnabled);
-  const balance = user.role === "ADMIN" ? null : user.balance ?? null;
   const points = user.role === "ADMIN" ? null : user.aiPoints?.available ?? null;
 
   // Close menu when clicking outside
@@ -112,18 +110,11 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
               {user?.username}
             </p>
             <p className="text-xs text-slate-500">{user?.email}</p>
-            {user.role !== "ADMIN" && (
-              <div className="mt-2 flex items-center gap-3">
-                <div>
-                  <p className="text-xs text-slate-500">Số dư</p>
-                  <p className="text-sm font-semibold text-slate-900">{balance !== null ? Math.round(balance).toLocaleString("vi-VN") + "đ" : "-"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500">Điểm</p>
-                  <p className="text-sm font-semibold text-slate-900">{points !== null ? points.toLocaleString("vi-VN") : "-"}</p>
-                </div>
-              </div>
-            )}
+            {points !== null ? (
+              <p className="mt-2 text-xs font-semibold text-emerald-700">
+                Điểm đậu: {points.toLocaleString("vi-VN")}
+              </p>
+            ) : null}
           </div>
           <div className="py-1">
             <Link
@@ -164,26 +155,6 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
                 <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
               </svg>
               Khóa học của tôi
-            </Link>
-            <Link
-              href="/student/wallet"
-              onClick={() => setMenuOpen(false)}
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-4 w-4"
-              >
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-              </svg>
-              Nạp tiền
             </Link>
             {/* Teacher/Admin management links: show for TEACHER and ADMIN */}
             {(user.role === "TEACHER" || user.role === "ADMIN") && (

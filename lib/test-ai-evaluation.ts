@@ -1,4 +1,5 @@
 import { ollamaService } from "@/lib/ai";
+import { getCertificateRubric, weightedScoreFromCriteria } from "@/lib/ai-rubrics";
 import { getSpeakingExamTypeForLanguageCode } from "@/lib/test-rules";
 import {
   averageScoreKeys,
@@ -16,12 +17,17 @@ export type TestAiFeedback = {
   scoreOnly?: boolean;
   language: string;
   overallScore: number;
+  totalScore?: number;
   taskRelevance?: number;
   onTopic?: boolean;
   offTopicReason?: string;
   detailedComment?: string;
   sampleAnswer?: string;
   criteria?: Record<string, number>;
+  criteriaScores?: Record<string, number>;
+  majorErrors?: string[];
+  improvementsNeeded?: string[];
+  certificateFit?: string;
   band?: { system: string; level: string; score: number; rationale: string };
   summary: string;
   strengths: string[];
@@ -79,6 +85,12 @@ function clampPercent(value: unknown) {
   return Math.max(0, Math.min(100, score <= 10 ? score * 10 : score));
 }
 
+function clampCriterionPercent(value: unknown) {
+  const score = Number(value);
+  if (!Number.isFinite(score)) return 0;
+  return Math.max(0, Math.min(100, score <= 10 ? score * 10 : score));
+}
+
 function stringArray(value: unknown) {
   if (!Array.isArray(value)) return [];
   return value.map((item) => String(item).trim()).filter(Boolean).slice(0, 4);
@@ -105,18 +117,33 @@ function booleanValue(value: unknown, fallback: boolean) {
   return fallback;
 }
 
+function getTargetLanguageName(languageCode?: string | null) {
+  const normalized = (languageCode || "").toLowerCase();
+  if (normalized.startsWith("ja") || normalized.startsWith("jp")) return "Japanese";
+  if (normalized.startsWith("zh") || normalized.startsWith("cn")) return "Chinese";
+  if (normalized.startsWith("ko") || normalized.startsWith("kr")) return "Korean";
+  if (normalized.startsWith("vi") || normalized.startsWith("vn")) return "Vietnamese";
+  if (normalized.startsWith("en")) return "English";
+  return "the submitted language";
+}
+
 function toScoreOnlyFeedback(feedback: TestAiFeedback): TestAiFeedback {
   return {
     mode: feedback.mode,
     scoreOnly: true,
     language: feedback.language,
     overallScore: feedback.overallScore,
+    totalScore: feedback.totalScore,
     taskRelevance: feedback.taskRelevance,
     onTopic: feedback.onTopic,
     offTopicReason: "",
     detailedComment: "",
     sampleAnswer: "",
     criteria: feedback.criteria,
+    criteriaScores: feedback.criteriaScores,
+    majorErrors: [],
+    improvementsNeeded: [],
+    certificateFit: feedback.certificateFit,
     band: feedback.band
       ? { ...feedback.band, rationale: "" }
       : undefined,
@@ -312,6 +339,28 @@ function parseBatchResponse(raw: string, inputs: TestAiAnswerInput[]) {
     const relevance = clampPercent(source.taskRelevance ?? source.task_relevance ?? 100);
     const rawBand = (source.band || {}) as Record<string, unknown>;
     const rawCriteria = (source.criteria || {}) as Record<string, unknown>;
+    const rubric = getCertificateRubric(input.languageCode, mode);
+    const rawCriteria100 = (
+      source.criteriaScores ??
+      source.criteria_scores ??
+      source.rubricCriteria ??
+      source.rubric_criteria ??
+      source.criteria ??
+      {}
+    ) as Record<string, unknown>;
+    const criteriaScores = Object.fromEntries(
+      rubric.criteria.map((item) => [
+        item.key,
+        clampCriterionPercent(rawCriteria100[item.key] ?? rawCriteria[item.key]),
+      ]),
+    );
+    const reportedTotalScore = clampCriterionPercent(
+      source.totalScore ??
+        source.total_score ??
+        source.overallScore100 ??
+        source.overall_score_100,
+    );
+    const totalScore = reportedTotalScore || weightedScoreFromCriteria(criteriaScores, rubric);
     const parsedCriteria = Object.fromEntries(
       Object.entries(rawCriteria).map(([key, value]) => [key, clampScore(value)]),
     );
@@ -331,8 +380,9 @@ function parseBatchResponse(raw: string, inputs: TestAiAnswerInput[]) {
 
     const aiEvaluation: TestAiFeedback = {
       mode,
-      language: String(source.language || "Unknown"),
+      language: String(source.language || getTargetLanguageName(input.languageCode)),
       overallScore: normalizedScore,
+      totalScore,
       taskRelevance: relevance,
       onTopic,
       offTopicReason: String(
@@ -343,10 +393,14 @@ function parseBatchResponse(raw: string, inputs: TestAiAnswerInput[]) {
       detailedComment: String(source.detailedComment ?? source.detailed_comment ?? source.summary ?? ""),
       sampleAnswer: String(source.sampleAnswer ?? source.sample_answer ?? ""),
       criteria,
+      criteriaScores,
+      majorErrors: stringArray(source.majorErrors ?? source.major_errors),
+      improvementsNeeded: stringArray(source.improvementsNeeded ?? source.improvements_needed),
+      certificateFit: String(source.certificateFit ?? source.certificate_fit ?? ""),
       band: {
-        system: String(rawBand.system || (mode === "SPEAKING" ? "GENERAL_SPEAKING" : "GENERAL_WRITING")),
-        level: `${normalizedScore.toFixed(1)}/10`,
-        score: normalizedScore,
+        system: String(rawBand.system || rubric.system),
+        level: String(rawBand.level || `${totalScore}/100`),
+        score: Number(rawBand.score ?? normalizedScore),
         rationale: String(rawBand.rationale || ""),
       },
       summary: String(source.summary || "AI evaluation completed."),
@@ -386,6 +440,7 @@ function buildEvaluationMessages(
       role: "system" as const,
       content: `You are a strict language examiner. Grade every submitted answer independently.
 Return only compact valid JSON. Criteria and overall scores use a 0-10 scale. Task relevance uses a 0-100 scale.
+Also grade with the provided certificateRubric. Return criteriaScores on a 0-100 scale using the exact rubric criterion keys and weights. Return totalScore as a weighted 0-100 score. Include majorErrors, improvementsNeeded, suggestions, sampleAnswer, and certificateFit.
 Task relevance is mandatory. If the answer does not address the requested topic or required points, set onTopic=false, explain why, and score it very low.
 Completely unrelated answers: relevance <=20 and overall <=1.5. Mostly unrelated answers: relevance <=40 and overall <=3. Partly off-topic answers: relevance <=60 and overall <=5.
 Calibrate conservatively. A score of 5 is limited, 6 is competent with noticeable limitations, 7 requires consistently developed ideas and flexible language, 8 requires precise wide-ranging language and strong control, and 9-10 must be rare and exceptional. Start at 5 and increase only when the answer demonstrates concrete evidence for the higher level.
@@ -394,6 +449,7 @@ For speaking transcripts, calculate overallScore from fluency, vocabulary, gramm
 Speaking transcripts may come from browser automatic speech recognition. Isolated misspellings, homophones, missing punctuation, or contextually improbable substitutions may be recognition errors. Infer an intended word only when the prompt and surrounding sentence provide strong evidence. Do not penalize that isolated token as a definite learner error, but do not excuse repeated misuse, broken grammar, or plausible learner mistakes. If uncertain, label it as a possible recognition error. Transcript spelling alone is not pronunciation evidence.
 For speaking, set onTopic=true whenever the answer addresses the requested topic, even if grammar, pronunciation, fluency, or the overall score is weak.
 Use each input's languageCode to identify the submitted language. Grade grammar, vocabulary, coherence, and task response according to that language, and write feedback and the sample answer in the same language.
+Each input also has targetLanguage. Every human-readable value for language, offTopicReason, detailedComment, sampleAnswer, certificateFit, band.rationale, summary, majorErrors, improvementsNeeded, strengths, weaknesses, feedback, suggestions, corrections.reason, pronunciationErrors, grammarErrors, vocabularyErrors, fluencyIssues, and practiceMethods must be written in targetLanguage. Do not use English section labels or English advice for non-English targetLanguage inputs. Do not embed labels such as "suggestions", "sample Answer", "strengths", or "weaknesses" inside string values; return only the actual content.
 When an input has scoreOnly=true, calculate all numeric scores normally but set every comment string, sampleAnswer, correction, and feedback array to empty. Do not provide explanations or improvement advice.
 Unless scoreOnly=true, always provide a detailedComment with actionable feedback and a sampleAnswer that correctly answers the original prompt. For WRITING use about 120-180 words. For SPEAKING use a natural model response of about 80-120 words.
 Use at most two items per feedback array and at most one correction. Keep the JSON concise.${retryInstruction}`,
@@ -404,7 +460,7 @@ Use at most two items per feedback array and at most one correction. Keep the JS
 ${JSON.stringify(payload)}
 
 Return exactly:
-{"results":[{"questionId":"id","language":"language","overallScore":0,"taskRelevance":0,"onTopic":true,"offTopicReason":"","criteria":{"grammar":0,"vocabulary":0,"coherence":0,"task_response":0,"fluency":0,"pronunciation":0},"band":{"system":"system","level":"level","rationale":"short"},"summary":"short","detailedComment":"clear grading comment","strengths":["short"],"weaknesses":["short"],"feedback":["short"],"suggestions":["short"],"corrections":[{"original":"text","improved":"text","reason":"short"}],"sampleAnswer":"complete model answer that directly answers the prompt"}]}`,
+{"results":[{"questionId":"id","language":"language","overallScore":0,"totalScore":0,"taskRelevance":0,"onTopic":true,"offTopicReason":"","criteria":{"grammar":0,"vocabulary":0,"coherence":0,"task_response":0,"fluency":0,"pronunciation":0},"criteriaScores":{"criterion_key":0},"band":{"system":"system","level":"level","rationale":"short"},"certificateFit":"short fit against the certificate level/system","summary":"short","detailedComment":"clear grading comment","majorErrors":["short"],"improvementsNeeded":["short"],"strengths":["short"],"weaknesses":["short"],"feedback":["short"],"suggestions":["short"],"corrections":[{"original":"text","improved":"text","reason":"short"}],"sampleAnswer":"complete model answer that directly answers the prompt"}]}`,
     },
   ];
 }
@@ -423,18 +479,20 @@ export async function evaluateTestAiAnswers(inputs: TestAiAnswerInput[]) {
           input.mode === "SPEAKING"
             ? input.examType || getSpeakingExamTypeForLanguageCode(input.languageCode)
             : input.examType || "GENERAL_WRITING",
+        certificateRubric: getCertificateRubric(input.languageCode, input.mode),
         languageCode: input.languageCode || "",
+        targetLanguage: getTargetLanguageName(input.languageCode),
         prompt: input.prompt || "",
-          answer: input.answer,
-          scoreOnly: Boolean(input.scoreOnly),
-        }));
+        answer: input.answer,
+        scoreOnly: Boolean(input.scoreOnly),
+      }));
       let parsedResults: Map<string, TestAiAnswerResult> | null = null;
       let lastResponseError: AiEvaluationResponseError | null = null;
 
       for (let responseAttempt = 1; responseAttempt <= 2; responseAttempt += 1) {
         const raw = await ollamaService.chat(
           buildEvaluationMessages(payload, responseAttempt > 1),
-          { maxOutputTokens: 1200 },
+          { maxOutputTokens: chunk.some((input) => !input.scoreOnly) ? 3500 : 1800 },
         );
 
         try {

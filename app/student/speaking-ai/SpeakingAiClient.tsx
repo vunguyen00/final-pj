@@ -221,6 +221,24 @@ function toDisplayCriterionName(key: string) {
   return labels[key] || key.replace(/_/g, " ").replace(/([A-Z])/g, " $1").trim();
 }
 
+async function decodeAudioToMono16Khz(blob: Blob) {
+  const audioContext = new AudioContext();
+  try {
+    const decoded = await audioContext.decodeAudioData(await blob.arrayBuffer());
+    const targetSampleRate = 16000;
+    const frameCount = Math.max(1, Math.ceil(decoded.duration * targetSampleRate));
+    const offlineContext = new OfflineAudioContext(1, frameCount, targetSampleRate);
+    const source = offlineContext.createBufferSource();
+    source.buffer = decoded;
+    source.connect(offlineContext.destination);
+    source.start();
+    const rendered = await offlineContext.startRendering();
+    return new Float32Array(rendered.getChannelData(0));
+  } finally {
+    await audioContext.close().catch(() => undefined);
+  }
+}
+
 export default function SpeakingAiClient({ initialConfig }: { initialConfig: InitialSpeakingConfig }) {
   const controller = useSpeakingAiController(initialConfig);
   return <SpeakingAiView controller={controller} />;
@@ -241,6 +259,26 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
   const spentSeconds = useMemo(() => Math.max(0, state.durationSeconds - state.timeLeft), [state.durationSeconds, state.timeLeft]);
   const currentTurnTranscript = state.transcriptDraft.trim();
   const speakingTaskOptions = useMemo(() => getSpeakingTaskOptions(state.speakingLanguage), [state.speakingLanguage]);
+
+  async function startAiFeedbackPayment() {
+    dispatch({ type: "PATCH", patch: { error: "" } });
+    try {
+      const returnTo = `${window.location.pathname}${window.location.search}`;
+      const response = await fetch("/api/ai/points/buy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ points: 7, returnTo }),
+      });
+      const data = (await response.json().catch(() => ({}))) as { paymentUrl?: string; error?: string };
+      if (!response.ok || !data.paymentUrl) {
+        dispatch({ type: "PATCH", patch: { error: data.error || "Không tạo được giao dịch thanh toán." } });
+        return;
+      }
+      window.location.href = data.paymentUrl;
+    } catch {
+      dispatch({ type: "PATCH", patch: { error: "Không tạo được giao dịch thanh toán." } });
+    }
+  }
 
   useEffect(() => {
     if (!state.sessionRunning) return;
@@ -329,24 +367,6 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
       streamRef.current = null;
     }
     dispatch({ type: "PATCH", patch: { recording: false } });
-  }
-
-  async function decodeAudioToMono16Khz(blob: Blob) {
-    const audioContext = new AudioContext();
-    try {
-      const decoded = await audioContext.decodeAudioData(await blob.arrayBuffer());
-      const targetSampleRate = 16000;
-      const frameCount = Math.max(1, Math.ceil(decoded.duration * targetSampleRate));
-      const offlineContext = new OfflineAudioContext(1, frameCount, targetSampleRate);
-      const source = offlineContext.createBufferSource();
-      source.buffer = decoded;
-      source.connect(offlineContext.destination);
-      source.start();
-      const rendered = await offlineContext.startRendering();
-      return new Float32Array(rendered.getChannelData(0));
-    } finally {
-      await audioContext.close().catch(() => undefined);
-    }
   }
 
   function getTranscriptionWorker() {
@@ -492,6 +512,14 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
 
   async function finishAndSubmit(autoSubmit: boolean, includeAiFeedback = false) {
     if (!state.sessionRunning || submittingRef.current) return;
+    const paymentTxnRef = "";
+    if (false && includeAiFeedback && initialConfig.userRole !== "ADMIN" && !paymentTxnRef) {
+      dispatch({
+        type: "PATCH",
+        patch: { error: "Bạn cần thanh toán lượt nhận xét AI trước khi kết thúc phiên nói." },
+      });
+      return;
+    }
     submittingRef.current = true;
 
     dispatch({ type: "PATCH", patch: { sessionRunning: false } });
@@ -520,6 +548,7 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
       form.set("conversation", "[]");
       form.set("transcriptionSource", "whisper-browser");
       form.set("includeAiFeedback", String(includeAiFeedback));
+      if (paymentTxnRef) form.set("paymentTxnRef", paymentTxnRef);
       form.set("language", state.speakingLanguage);
       form.set("durationSeconds", String(Math.max(1, spentSeconds || state.durationSeconds)));
       form.set("title", `Speaking AI - ${getSpeakingLanguageLabel(state.speakingLanguage)}`);
@@ -534,6 +563,10 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
       const data = (await response.json().catch(() => ({}))) as SpeakingResult & { error?: string };
 
       if (!response.ok) {
+        if ((data as { requiresPointPurchase?: boolean }).requiresPointPurchase) {
+          dispatch({ type: "PATCH", patch: { error: data.error || "Thanh toán lượt nhận xét AI không hợp lệ." } });
+          return;
+        }
         dispatch({ type: "PATCH", patch: { error: data.error || "Không chấm được bài nói." } });
         return;
       }
@@ -570,6 +603,7 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
     startSession,
     finishAndSubmit,
     generateSpeakingTopic,
+    startAiFeedbackPayment,
   };
 }
 
@@ -606,7 +640,7 @@ function SpeakingHeader({ userRole }: { userRole: string }) {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
-            Chấm điểm miễn phí · Nhận xét AI {userRole !== "ADMIN" ? "-7 hạt đậu" : "miễn phí cho quản trị viên"}
+            Chấm điểm miễn phí · Nhận xét AI {userRole !== "ADMIN" ? "thanh toán theo lượt" : "miễn phí cho quản trị viên"}
           </p>
           <h1 className="mt-2 text-3xl font-bold text-slate-950">Luyện nói và chấm điểm bằng AI</h1>
           <p className="mt-2 max-w-3xl text-slate-600">
@@ -662,6 +696,7 @@ function SpeakingSessionPanel({ controller }: { controller: SpeakingController }
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         {!state.sessionRunning ? (
+          <>
           <button
             type="button"
             onClick={() => void startSession()}
@@ -678,13 +713,19 @@ function SpeakingSessionPanel({ controller }: { controller: SpeakingController }
                   ? "Đang khởi động micro..."
                   : "Bắt đầu thi nói"}
           </button>
+          {userRole !== "ADMIN" ? (
+            <button type="button" onClick={() => void controller.startAiFeedbackPayment()} disabled={state.loading || state.preparingSession} className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300">
+              Thanh toán lượt nhận xét AI
+            </button>
+          ) : null}
+          </>
         ) : (
           <>
             <button type="button" onClick={() => void finishAndSubmit(false, false)} disabled={state.loading} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300">
               Kết thúc và chấm điểm miễn phí
             </button>
             <button type="button" onClick={() => void finishAndSubmit(false, true)} disabled={state.loading} className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300">
-              Kết thúc và nhận xét AI{userRole !== "ADMIN" ? " (-7 hạt đậu)" : ""}
+              Kết thúc và nhận xét AI{userRole !== "ADMIN" ? " (đã thanh toán)" : ""}
             </button>
           </>
         )}
@@ -781,10 +822,10 @@ function SavedResultNotice({ result, userRole, scoreOnly }: { result: SpeakingRe
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4">
       <p className="text-sm font-semibold text-red-600">
         {scoreOnly
-          ? "Chấm điểm miễn phí · Không trừ hạt đậu"
+          ? "Chấm điểm miễn phí"
           : userRole !== "ADMIN"
-            ? `Nhận xét AI · -${result.points?.spent ?? 7} hạt đậu`
-            : "Nhận xét AI · Không trừ hạt đậu"}
+            ? "Nhận xét AI · Đã thanh toán"
+            : "Nhận xét AI · Miễn phí cho quản trị viên"}
       </p>
       <Link href={`/student/results/${result.assessmentId}`} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">
         Xem chi tiết đã lưu
@@ -830,10 +871,10 @@ function LegacyResultSummary({
           </p>
           <p className="text-sm font-semibold text-red-600">
             {scoreOnly
-              ? "Chấm điểm miễn phí · Không trừ hạt đậu"
+              ? "Chấm điểm miễn phí"
               : userRole !== "ADMIN"
-                ? `Nhận xét AI · -${result.points?.spent ?? 7} hạt đậu`
-                : "Nhận xét AI · Không trừ hạt đậu"}
+                ? "Nhận xét AI · Đã thanh toán"
+                : "Nhận xét AI · Miễn phí cho quản trị viên"}
           </p>
           {!scoreOnly ? (
             <p className="mt-1 text-xs font-semibold text-slate-500">Bám đề: {Math.round(result.data.evaluation.taskRelevance ?? 0)}/100</p>

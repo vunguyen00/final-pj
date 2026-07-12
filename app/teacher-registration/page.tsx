@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SpeakingAnswerInput } from "@/app/components/SpeakingAnswerInput";
 import { FormattedHint } from "@/app/components/FormattedHint";
+import { getLearningUiLabels } from "@/lib/test-language-labels";
 import { getSpeechRecognitionLocale } from "@/lib/test-rules";
 
 type Language = { id: string; name: string; code: string };
@@ -58,6 +59,11 @@ type SubmittedQuestionResult = {
   aiEvaluation?: SubmittedAiEvaluation;
 };
 
+function formatCountdown(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
 export default function TeacherRegistrationPage() {
   const [enabled, setEnabled] = useState(false);
   const [languages, setLanguages] = useState<Language[]>([]);
@@ -70,6 +76,7 @@ export default function TeacherRegistrationPage() {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [message, setMessage] = useState("");
   const [submittedQuestionResults, setSubmittedQuestionResults] = useState<SubmittedQuestionResult[]>([]);
+  const [submittedLanguageCode, setSubmittedLanguageCode] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [speakingBusyByQuestion, setSpeakingBusyByQuestion] = useState<
     Record<string, boolean>
@@ -168,8 +175,18 @@ export default function TeacherRegistrationPage() {
   }, [activeApplication]);
 
   const latestApplications = applications.slice(0, 5);
+  const selectedLanguageCode =
+    activeApplication?.language.code ||
+    submittedLanguageCode ||
+    languages.find((language) => language.id === languageId)?.code ||
+    null;
+  const ui = getLearningUiLabels(selectedLanguageCode);
   const speechLocale = getSpeechRecognitionLocale(activeApplication?.language.code);
   const testLocked = submitting || timeLeft === 0;
+  const submittedAiQuestionResults = useMemo(
+    () => submittedQuestionResults.filter((item) => item.aiEvaluation),
+    [submittedQuestionResults],
+  );
 
   async function loadData() {
     const response = await fetch("/api/teacher-applications", { cache: "no-store" });
@@ -241,7 +258,7 @@ export default function TeacherRegistrationPage() {
     if (!activeApplication || submitting) return;
     if (Object.values(speakingBusyRef.current).some(Boolean)) {
       setMessage(
-        "Hãy dừng ghi âm và đợi hệ thống phân tích âm thanh xong trước khi nộp bài.",
+        ui.teacherEntrance.stopRecordingMessage,
       );
       return;
     }
@@ -254,10 +271,11 @@ export default function TeacherRegistrationPage() {
     const data = await response.json().catch(() => ({}));
     setSubmitting(false);
     if (!response.ok) {
-      setMessage(data?.error || "Không thể nộp bài test.");
+      setMessage(data?.error || ui.teacherEntrance.submitFailed);
       return;
     }
-    setMessage("Đã nộp bài test. Hồ sơ đang chờ admin review.");
+    setSubmittedLanguageCode(activeApplication.language.code);
+    setMessage(ui.teacherEntrance.submitSuccess);
     setSubmittedQuestionResults(data.questionResults || []);
     setActiveApplication(null);
     setTimeLeft(null);
@@ -277,11 +295,6 @@ export default function TeacherRegistrationPage() {
     };
     setSpeakingBusyByQuestion(speakingBusyRef.current);
   }
-
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
-  };
 
   if (!enabled) {
     return (
@@ -308,7 +321,7 @@ export default function TeacherRegistrationPage() {
             </div>
             {timeLeft !== null ? (
               <div className={`rounded-lg px-4 py-2 text-lg font-bold ${timeLeft < 300 ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"}`}>
-                {formatTime(timeLeft)}
+                {formatCountdown(timeLeft)}
               </div>
             ) : null}
           </div>
@@ -316,35 +329,35 @@ export default function TeacherRegistrationPage() {
 
         {message ? <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">{message}</div> : null}
 
-        {submittedQuestionResults.some((item) => item.aiEvaluation) ? (
+        {submittedAiQuestionResults.length > 0 ? (
           <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
-            <h2 className="text-xl font-bold text-slate-950">Nhận xét AI sau khi chấm</h2>
+            <h2 className="text-xl font-bold text-slate-950">{ui.teacherEntrance.aiFeedbackAfterScore}</h2>
             <div className="mt-4 space-y-4">
-              {submittedQuestionResults.filter((item) => item.aiEvaluation).map((item) => {
+              {submittedAiQuestionResults.map((item) => {
                 const evaluation = item.aiEvaluation!;
                 return (
                   <article key={item.questionId} className="rounded-lg border border-slate-200 p-4">
                     <p className="font-semibold text-slate-900">{item.content}</p>
                     <p className="mt-2 text-sm font-semibold text-blue-700">
-                      {item.earnedScore}/{item.score} điểm - AI {evaluation.overallScore}/10 - Bám đề {Math.round(evaluation.taskRelevance ?? 0)}/100
+                      {item.earnedScore}/{item.score} {ui.test.points} - AI {evaluation.overallScore}/10 - {ui.teacherEntrance.relevance} {Math.round(evaluation.taskRelevance ?? 0)}/100
                     </p>
                     {evaluation.onTopic === false ? (
                       <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">
-                        Lạc đề: {evaluation.offTopicReason || "Câu trả lời chưa đúng trọng tâm đề bài."}
+                        {ui.teacherEntrance.offTopic}: {evaluation.offTopicReason || ui.teacherEntrance.offTopicFallback}
                       </p>
                     ) : null}
                     <p className="mt-3 text-sm leading-6 text-slate-700">
                       {evaluation.detailedComment || evaluation.summary}
                     </p>
                     {evaluation.weaknesses.length ? (
-                      <p className="mt-2 text-sm text-slate-700">Cần cải thiện: {evaluation.weaknesses.join("; ")}</p>
+                      <p className="mt-2 text-sm text-slate-700">{ui.teacherEntrance.needsImprovement}: {evaluation.weaknesses.join("; ")}</p>
                     ) : null}
                     {evaluation.suggestions.length ? (
-                      <p className="mt-2 text-sm text-slate-700">Gợi ý: {evaluation.suggestions.join("; ")}</p>
+                      <p className="mt-2 text-sm text-slate-700">{ui.teacherEntrance.suggestions}: {evaluation.suggestions.join("; ")}</p>
                     ) : null}
                     {evaluation.sampleAnswer ? (
                       <div className="mt-4 rounded-lg bg-slate-50 p-4">
-                        <p className="text-sm font-semibold text-slate-900">Bài mẫu đúng đề</p>
+                        <p className="text-sm font-semibold text-slate-900">{ui.teacherEntrance.sampleAnswer}</p>
                         <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-700">{evaluation.sampleAnswer}</p>
                       </div>
                     ) : null}
@@ -362,8 +375,8 @@ export default function TeacherRegistrationPage() {
               {questions.map((question, index) => (
                 <article key={question.id} className="rounded-lg border border-slate-200 p-4">
                   <div className="flex items-center gap-2 text-sm text-slate-500">
-                    <span className="font-semibold text-slate-900">Câu {index + 1}</span>
-                    <span>{question.score} điểm</span>
+                    <span className="font-semibold text-slate-900">{ui.teacherEntrance.question(index + 1)}</span>
+                    <span>{question.score} {ui.test.points}</span>
                   </div>
                   {question.audioUrl ? <audio controls={!testLocked} className="mt-3 w-full max-w-md" src={question.audioUrl} /> : null}
                   <p className="mt-3 font-medium text-slate-900">{question.content}</p>
@@ -385,6 +398,7 @@ export default function TeacherRegistrationPage() {
                       : null}
                     {question.type === "FILL_IN_BLANK" ? (
                       <input
+                        aria-label={ui.test.fillPlaceholder}
                         value={answers[question.id] || ""}
                         disabled={testLocked}
                         onChange={(event) => setAnswers((prev) => ({ ...prev, [question.id]: event.target.value }))}
@@ -393,6 +407,7 @@ export default function TeacherRegistrationPage() {
                     ) : null}
                     {question.type === "ESSAY" ? (
                       <textarea
+                        aria-label={ui.test.essayPlaceholder}
                         rows={6}
                         value={answers[question.id] || ""}
                         disabled={testLocked}
@@ -417,11 +432,12 @@ export default function TeacherRegistrationPage() {
               ))}
             </div>
             <button
+              type="button"
               onClick={() => void submitTest()}
               disabled={testLocked}
               className="mt-6 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              {submitting ? "Đang nộp..." : "Nộp bài test"}
+              {submitting ? ui.teacherEntrance.submitting : ui.teacherEntrance.submitTest}
             </button>
           </section>
         ) : (
@@ -450,12 +466,13 @@ export default function TeacherRegistrationPage() {
                 />
               </label>
               {files.map((file, index) => (
-                <div key={`${file.name}-${index}`} className="grid gap-2 rounded-lg border border-slate-200 p-3 sm:grid-cols-[1fr_180px]">
+                <div key={`${file.name}-${file.lastModified}-${file.size}`} className="grid gap-2 rounded-lg border border-slate-200 p-3 sm:grid-cols-[1fr_180px]">
                   <div>
                     <p className="font-medium text-slate-900">{file.name}</p>
                     <p className="text-sm text-slate-500">{Math.round(file.size / 1024)} KB</p>
                   </div>
                   <input
+                    aria-label={`${file.name} expiry date`}
                     type="date"
                     value={expiryDates[index] || ""}
                     onChange={(event) => setExpiryDates((prev) => prev.map((value, itemIndex) => (itemIndex === index ? event.target.value : value)))}
@@ -463,26 +480,26 @@ export default function TeacherRegistrationPage() {
                   />
                 </div>
               ))}
-              <button disabled={submitting} className="w-fit rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
-                {submitting ? "Đang lưu..." : "Tiếp tục"}
+              <button type="submit" disabled={submitting} className="w-fit rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+                {submitting ? ui.result.saving : ui.submit}
               </button>
             </form>
           </section>
         )}
 
         <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
-          <h2 className="text-xl font-bold text-slate-950">Lịch sử apply</h2>
+          <h2 className="text-xl font-bold text-slate-950">{ui.teacherEntrance.history}</h2>
           <div className="mt-4 space-y-3">
-            {latestApplications.length === 0 ? <p className="text-sm text-slate-500">Chưa có hồ sơ nào.</p> : null}
+            {latestApplications.length === 0 ? <p className="text-sm text-slate-500">{ui.teacherEntrance.noApplications}</p> : null}
             {latestApplications.map((application) => (
               <div key={application.id} className="rounded-lg border border-slate-200 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="font-semibold text-slate-900">
-                    Lần #{application.attemptNo} - {application.language.name}
+                    {ui.teacherEntrance.applicationAttempt(application.attemptNo)} - {application.language.name}
                   </p>
                   <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">{application.status}</span>
                 </div>
-                <p className="mt-1 text-sm text-slate-500">{new Date(application.createdAt).toLocaleString("vi-VN")}</p>
+                <p className="mt-1 text-sm text-slate-500">{new Date(application.createdAt).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}</p>
               </div>
             ))}
           </div>

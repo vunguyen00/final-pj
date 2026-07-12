@@ -56,7 +56,7 @@ VNPAY_RETURN_PATH="/api/wallet/vnpay-return"
 VNPAY_IPN_PATH="/api/wallet/vnpay-ipn"
 
 OLLAMA_URL="http://127.0.0.1:11434"
-OLLAMA_MODEL="gemma4:31b-cloud"
+OLLAMA_MODEL="minimax-m3:cloud"
 OLLAMA_NUM_PREDICT="7000"
 
 AI_POINT_PRICE_VND="1000"

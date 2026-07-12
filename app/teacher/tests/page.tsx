@@ -3,7 +3,11 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { RevenueWithdrawalPanel } from "@/app/teacher/tests/RevenueWithdrawalPanel";
-import { calculateAvailableTeacherRevenue, RESERVED_WITHDRAWAL_STATUSES } from "@/lib/teacher-revenue";
+import {
+  calculateAvailableTeacherRevenue,
+  REVENUE_ELIGIBLE_ORDER_ITEM_WHERE,
+  RESERVED_WITHDRAWAL_STATUSES,
+} from "@/lib/teacher-revenue";
 
 export const metadata = {
   title: "Doanh thu giảng viên | FinnCenter",
@@ -48,7 +52,7 @@ export default async function TeacherRevenuePage() {
     redirect("/admin");
   }
 
-  const [courses, orderItems, withdrawals, reservedWithdrawals, revenueNotifications, unreadRevenueNotificationCount] = await Promise.all([
+  const [courses, orderItems, withdrawals, reservedWithdrawals, revenueNotifications, unreadRevenueNotificationCount, teacherBankAccount] = await Promise.all([
     prisma.course.findMany({
       where: { instructorId: user.id },
       select: {
@@ -62,7 +66,10 @@ export default async function TeacherRevenuePage() {
       orderBy: { createdAt: "desc" },
     }),
     prisma.orderItem.findMany({
-      where: { course: { instructorId: user.id } },
+      where: {
+        course: { instructorId: user.id },
+        ...REVENUE_ELIGIBLE_ORDER_ITEM_WHERE,
+      },
       select: {
         id: true,
         courseId: true,
@@ -127,6 +134,17 @@ export default async function TeacherRevenuePage() {
         userId: user.id,
         title: { contains: "doanh thu", mode: "insensitive" },
         readAt: null,
+      },
+    }),
+    prisma.teacherBankAccount.findUnique({
+      where: { teacherId: user.id },
+      select: {
+        bankName: true,
+        accountNumber: true,
+        accountName: true,
+        branch: true,
+        verificationStatus: true,
+        updatedAt: true,
       },
     }),
   ]);
@@ -194,6 +212,10 @@ export default async function TeacherRevenuePage() {
 
         <RevenueWithdrawalPanel
           availableRevenue={availableRevenue}
+          bankAccount={teacherBankAccount ? {
+            ...teacherBankAccount,
+            updatedAt: teacherBankAccount.updatedAt.toISOString(),
+          } : null}
           unreadNotificationCount={unreadRevenueNotificationCount}
           withdrawals={withdrawals.map((item) => ({
             ...item,

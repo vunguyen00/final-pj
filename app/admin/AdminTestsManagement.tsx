@@ -12,26 +12,50 @@ type TestForm = {
   timeLimit: string;
 };
 
-const defaultTeacherEntranceForm: TestForm = {
-  name: "",
-  description: "",
-  languageId: "",
-  assessmentMode: "WRITING",
-  timeLimit: "60",
-};
+type ManagedTestKind = "TEACHER_ENTRANCE" | "PUBLIC_PRACTICE";
 
-const defaultPublicPracticeForm: TestForm = {
-  name: "",
-  description: "",
-  languageId: "",
-  assessmentMode: "STANDARD",
-  timeLimit: "30",
+const DEFAULT_FORM_BY_KIND: Record<ManagedTestKind, TestForm> = {
+  TEACHER_ENTRANCE: {
+    name: "",
+    description: "",
+    languageId: "",
+    assessmentMode: "WRITING",
+    timeLimit: "60",
+  },
+  PUBLIC_PRACTICE: {
+    name: "",
+    description: "",
+    languageId: "",
+    assessmentMode: "STANDARD",
+    timeLimit: "30",
+  },
 };
 
 function labelForKind(kind: AdminManagedTest["kind"]) {
   return kind === "TEACHER_ENTRANCE"
     ? "Đề đầu vào giảng viên"
     : "Đề luyện tập công khai";
+}
+
+function descriptionForKind(kind: ManagedTestKind) {
+  return kind === "TEACHER_ENTRANCE"
+    ? "Hệ thống chọn ngẫu nhiên một đề hợp lệ theo ngôn ngữ khi ứng viên bắt đầu thi."
+    : "Tạo đề luyện tập cho học viên và gắn đúng ngôn ngữ.";
+}
+
+function buildTestPayload(
+  form: TestForm,
+  kind: ManagedTestKind,
+) {
+  return {
+    name: form.name.trim(),
+    description: form.description.trim() || null,
+    kind,
+    languageId: form.languageId,
+    assessmentMode: form.assessmentMode,
+    passingScore: 60,
+    timeLimit: form.timeLimit ? Number(form.timeLimit) : null,
+  };
 }
 
 export default function AdminTestsManagement({
@@ -47,35 +71,19 @@ export default function AdminTestsManagement({
   const [adminManagedTests, setAdminManagedTests] = useState(
     initialAdminManagedTests,
   );
-  const [teacherEntranceForm, setTeacherEntranceForm] = useState<TestForm>(
-    defaultTeacherEntranceForm,
-  );
-  const [publicPracticeForm, setPublicPracticeForm] = useState<TestForm>(
-    defaultPublicPracticeForm,
+  const [selectedKind, setSelectedKind] =
+    useState<ManagedTestKind>("TEACHER_ENTRANCE");
+  const [testForm, setTestForm] = useState<TestForm>(
+    DEFAULT_FORM_BY_KIND.TEACHER_ENTRANCE,
   );
   const [message, setMessage] = useState("");
 
   if (!isAdmin) return null;
 
-  function buildTestPayload(
-    form: TestForm,
-    kind: "TEACHER_ENTRANCE" | "PUBLIC_PRACTICE",
-  ) {
-    return {
-      name: form.name.trim(),
-      description: form.description.trim() || null,
-      kind,
-      languageId: form.languageId,
-      assessmentMode: form.assessmentMode,
-      passingScore: 60,
-      timeLimit: form.timeLimit ? Number(form.timeLimit) : null,
-    };
-  }
-
   async function createManagedTest(
     event: React.FormEvent,
     form: TestForm,
-    kind: "TEACHER_ENTRANCE" | "PUBLIC_PRACTICE",
+    kind: ManagedTestKind,
     reset: () => void,
   ) {
     event.preventDefault();
@@ -166,37 +174,26 @@ export default function AdminTestsManagement({
           </p>
         </div>
 
-        <div className="mt-5 grid gap-5 xl:grid-cols-2">
+        <div className="mt-5">
           <ManagedTestForm
-            title="Đề đầu vào giảng viên"
-            description="Hệ thống chọn ngẫu nhiên một đề hợp lệ theo ngôn ngữ khi ứng viên bắt đầu thi."
-            accent="blue"
-            form={teacherEntranceForm}
+            kind={selectedKind}
+            form={testForm}
             languages={languages}
-            onChange={setTeacherEntranceForm}
+            onKindChange={(kind) => {
+              setSelectedKind(kind);
+              setTestForm((current) => ({
+                ...current,
+                assessmentMode: DEFAULT_FORM_BY_KIND[kind].assessmentMode,
+                timeLimit: DEFAULT_FORM_BY_KIND[kind].timeLimit,
+              }));
+            }}
+            onChange={setTestForm}
             onSubmit={(event) =>
               void createManagedTest(
                 event,
-                teacherEntranceForm,
-                "TEACHER_ENTRANCE",
-                () => setTeacherEntranceForm(defaultTeacherEntranceForm),
-              )
-            }
-          />
-
-          <ManagedTestForm
-            title="Đề luyện tập công khai"
-            description="Tạo đề luyện tập cho học viên và gắn đúng ngôn ngữ."
-            accent="emerald"
-            form={publicPracticeForm}
-            languages={languages}
-            onChange={setPublicPracticeForm}
-            onSubmit={(event) =>
-              void createManagedTest(
-                event,
-                publicPracticeForm,
-                "PUBLIC_PRACTICE",
-                () => setPublicPracticeForm(defaultPublicPracticeForm),
+                testForm,
+                selectedKind,
+                () => setTestForm(DEFAULT_FORM_BY_KIND[selectedKind]),
               )
             }
           />
@@ -266,67 +263,102 @@ export default function AdminTestsManagement({
 }
 
 function ManagedTestForm({
-  title,
-  description,
-  accent,
+  kind,
   form,
   languages,
+  onKindChange,
   onChange,
   onSubmit,
 }: {
-  title: string;
-  description: string;
-  accent: "blue" | "emerald";
+  kind: ManagedTestKind;
   form: TestForm;
   languages: Language[];
+  onKindChange: (kind: ManagedTestKind) => void;
   onChange: (form: TestForm) => void;
   onSubmit: (event: React.FormEvent) => void;
 }) {
   const fieldClass =
     "w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+  const isTeacherEntrance = kind === "TEACHER_ENTRANCE";
 
   return (
     <form
       onSubmit={onSubmit}
-      className="rounded-2xl border border-slate-200 p-5"
+      className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5"
     >
-      <h3 className="font-bold text-slate-900">{title}</h3>
-      <p className="mt-1 min-h-10 text-sm leading-5 text-slate-500">
-        {description}
-      </p>
+      <div>
+        <div>
+          <h3 className="font-bold text-slate-900">Tạo đề mới</h3>
+          <p className="mt-1 text-sm leading-5 text-slate-500">
+            {descriptionForKind(kind)}
+          </p>
+        </div>
+      </div>
 
       <div className="mt-4 space-y-3">
-        <input
-          value={form.name}
-          onChange={(event) => onChange({ ...form, name: event.target.value })}
-          required
-          placeholder="Tên đề test"
-          className={fieldClass}
-        />
-        <textarea
-          value={form.description}
-          onChange={(event) =>
-            onChange({ ...form, description: event.target.value })
-          }
-          rows={3}
-          placeholder="Mô tả hoặc hướng dẫn làm bài"
-          className={fieldClass}
-        />
-        <select
-          value={form.languageId}
-          onChange={(event) =>
-            onChange({ ...form, languageId: event.target.value })
-          }
-          required
-          className={fieldClass}
-        >
-          <option value="">Chọn ngôn ngữ bắt buộc</option>
-          {languages.map((language) => (
-            <option key={language.id} value={language.id}>
-              {language.name} ({language.code})
-            </option>
-          ))}
-        </select>
+        <div>
+          <label
+            htmlFor="managed-test-kind"
+            className="text-xs font-bold uppercase tracking-wide text-slate-500"
+          >
+            Loại đề
+          </label>
+          <select
+            id="managed-test-kind"
+            value={kind}
+            onChange={(event) =>
+              onKindChange(event.target.value as ManagedTestKind)
+            }
+            className={`${fieldClass} mt-2 bg-white`}
+          >
+            <option value="TEACHER_ENTRANCE">Đề đầu vào giảng viên</option>
+            <option value="PUBLIC_PRACTICE">Đề luyện tập công khai</option>
+          </select>
+        </div>
+
+        <label className="block text-sm font-semibold text-slate-700">
+          Tên đề test
+          <input
+            value={form.name}
+            onChange={(event) => onChange({ ...form, name: event.target.value })}
+            required
+            placeholder="Tên đề test"
+            className={`${fieldClass} mt-2 bg-white`}
+          />
+        </label>
+
+        <label className="block text-sm font-semibold text-slate-700">
+          Mô tả hoặc hướng dẫn làm bài
+          <textarea
+            value={form.description}
+            onChange={(event) =>
+              onChange({ ...form, description: event.target.value })
+            }
+            rows={3}
+            placeholder="Mô tả hoặc hướng dẫn làm bài"
+            className={`${fieldClass} mt-2 bg-white`}
+          />
+        </label>
+
+        <label className="block text-sm font-semibold text-slate-700">
+          Ngôn ngữ bắt buộc
+          <select
+            value={form.languageId}
+            onChange={(event) =>
+              onChange({ ...form, languageId: event.target.value })
+            }
+            required
+            className={`${fieldClass} mt-2 bg-white`}
+          >
+            <option value="">Chọn ngôn ngữ bắt buộc</option>
+            {languages.map((language) => (
+              <option key={language.id} value={language.id}>
+                {language.name} ({language.code})
+              </option>
+            ))}
+          </select>
+        </label>
+
         <label className="block text-sm font-semibold text-slate-700">
           Giới hạn thời gian
           <div className="relative">
@@ -338,7 +370,7 @@ function ManagedTestForm({
                 onChange({ ...form, timeLimit: event.target.value })
               }
               placeholder="Để trống nếu không giới hạn"
-              className={`${fieldClass} mt-2 pr-14`}
+              className={`${fieldClass} mt-2 bg-white pr-14`}
             />
             <span className="pointer-events-none absolute bottom-2.5 right-3 text-sm font-normal text-slate-500">
               phút
@@ -351,13 +383,14 @@ function ManagedTestForm({
       </div>
 
       <button
+        type="submit"
         className={`mt-5 rounded-xl px-4 py-2.5 text-sm font-semibold text-white ${
-          accent === "blue"
+          isTeacherEntrance
             ? "bg-blue-600 hover:bg-blue-700"
             : "bg-emerald-600 hover:bg-emerald-700"
         }`}
       >
-        Tạo đề
+        Tạo {isTeacherEntrance ? "đề đầu vào" : "đề luyện tập"}
       </button>
     </form>
   );

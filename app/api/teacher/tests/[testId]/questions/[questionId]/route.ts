@@ -40,6 +40,11 @@ export async function GET(
     const question = await prisma.question.findUnique({
       where: { id: questionId },
       include: {
+        test: {
+          include: {
+            course: true,
+          },
+        },
         answers: {
           orderBy: { order: "asc" },
         },
@@ -50,6 +55,13 @@ export async function GET(
       return NextResponse.json(
         { error: "Question not found" },
         { status: 404 }
+      );
+    }
+
+    if (user.role !== "ADMIN" && question.test.course?.instructorId !== user.id) {
+      return NextResponse.json(
+        { error: "Forbidden" },
+        { status: 403 }
       );
     }
 

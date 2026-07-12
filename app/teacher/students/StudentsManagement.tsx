@@ -215,7 +215,7 @@ function StudentsHeader({
         </h1>
         <p className="mt-1 text-sm text-slate-500">
           {isAdmin
-            ? "Xem tài khoản, khóa học, số dư, điểm đậu và chỉnh sửa quyền."
+            ? "Xem tài khoản, khóa học và chỉnh sửa quyền."
             : "Chỉ hiển thị học viên tham gia các khóa học do bạn phụ trách."}
         </p>
       </div>
@@ -281,8 +281,6 @@ function UsersTable({
               <th className="px-4 py-3">Người dùng</th>
               {isAdmin ? <th className="px-4 py-3">Vai trò</th> : null}
               <th className="px-4 py-3">Khóa học tham gia</th>
-              {isAdmin ? <th className="px-4 py-3">Số dư</th> : null}
-              {isAdmin ? <th className="px-4 py-3">Hạt đậu</th> : null}
               {isAdmin ? <th className="px-4 py-3">Trạng thái</th> : null}
               {isAdmin ? <th className="px-4 py-3 text-right">Thao tác</th> : null}
             </tr>
@@ -347,16 +345,6 @@ function UserRow({
           </div>
         )}
       </td>
-      {isAdmin ? (
-        <td className="whitespace-nowrap px-4 py-4 font-semibold text-slate-700">
-          {Math.round(user.balance ?? 0).toLocaleString("vi-VN")}đ
-        </td>
-      ) : null}
-      {isAdmin ? (
-        <td className="whitespace-nowrap px-4 py-4 font-semibold text-amber-700">
-          {(user.points ?? 0).toLocaleString("vi-VN")}
-        </td>
-      ) : null}
       {isAdmin ? (
         <td className="px-4 py-4">
           <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${user.isBanned ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}`}>

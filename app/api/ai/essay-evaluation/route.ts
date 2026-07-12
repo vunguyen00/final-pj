@@ -6,7 +6,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sanitizeEssay, validateEssay, validatePromptSafety, validateRequestBody } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
-import { AI_POINT_PRICE_VND, getAiPointsSummary, recordLearningActivity, spendAiPoints, WRITING_AI_COST } from "@/lib/ai-points";
+import {
+  AI_POINT_PRICE_VND,
+  getAiPointsSummary,
+  recordLearningActivity,
+  spendAiPoints,
+  WRITING_AI_COST,
+} from "@/lib/ai-points";
 import { prisma } from "@/lib/prisma";
 import { canUseAiForCourse, shouldChargeAiPoints } from "@/lib/ai-access";
 import { evaluateIeltsWriting } from "@/lib/ielts-grading";
@@ -123,7 +129,7 @@ export async function POST(request: NextRequest) {
       if (pointsBefore.available < WRITING_AI_COST) {
         return NextResponse.json(
           {
-            error: "Không đủ hạt đậu để nhận xét bằng Writing AI. Vào Ví tiền để mua thêm hạt đậu.",
+            error: "Vui lòng thanh toán lượt nhận xét Writing AI trước khi sử dụng.",
             requiresPointPurchase: true,
             neededPoints: WRITING_AI_COST,
             neededBeans: WRITING_AI_COST,
@@ -135,6 +141,7 @@ export async function POST(request: NextRequest) {
           { status: 400 },
         );
       }
+
     }
 
     // Check if Ollama is available
@@ -375,6 +382,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "AI đang tạm thời quá tải. Vui lòng thử lại sau." },
         { status: 503 },
+      );
+    }
+
+    if (errorMessage === "INSUFFICIENT_POINTS") {
+      return NextResponse.json(
+        {
+          error: "Thanh toán lượt nhận xét AI không hợp lệ hoặc đã được sử dụng.",
+          requiresPointPurchase: true,
+          neededPoints: WRITING_AI_COST,
+          pointPriceVnd: AI_POINT_PRICE_VND,
+        },
+        { status: 400 },
       );
     }
 

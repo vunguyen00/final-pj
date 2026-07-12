@@ -15,10 +15,14 @@ model User {
   role                        Role                                @default(STUDENT)
   phoneNumber                 String?
   isBanned                    Boolean                             @default(false)
+  accountStatus               UserAccountStatus                   @default(ACTIVE)
+  emailVerifiedAt             DateTime?
   learningLanguageId          String?
   createdAt                   DateTime                            @default(now())
   sessions                    Session[]
   passwordResetOtps           PasswordResetOtp[]
+  emailVerificationOtps       EmailVerificationOtp[]
+  registrationSecurityEvents  RegistrationSecurityEvent[]
   enrollments                 Enrollment[]
   testAttempts                TestAttempt[]
   feedbacks                   Feedback[]
@@ -36,8 +40,10 @@ model User {
   reviewedTeacherApplications TeacherApplication[]                @relation("TeacherApplicationReviewer")
   notifications               Notification[]
   emailLogs                   EmailLog[]
+  teacherBankAccount          TeacherBankAccount?
   revenueWithdrawals          TeacherRevenueWithdrawal[]
   revenueWithdrawalComplaints TeacherRevenueWithdrawalComplaint[]
+  processedRevenueWithdrawals TeacherRevenueWithdrawal[]           @relation("RevenueWithdrawalProcessor")
 }
 
 model Session {
@@ -72,6 +78,50 @@ enum Role {
   ADMIN
 }
 
+enum UserAccountStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+}
+
+model EmailVerificationOtp {
+  id                String    @id @default(uuid())
+  userId            String
+  email             String
+  codeHash          String
+  expiresAt         DateTime
+  consumedAt        DateTime?
+  attempts          Int       @default(0)
+  resendAvailableAt DateTime
+  requestIp         String?
+  deviceFingerprint String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([email, createdAt])
+  @@index([requestIp, createdAt])
+  @@index([deviceFingerprint, createdAt])
+}
+
+model RegistrationSecurityEvent {
+  id                String   @id @default(uuid())
+  userId            String?
+  email             String
+  requestIp         String?
+  deviceFingerprint String?
+  eventType         String
+  detail            Json?
+  createdAt         DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([email, createdAt])
+  @@index([requestIp, createdAt])
+  @@index([eventType, createdAt])
+}
+
 model Course {
   id           String       @id @default(uuid())
   name         String
@@ -100,6 +150,7 @@ model Course {
   aiAssessments      AiAssessment[]
   pointTransactions  PointTransaction[]
   learningActivities LearningActivity[]
+  payments           Payment[]
 }
 
 enum CourseStatus {
@@ -183,11 +234,11 @@ enum TestAssessmentMode {
 }
 
 enum QuestionType {
-  MULTIPLE_CHOICE // Trắc nghiệm
-  FILL_IN_BLANK // Điền từ
-  ESSAY // Viết bài văn
-  TRUE_FALSE // Đúng/Sai
-  SPEAKING // Nói với AI
+  MULTIPLE_CHOICE 
+  FILL_IN_BLANK 
+  ESSAY
+  TRUE_FALSE 
+  SPEAKING 
 }
 
 model Question {
@@ -526,7 +577,28 @@ enum TeacherRevenueWithdrawalStatus {
   PENDING
   APPROVED
   PAID
+  COMPLETED
   REJECTED
+}
+
+enum TeacherBankAccountVerificationStatus {
+  UNVERIFIED
+  VERIFIED
+  REJECTED
+}
+
+model TeacherBankAccount {
+  id                 String                               @id @default(uuid())
+  teacherId          String                               @unique
+  bankName           String
+  accountNumber      String
+  accountName        String
+  branch             String?
+  verificationStatus TeacherBankAccountVerificationStatus @default(UNVERIFIED)
+  createdAt          DateTime                             @default(now())
+  updatedAt          DateTime                             @updatedAt
+
+  teacher User @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 }
 
 enum TeacherRevenueWithdrawalComplaintReason {
@@ -548,13 +620,19 @@ model TeacherRevenueWithdrawal {
   bankName      String
   accountNumber String
   accountName   String
+  bankBranch    String?
+  bankVerificationStatus TeacherBankAccountVerificationStatus @default(UNVERIFIED)
   status        TeacherRevenueWithdrawalStatus @default(PENDING)
   note          String?
+  systemBankName String?
+  transferTransactionCode String?
+  processedById String?
   processedAt   DateTime?
   createdAt     DateTime                       @default(now())
   updatedAt     DateTime                       @updatedAt
 
   teacher   User                               @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  processedBy User?                            @relation("RevenueWithdrawalProcessor", fields: [processedById], references: [id], onDelete: SetNull)
   complaint TeacherRevenueWithdrawalComplaint?
 
   @@index([teacherId, createdAt])
@@ -595,6 +673,9 @@ model Payment {
   id                String   @id @default(uuid())
   orderId           String?  @unique
   userId            String
+  courseId          String?
+  purpose           String?
+  pointAmount       Int?
   provider          String   @default("VNPAY")
   txnRef            String   @unique
   amount            Int
@@ -606,12 +687,16 @@ model Payment {
   transactionStatus String?
   payDate           String?
   rawResponse       Json?
+  expiresAt         DateTime?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   order Order? @relation(fields: [orderId], references: [id])
   user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course? @relation(fields: [courseId], references: [id])
 
   @@index([userId, createdAt])
+  @@index([courseId, createdAt])
+  @@index([purpose, createdAt])
   @@index([status, createdAt])
 }

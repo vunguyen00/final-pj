@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { FIXED_TEST_MAX_SCORE } from "@/lib/test-rules";
+import { FIXED_TEST_MAX_SCORE, requiresLanguageForTest } from "@/lib/test-rules";
 import { Prisma } from "@/app/generated/prisma/client";
 
 async function deleteTestWithRelations(testId: string) {
@@ -149,6 +149,7 @@ export async function PUT(
     const {
       name,
       description,
+      languageId,
       passingScore,
       timeLimit,
       shuffleQuestions,
@@ -161,6 +162,23 @@ export async function PUT(
 
     if (name !== undefined && !String(name).trim()) {
       return NextResponse.json({ error: "Test name is required" }, { status: 400 });
+    }
+
+    if (languageId !== undefined) {
+      const normalizedLanguageId = String(languageId || "").trim();
+      if (!normalizedLanguageId && requiresLanguageForTest(existingTest.kind)) {
+        return NextResponse.json({ error: "Language is required for this test" }, { status: 400 });
+      }
+
+      if (normalizedLanguageId) {
+        const language = await prisma.learningLanguage.findFirst({
+          where: { id: normalizedLanguageId, isActive: true },
+          select: { id: true },
+        });
+        if (!language) {
+          return NextResponse.json({ error: "Invalid language" }, { status: 400 });
+        }
+      }
     }
 
     if (passingScore !== undefined) {
@@ -196,6 +214,9 @@ export async function PUT(
       data: {
         ...(name !== undefined && { name: String(name).trim() }),
         ...(description !== undefined && { description }),
+        ...(languageId !== undefined && {
+          languageId: String(languageId || "").trim() || null,
+        }),
         maxScore: FIXED_TEST_MAX_SCORE,
         ...(passingScore !== undefined && { passingScore: parseFloat(passingScore) }),
         ...(timeLimit !== undefined && { timeLimit: timeLimit ? Number(timeLimit) : null }),
@@ -218,6 +239,18 @@ export async function PUT(
               ? Prisma.DbNull
               : materialData,
         }),
+      },
+      include: {
+        course: {
+          include: {
+            language: {
+              select: { id: true, name: true, code: true },
+            },
+          },
+        },
+        language: {
+          select: { id: true, name: true, code: true },
+        },
       },
     });
 

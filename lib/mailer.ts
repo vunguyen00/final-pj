@@ -79,6 +79,32 @@ export async function sendPasswordResetOtpEmail(
   });
 }
 
+export async function sendRegistrationOtpEmail(
+  to: string,
+  otpCode: string,
+  expiresMinutes: number,
+): Promise<void> {
+  const config = readMailerConfig();
+  const transporter = getTransporter();
+
+  await transporter.sendMail({
+    from: config.from,
+    to,
+    subject: "Ma OTP xac thuc tai khoan",
+    text: `Ma OTP xac thuc tai khoan FinnCenter cua ban la: ${otpCode}. Ma co hieu luc trong ${expiresMinutes} phut.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">
+        <h2>Xac thuc tai khoan FinnCenter</h2>
+        <p>Ban vua dang ky tai khoan FinnCenter.</p>
+        <p>Ma OTP cua ban la:</p>
+        <p style="font-size: 28px; font-weight: 700; letter-spacing: 4px;">${otpCode}</p>
+        <p>Ma co hieu luc trong <strong>${expiresMinutes} phut</strong>.</p>
+        <p>Neu khong phai ban, vui long bo qua email nay.</p>
+      </div>
+    `,
+  });
+}
+
 export async function sendCourseCertificateEmail(
   to: string,
   username: string,

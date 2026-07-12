@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getLessonStart, markLessonCompleted } from "@/lib/learning-progress";
 import { recordLearningActivity } from "@/lib/ai-points";
 
-const MIN_READING_SECONDS = 10 * 60;
+const MIN_READING_SECONDS = 3 * 60;
 
 export async function POST(
   request: Request,
@@ -56,7 +56,7 @@ export async function POST(
       const elapsed = Math.floor((Date.now() - start.createdAt.getTime()) / 1000);
       if (elapsed < MIN_READING_SECONDS) {
         return NextResponse.json(
-          { error: "Can hoc toi thieu 10 phut cho bai nay.", elapsedSeconds: elapsed },
+          { error: "Can hoc toi thieu 3 phut cho bai nay.", elapsedSeconds: elapsed },
           { status: 400 },
         );
       }

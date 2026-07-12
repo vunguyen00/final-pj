@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { getCourseLanguage } from "@/app/components/learningMarketplace";
+import { getLearningUiLabels } from "@/lib/test-language-labels";
 
 type TestKind = "COURSE" | "PUBLIC_PRACTICE" | "TEACHER_ENTRANCE";
 
@@ -237,16 +238,17 @@ function StudentTestsContent() {
               test.maxScore > 0 && test.lastAttempt
                 ? Math.round((test.lastAttempt.score / test.maxScore) * 100)
                 : 0;
+            const ui = getLearningUiLabels(test.language?.code || getLanguageName(test));
             const kindLabel =
               test.kind === "PUBLIC_PRACTICE"
-                ? "Đề luyện tập"
-                : "Bài kiểm tra khóa học";
+                ? ui.testKind.PUBLIC_PRACTICE
+                : ui.testKind.COURSE;
             const modeLabel =
               test.assessmentMode === "WRITING"
-                ? "Bài viết AI"
+                ? ui.questionTypes.ESSAY
                 : test.assessmentMode === "SPEAKING"
-                  ? "Bài nói AI"
-                  : "Chấm đáp án";
+                  ? ui.questionTypes.SPEAKING
+                  : ui.assessment.STANDARD;
 
             return (
               <article
@@ -272,7 +274,7 @@ function StudentTestsContent() {
                             : "bg-amber-50 text-amber-700"
                         }
                       >
-                        {test.canAttempt ? "Sẵn sàng" : "Chưa khả dụng"}
+                        {test.canAttempt ? ui.test.ready : ui.test.unavailable}
                       </Badge>
                     </div>
                     <h2 className="mt-4 text-xl font-bold text-slate-950">
@@ -283,7 +285,7 @@ function StudentTestsContent() {
                     </p>
                     <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-600">
                       {test.description ||
-                        "Bài kiểm tra giúp đánh giá kiến thức và kỹ năng đã học."}
+                        ui.course.learningPathDescription}
                     </p>
                   </div>
 
@@ -292,38 +294,38 @@ function StudentTestsContent() {
                       href={`/student/tests/${test.id}`}
                       className="shrink-0 rounded-xl bg-blue-600 px-4 py-2.5 text-center text-sm font-bold text-white hover:bg-blue-700"
                     >
-                      {test.hasAttempt ? "Làm lại" : "Bắt đầu"}
+                      {test.hasAttempt ? ui.result.retake : ui.test.start}
                     </Link>
                   ) : (
                     <span className="shrink-0 rounded-xl bg-slate-100 px-4 py-2.5 text-center text-sm font-semibold text-slate-500">
                       {!test.isUnlocked
-                        ? "Chưa hoàn thành khóa học"
+                        ? ui.test.lockedUntilCourseComplete
                         : !test.isReady
-                          ? "Đề chưa đủ 100 điểm"
-                          : "Không khả dụng"}
+                          ? ui.test.invalidScore
+                          : ui.test.unavailable}
                     </span>
                   )}
                 </div>
 
                 <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  <Metric label="Tiến độ" value={`${test.progress}%`} />
-                  <Metric label="Câu hỏi" value={`${test.questionCount}`} />
+                  <Metric label={ui.course.progress} value={`${test.progress}%`} />
+                  <Metric label={ui.course.questions} value={`${test.questionCount}`} />
                   <Metric
-                    label="Thời gian"
+                    label={ui.test.timeLeft}
                     value={
                       test.timeLimit
-                        ? `${test.timeLimit} phút`
-                        : "Không giới hạn"
+                        ? ui.course.minuteCount(test.timeLimit)
+                        : ui.course.noTimeLimit
                     }
                   />
-                  <Metric label="Điểm đạt" value={`${test.passingScore}`} />
+                  <Metric label={ui.course.passingScore} value={`${test.passingScore}`} />
                 </div>
 
                 {test.lastAttempt ? (
                   <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-semibold text-slate-700">
-                        Kết quả gần nhất
+                        {ui.result.title}
                       </span>
                       <span
                         className={
@@ -332,7 +334,7 @@ function StudentTestsContent() {
                             : "font-semibold text-amber-700"
                         }
                       >
-                        {test.lastAttempt.isPassed ? "Đạt" : "Cần ôn thêm"}
+                        {test.lastAttempt.isPassed ? ui.test.passed : ui.result.needsReview}
                       </span>
                     </div>
                     <div className="mt-2 h-2 rounded-full bg-slate-200">

@@ -22,7 +22,14 @@ type Props = {
   courseId: string;
 };
 
-const MIN_READING_SECONDS = 10 * 60;
+const MIN_READING_SECONDS = 3 * 60;
+
+function applySubtitleMode(video: HTMLVideoElement) {
+  const tracks = video.textTracks;
+  for (let i = 0; i < tracks.length; i += 1) {
+    tracks[i].mode = "showing";
+  }
+}
 
 export default function LearningContent({ modules, completedIds, courseId }: Props) {
   const lessons = useMemo(() => modules.flatMap((module) => module.lessons), [modules]);
@@ -138,13 +145,6 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
     }
   }
 
-  function applySubtitleMode(lessonId: string, video: HTMLVideoElement) {
-    const tracks = video.textTracks;
-    for (let i = 0; i < tracks.length; i += 1) {
-      tracks[i].mode = "showing";
-    }
-  }
-
   const readingRemain = selectedLesson ? remainingReadingSeconds(selectedLesson.id) : MIN_READING_SECONDS;
   const canCompleteReading = selectedLesson ? readingRemain === 0 : false;
 
@@ -237,7 +237,7 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
               controls
               preload="metadata"
               className="aspect-video w-full rounded-lg border border-slate-200 bg-black"
-              onLoadedMetadata={(e) => applySubtitleMode(selectedLesson.id, e.currentTarget)}
+              onLoadedMetadata={(e) => applySubtitleMode(e.currentTarget)}
               onTimeUpdate={(e) => onVideoTimeUpdate(selectedLesson.id, e.currentTarget.currentTime)}
               onSeeking={(e) =>
                 preventSeek(selectedLesson.id, e.currentTarget.currentTime, (value) => {
@@ -261,7 +261,7 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
         ) : (
           !completed[selectedLesson.id] ? (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-              <p className="text-sm text-amber-900">Bài không có video: cần học tối thiểu 10 phút.</p>
+              <p className="text-sm text-amber-900">Bài không có video: cần học tối thiểu 3 phút.</p>
               {!readingStarts[selectedLesson.id] ? (
                 <p className="mt-2 text-sm font-medium text-amber-800">Đang bắt đầu tính giờ...</p>
               ) : (

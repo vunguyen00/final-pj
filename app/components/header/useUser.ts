@@ -8,7 +8,6 @@ type User = {
   email: string;
   role: string;
   avatarUrl?: string | null;
-  balance?: number;
   aiPoints?: {
     available: number;
   };

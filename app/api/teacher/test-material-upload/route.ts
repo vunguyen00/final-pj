@@ -3,14 +3,12 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-
-const ALLOWED_TYPES = new Map([
-  ["image/jpeg", "jpg"],
-  ["image/png", "png"],
-  ["image/webp", "webp"],
-  ["image/gif", "gif"],
-  ["application/pdf", "pdf"],
-]);
+import {
+  formatUploadLimit,
+  getAllowedUpload,
+  MAX_TEST_MATERIAL_UPLOAD_BYTES,
+  validateUploadSignature,
+} from "@/lib/upload-validation";
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,16 +26,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const extension = ALLOWED_TYPES.get(file.type);
-    if (!extension) {
+    const uploadType = getAllowedUpload(file.type, ["image", "pdf"]);
+    if (!uploadType) {
       return NextResponse.json(
         { error: "Chỉ hỗ trợ JPG, PNG, WEBP, GIF hoặc PDF." },
         { status: 400 },
       );
     }
-    if (file.size > 15 * 1024 * 1024) {
+    if (file.size > MAX_TEST_MATERIAL_UPLOAD_BYTES) {
       return NextResponse.json(
-        { error: "Tệp không được vượt quá 15 MB." },
+        { error: `Tep khong duoc vuot qua ${formatUploadLimit(MAX_TEST_MATERIAL_UPLOAD_BYTES)}.` },
+        { status: 400 },
+      );
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+    if (!validateUploadSignature(buffer, file.type)) {
+      return NextResponse.json(
+        { error: "Nội dung tệp không hợp lệ." },
         { status: 400 },
       );
     }
@@ -49,15 +55,15 @@ export async function POST(request: NextRequest) {
       "test-materials",
     );
     await mkdir(uploadsDir, { recursive: true });
-    const filename = `${Date.now()}-${randomUUID()}.${extension}`;
+    const filename = `${Date.now()}-${randomUUID()}.${uploadType.extension}`;
     await writeFile(
       path.join(uploadsDir, filename),
-      Buffer.from(await file.arrayBuffer()),
+      buffer,
     );
 
     return NextResponse.json({
       url: `/uploads/test-materials/${filename}`,
-      type: file.type === "application/pdf" ? "PDF" : "IMAGE",
+      type: uploadType.kind === "pdf" ? "PDF" : "IMAGE",
       filename: file.name,
     });
   } catch (error) {

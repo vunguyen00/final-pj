@@ -46,6 +46,17 @@ export async function GET(
       );
     }
 
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+    });
+
+    if (!course || (user.role !== "ADMIN" && course.instructorId !== user.id)) {
+      return NextResponse.json(
+        { error: "Forbidden" },
+        { status: 403 }
+      );
+    }
+
     const lesson = await prisma.lesson.findUnique({
       where: { id: lessonId },
     });
