@@ -4,7 +4,7 @@ export async function GET() {
   return NextResponse.json(
     {
       error:
-        "Chuc nang vi da duoc loai bo. Vui long mua diem dau truc tiep tai /student/wallet hoac thanh toan khoa hoc truc tiep theo tung khoa.",
+        "Hệ thống không sử dụng ví nội bộ. Hoàn tiền được xử lý bên ngoài và chuyển vào tài khoản của người dùng.",
     },
     { status: 410 },
   );

@@ -6,7 +6,10 @@ export async function GET() {
   try {
     const user = await authenticate();
     const courses = await prisma.course.findMany({
-      where: { status: "ACTIVE" },
+      where: {
+        status: "ACTIVE",
+        instructor: { is: { isBanned: false, accountStatus: "ACTIVE" } },
+      },
       include: {
         instructor: {
           select: {

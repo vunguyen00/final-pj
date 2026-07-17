@@ -84,6 +84,8 @@ export default async function AdminPage() {
             reason: true,
             reportedAmount: true,
             message: true,
+            evidenceImageUrl: true,
+            evidenceImageName: true,
             status: true,
             adminNote: true,
             resolvedAt: true,

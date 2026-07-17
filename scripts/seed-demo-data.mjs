@@ -63,6 +63,53 @@ const LANGUAGES = [
   },
 ];
 
+const ENTRANCE_COPY = {
+  en: {
+    writingName: "Teacher Entrance Writing - English",
+    writingDescription: "Writing entrance test for English teacher candidates.",
+    speakingName: "Teacher Entrance Speaking - English",
+    speakingDescription: "Speaking entrance test for English teacher candidates.",
+    writingQuestion2: "Write a short lesson plan for a 45-minute class. Include objective, warm-up, main activity, and assessment.",
+    speakingQuestion2: "Explain how you would correct a student's mistake without discouraging them.",
+    writingExplanation: "AI evaluates structure, pedagogy, and language control.",
+    speakingExplanation: "AI evaluates speaking clarity and teaching judgment.",
+  },
+  zh: {
+    writingName: "\u6559\u5e08\u5165\u95e8\u5199\u4f5c\u6d4b\u8bd5 - \u4e2d\u6587",
+    writingDescription: "\u9762\u5411\u4e2d\u6587\u6559\u5e08\u5019\u9009\u4eba\u7684\u5199\u4f5c\u5165\u95e8\u6d4b\u8bd5\u3002",
+    speakingName: "\u6559\u5e08\u5165\u95e8\u53e3\u8bed\u6d4b\u8bd5 - \u4e2d\u6587",
+    speakingDescription: "\u9762\u5411\u4e2d\u6587\u6559\u5e08\u5019\u9009\u4eba\u7684\u53e3\u8bed\u5165\u95e8\u6d4b\u8bd5\u3002",
+    writingQuestion2: "\u8bf7\u5199\u4e00\u4efd45\u5206\u949f\u8bfe\u7a0b\u7684\u7b80\u8981\u6559\u6848\uff0c\u5305\u62ec\u76ee\u6807\u3001\u70ed\u8eab\u3001\u4e3b\u8981\u6d3b\u52a8\u548c\u8bc4\u4f30\u65b9\u5f0f\u3002",
+    speakingQuestion2: "\u8bf7\u8bf4\u660e\u4f60\u4f1a\u5982\u4f55\u7ea0\u6b63\u5b66\u751f\u7684\u9519\u8bef\uff0c\u540c\u65f6\u4e0d\u8ba9\u4ed6\u4eec\u611f\u5230\u6cae\u4e27\u3002",
+    writingExplanation: "AI\u4f1a\u8bc4\u4f30\u7ed3\u6784\u3001\u6559\u5b66\u6cd5\u548c\u8bed\u8a00\u638c\u63a7\u80fd\u529b\u3002",
+    speakingExplanation: "AI\u4f1a\u8bc4\u4f30\u53e3\u8bed\u8868\u8fbe\u6e05\u6670\u5ea6\u548c\u6559\u5b66\u5224\u65ad\u529b\u3002",
+  },
+  ja: {
+    writingName: "\u8b1b\u5e2b\u767b\u9332\u30e9\u30a4\u30c6\u30a3\u30f3\u30b0\u30c6\u30b9\u30c8 - \u65e5\u672c\u8a9e",
+    writingDescription: "\u65e5\u672c\u8a9e\u8b1b\u5e2b\u5fd7\u9858\u8005\u5411\u3051\u306e\u30e9\u30a4\u30c6\u30a3\u30f3\u30b0\u30c6\u30b9\u30c8\u3067\u3059\u3002",
+    speakingName: "\u8b1b\u5e2b\u767b\u9332\u30b9\u30d4\u30fc\u30ad\u30f3\u30b0\u30c6\u30b9\u30c8 - \u65e5\u672c\u8a9e",
+    speakingDescription: "\u65e5\u672c\u8a9e\u8b1b\u5e2b\u5fd7\u9858\u8005\u5411\u3051\u306e\u30b9\u30d4\u30fc\u30ad\u30f3\u30b0\u30c6\u30b9\u30c8\u3067\u3059\u3002",
+    writingQuestion2: "45\u5206\u6388\u696d\u306e\u77ed\u3044\u6559\u6848\u3092\u66f8\u3044\u3066\u304f\u3060\u3055\u3044\u3002\u76ee\u6a19\u3001\u30a6\u30a9\u30fc\u30e0\u30a2\u30c3\u30d7\u3001\u4e3b\u6d3b\u52d5\u3001\u8a55\u4fa1\u65b9\u6cd5\u3092\u542b\u3081\u3066\u304f\u3060\u3055\u3044\u3002",
+    speakingQuestion2: "\u5b66\u751f\u3092\u843d\u3061\u8fbc\u307e\u305b\u305a\u306b\u9593\u9055\u3044\u3092\u3069\u306e\u3088\u3046\u306b\u8a02\u6b63\u3059\u308b\u304b\u3001\u65e5\u672c\u8a9e\u3067\u8aac\u660e\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+    writingExplanation: "AI\u304c\u69cb\u6210\u3001\u6559\u6388\u6cd5\u3001\u8a00\u8a9e\u904b\u7528\u529b\u3092\u8a55\u4fa1\u3057\u307e\u3059\u3002",
+    speakingExplanation: "AI\u304c\u8a71\u3057\u65b9\u306e\u660e\u78ba\u3055\u3068\u6559\u80b2\u7684\u5224\u65ad\u529b\u3092\u8a55\u4fa1\u3057\u307e\u3059\u3002",
+  },
+  ko: {
+    writingName: "\uac15\uc0ac \uc785\ubb38 \uc4f0\uae30 \ud14c\uc2a4\ud2b8 - \ud55c\uad6d\uc5b4",
+    writingDescription: "\ud55c\uad6d\uc5b4 \uac15\uc0ac \uc9c0\uc6d0\uc790\ub97c \uc704\ud55c \uc4f0\uae30 \uc785\ubb38 \ud14c\uc2a4\ud2b8\uc785\ub2c8\ub2e4.",
+    speakingName: "\uac15\uc0ac \uc785\ubb38 \ub9d0\ud558\uae30 \ud14c\uc2a4\ud2b8 - \ud55c\uad6d\uc5b4",
+    speakingDescription: "\ud55c\uad6d\uc5b4 \uac15\uc0ac \uc9c0\uc6d0\uc790\ub97c \uc704\ud55c \ub9d0\ud558\uae30 \uc785\ubb38 \ud14c\uc2a4\ud2b8\uc785\ub2c8\ub2e4.",
+    writingQuestion2: "45\ubd84 \uc218\uc5c5\uc758 \uc9e7\uc740 \uc218\uc5c5 \uacc4\ud68d\uc744 \uc791\uc131\ud558\uc138\uc694. \ubaa9\ud45c, \uc6cc\ubc0d\uc5c5, \uc8fc\uc694 \ud65c\ub3d9, \ud3c9\uac00 \ubc29\ubc95\uc744 \ud3ec\ud568\ud558\uc138\uc694.",
+    speakingQuestion2: "\ud559\uc0dd\uc774 \uc88c\uc808\ud558\uc9c0 \uc54a\ub3c4\ub85d \uc624\ub958\ub97c \uc5b4\ub5bb\uac8c \uace0\uccd0 \uc904\uc9c0 \ud55c\uad6d\uc5b4\ub85c \uc124\uba85\ud558\uc138\uc694.",
+    writingExplanation: "AI\uac00 \uad6c\uc131, \uad50\uc218\ubc95, \uc5b8\uc5b4 \uc0ac\uc6a9 \ub2a5\ub825\uc744 \ud3c9\uac00\ud569\ub2c8\ub2e4.",
+    speakingExplanation: "AI\uac00 \ub9d0\ud558\uae30 \uba85\ud655\uc131\uacfc \uad50\uc721\uc801 \ud310\ub2e8\ub825\uc744 \ud3c9\uac00\ud569\ub2c8\ub2e4.",
+  },
+};
+
+function getEntranceCopy(language) {
+  return ENTRANCE_COPY[language.code] || ENTRANCE_COPY.en;
+}
+
 function getDatabaseConfig() {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
@@ -295,8 +342,8 @@ async function upsertTest(client, data) {
     params.push(data.courseId);
     whereSql = `"courseId" = $1 AND "kind" = 'COURSE'::"TestKind"`;
   } else {
-    params.push(data.name, data.kind, data.languageId);
-    whereSql = `"name" = $1 AND "kind" = $2::"TestKind" AND "languageId" = $3 AND "courseId" IS NULL`;
+    params.push(data.kind, data.languageId, data.assessmentMode);
+    whereSql = `"kind" = $1::"TestKind" AND "languageId" = $2 AND "assessmentMode" = $3::"TestAssessmentMode" AND "courseId" IS NULL`;
   }
 
   const existing = await query(client, `SELECT "id" FROM "Test" WHERE ${whereSql} LIMIT 1`, params);
@@ -484,6 +531,7 @@ function publicPracticeQuestions(language) {
 }
 
 function writingEntranceQuestions(language) {
+  const copy = getEntranceCopy(language);
   return [
     {
       type: "ESSAY",
@@ -496,14 +544,14 @@ function writingEntranceQuestions(language) {
       type: "ESSAY",
       order: 2,
       score: 50,
-      content:
-        "Write a short lesson plan for a 45-minute class. Include objective, warm-up, main activity, and assessment.",
-      explanation: "AI evaluates structure, pedagogy, and language control.",
+      content: copy.writingQuestion2,
+      explanation: copy.writingExplanation,
     },
   ];
 }
 
 function speakingEntranceQuestions(language) {
+  const copy = getEntranceCopy(language);
   return [
     {
       type: "SPEAKING",
@@ -516,9 +564,8 @@ function speakingEntranceQuestions(language) {
       type: "SPEAKING",
       order: 2,
       score: 50,
-      content:
-        "Explain how you would correct a student's mistake without discouraging them.",
-      explanation: "AI evaluates speaking clarity and teaching judgment.",
+      content: copy.speakingQuestion2,
+      explanation: copy.speakingExplanation,
     },
   ];
 }
@@ -569,6 +616,7 @@ async function main() {
         ...languageSeed,
         ...(await upsertLanguage(client, languageSeed)),
       };
+      const entranceCopy = getEntranceCopy(language);
       summary.languages += 1;
 
       const courseId = await upsertCourse(client, { language, teacherId: teacher.id });
@@ -608,8 +656,8 @@ async function main() {
         languageId: language.id,
         kind: "TEACHER_ENTRANCE",
         assessmentMode: "WRITING",
-        name: `Teacher Entrance Writing - ${language.nativeName}`,
-        description: `Writing entrance test for ${language.nativeName} teacher candidates.`,
+        name: entranceCopy.writingName,
+        description: entranceCopy.writingDescription,
         passingScore: 70,
         timeLimit: 60,
         shuffleQuestions: false,
@@ -622,8 +670,8 @@ async function main() {
         languageId: language.id,
         kind: "TEACHER_ENTRANCE",
         assessmentMode: "SPEAKING",
-        name: `Teacher Entrance Speaking - ${language.nativeName}`,
-        description: `Speaking entrance test for ${language.nativeName} teacher candidates.`,
+        name: entranceCopy.speakingName,
+        description: entranceCopy.speakingDescription,
         passingScore: 70,
         timeLimit: 20,
         shuffleQuestions: false,

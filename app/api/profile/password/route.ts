@@ -37,10 +37,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Mật khẩu cũ không đúng." }, { status: 400 });
     }
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { password: hashPassword(newPassword) },
-    });
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: user.id },
+        data: {
+          password: hashPassword(newPassword),
+          authVersion: { increment: 1 },
+        },
+      }),
+      prisma.session.deleteMany({ where: { userId: user.id } }),
+    ]);
 
     return NextResponse.json({ ok: true });
   } catch {

@@ -7,13 +7,12 @@ import { recordLearningActivity } from "@/lib/ai-points";
 const MIN_READING_SECONDS = 3 * 60;
 
 export async function POST(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ lessonId: string }> },
 ) {
   try {
     const user = await requireUser();
     const { lessonId } = await params;
-    const body = await request.json().catch(() => ({}));
 
     const lesson = await prisma.lesson.findUnique({
       where: { id: lessonId },
@@ -61,14 +60,34 @@ export async function POST(
         );
       }
     } else {
-      const watchedFull = body?.watchedFull === true;
-      const noSeek = body?.noSeek === true;
-      if (!watchedFull || !noSeek) {
+      const watch = await prisma.videoWatchProgress.findUnique({
+        where: { userId_lessonId: { userId: user.id, lessonId } },
+      });
+      const duration = watch?.durationSeconds ?? 0;
+      const watchedSeconds = watch
+        ? (Date.now() - watch.startedAt.getTime()) / 1000
+        : 0;
+      const heartbeatFresh = watch
+        ? Date.now() - watch.lastHeartbeatAt.getTime() <= 15_000
+        : false;
+      const serverVerified = Boolean(
+        watch &&
+          !watch.seekViolation &&
+          heartbeatFresh &&
+          duration > 0 &&
+          watch.lastPositionSeconds >= duration - 2 &&
+          watchedSeconds >= duration * 0.9,
+      );
+      if (!serverVerified) {
         return NextResponse.json(
-          { error: "Bài có video yêu cầu xem hết và không tua." },
+          { error: "Máy chủ chưa xác nhận bạn đã xem hết video liên tục và không tua." },
           { status: 400 },
         );
       }
+      await prisma.videoWatchProgress.update({
+        where: { id: watch!.id },
+        data: { completedAt: new Date() },
+      });
     }
 
     await markLessonCompleted(user.id, courseId, lessonId);

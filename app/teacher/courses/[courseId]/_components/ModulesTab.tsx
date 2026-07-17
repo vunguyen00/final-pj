@@ -1,9 +1,11 @@
 import Link from "next/link";
+import type { CourseManagementLabels } from "@/lib/language-display";
 import { Module } from "../types";
 
 type ModulesTabProps = {
   courseId: string;
   modules: Module[];
+  labels: CourseManagementLabels["modulesTab"];
   onOpenCreateModal: () => void;
   onEditModule: (module: Module) => void;
   onDeleteModule: (moduleId: string) => void;
@@ -12,6 +14,7 @@ type ModulesTabProps = {
 export function ModulesTab({
   courseId,
   modules,
+  labels,
   onOpenCreateModal,
   onEditModule,
   onDeleteModule,
@@ -20,19 +23,20 @@ export function ModulesTab({
     <div className="mt-6">
       <div className="mb-4 flex justify-end">
         <button
+          type="button"
           onClick={onOpenCreateModal}
           className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
         >
-          Thêm chương
+          {labels.addModule}
         </button>
       </div>
       <p className="mb-4 text-sm text-slate-600">
-        Video là nội dung tùy chọn trong từng bài học, có thể thêm hoặc để trống.
+        {labels.videoOptional}
       </p>
 
       {modules.length === 0 ? (
         <div className="rounded-xl border border-slate-200 bg-white p-12 text-center">
-          <p className="text-slate-600">Chưa có chương nào</p>
+          <p className="text-slate-600">{labels.empty}</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -43,23 +47,23 @@ export function ModulesTab({
                   <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-sm font-medium text-slate-600">{index + 1}</span>
                   <div>
                     <h3 className="font-medium text-slate-900">{module.name}</h3>
-                    <p className="text-sm text-slate-500">{module.lessons.length} bài học</p>
+                    <p className="text-sm text-slate-500">{labels.lessonCount(module.lessons.length)}</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Link href={`/teacher/courses/${courseId}/modules/${module.id}`} className="rounded-lg p-2 text-slate-600 hover:bg-slate-100" title="Quản lý bài học">
-                    Quản lý
+                  <Link href={`/teacher/courses/${courseId}/modules/${module.id}`} className="rounded-lg p-2 text-slate-600 hover:bg-slate-100" title={labels.manageLessons}>
+                    {labels.manageLessons}
                   </Link>
                   <button
                     type="button"
                     onClick={() => onEditModule(module)}
                     className="rounded-lg p-2 text-blue-600 hover:bg-blue-50"
-                    title="Chỉnh sửa thông tin chương"
+                    title={labels.edit}
                   >
-                    Chỉnh sửa
+                    {labels.edit}
                   </button>
-                  <button onClick={() => onDeleteModule(module.id)} className="rounded-lg p-2 text-red-600 hover:bg-red-50" title="Xóa">
-                    Xóa
+                  <button type="button" onClick={() => onDeleteModule(module.id)} className="rounded-lg p-2 text-red-600 hover:bg-red-50" title={labels.delete}>
+                    {labels.delete}
                   </button>
                 </div>
               </div>

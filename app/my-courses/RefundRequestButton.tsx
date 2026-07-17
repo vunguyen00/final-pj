@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
+import { ModalDialog } from "@/app/components/ModalDialog";
 
 type RefundStatus = "PENDING" | "APPROVED" | "REJECTED";
 
@@ -95,12 +96,12 @@ export default function RefundRequestButton({ courses }: { courses: RefundableCo
       </button>
 
       {open ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/55 p-4" role="dialog" aria-modal="true" aria-label="Yêu cầu hoàn tiền">
+        <ModalDialog labelledBy="refund-request-title" onClose={() => setOpen(false)} className="z-[80]">
           <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
             <div className="border-b border-slate-200 p-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-bold text-slate-950">Yêu cầu hoàn tiền</h2>
+                  <h2 id="refund-request-title" className="text-lg font-bold text-slate-950">Yêu cầu hoàn tiền</h2>
                   <p className="mt-1 text-sm text-slate-500">Chỉ hiển thị khóa học đăng ký trong 7 ngày gần nhất và tiến độ chưa vượt 50%.</p>
                 </div>
                 <button type="button" onClick={() => setOpen(false)} className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
@@ -187,7 +188,7 @@ export default function RefundRequestButton({ courses }: { courses: RefundableCo
               )}
             </div>
           </div>
-        </div>
+        </ModalDialog>
       ) : null}
     </>
   );

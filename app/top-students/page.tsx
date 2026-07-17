@@ -11,7 +11,15 @@ type RankedStudent = {
   passedTests: number;
   courses: number;
   aiUses: number;
+  activities: number;
 };
+
+function publicStudentName(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "Học viên";
+  if (parts.length === 1) return `${parts[0].slice(0, 1)}***`;
+  return `${parts[0]} ${parts.slice(1).map((part) => `${part[0]?.toUpperCase() || ""}.`).join(" ")}`;
+}
 
 function initials(name: string) {
   return name
@@ -49,12 +57,13 @@ async function getTopStudents(): Promise<RankedStudent[]> {
       if (score <= 0) return items;
       items.push({
         id: student.id,
-        name: student.username,
-        avatar: initials(student.username) || "HV",
+        name: publicStudentName(student.username),
+        avatar: initials(publicStudentName(student.username)) || "HV",
         score,
         passedTests,
         courses,
         aiUses,
+        activities,
       });
       return items;
     }, [])
@@ -70,6 +79,14 @@ export default async function TopStudentsPage() {
     <main className="min-h-screen bg-background">
       <Section background="muted" padding="md">
         <SectionHeader title="Học viên xuất sắc" subtitle="Bảng xếp hạng dựa trên tiến độ học, bài test đã đạt và hoạt động luyện tập AI." />
+
+        <aside className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+          <p className="font-semibold">Cách tính điểm hoạt động</p>
+          <p className="mt-1 leading-6">
+            Bài test đạt: 100 điểm · Khóa học tham gia: 40 điểm · Lượt dùng AI: 10 điểm · Hoạt động học tập: 5 điểm.
+            Tên học viên được rút gọn để bảo vệ thông tin cá nhân.
+          </p>
+        </aside>
 
         {topStudents.length > 0 ? (
           <>
@@ -95,6 +112,7 @@ export default async function TopStudentsPage() {
                     <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Bài đạt</th>
                     <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Khóa học</th>
                     <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Lượt AI</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hoạt động</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -113,6 +131,7 @@ export default async function TopStudentsPage() {
                       <td className="px-4 py-3 text-center text-sm text-muted-foreground">{student.passedTests}</td>
                       <td className="px-4 py-3 text-center text-sm text-muted-foreground">{student.courses}</td>
                       <td className="px-4 py-3 text-center text-sm text-muted-foreground">{student.aiUses}</td>
+                      <td className="px-4 py-3 text-center text-sm text-muted-foreground">{student.activities}</td>
                     </tr>
                   ))}
                 </tbody>

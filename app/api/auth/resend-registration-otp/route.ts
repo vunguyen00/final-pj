@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
 
   if (!email) {
-    return NextResponse.json({ error: "Email la bat buoc." }, { status: 400 });
+    return NextResponse.json({ error: "Email là bắt buộc." }, { status: 400 });
   }
 
   const user = await prisma.user.findUnique({
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   });
 
   if (!user) {
-    return NextResponse.json({ error: "Khong tim thay tai khoan." }, { status: 404 });
+    return NextResponse.json({ error: "Không tìm thấy tài khoản." }, { status: 404 });
   }
 
   if (user.accountStatus === "ACTIVE") {
@@ -39,8 +39,8 @@ export async function POST(request: Request) {
       {
         error:
           result.reason === "COOLDOWN"
-            ? `Vui long doi ${result.retryAfter} giay truoc khi gui lai OTP.`
-            : "Ban da yeu cau OTP qua nhieu lan. Vui long thu lai sau.",
+            ? `Vui lòng đợi ${result.retryAfter} giây trước khi gửi lại OTP.`
+            : "Bạn đã yêu cầu OTP quá nhiều lần. Vui lòng thử lại sau.",
         retryAfter: result.retryAfter,
       },
       { status: 429 },

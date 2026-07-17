@@ -16,13 +16,13 @@ type TeacherEntranceSetting = {
 };
 
 export async function ensureDefaultLanguages() {
-  for (const language of DEFAULT_LANGUAGES) {
-    await prisma.learningLanguage.upsert({
+  await Promise.all(DEFAULT_LANGUAGES.map((language) =>
+    prisma.learningLanguage.upsert({
       where: { code: language.code },
       update: {},
       create: language,
-    });
-  }
+    }),
+  ));
 }
 
 export async function getTeacherEntranceSetting(): Promise<TeacherEntranceSetting> {
@@ -64,8 +64,8 @@ export async function findEntranceTest(languageId: string) {
     },
     orderBy: { createdAt: "desc" },
   });
-  const readyTests = tests.filter((test) =>
-    isTestReady(test.questions.reduce((sum, question) => sum + Number(question.score || 0), 0)),
+  const readyTests = tests.filter((test: { questions: Array<{ score: number | string | null }> }) =>
+    isTestReady(test.questions.reduce((sum: number, question: { score: number | string | null }) => sum + Number(question.score || 0), 0)),
   );
   if (readyTests.length === 0) return null;
   return readyTests[randomInt(readyTests.length)];

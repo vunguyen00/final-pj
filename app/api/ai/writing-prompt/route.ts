@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { ollamaService } from "@/lib/ai";
+import { parseAiJsonObject } from "@/lib/ai-json-repair";
 import {
   isChartMaterialData,
   type ChartMaterialData,
@@ -14,17 +15,7 @@ import {
 type WritingTaskType = "task_1" | "task_2";
 
 function extractJson(raw: string) {
-  const cleaned = raw
-    .trim()
-    .replace(/^```json\s*/i, "")
-    .replace(/^```\s*/i, "")
-    .replace(/```$/i, "")
-    .trim();
-  const start = cleaned.indexOf("{");
-  const end = cleaned.lastIndexOf("}");
-  return JSON.parse(
-    start >= 0 && end > start ? cleaned.slice(start, end + 1) : cleaned,
-  ) as Record<string, unknown>;
+  return parseAiJsonObject(raw).value;
 }
 
 function fallbackTaskOne(topic: string, language: WritingLanguage) {
@@ -120,9 +111,10 @@ function fallbackTaskTwo(topic: string, language: WritingLanguage) {
 
 function hasAtLeastTwoYearCategories(chart: ChartMaterialData) {
   const years = new Set(
-    chart.categories
-      .map((category) => String(category).match(/\b(?:19|20)\d{2}\b/)?.[0])
-      .filter(Boolean),
+    chart.categories.flatMap((category) => {
+      const year = String(category).match(/\b(?:19|20)\d{2}\b/)?.[0];
+      return year ? [year] : [];
+    }),
   );
   return years.size >= 2;
 }

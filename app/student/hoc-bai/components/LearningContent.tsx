@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { getCourseLearningLabels } from "@/lib/language-display";
 
 type Lesson = {
   id: string;
@@ -20,6 +21,7 @@ type Props = {
   modules: Module[];
   completedIds: string[];
   courseId: string;
+  language?: string | null;
 };
 
 const MIN_READING_SECONDS = 3 * 60;
@@ -31,7 +33,8 @@ function applySubtitleMode(video: HTMLVideoElement) {
   }
 }
 
-export default function LearningContent({ modules, completedIds, courseId }: Props) {
+export default function LearningContent({ modules, completedIds, courseId, language }: Props) {
+  const labels = getCourseLearningLabels(language);
   const lessons = useMemo(() => modules.flatMap((module) => module.lessons), [modules]);
   const firstLesson = lessons[0] ?? null;
 
@@ -42,10 +45,11 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
   const [loadingLesson, setLoadingLesson] = useState<string>("");
   const [readingStarts, setReadingStarts] = useState<Record<string, number>>({});
   const [readingNow, setReadingNow] = useState<Record<string, number>>({});
-  const [videoFull, setVideoFull] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const maxPlayedRef = useRef<Record<string, number>>({});
   const startedReadingRef = useRef<Record<string, boolean>>({});
+  const lastHeartbeatRef = useRef<Record<string, number>>({});
+  const startedVideoRef = useRef<Record<string, boolean>>({});
 
   const selectedLesson = lessons.find((item) => item.id === selectedLessonId) ?? firstLesson;
 
@@ -80,24 +84,44 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
     window.setTimeout(() => window.clearInterval(interval), MIN_READING_SECONDS * 1000 + 5000);
   }, []);
 
-  const markDone = useCallback(async (lesson: Lesson, options?: { watchedFull?: boolean }) => {
+  const startVideo = useCallback(async (lessonId: string) => {
+    if (startedVideoRef.current[lessonId]) return;
+    startedVideoRef.current[lessonId] = true;
+    const response = await fetch(`/api/learning/lessons/${lessonId}/start`, { method: "POST" });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      startedVideoRef.current[lessonId] = false;
+      setErrors((prev) => ({ ...prev, [lessonId]: data.error ?? "Không thể bắt đầu video." }));
+    }
+  }, []);
+
+  const sendVideoHeartbeat = useCallback(async (
+    lessonId: string,
+    positionSeconds: number,
+    durationSeconds: number,
+    force = false,
+  ) => {
+    const now = Date.now();
+    if (!force && now - (lastHeartbeatRef.current[lessonId] ?? 0) < 4_000) return;
+    lastHeartbeatRef.current[lessonId] = now;
+    await fetch(`/api/learning/lessons/${lessonId}/heartbeat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ positionSeconds, durationSeconds }),
+    });
+  }, []);
+
+  const markDone = useCallback(async (lesson: Lesson) => {
     if (completed[lesson.id] || loadingLesson === lesson.id) return;
 
     setLoadingLesson(lesson.id);
     setErrors((prev) => ({ ...prev, [lesson.id]: "" }));
 
     try {
-      const payload = lesson.videoUrl
-        ? {
-            watchedFull: options?.watchedFull ?? videoFull[lesson.id] === true,
-            noSeek: true,
-          }
-        : {};
-
       const response = await fetch(`/api/learning/lessons/${lesson.id}/complete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({}),
       });
 
       const data = await response.json();
@@ -110,7 +134,7 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
     } finally {
       setLoadingLesson("");
     }
-  }, [completed, loadingLesson, videoFull]);
+  }, [completed, loadingLesson]);
 
   function remainingReadingSeconds(lessonId: string) {
     const startedAt = readingStarts[lessonId];
@@ -123,7 +147,8 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
     return Math.max(0, MIN_READING_SECONDS - elapsed);
   }
 
-  function onVideoTimeUpdate(lessonId: string, currentTime: number) {
+  function onVideoTimeUpdate(lessonId: string, currentTime: number, duration: number) {
+    void sendVideoHeartbeat(lessonId, currentTime, duration);
     if (completed[lessonId]) {
       maxPlayedRef.current[lessonId] = Math.max(maxPlayedRef.current[lessonId] ?? 0, currentTime);
       return;
@@ -172,20 +197,20 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
   }, [canCompleteReading, completed, loadingLesson, markDone, selectedLesson]);
 
   if (!selectedLesson) {
-    return <p className="text-slate-600">Khóa học chưa có bài học.</p>;
+    return <p className="text-slate-600">{labels.noLessons}</p>;
   }
 
   return (
     <div className="grid h-full min-h-0 gap-4 lg:grid-cols-10">
       <aside className="lg:col-span-3 flex h-full min-h-0 flex-col rounded-xl border border-slate-200 bg-white text-slate-900">
         <div className="border-b border-slate-200 px-4 py-3">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Mục lục bài học</p>
-          <p className="mt-1 text-sm text-slate-600">Tiến độ: {progress}%</p>
+          <p className="text-xs uppercase tracking-wide text-slate-500">{labels.tableOfContents}</p>
+          <p className="mt-1 text-sm text-slate-600">{labels.progress(progress)}</p>
         </div>
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
           {modules.map((module, moduleIndex) => (
             <div key={module.id} className="rounded-lg border border-slate-200 bg-slate-50">
-              <p className="px-3 py-2 text-sm font-semibold text-slate-950">Module {moduleIndex + 1}: {module.name}</p>
+              <p className="px-3 py-2 text-sm font-semibold text-slate-950">{labels.module(moduleIndex + 1)}: {module.name}</p>
               <div className="space-y-1 px-2 pb-2">
                 {module.lessons.map((lesson, lessonIndex) => {
                   const active = lesson.id === selectedLesson.id;
@@ -205,7 +230,7 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
                       <div>
                         <span className="line-clamp-1">{moduleIndex + 1}.{lessonIndex + 1} {lesson.title}</span>
                         <p className={`mt-1 text-xs ${active ? "text-blue-100" : done ? "text-emerald-600" : "text-slate-500"}`}>
-                          {done ? "Đã hoàn thành" : "Chưa hoàn thành"}
+                          {done ? labels.completed : labels.notCompleted}
                         </p>
                       </div>
                     </button>
@@ -221,10 +246,10 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
         <div className="flex items-start justify-between gap-4">
           <h3 className="text-lg font-semibold text-slate-900">{selectedLesson.title}</h3>
           {completed[selectedLesson.id] ? (
-            <p className="text-sm font-medium text-emerald-600">Đã hoàn thành bài học này</p>
+            <p className="text-sm font-medium text-emerald-600">{labels.completedLesson}</p>
           ) : (
             <p className="text-sm font-medium text-slate-500">
-              {loadingLesson === selectedLesson.id ? "Đang lưu..." : "Chưa hoàn thành"}
+              {loadingLesson === selectedLesson.id ? labels.saving : labels.notCompleted}
             </p>
           )}
         </div>
@@ -237,8 +262,18 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
               controls
               preload="metadata"
               className="aspect-video w-full rounded-lg border border-slate-200 bg-black"
-              onLoadedMetadata={(e) => applySubtitleMode(e.currentTarget)}
-              onTimeUpdate={(e) => onVideoTimeUpdate(selectedLesson.id, e.currentTarget.currentTime)}
+              onLoadedMetadata={(e) => {
+                applySubtitleMode(e.currentTarget);
+                void startVideo(selectedLesson.id);
+              }}
+              onPlay={() => void startVideo(selectedLesson.id)}
+              onTimeUpdate={(e) =>
+                onVideoTimeUpdate(
+                  selectedLesson.id,
+                  e.currentTarget.currentTime,
+                  e.currentTarget.duration,
+                )
+              }
               onSeeking={(e) =>
                 preventSeek(selectedLesson.id, e.currentTarget.currentTime, (value) => {
                   e.currentTarget.currentTime = value;
@@ -249,24 +284,29 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
                   e.currentTarget.currentTime = value;
                 })
               }
-              onEnded={() => {
-                setVideoFull((prev) => ({ ...prev, [selectedLesson.id]: true }));
-                void markDone(selectedLesson, { watchedFull: true });
+              onEnded={async (e) => {
+                await sendVideoHeartbeat(
+                  selectedLesson.id,
+                  e.currentTarget.duration,
+                  e.currentTarget.duration,
+                  true,
+                );
+                await markDone(selectedLesson);
               }}
             >
               <source key={selectedLesson.videoUrl} src={selectedLesson.videoUrl} />
             </video>
-            <p className="mt-2 text-xs text-slate-600">Yêu cầu: xem hết video. Thanh tua sẽ bị khóa trong quá trình học.</p>
+            <p className="mt-2 text-xs text-slate-600">{labels.videoRequirement}</p>
           </div>
         ) : (
           !completed[selectedLesson.id] ? (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-              <p className="text-sm text-amber-900">Bài không có video: cần học tối thiểu 3 phút.</p>
+              <p className="text-sm text-amber-900">{labels.readingRequirement}</p>
               {!readingStarts[selectedLesson.id] ? (
-                <p className="mt-2 text-sm font-medium text-amber-800">Đang bắt đầu tính giờ...</p>
+                <p className="mt-2 text-sm font-medium text-amber-800">{labels.startingTimer}</p>
               ) : (
                 <p className="mt-2 text-sm font-medium text-amber-800">
-                  Còn lại: {Math.floor(readingRemain / 60)}:{String(readingRemain % 60).padStart(2, "0")}
+                  {labels.remaining(`${Math.floor(readingRemain / 60)}:${String(readingRemain % 60).padStart(2, "0")}`)}
                 </p>
               )}
             </div>
@@ -280,12 +320,12 @@ export default function LearningContent({ modules, completedIds, courseId }: Pro
 
         {allDone ? (
           <div className="mt-4 flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm font-medium text-blue-700">Bạn đã hoàn thành 100% nội dung. Tiếp theo: làm bài test.</p>
+            <p className="text-sm font-medium text-blue-700">{labels.allDone}</p>
             <Link
               href={testHref}
               className="inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 sm:w-auto"
             >
-              Làm bài test
+              {labels.takeTest}
             </Link>
           </div>
         ) : null}

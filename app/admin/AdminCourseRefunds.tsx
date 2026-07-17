@@ -1,9 +1,12 @@
 "use client";
 
-import { Fragment, useMemo, useState, type ButtonHTMLAttributes } from "react";
+import { Fragment, useMemo, useState, useSyncExternalStore, type ButtonHTMLAttributes } from "react";
+import { createPollingStore } from "@/lib/client-polling-store";
+import { ModalDialog } from "@/app/components/ModalDialog";
 import type { AdminCourseRefund } from "./types";
 
 const money = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 });
+const dateTime = new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Ho_Chi_Minh" });
 const statusCopy = {
   PENDING: { label: "Chờ xử lý", className: "bg-amber-50 text-amber-700 border-amber-200" },
   APPROVED: { label: "Đã hoàn tiền", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
@@ -11,15 +14,28 @@ const statusCopy = {
 } satisfies Record<AdminCourseRefund["status"], { label: string; className: string }>;
 
 function formatDate(value: string | null) {
-  return value ? new Date(value).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" }) : "-";
+  return value ? dateTime.format(new Date(value)) : "-";
 }
 
 export default function AdminCourseRefunds({ initialRefunds }: { initialRefunds: AdminCourseRefund[] }) {
-  const [refunds, setRefunds] = useState(initialRefunds);
+  const [refundStore] = useState(() => createPollingStore({
+    initialValue: initialRefunds,
+    intervalMs: 8000,
+    load: async () => {
+      const response = await fetch("/api/admin/course-refunds", { cache: "no-store" });
+      const data = (await response.json().catch(() => ({}))) as { refunds?: AdminCourseRefund[] };
+      if (!response.ok || !data.refunds) return initialRefunds;
+      return data.refunds;
+    },
+  }));
+  const refunds = useSyncExternalStore(refundStore.subscribe, refundStore.getSnapshot, refundStore.getSnapshot);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [currentTs] = useState(() => Date.now());
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [actionTarget, setActionTarget] = useState<{ item: AdminCourseRefund; action: "APPROVE" | "REJECT" } | null>(null);
+  const [actionNote, setActionNote] = useState("");
+  const [actionError, setActionError] = useState("");
 
   const stats = useMemo(() => {
     const pending = refunds.filter((item) => item.status === "PENDING");
@@ -32,10 +48,13 @@ export default function AdminCourseRefunds({ initialRefunds }: { initialRefunds:
     };
   }, [refunds]);
 
-  async function processRefund(item: AdminCourseRefund, action: "APPROVE" | "REJECT") {
-    const note = action === "REJECT" ? window.prompt("Lý do từ chối hoàn tiền?")?.trim() : window.prompt("Ghi chú xử lý (không bắt buộc):", "")?.trim() ?? "";
-    if (action === "REJECT" && !note) return;
+  function openRefundAction(item: AdminCourseRefund, action: "APPROVE" | "REJECT") {
+    setActionTarget({ item, action });
+    setActionNote("");
+    setActionError("");
+  }
 
+  async function processRefund(item: AdminCourseRefund, action: "APPROVE" | "REJECT", note: string) {
     setProcessingId(item.id);
     setMessage("");
     try {
@@ -47,17 +66,30 @@ export default function AdminCourseRefunds({ initialRefunds }: { initialRefunds:
       const data = (await response.json().catch(() => ({}))) as { error?: string; refund?: AdminCourseRefund };
 
       if (!response.ok || !data.refund) {
-        setMessage(data.error ?? "Không thể xử lý yêu cầu hoàn tiền.");
+        setActionError(data.error ?? "Không thể xử lý yêu cầu hoàn tiền.");
         return;
       }
 
-      setRefunds((current) => current.map((entry) => entry.id === item.id ? data.refund! : entry));
-      setMessage(action === "APPROVE" ? "Đã duyệt hoàn tiền, cộng tiền vào ví học viên và hủy quyền truy cập khóa học." : "Đã từ chối yêu cầu hoàn tiền.");
+      refundStore.setValue((current) => current.map((entry) => entry.id === item.id ? data.refund! : entry));
+      setMessage(action === "APPROVE" ? "Đã duyệt yêu cầu, hủy quyền truy cập khóa học và gửi thông báo xử lý hoàn tiền bên ngoài hệ thống." : "Đã từ chối yêu cầu hoàn tiền.");
+      setActionTarget(null);
     } catch {
-      setMessage("Lỗi mạng. Vui lòng thử lại.");
+      setActionError("Lỗi mạng. Vui lòng thử lại.");
     } finally {
       setProcessingId(null);
     }
+  }
+
+  async function submitRefundAction(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!actionTarget) return;
+    const note = actionNote.trim();
+    if (actionTarget.action === "REJECT" && !note) {
+      setActionError("Vui lòng nhập lý do từ chối hoàn tiền.");
+      return;
+    }
+    setActionError("");
+    await processRefund(actionTarget.item, actionTarget.action, note);
   }
 
   return (
@@ -74,7 +106,7 @@ export default function AdminCourseRefunds({ initialRefunds }: { initialRefunds:
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-5 py-4">
           <h2 className="text-xl font-bold text-slate-950">Yêu cầu hoàn tiền khóa học</h2>
-          <p className="mt-1 text-sm text-slate-500">Duyệt để cộng tiền lại vào ví học viên và hủy quyền truy cập khóa học.</p>
+          <p className="mt-1 text-sm text-slate-500">Duyệt để hủy quyền truy cập khóa học và thông báo khoản hoàn tiền sẽ được xử lý bên ngoài hệ thống.</p>
         </div>
 
         {refunds.length === 0 ? (
@@ -127,8 +159,8 @@ export default function AdminCourseRefunds({ initialRefunds }: { initialRefunds:
                             </button>
                             {item.status === "PENDING" ? (
                               <>
-                                <Action disabled={processingId === item.id} onClick={() => void processRefund(item, "APPROVE")}>Duyệt</Action>
-                                <Action danger disabled={processingId === item.id} onClick={() => void processRefund(item, "REJECT")}>Từ chối</Action>
+                                <Action disabled={processingId === item.id} onClick={() => openRefundAction(item, "APPROVE")}>Duyệt</Action>
+                                <Action danger disabled={processingId === item.id} onClick={() => openRefundAction(item, "REJECT")}>Từ chối</Action>
                               </>
                             ) : (
                               <span className="inline-flex h-9 items-center text-xs font-semibold text-slate-400">Đã xử lý</span>
@@ -172,7 +204,7 @@ export default function AdminCourseRefunds({ initialRefunds }: { initialRefunds:
                     <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${status.className}`}>{status.label}</span>
                   </div>
                   <p className="mt-1 text-sm text-slate-500">{item.student.email}</p>
-                  <p className="mt-1 text-xs text-slate-400">Gửi lúc {new Date(item.createdAt).toLocaleString("vi-VN")}</p>
+                  <p className="mt-1 text-xs text-slate-400">Gửi lúc {formatDate(item.createdAt)}</p>
                 </div>
                 <div>
                   <p className="text-xs font-semibold uppercase text-slate-400">Khóa học</p>
@@ -182,14 +214,14 @@ export default function AdminCourseRefunds({ initialRefunds }: { initialRefunds:
                 <div>
                   <p className="text-xs font-semibold uppercase text-slate-400">Số tiền</p>
                   <p className="mt-1 text-lg font-black text-emerald-700">{money.format(item.amount)}</p>
-                  {item.processedAt ? <p className="mt-1 text-xs text-slate-500">Xử lý lúc {new Date(item.processedAt).toLocaleString("vi-VN")}</p> : null}
+                  {item.processedAt ? <p className="mt-1 text-xs text-slate-500">Xử lý lúc {formatDate(item.processedAt)}</p> : null}
                   {item.adminNote ? <p className="mt-1 text-xs text-slate-600">Ghi chú: {item.adminNote}</p> : null}
                 </div>
                 <div className="flex min-w-44 flex-col gap-2">
                   {item.status === "PENDING" ? (
                     <>
-                      <Action disabled={processingId === item.id} onClick={() => void processRefund(item, "APPROVE")}>Duyệt hoàn tiền</Action>
-                      <Action danger disabled={processingId === item.id} onClick={() => void processRefund(item, "REJECT")}>Từ chối</Action>
+                      <Action disabled={processingId === item.id} onClick={() => openRefundAction(item, "APPROVE")}>Duyệt hoàn tiền</Action>
+                      <Action danger disabled={processingId === item.id} onClick={() => openRefundAction(item, "REJECT")}>Từ chối</Action>
                     </>
                   ) : (
                     <span className="text-center text-xs font-semibold text-slate-400">Đã xử lý</span>
@@ -201,6 +233,37 @@ export default function AdminCourseRefunds({ initialRefunds }: { initialRefunds:
           {refunds.length === 0 ? <p className="px-5 py-12 text-center text-sm text-slate-500">Chưa có yêu cầu hoàn tiền.</p> : null}
         </div>
       </section>
+
+      {actionTarget ? (
+        <ModalDialog labelledBy="refund-action-title" onClose={() => { if (!processingId) setActionTarget(null); }}>
+          <form onSubmit={submitRefundAction} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+            <h2 id="refund-action-title" className="text-lg font-bold text-slate-950">
+              {actionTarget.action === "APPROVE" ? "Duyệt hoàn tiền khóa học" : "Từ chối hoàn tiền"}
+            </h2>
+            <div className="mt-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-700">
+              <p className="font-semibold">{actionTarget.item.student.username}</p>
+              <p className="mt-1">Khóa học: {actionTarget.item.course.name}</p>
+              <p className="mt-1">Số tiền: <strong>{money.format(actionTarget.item.amount)}</strong></p>
+            </div>
+            {actionTarget.action === "APPROVE" ? (
+              <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-800">
+                Khi xác nhận, quyền truy cập khóa học của học viên sẽ bị hủy và yêu cầu được đánh dấu để hoàn tiền ngoài hệ thống.
+              </p>
+            ) : null}
+            <label className="mt-4 block text-sm font-semibold text-slate-700">
+              {actionTarget.action === "REJECT" ? "Lý do từ chối *" : "Ghi chú xử lý (không bắt buộc)"}
+              <textarea autoFocus rows={3} maxLength={500} value={actionNote} onChange={(event) => setActionNote(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" />
+            </label>
+            {actionError ? <p role="alert" className="mt-3 rounded-lg bg-rose-50 p-3 text-sm font-semibold text-rose-700">{actionError}</p> : null}
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" disabled={processingId !== null} onClick={() => setActionTarget(null)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50">Hủy</button>
+              <button type="submit" disabled={processingId !== null} className={`rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 ${actionTarget.action === "REJECT" ? "bg-rose-600" : "bg-blue-600"}`}>
+                {processingId ? "Đang xử lý..." : "Xác nhận"}
+              </button>
+            </div>
+          </form>
+        </ModalDialog>
+      ) : null}
     </div>
   );
 }

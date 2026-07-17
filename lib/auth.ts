@@ -8,18 +8,11 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Role } from "@/app/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
+import { getRequiredAuthSecret } from "@/lib/server-secret";
 
 const AUTH_COOKIE_NAME = "auth_token";
 const SESSION_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7;
 const AUTH_ALG = "HS256";
-const AUTH_SECRET =
-  process.env.AUTH_SECRET ??
-  process.env.JWT_SECRET ??
-  (process.env.NODE_ENV === "production" ? "" : "dev_auth_secret_change_me");
-
-if (!AUTH_SECRET) {
-  throw new Error("AUTH_SECRET is required in production.");
-}
 
 export type AppRole = keyof typeof Role;
 
@@ -54,6 +47,7 @@ function base64urlDecode(input: string): string {
 type AuthPayload = {
   sub: string;
   role: AppRole;
+  ver: number;
   exp: number;
 };
 
@@ -61,7 +55,7 @@ function signAuthToken(payload: AuthPayload): string {
   const header = { alg: AUTH_ALG, typ: "AUTH" };
   const encodedHeader = base64urlEncode(JSON.stringify(header));
   const encodedPayload = base64urlEncode(JSON.stringify(payload));
-  const signature = createHmac("sha256", AUTH_SECRET)
+  const signature = createHmac("sha256", getRequiredAuthSecret())
     .update(`${encodedHeader}.${encodedPayload}`)
     .digest("base64")
     .replace(/\+/g, "-")
@@ -78,7 +72,7 @@ function verifyAuthToken(token: string): AuthPayload | null {
   }
 
   const [encodedHeader, encodedPayload, encodedSignature] = parts;
-  const expectedSignature = createHmac("sha256", AUTH_SECRET)
+  const expectedSignature = createHmac("sha256", getRequiredAuthSecret())
     .update(`${encodedHeader}.${encodedPayload}`)
     .digest("base64")
     .replace(/\+/g, "-")
@@ -96,7 +90,7 @@ function verifyAuthToken(token: string): AuthPayload | null {
 
   try {
     const payload = JSON.parse(base64urlDecode(encodedPayload)) as AuthPayload;
-    if (!payload?.sub || !payload?.role || !payload?.exp) {
+    if (!payload?.sub || !payload?.role || !Number.isInteger(payload?.ver) || !payload?.exp) {
       return null;
     }
 
@@ -158,11 +152,12 @@ export function verifyPassword(password: string, storedPassword: string): boolea
   return timingSafeEqual(derivedBuffer, savedBuffer);
 }
 
-export function createAuthToken(userId: string, role: AppRole): string {
+export function createAuthToken(userId: string, role: AppRole, authVersion: number): string {
   const nowSeconds = Math.floor(Date.now() / 1000);
   const payload: AuthPayload = {
     sub: userId,
     role,
+    ver: authVersion,
     exp: nowSeconds + SESSION_MAX_AGE_MS / 1000,
   };
 
@@ -209,10 +204,16 @@ export async function authenticate() {
       isBanned: true,
       accountStatus: true,
       learningLanguageId: true,
+      authVersion: true,
     },
   });
 
-  if (!user || user.isBanned || user.accountStatus !== "ACTIVE") {
+  if (
+    !user ||
+    user.isBanned ||
+    user.accountStatus !== "ACTIVE" ||
+    user.authVersion !== payload.ver
+  ) {
     await clearAuthCookie();
     return null;
   }

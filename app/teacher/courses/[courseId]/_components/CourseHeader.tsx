@@ -1,4 +1,5 @@
 ﻿import Link from "next/link";
+import { getCourseCategoryLabel, getCourseManagementLabels } from "@/lib/language-display";
 import { Course } from "../types";
 
 type CourseHeaderProps = {
@@ -7,16 +8,10 @@ type CourseHeaderProps = {
 
 export function CourseHeader({ course }: CourseHeaderProps) {
   const createdAt = new Date(course.createdAt).toLocaleString("vi-VN");
+  const courseLanguageKey = course.language?.code || course.language?.name || "vi";
+  const labels = getCourseManagementLabels(courseLanguageKey);
   const statusLabel =
-    course.status === "ACTIVE"
-      ? "Hoạt động"
-      : course.status === "LOCKED"
-        ? "Đã khóa"
-        : course.status === "PENDING_APPROVAL"
-          ? "Chờ duyệt"
-          : course.status === "PENDING_DELETE"
-            ? "Chờ duyệt xóa"
-          : "Bị từ chối";
+    labels.status[course.status] || course.status;
   const statusClass =
     course.status === "ACTIVE"
       ? "bg-green-100 text-green-700"
@@ -37,7 +32,7 @@ export function CourseHeader({ course }: CourseHeaderProps) {
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
           <path d="M19 12H5M12 19l-7-7 7-7" />
         </svg>
-        Quay lại danh sách khóa học
+        {labels.backToCourses}
       </Link>
 
       <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -46,11 +41,11 @@ export function CourseHeader({ course }: CourseHeaderProps) {
             <h1 className="text-2xl font-bold text-slate-900">{course.name}</h1>
             <p className="mt-2 text-slate-600">{course.description}</p>
             <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-500">
-              <span className="flex items-center gap-1">Giảng viên: {course.instructor?.username ?? "Chưa gán"}</span>
-              <span className="flex items-center gap-1">Tạo lúc: {createdAt}</span>
-              <span className="flex items-center gap-1">{course._count.enrollments} học viên</span>
-              <span className="flex items-center gap-1">{course._count.modules} chương</span>
-              <span className="flex items-center gap-1">{course._count.tests} bài test</span>
+              <span className="flex items-center gap-1">{labels.instructor}: {course.instructor?.username ?? labels.unassigned}</span>
+              <span className="flex items-center gap-1">{labels.createdAt}: {createdAt}</span>
+              <span className="flex items-center gap-1">{labels.students(course._count.enrollments)}</span>
+              <span className="flex items-center gap-1">{labels.modules(course._count.modules)}</span>
+              <span className="flex items-center gap-1">{labels.tests(course._count.tests)}</span>
               <span className={`rounded-full px-2 py-1 text-xs font-medium ${statusClass}`}>
                 {statusLabel}
               </span>
@@ -58,7 +53,7 @@ export function CourseHeader({ course }: CourseHeaderProps) {
           </div>
           <div className="text-right">
             <p className="text-2xl font-bold text-slate-900">{course.price.toLocaleString("vi-VN")}đ</p>
-            <p className="text-sm text-slate-500">{course.category}</p>
+            <p className="text-sm text-slate-500">{getCourseCategoryLabel(course.category, courseLanguageKey) || course.category}</p>
           </div>
         </div>
       </div>

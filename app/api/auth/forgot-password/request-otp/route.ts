@@ -52,7 +52,7 @@ export async function POST(request: Request) {
 
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, email: true, role: true },
+      select: { id: true, email: true },
     });
 
     // Trả lời chung để tránh để lộ email tồn tại hay không tồn tại.
@@ -63,16 +63,6 @@ export async function POST(request: Request) {
 
     if (!user) {
       return genericResponse;
-    }
-
-    if (user.role === "ADMIN") {
-      return NextResponse.json(
-        {
-          error:
-            "Tài khoản admin không được đặt lại mật khẩu bằng OTP. Vui lòng liên hệ quản trị hệ thống để được cấp mật khẩu mới.",
-        },
-        { status: 403 },
-      );
     }
 
     const otpCode = generateOtpCode();

@@ -22,6 +22,8 @@ function serializeComplaint(complaint: {
   reason: "NOT_RECEIVED" | "WRONG_AMOUNT" | "OTHER";
   reportedAmount: number | null;
   message: string;
+  evidenceImageUrl: string | null;
+  evidenceImageName: string | null;
   status: "OPEN" | "RESOLVED" | "REJECTED";
   adminNote: string | null;
   resolvedAt: Date | null;
@@ -74,6 +76,8 @@ export async function PATCH(
           reason: true,
           reportedAmount: true,
           message: true,
+          evidenceImageUrl: true,
+          evidenceImageName: true,
           status: true,
           adminNote: true,
           resolvedAt: true,

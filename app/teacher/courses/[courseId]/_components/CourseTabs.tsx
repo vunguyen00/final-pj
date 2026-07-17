@@ -1,9 +1,12 @@
+import type { CourseManagementLabels } from "@/lib/language-display";
+
 export type CourseTab = "information" | "modules" | "tests";
 
 type CourseTabsProps = {
   activeTab: CourseTab;
   moduleCount: number;
   testCount: number;
+  labels: CourseManagementLabels["tabs"];
   onTabChange: (tab: CourseTab) => void;
 };
 
@@ -11,6 +14,7 @@ export function CourseTabs({
   activeTab,
   moduleCount,
   testCount,
+  labels,
   onTabChange,
 }: CourseTabsProps) {
   const tabClass = (tab: CourseTab) =>
@@ -28,21 +32,21 @@ export function CourseTabs({
           onClick={() => onTabChange("information")}
           className={tabClass("information")}
         >
-          Chỉnh sửa thông tin
+          {labels.information}
         </button>
         <button
           type="button"
           onClick={() => onTabChange("modules")}
           className={tabClass("modules")}
         >
-          Quản lý chương ({moduleCount})
+          {labels.modules(moduleCount)}
         </button>
         <button
           type="button"
           onClick={() => onTabChange("tests")}
           className={tabClass("tests")}
         >
-          Quản lý bài test ({testCount})
+          {labels.tests(testCount)}
         </button>
       </nav>
     </div>

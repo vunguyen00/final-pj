@@ -1,3 +1,5 @@
+import { getLanguageDisplayLabel } from "@/lib/language-display";
+
 export const LANGUAGES = ["English", "Chinese", "Japanese", "Korean"] as const;
 
 export const PRODUCT_TYPES = [
@@ -93,13 +95,6 @@ function normalizeLevel(value?: string | null): CourseLevel | null {
   return null;
 }
 
-const languageLabels: Record<LanguageName, string> = {
-  English: "Tiếng Anh",
-  Chinese: "Tiếng Trung",
-  Japanese: "Tiếng Nhật",
-  Korean: "Tiếng Hàn",
-};
-
 const productTypeLabels: Record<ProductType, string> = {
   "Single course": "Khóa học đơn",
   "Combo course": "Combo khóa học",
@@ -118,7 +113,7 @@ const levelLabels: Record<CourseLevel, string> = {
 };
 
 export function getLanguageLabel(language: LanguageName | string) {
-  return languageLabels[language as LanguageName] || language;
+  return getLanguageDisplayLabel(language);
 }
 
 export function getProductTypeLabel(type: ProductType | string) {

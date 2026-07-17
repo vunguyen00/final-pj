@@ -1,7 +1,6 @@
-import { randomUUID } from "node:crypto";
 import type { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { debitWalletForPurchase, VNPAY_PROVIDER } from "@/lib/wallet";
+import { VNPAY_PROVIDER } from "@/lib/wallet";
 
 export const COURSE_COMPLETION_POINTS = 0;
 export const SPEAKING_AI_COST = 7;
@@ -181,19 +180,33 @@ export async function spendAiPoints(
   feature: string,
   sourceId?: string,
 ) {
+  return prisma.$transaction(
+    (tx) => spendAiPointsWithClient(tx, userId, courseId, points, feature, sourceId),
+    { isolationLevel: "Serializable" },
+  );
+}
+
+export async function spendAiPointsWithClient(
+  client: Prisma.TransactionClient,
+  userId: string,
+  courseId: string | null,
+  points: number,
+  feature: string,
+  sourceId?: string,
+) {
   if (!Number.isFinite(points) || points <= 0) {
     throw new Error("INVALID_POINTS");
   }
 
-  const summary = await getAiPointsSummary(userId);
-  if (summary.available < points) {
+  const availableBefore = await getCurrentBalance(userId, client);
+  if (availableBefore < points) {
     throw new Error("INSUFFICIENT_POINTS");
   }
 
   const normalizedPoints = Math.trunc(points);
   const normalizedFeature = normalizeKeyPart(feature.toUpperCase());
   const normalizedSource = normalizeKeyPart(sourceId || `${Date.now()}`);
-  const result = await recordPointTransaction({
+  const result = await recordPointTransactionWithClient(client, {
     userId,
     courseId,
     type: `${normalizedFeature}_SPENT`,
@@ -210,50 +223,8 @@ export async function spendAiPoints(
 
   return {
     spent: result.created ? normalizedPoints : 0,
-    available: result.created ? summary.available - normalizedPoints : summary.available,
+    available: result.created ? result.transaction.balanceAfter : availableBefore,
   };
-}
-
-export async function purchaseAiPointsWithWallet(userId: string, points: number) {
-  void userId;
-  void points;
-  throw new Error("WALLET_TOP_UP_DISABLED");
-
-  const normalizedPoints = Math.trunc(Number(points));
-  if (!Number.isFinite(normalizedPoints) || normalizedPoints <= 0) {
-    throw new Error("INVALID_POINTS");
-  }
-
-  const cost = normalizedPoints * AI_POINT_PRICE_VND;
-
-  return prisma.$transaction(async (tx) => {
-    const walletBalance = await debitWalletForPurchase({
-      tx,
-      userId,
-      amount: cost,
-    });
-
-    const result = await recordPointTransactionWithClient(tx, {
-      userId,
-      type: "AI_POINTS_PURCHASE",
-      amount: normalizedPoints,
-      sourceKey: `AI_POINTS_PURCHASE:${userId}:${randomUUID()}`,
-      description: `Mua ${normalizedPoints} hạt đậu`,
-      metadata: {
-        points: normalizedPoints,
-        cost,
-        pricePerPoint: AI_POINT_PRICE_VND,
-      },
-    });
-
-    return {
-      points: result.created ? normalizedPoints : 0,
-      cost,
-      available: result.transaction.balanceAfter,
-      walletBalance,
-      pricePerPoint: AI_POINT_PRICE_VND,
-    };
-  });
 }
 
 export function normalizeAiPointAmount(points: unknown) {

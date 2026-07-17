@@ -68,6 +68,7 @@ function StudentTestsContent() {
     useState<FilterState>(defaultFilters);
   const [draftFilters, setDraftFilters] =
     useState<FilterState>(defaultFilters);
+  const [courseSearch, setCourseSearch] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -114,8 +115,16 @@ function StudentTestsContent() {
   }, [tests]);
 
   const filteredTests = useMemo(
-    () =>
-      tests.filter((test) => {
+    () => {
+      const courseSearchTerm = courseSearch.trim().toLocaleLowerCase("vi");
+
+      return tests.filter((test) => {
+        if (
+          courseSearchTerm &&
+          !test.courseName.toLocaleLowerCase("vi").includes(courseSearchTerm)
+        ) {
+          return false;
+        }
         if (
           appliedFilters.language !== "ALL" &&
           getLanguageName(test) !== appliedFilters.language
@@ -147,8 +156,9 @@ function StudentTestsContent() {
           return false;
         }
         return true;
-      }),
-    [appliedFilters, tests],
+      });
+    },
+    [appliedFilters, courseSearch, tests],
   );
 
   const stats = {
@@ -224,6 +234,37 @@ function StudentTestsContent() {
             value={stats.locked}
             color="text-amber-700"
           />
+        </section>
+
+        <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <label
+            htmlFor="course-search"
+            className="text-sm font-bold text-slate-800"
+          >
+            Tìm kiếm khóa học
+          </label>
+          <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+            <input
+              id="course-search"
+              type="search"
+              value={courseSearch}
+              onChange={(event) => setCourseSearch(event.target.value)}
+              placeholder="Nhập tên khóa học"
+              className="min-h-11 flex-1 rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
+            {courseSearch ? (
+              <button
+                type="button"
+                onClick={() => setCourseSearch("")}
+                className="min-h-11 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Xóa
+              </button>
+            ) : null}
+          </div>
+          <p className="mt-2 text-sm text-slate-500">
+            {filteredTests.length} bài test phù hợp
+          </p>
         </section>
 
         {error ? (

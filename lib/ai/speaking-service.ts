@@ -6,6 +6,7 @@ import type {
   SpeakingLanguage,
   SpeakingTask,
 } from "@/lib/speaking-languages";
+import { normalizeFeedbackTextItems } from "@/lib/ai-feedback-normalization";
 
 const SPEAKING_SYSTEM_PROMPT = `You are a strict multilingual speaking examiner.
 
@@ -138,12 +139,8 @@ Return JSON in exactly this format:
 }
 
 function normalizeArray(value: unknown, fallback: string[]): string[] {
-  if (Array.isArray(value)) {
-    const items = value.map((item) => String(item).trim()).filter(Boolean);
-    return items.length ? items : fallback;
-  }
-  if (typeof value === "string" && value.trim()) return [value.trim()];
-  return fallback;
+  const items = normalizeFeedbackTextItems(value);
+  return items.length ? items : fallback;
 }
 
 function normalizeScore(value: unknown) {

@@ -26,6 +26,7 @@ const AUDIO_TYPES: Record<string, string> = {
   "audio/x-wav": "wav",
   "audio/ogg": "ogg",
   "audio/webm": "webm",
+  "video/webm": "webm",
   "audio/mp4": "m4a",
   "audio/m4a": "m4a",
   "audio/x-m4a": "m4a",
@@ -37,6 +38,30 @@ const VIDEO_TYPES: Record<string, string> = {
   "video/webm": "webm",
   "video/quicktime": "mov",
   "video/x-msvideo": "avi",
+};
+
+const AUDIO_EXTENSION_SIGNATURE_TYPES: Record<string, string> = {
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  ogg: "audio/ogg",
+  webm: "audio/webm",
+  m4a: "audio/mp4",
+  aac: "audio/aac",
+};
+
+const IMAGE_EXTENSION_SIGNATURE_TYPES: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  gif: "image/gif",
+};
+
+const VIDEO_EXTENSION_SIGNATURE_TYPES: Record<string, string> = {
+  mp4: "video/mp4",
+  webm: "video/webm",
+  mov: "video/quicktime",
+  avi: "video/x-msvideo",
 };
 
 function hasImageSignature(buffer: Buffer, mimeType: string) {
@@ -56,6 +81,11 @@ function hasMp4FamilySignature(buffer: Buffer) {
 
 function normalizeMimeType(mimeType: string) {
   return mimeType.toLowerCase().split(";")[0]?.trim() || "";
+}
+
+function getFileExtension(filename?: string | null) {
+  const extension = filename?.split(".").pop()?.toLowerCase().trim() || "";
+  return extension && extension !== filename?.toLowerCase() ? extension : "";
 }
 
 function hasUploadSignature(buffer: Buffer, mimeType: string) {
@@ -78,7 +108,7 @@ function hasUploadSignature(buffer: Buffer, mimeType: string) {
   return false;
 }
 
-export function getAllowedUpload(mimeType: string, kinds: UploadKind[]): AllowedUpload | null {
+export function getAllowedUpload(mimeType: string, kinds: UploadKind[], filename?: string | null): AllowedUpload | null {
   const normalizedMimeType = normalizeMimeType(mimeType);
   if (kinds.includes("image") && normalizedMimeType in IMAGE_TYPES) {
     return { kind: "image", extension: IMAGE_TYPES[normalizedMimeType] };
@@ -92,9 +122,29 @@ export function getAllowedUpload(mimeType: string, kinds: UploadKind[]): Allowed
   if (kinds.includes("video") && normalizedMimeType in VIDEO_TYPES) {
     return { kind: "video", extension: VIDEO_TYPES[normalizedMimeType] };
   }
+  const extension = getFileExtension(filename);
+  if (kinds.includes("image") && extension in IMAGE_EXTENSION_SIGNATURE_TYPES) {
+    return { kind: "image", extension: extension === "jpeg" ? "jpg" : extension };
+  }
+  if (kinds.includes("pdf") && extension === "pdf") {
+    return { kind: "pdf", extension: "pdf" };
+  }
+  if (kinds.includes("audio") && extension in AUDIO_EXTENSION_SIGNATURE_TYPES) {
+    return { kind: "audio", extension };
+  }
+  if (kinds.includes("video") && extension in VIDEO_EXTENSION_SIGNATURE_TYPES) {
+    return { kind: "video", extension };
+  }
   return null;
 }
 
-export function validateUploadSignature(buffer: Buffer, mimeType: string) {
-  return hasUploadSignature(buffer, mimeType);
+export function validateUploadSignature(buffer: Buffer, mimeType: string, filename?: string | null) {
+  if (hasUploadSignature(buffer, mimeType)) return true;
+  const extension = getFileExtension(filename);
+  const signatureMimeType =
+    AUDIO_EXTENSION_SIGNATURE_TYPES[extension] ||
+    IMAGE_EXTENSION_SIGNATURE_TYPES[extension] ||
+    (extension === "pdf" ? "application/pdf" : "") ||
+    VIDEO_EXTENSION_SIGNATURE_TYPES[extension];
+  return signatureMimeType ? hasUploadSignature(buffer, signatureMimeType) : false;
 }

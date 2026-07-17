@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { ModalDialog } from "@/app/components/ModalDialog";
 import type { Application, Course } from "./types";
 
 function statusLabel(status: Course["status"]) {
@@ -220,6 +221,74 @@ export default function AdminDashboard({
     return () => window.clearTimeout(timeout);
   }, [message]);
 
+  return (
+    <>
+      <AdminDashboardContent
+        {...{
+          message,
+          enabled,
+          courseAutoApproval,
+          applications,
+          pendingApplications,
+          pendingCourses,
+          updatingTeacherEntrance,
+          updatingCourseAutoApproval,
+          reviewingCourseId,
+          setMessage,
+          setShowApplications,
+          toggleTeacherEntrance,
+          toggleCourseAutoApproval,
+          reviewCourse,
+        }}
+      />
+      {showApplications ? (
+        <TeacherApplicationsDialog
+          {...{
+            filteredApplications,
+            applicationSearch,
+            currentTs,
+            reviewingApplicationId,
+            setApplicationSearch,
+            setShowApplications,
+            reviewTeacherApplication,
+          }}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function AdminDashboardContent({
+  message,
+  enabled,
+  courseAutoApproval,
+  applications,
+  pendingApplications,
+  pendingCourses,
+  updatingTeacherEntrance,
+  updatingCourseAutoApproval,
+  reviewingCourseId,
+  setMessage,
+  setShowApplications,
+  toggleTeacherEntrance,
+  toggleCourseAutoApproval,
+  reviewCourse,
+}: {
+  message: string;
+  enabled: boolean;
+  courseAutoApproval: boolean;
+  applications: Application[];
+  pendingApplications: Application[];
+  pendingCourses: Course[];
+  updatingTeacherEntrance: boolean;
+  updatingCourseAutoApproval: boolean;
+  reviewingCourseId: string | null;
+  setMessage: (message: string) => void;
+  setShowApplications: (show: boolean) => void;
+  toggleTeacherEntrance: (enabled: boolean) => Promise<void>;
+  toggleCourseAutoApproval: (enabled: boolean) => Promise<void>;
+  reviewCourse: (course: Course, decision: "APPROVE" | "REJECT") => Promise<void>;
+}) {
   return (
     <div className="space-y-5">
       {message ? (
@@ -474,18 +543,34 @@ export default function AdminDashboard({
         </div>
       </section>
 
-      {showApplications ? (
-        <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/50 p-3 backdrop-blur-sm md:p-6"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Hồ sơ đăng ký giảng viên"
-        >
+    </div>
+  );
+}
+
+function TeacherApplicationsDialog({
+  filteredApplications,
+  applicationSearch,
+  currentTs,
+  reviewingApplicationId,
+  setApplicationSearch,
+  setShowApplications,
+  reviewTeacherApplication,
+}: {
+  filteredApplications: Application[];
+  applicationSearch: string;
+  currentTs: number;
+  reviewingApplicationId: string | null;
+  setApplicationSearch: (search: string) => void;
+  setShowApplications: (show: boolean) => void;
+  reviewTeacherApplication: (application: Application, action: "APPROVE" | "REJECT") => Promise<void>;
+}) {
+  return (
+    <ModalDialog labelledBy="teacher-applications-title" onClose={() => setShowApplications(false)} className="z-[70] p-3 md:p-6">
           <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
             <div className="border-b border-slate-200 p-4 md:p-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-950">
+                  <h2 id="teacher-applications-title" className="text-xl font-bold text-slate-950">
                     Hồ sơ đăng ký giảng viên
                   </h2>
                   <p className="mt-1 text-sm text-slate-500">
@@ -642,8 +727,6 @@ export default function AdminDashboard({
               )}
             </div>
           </div>
-        </div>
-      ) : null}
-    </div>
+    </ModalDialog>
   );
 }

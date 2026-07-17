@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import AuthButtons from "./header/AuthButtons";
 import { useUser } from "./header/useUser";
 
@@ -24,6 +24,12 @@ type AppNotification = {
   createdAt: string;
 };
 
+type NotificationStore = {
+  subscribe: (listener: () => void) => () => void;
+  getSnapshot: () => AppNotification | null;
+  dismiss: () => void;
+};
+
 function hasMatch(item: MatchedNavItem | BasicNavItem): item is MatchedNavItem {
   return typeof (item as MatchedNavItem).match === "function";
 }
@@ -35,6 +41,8 @@ const navItems = [
 ] satisfies MatchedNavItem[];
 
 const studentNavItems = [
+  { href: "/", label: "Khám phá" },
+  { href: "/courses", label: "Khóa học" },
   { href: "/student/tests", label: "Bài test" },
   { href: "/student/results", label: "Kết quả" },
   { href: "/student/wallet", label: "Điểm đậu" },
@@ -42,18 +50,26 @@ const studentNavItems = [
 ] satisfies BasicNavItem[];
 
 const teacherNavItems = [
-  { href: "/teacher", label: "Tổng quan" },
   { href: "/teacher/courses", label: "Khóa học của tôi" },
   { href: "/teacher/tests", label: "Bài test" },
   { href: "/teacher/students", label: "Học viên" },
 ] satisfies BasicNavItem[];
 
+const teacherOverviewNavItem = { href: "/teacher", label: "Tổng quan" } satisfies BasicNavItem;
+
 const adminNavItems = [
-  { href: "/admin", label: "Tổng quan" },
+  { href: "/", label: "Khám phá" },
+  { href: "/courses", label: "Khóa học" },
   { href: "/student/tests", label: "Bài test" },
   { href: "/student/results", label: "Kết quả" },
-  { href: "/student/rewards", label: "Điểm đậu" },
   { href: "/student/wallet", label: "Điểm đậu" },
+  { href: "/admin", label: "Tổng quan" },
+] satisfies BasicNavItem[];
+
+const guestNavItems = [
+  { href: "/", label: "Khám phá" },
+  { href: "/courses", label: "Khóa học" },
+  { href: "/teachers", label: "Giảng viên" },
 ] satisfies BasicNavItem[];
 
 const aiNavItems = [
@@ -65,6 +81,16 @@ function getNavigationLabel(item: BasicNavItem | MatchedNavItem) {
   if (item.href === "/student/wallet") return "Điểm đậu";
   if (item.href === "/student/rewards") return "Điểm đậu";
   return item.label;
+}
+
+const dashboardPaths = new Set(["/admin", "/student", "/teacher"]);
+
+function isNavigationItemActive(item: BasicNavItem | MatchedNavItem, pathname: string) {
+  if (hasMatch(item)) return item.match(pathname);
+
+  const itemPath = item.href.split("?")[0];
+  if (dashboardPaths.has(itemPath)) return pathname === itemPath;
+  return pathname === itemPath || (itemPath !== "/" && pathname.startsWith(`${itemPath}/`));
 }
 
 const SEEN_NOTIFICATION_IDS_KEY = "seen-notification-ids:v2";
@@ -142,12 +168,81 @@ function startNotificationPolling({
   };
 }
 
+function createNotificationStore(userId: string): NotificationStore {
+  let notification: AppNotification | null = null;
+  let stopPolling: (() => void) | null = null;
+  const listeners = new Set<() => void>();
+
+  function emit() {
+    listeners.forEach((listener) => listener());
+  }
+
+  function hide(notificationId: string) {
+    if (notification?.id !== notificationId) return;
+    notification = null;
+    emit();
+  }
+
+  return {
+    subscribe(listener) {
+      listeners.add(listener);
+      if (listeners.size === 1) {
+        stopPolling = startNotificationPolling({
+          userId,
+          onShow: (nextNotification) => {
+            notification = nextNotification;
+            emit();
+          },
+          onHide: hide,
+        });
+      }
+
+      return () => {
+        listeners.delete(listener);
+        if (listeners.size === 0) {
+          stopPolling?.();
+          stopPolling = null;
+        }
+      };
+    },
+    getSnapshot() {
+      return notification;
+    },
+    dismiss() {
+      if (!notification) return;
+      notification = null;
+      emit();
+    },
+  };
+}
+
+const subscribeToEmptyNotificationStore = () => () => undefined;
+const getEmptyNotificationSnapshot = () => null;
+const subscribeToMountedStore = (listener: () => void) => {
+  listener();
+  return () => undefined;
+};
+const getMountedSnapshot = () => true;
+const getServerMountedSnapshot = () => false;
+
 export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean }) {
   const pathname = usePathname() || "";
   const { user, loading } = useUser();
+  const userId = user?.id;
   const [globalError, setGlobalError] = useState("");
   const [open, setOpen] = useState(false);
-  const [toast, setToast] = useState<AppNotification | null>(null);
+  const [aiMenuOpen, setAiMenuOpen] = useState(false);
+  const mounted = useSyncExternalStore(
+    subscribeToMountedStore,
+    getMountedSnapshot,
+    getServerMountedSnapshot,
+  );
+  const notificationStore = useMemo(() => (userId ? createNotificationStore(userId) : null), [userId]);
+  const toast = useSyncExternalStore(
+    notificationStore?.subscribe ?? subscribeToEmptyNotificationStore,
+    notificationStore?.getSnapshot ?? getEmptyNotificationSnapshot,
+    getEmptyNotificationSnapshot,
+  );
 
   useEffect(() => {
     function handleGlobalError(event: Event) {
@@ -159,29 +254,20 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
     return () => window.removeEventListener("app-global-error", handleGlobalError);
   }, []);
 
-  useEffect(() => {
-    if (!user) return;
-
-    return startNotificationPolling({
-      userId: user.id,
-      onShow: setToast,
-      onHide: (notificationId) => setToast((current) => (current?.id === notificationId ? null : current)),
-    });
-  }, [user]);
-
   const hideHeader = pathname.startsWith("/auth") || (pathname.startsWith("/admin") && !showOnAdmin);
   if (hideHeader) return null;
 
-  const baseLinks = user ? navItems.filter((item) => item.href !== "/teachers") : navItems;
+  const baseLinks = user?.role === "TEACHER" ? navItems.filter((item) => item.href !== "/teachers") : [];
   const roleLinks = !user
-    ? []
+    ? guestNavItems
     : user.role === "ADMIN"
       ? adminNavItems
       : user.role === "TEACHER"
         ? teacherNavItems
         : studentNavItems;
-  const navigationLinks = [...baseLinks, ...roleLinks];
-  const showAiMenu = Boolean(user);
+  const navigationLinks = mounted ? [...baseLinks, ...roleLinks] : [];
+  const postAiNavigationLinks = mounted && user?.role === "TEACHER" ? [teacherOverviewNavItem] : [];
+  const showAiMenu = mounted && Boolean(user);
   const aiActive = aiNavItems.some((item) => pathname === item.href);
 
   return (
@@ -194,7 +280,7 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
               <p className="text-sm font-bold text-slate-950">{toast.title}</p>
               <p className="mt-1 text-sm leading-5 text-slate-600">{toast.body}</p>
             </div>
-            <button type="button" onClick={() => setToast(null)} className="rounded-md px-2 py-1 text-sm font-bold text-slate-500 hover:bg-slate-100" aria-label="Đóng thông báo">
+            <button type="button" onClick={() => notificationStore?.dismiss()} className="rounded-md px-2 py-1 text-sm font-bold text-slate-500 hover:bg-slate-100" aria-label="Đóng thông báo">
               x
             </button>
           </div>
@@ -208,7 +294,7 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
 
         <nav className="hidden items-center gap-1 md:flex">
           {navigationLinks.map((item) => {
-            const active = hasMatch(item) ? item.match(pathname) : pathname === item.href;
+            const active = isNavigationItemActive(item, pathname);
             return (
               <Link
                 key={item.href}
@@ -223,21 +309,28 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
             );
           })}
           {showAiMenu ? (
-            <div className="group relative">
+            <div className="group relative" onMouseLeave={() => setAiMenuOpen(false)}>
               <button
                 type="button"
+                onClick={() => setAiMenuOpen((value) => !value)}
                 className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
                   aiActive ? "bg-secondary text-secondary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
                 aria-haspopup="menu"
+                aria-expanded={aiMenuOpen}
               >
                 AI luyện tập
               </button>
-              <div className="invisible absolute right-0 top-full z-50 mt-2 min-w-44 rounded-lg border border-border bg-card p-2 opacity-0 shadow-lg transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+              <div
+                className={`absolute right-0 top-full z-50 mt-2 min-w-44 rounded-lg border border-border bg-card p-2 shadow-lg transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 ${
+                  aiMenuOpen ? "visible opacity-100" : "invisible opacity-0"
+                }`}
+              >
                 {aiNavItems.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={() => setAiMenuOpen(false)}
                     className={`block rounded-md px-3 py-2 text-sm font-medium ${
                       pathname === item.href ? "bg-secondary text-secondary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     }`}
@@ -248,6 +341,21 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
               </div>
             </div>
           ) : null}
+          {postAiNavigationLinks.map((item) => {
+            const active = isNavigationItemActive(item, pathname);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                  active ? "bg-secondary text-secondary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                {getNavigationLabel(item)}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="flex items-center gap-2">
@@ -280,6 +388,11 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
               ))}
             </div>
           ) : null}
+          {postAiNavigationLinks.map((item) => (
+            <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className="block rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted">
+              {getNavigationLabel(item)}
+            </Link>
+          ))}
         </nav>
       ) : null}
     </header>

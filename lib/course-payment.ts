@@ -5,6 +5,7 @@ import { VNPAY_PROVIDER } from "@/lib/wallet";
 
 export const COURSE_PAYMENT_STATUS = {
   PENDING: "PENDING",
+  PROCESSING: "PROCESSING",
   PAID: "PAID",
   FAILED: "FAILED",
   CANCELLED: "CANCELLED",
@@ -115,6 +116,27 @@ export async function confirmCoursePaymentFromVnpay(params: {
       };
     }
 
+    const claim = await tx.payment.updateMany({
+      where: { id: payment.id, status: COURSE_PAYMENT_STATUS.PENDING },
+      data: { status: COURSE_PAYMENT_STATUS.PROCESSING },
+    });
+    if (claim.count === 0) {
+      const latest = await tx.payment.findUnique({
+        where: { id: payment.id },
+        select: { status: true },
+      });
+      return {
+        kind:
+          latest?.status === COURSE_PAYMENT_STATUS.PAID
+            ? ("ALREADY_PAID" as const)
+            : ("ALREADY_FINAL" as const),
+        amount: payment.amount,
+        courseId: payment.courseId,
+        statusBefore: payment.status,
+        statusAfter: latest?.status ?? payment.status,
+      };
+    }
+
     const now = new Date();
     const isExpired = Boolean(payment.expiresAt && payment.expiresAt < now);
     const isSuccess = params.responseCode === "00" && params.transactionStatus === "00" && !isExpired;
@@ -167,23 +189,23 @@ export async function confirmCoursePaymentFromVnpay(params: {
     }
 
     const revenueSplit = calculateCourseRevenueSplit(payment.amount, course.instructor?.role);
-    const existingOrderItem = await tx.orderItem.findFirst({
-      where: { orderId: payment.orderId, courseId: payment.courseId },
-      select: { id: true },
-    });
-
-    if (!existingOrderItem) {
-      await tx.orderItem.create({
-        data: {
+    await tx.orderItem.upsert({
+      where: {
+        orderId_courseId: {
+          orderId: payment.orderId,
+          courseId: payment.courseId,
+        },
+      },
+      create: {
           orderId: payment.orderId,
           courseId: payment.courseId,
           price: payment.amount,
           adminRevenue: revenueSplit.adminRevenue,
           teacherRevenue: revenueSplit.teacherRevenue,
           revenueSplit: revenueSplit.revenueSplit,
-        },
-      });
-    }
+      },
+      update: {},
+    });
 
     await tx.enrollment.upsert({
       where: {

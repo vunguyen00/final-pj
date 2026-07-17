@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import type { ChartMaterialData, TestMaterial } from "@/lib/test-material";
 import { isChartMaterialData } from "@/lib/test-material";
 
@@ -34,9 +35,12 @@ export function TestMaterialPanel({
       ) : null}
 
       {material.url && material.type === "IMAGE" ? (
-        <img
+        <Image
           src={material.url}
           alt={material.title || "Tài liệu đề bài"}
+          width={1200}
+          height={800}
+          unoptimized
           className="mt-4 max-h-[70vh] w-full rounded-xl border border-slate-200 object-contain"
         />
       ) : null}
@@ -45,6 +49,7 @@ export function TestMaterialPanel({
         <iframe
           src={material.url}
           title={material.title || "Tài liệu PDF"}
+          sandbox=""
           className="mt-4 h-[70vh] w-full rounded-xl border border-slate-200"
         />
       ) : null}

@@ -257,8 +257,10 @@ function normalizeString(value: unknown) {
 function normalizeStringArray(value: unknown, limit = 6) {
   if (!Array.isArray(value)) return [];
   return value
-    .map((item) => normalizeString(item))
-    .filter(Boolean)
+    .flatMap((item) => {
+      const normalized = normalizeString(item);
+      return normalized ? [normalized] : [];
+    })
     .slice(0, limit);
 }
 
@@ -579,7 +581,7 @@ Do not award a high band to an off-topic, memorized, underdeveloped, or substant
 Apply IELTS length expectations: approximately 150 words for Task 1 and 250 words for Task 2. Explain the effect of an under-length response with concrete evidence.
 Every comment must cite concrete evidence from the submitted answer. Do not use vague praise such as "good job" or unexplained statements such as "needs improvement".
 Keep each short_comment under 140 characters, each detailed_feedback under 700 characters, and each array at no more than 3 concise items. Avoid double quotation marks inside JSON string values; use single quotation marks for quoted words or sentences.
-Write all feedback in Vietnamese. Keep quoted learner sentences and corrected English examples in English.
+Write all feedback in English. Keep quoted learner sentences and corrected examples in English.
 The model answer must directly answer the prompt, be complete, end with a finished sentence, and contain ${taskType === "task_1" ? "150-190" : "230-290"} words.
 ${input.scoreOnly ? "This is score-only mode. Calculate all scores normally, but return empty strings for every comment and model_answer, and empty arrays for strengths, weaknesses, suggestions, examples, corrections, and priority_to_improve." : ""}
 Return only valid compact JSON matching the exact schema. Do not add keys or markdown.${attempt > 1 ? "\nThe previous response was invalid. Regenerate the complete JSON from scratch, shorten every text field, avoid double quotation marks inside values, and correctly escape line breaks." : ""}${attempt === 3 ? "\nThis is the final retry. Use at most 2 items in each array and keep detailed_feedback under 400 characters." : ""}`,
@@ -639,11 +641,11 @@ Calibrate conservatively: band 5 is limited and repetitive; band 6 is generally 
 Start from band 5 and move upward only when the transcript contains concrete evidence for every higher-band requirement. Do not infer ability that is not demonstrated.
 Do not award a high band to an off-topic, memorized, evasive, or very short response even when its grammar is accurate.
 Use the prompt, conversation, transcript, and duration to judge whether ideas are sufficiently developed.
-Pronunciation evidence must be honest. If acoustic audio analysis is unavailable, do not invent exact word stress, sentence stress, rhythm, connected speech, or phonetic errors. State the limitation in Vietnamese and only mention evidence supported by the transcript.
-The transcript was produced by browser automatic speech recognition and can contain isolated spelling mistakes, homophones, missing punctuation, or contextually improbable word substitutions. Treat a token as a likely recognition error only when the prompt and surrounding sentence strongly support a clear intended word. Do not penalize that isolated token as a definite vocabulary, grammar, or pronunciation error. Do not automatically excuse repeated misuse, malformed sentence structure, or errors that remain plausible as the candidate's own language. When evidence is ambiguous, describe it in Vietnamese as a possible recognition error instead of making a definite claim. Transcript spelling alone is not proof of pronunciation quality.
+Pronunciation evidence must be honest. If acoustic audio analysis is unavailable, do not invent exact word stress, sentence stress, rhythm, connected speech, or phonetic errors. State the limitation in English and only mention evidence supported by the transcript.
+The transcript was produced by browser automatic speech recognition and can contain isolated spelling mistakes, homophones, missing punctuation, or contextually improbable word substitutions. Treat a token as a likely recognition error only when the prompt and surrounding sentence strongly support a clear intended word. Do not penalize that isolated token as a definite vocabulary, grammar, or pronunciation error. Do not automatically excuse repeated misuse, malformed sentence structure, or errors that remain plausible as the candidate's own language. When evidence is ambiguous, describe it in English as a possible recognition error instead of making a definite claim. Transcript spelling alone is not proof of pronunciation quality.
 Every comment must be specific. Do not use vague praise such as "good job" or unexplained statements such as "needs improvement".
 Keep each short_comment under 140 characters, each detailed_feedback under 700 characters, and each array at no more than 3 concise items. Avoid double quotation marks inside JSON string values; use single quotation marks for quoted words or sentences.
-Write all feedback in Vietnamese. Keep quoted English examples in English.
+Write all feedback in English. Keep quoted examples in English.
 ${input.scoreOnly ? "This is score-only mode. Calculate all scores normally, but return empty strings for every comment and pronunciation description, and empty arrays for strengths, weaknesses, suggestions, pronunciation errors, and priority_to_improve." : ""}
 Return only valid compact JSON matching the exact schema. Do not add keys or markdown.${attempt > 1 ? "\nThe previous response was invalid. Regenerate the complete JSON from scratch, shorten every text field, avoid double quotation marks inside values, and correctly escape line breaks." : ""}${attempt === 3 ? "\nThis is the final retry. Use at most 2 items in each array and keep detailed_feedback under 400 characters." : ""}`,
       },

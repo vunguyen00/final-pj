@@ -36,15 +36,16 @@ export async function PUT(request: Request) {
         select: { id: true, email: true },
       });
 
-      for (const student of students) {
+      const notificationResults = await Promise.all(students.map(async (student: { id: string; email: string }) => {
         const subject = "Mo dang ky tro thanh giang vien";
         const text = "Hệ thống đã mở đăng ký đầu vào giảng viên. Bạn có thể vào menu tài khoản để nộp hồ sơ.";
+        let emailSent = false;
         try {
           await sendBasicEmail(student.email, subject, text);
           await prisma.emailLog.create({
             data: { userId: student.id, to: student.email, subject, status: "SENT", sentAt: new Date() },
           });
-          notified += 1;
+          emailSent = true;
         } catch (error) {
           await prisma.emailLog.create({
             data: {
@@ -64,7 +65,9 @@ export async function PUT(request: Request) {
             body: text,
           },
         });
-      }
+        return emailSent;
+      }));
+      notified = notificationResults.filter(Boolean).length;
     }
 
     return NextResponse.json({ enabled, notified });

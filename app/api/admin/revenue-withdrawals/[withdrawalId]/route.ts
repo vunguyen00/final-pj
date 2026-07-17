@@ -14,6 +14,7 @@ const transition = {
   PAY: { from: ["APPROVED"], to: "COMPLETED" },
   REJECT: { from: ["PENDING", "APPROVED"], to: "REJECTED" },
 } as const;
+const moneyFormatter = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 });
 
 const notificationCopy: Record<Action, { title: string; body: (amount: string, note: string) => string }> = {
   APPROVE: { title: "Yêu cầu rút doanh thu đã được duyệt", body: (amount) => `Yêu cầu rút ${amount} của bạn đã được duyệt và đang chờ chuyển khoản.` },
@@ -40,6 +41,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ wi
   const transferTransactionCode = typeof body?.transferTransactionCode === "string" ? body.transferTransactionCode.trim().slice(0, 100) : "";
   if (!action || !(action in transition) || (action === "REJECT" && !note)) {
     return NextResponse.json({ error: "Thao tác hoặc lý do từ chối không hợp lệ." }, { status: 400 });
+  }
+  if (action === "PAY" && (!systemBankName || !transferTransactionCode)) {
+    return NextResponse.json(
+      { error: "Cần nhập ngân hàng chuyển và mã giao dịch trước khi xác nhận đã thanh toán." },
+      { status: 400 },
+    );
   }
 
   try {
@@ -91,6 +98,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ wi
               reason: true,
               reportedAmount: true,
               message: true,
+              evidenceImageUrl: true,
+              evidenceImageName: true,
               status: true,
               adminNote: true,
               resolvedAt: true,
@@ -99,7 +108,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ wi
           },
         },
       });
-      const amount = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(current.amount);
+      const amount = moneyFormatter.format(current.amount);
       const copy = notificationCopy[action];
       await tx.notification.create({
         data: { userId: current.teacherId, title: copy.title, body: copy.body(amount, note) },

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useRef, useEffect } from "react";
 
 type User = {
@@ -64,10 +65,13 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
         {/* Avatar */}
         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-medium text-white">
           {user?.avatarUrl ? (
-            <img
+            <Image
               src={user.avatarUrl}
               alt=""
+              width={32}
+              height={32}
               className="h-8 w-8 rounded-full object-cover"
+              unoptimized
             />
           ) : (
             <svg
@@ -177,6 +181,15 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
                 {user.role === "TEACHER" ? (
                   <Link
                     href="/teacher/tests"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    Bài test
+                  </Link>
+                ) : null}
+                {user.role === "TEACHER" ? (
+                  <Link
+                    href="/teacher/revenue"
                     onClick={() => setMenuOpen(false)}
                     className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
                   >

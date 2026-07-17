@@ -11,8 +11,7 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { id } = await params;
-  const user = await getCurrentUser();
+  const [{ id }, user] = await Promise.all([params, getCurrentUser()]);
   const [reviews, myReview, canReview] = await Promise.all([
     getCourseReviews(id),
     user?.role === "STUDENT" ? getUserCourseReview(user.id, id) : Promise.resolve(null),

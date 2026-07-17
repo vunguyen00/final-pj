@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const uploadType = getAllowedUpload(file.type, ["audio"]);
+    const uploadType = getAllowedUpload(file.type, ["audio"], file.name);
     if (!uploadType) {
       return NextResponse.json(
         { error: "Chỉ hỗ trợ MP3, WAV, OGG, WEBM, M4A hoặc AAC." },
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    if (!validateUploadSignature(buffer, file.type)) {
+    if (!validateUploadSignature(buffer, file.type, file.name)) {
       return NextResponse.json(
         { error: "Nội dung file audio không hợp lệ." },
         { status: 400 },

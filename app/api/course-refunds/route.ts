@@ -94,24 +94,26 @@ export async function POST(request: Request) {
     }
 
     const refund = await prisma.$transaction(async (tx) => {
-      const created = await tx.courseRefundRequest.create({
-        data: {
-          studentId: user.id,
-          courseId,
-          orderItemId: orderItem.id,
-          amount: Math.round(orderItem.price),
-          reason,
-        },
-        include: {
-          course: { select: { id: true, name: true } },
-          student: { select: { id: true, username: true, email: true } },
-        },
-      });
-
-      const admins = await tx.user.findMany({
-        where: { role: "ADMIN" },
-        select: { id: true },
-      });
+      const [created, admins] = await Promise.all([
+        tx.courseRefundRequest.create({
+          data: {
+            studentId: user.id,
+            courseId,
+            orderItemId: orderItem.id,
+            amount: Math.round(orderItem.price),
+            reason,
+            refundMethod: "EXTERNAL_ACCOUNT",
+          },
+          include: {
+            course: { select: { id: true, name: true } },
+            student: { select: { id: true, username: true, email: true } },
+          },
+        }),
+        tx.user.findMany({
+          where: { role: "ADMIN" },
+          select: { id: true },
+        }),
+      ]);
 
       if (admins.length > 0) {
         await tx.notification.createMany({

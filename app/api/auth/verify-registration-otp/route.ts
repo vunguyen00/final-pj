@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   const code = typeof body?.code === "string" ? body.code.trim() : "";
 
   if (!email || !/^\d{6}$/.test(code)) {
-    return NextResponse.json({ error: "Email hoac ma OTP khong hop le." }, { status: 400 });
+    return NextResponse.json({ error: "Email hoặc mã OTP không hợp lệ." }, { status: 400 });
   }
 
   const securityContext = getRequestSecurityContext(request);
@@ -36,7 +36,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const token = createAuthToken(result.user.id, result.user.role);
+  const token = createAuthToken(
+    result.user.id,
+    result.user.role,
+    result.user.authVersion,
+  );
   await setAuthCookie(token);
 
   return NextResponse.json({

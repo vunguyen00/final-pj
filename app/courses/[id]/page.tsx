@@ -16,6 +16,7 @@ import {
   getLanguageLabel,
 } from "@/app/components/learningMarketplace";
 import { getLearningUiLabels } from "@/lib/test-language-labels";
+import { getCourseCategoryLabel, getCourseLevelLabel } from "@/lib/language-display";
 
 async function getCourse(id: string) {
   try {
@@ -48,19 +49,11 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
     ? await prisma.enrollment.findUnique({ where: { userId_courseId: { userId: user.id, courseId: course.id } } })
     : null;
   const language = getCourseLanguage(course);
-  const ui = getLearningUiLabels(course.language?.code || course.language?.name || language);
+  const courseLanguage = course.language?.code || course.language?.name || language;
+  const ui = getLearningUiLabels(courseLanguage);
   const level = getCourseLevel(course);
-  const levelLabel =
-    level === "Advanced"
-      ? ui.levels.advanced
-      : level === "Upper Intermediate"
-        ? ui.levels.upperIntermediate
-        : level === "Intermediate"
-          ? ui.levels.intermediate
-          : level === "Elementary"
-            ? ui.levels.elementary
-            : ui.levels.beginner;
-  const category = course.category?.trim() || ui.course.uncategorized;
+  const levelLabel = getCourseLevelLabel(level, courseLanguage);
+  const category = getCourseCategoryLabel(course.category, courseLanguage) || ui.course.uncategorized;
   const thumbnailUrl = normalizeCourseThumbnailUrl(course.thumbnail);
   const [reviews, canReview, existingReview] = await Promise.all([
     getCourseReviews(course.id),
@@ -91,9 +84,9 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
               <Stat label={ui.course.students} value={`${course._count.enrollments}`} />
             </div>
           </div>
-          <div className="overflow-hidden rounded-2xl border border-border bg-muted">
+          <div className="relative aspect-video overflow-hidden rounded-2xl border border-border bg-muted">
             {thumbnailUrl ? (
-              <img src={thumbnailUrl} alt={course.name} className="aspect-video w-full object-cover" />
+              <Image src={thumbnailUrl} alt={course.name} fill sizes="(min-width: 1024px) 33vw, 100vw" className="object-cover" unoptimized />
             ) : (
               <div className="flex aspect-video items-center justify-center text-2xl font-semibold text-muted-foreground">{getLanguageLabel(language)}</div>
             )}
@@ -216,3 +209,4 @@ function Stat({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+import Image from "next/image";

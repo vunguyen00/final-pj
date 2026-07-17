@@ -54,18 +54,35 @@ export async function PATCH(
       if (current.status !== "PENDING") throw new Error("INVALID_STATUS");
 
       if (action === "APPROVE") {
-        await tx.wallet.upsert({
-          where: { userId: current.studentId },
-          create: { userId: current.studentId, balance: current.amount },
-          update: { balance: { increment: current.amount } },
-        });
-
         await tx.enrollment.deleteMany({
           where: {
             userId: current.studentId,
             courseId: current.courseId,
           },
         });
+        await Promise.all([
+          tx.feedback.deleteMany({
+            where: { userId: current.studentId, courseId: current.courseId },
+          }),
+          tx.testAttempt.deleteMany({
+            where: { userId: current.studentId, test: { courseId: current.courseId } },
+          }),
+          tx.aiAssessment.deleteMany({
+            where: { userId: current.studentId, courseId: current.courseId },
+          }),
+          tx.learningActivity.deleteMany({
+            where: { userId: current.studentId, courseId: current.courseId },
+          }),
+          tx.pointTransaction.deleteMany({
+            where: { userId: current.studentId, courseId: current.courseId },
+          }),
+          tx.videoWatchProgress.deleteMany({
+            where: {
+              userId: current.studentId,
+              lesson: { module: { courseId: current.courseId } },
+            },
+          }),
+        ]);
       }
 
       const refund = await tx.courseRefundRequest.update({
@@ -75,6 +92,7 @@ export async function PATCH(
           adminNote: note || null,
           reviewedById: admin.id,
           processedAt: new Date(),
+          refundMethod: "EXTERNAL_ACCOUNT",
         },
         include: {
           student: { select: { id: true, username: true, email: true } },
@@ -88,7 +106,7 @@ export async function PATCH(
           title: action === "APPROVE" ? "Yêu cầu hoàn tiền đã được duyệt" : "Yêu cầu hoàn tiền bị từ chối",
           body:
             action === "APPROVE"
-              ? `Khóa học "${current.course.name}" đã được hoàn ${current.amount.toLocaleString("vi-VN")}đ vào ví của bạn.`
+              ? `Yêu cầu hoàn ${current.amount.toLocaleString("vi-VN")}đ cho khóa học "${current.course.name}" đã được duyệt. Khoản tiền sẽ được xử lý bên ngoài hệ thống và hoàn vào tài khoản của bạn.`
               : `Yêu cầu hoàn tiền khóa học "${current.course.name}" bị từ chối. Lý do: ${note}`,
         },
       });

@@ -9,7 +9,8 @@ import { ModulesTab } from "./_components/ModulesTab";
 import { TestsTab } from "./_components/TestsTab";
 import { ModuleModal } from "./_components/ModuleModal";
 import { TestModal } from "./_components/TestModal";
-import { Course, Module, Test, TestForm, initialTestForm } from "./types";
+import { Course, LearningLanguage, Module, Test, TestForm, initialTestForm } from "./types";
+import { getCourseManagementLabels } from "@/lib/language-display";
 
 export default function CourseDetailPage() {
   const router = useRouter();
@@ -19,6 +20,7 @@ export default function CourseDetailPage() {
   const [course, setCourse] = useState<Course | null>(null);
   const [modules, setModules] = useState<Module[]>([]);
   const [tests, setTests] = useState<Test[]>([]);
+  const [languages, setLanguages] = useState<LearningLanguage[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<CourseTab>("modules");
 
@@ -40,6 +42,7 @@ export default function CourseDetailPage() {
       if (res.ok) {
         const data = await res.json();
         setCourse(data.course);
+        setLanguages(data.languages || []);
         setModules(data.course.modules || []);
         setTests(data.course.tests || []);
       }
@@ -236,15 +239,19 @@ export default function CourseDetailPage() {
     );
   }
 
+  const courseLanguageKey = course.language?.code || course.language?.name || "vi";
+  const labels = getCourseManagementLabels(courseLanguageKey);
+
   return (
     <div className="min-h-screen bg-slate-50 py-8">
       <div className="mx-auto max-w-7xl px-4">
         <CourseHeader course={course} />
-        <CourseTabs activeTab={activeTab} moduleCount={modules.length} testCount={tests.length} onTabChange={setActiveTab} />
+        <CourseTabs activeTab={activeTab} moduleCount={modules.length} testCount={tests.length} labels={labels.tabs} onTabChange={setActiveTab} />
 
         {activeTab === "information" && (
           <CourseInfoTab
             course={course}
+            languages={languages}
             onUpdated={(updatedCourse) =>
               setCourse((current) => (current ? { ...current, ...updatedCourse } : current))
             }
@@ -255,6 +262,7 @@ export default function CourseDetailPage() {
           <ModulesTab
             courseId={courseId}
             modules={modules}
+            labels={labels.modulesTab}
             onOpenCreateModal={openModuleCreateModal}
             onEditModule={openModuleEditModal}
             onDeleteModule={handleDeleteModule}
@@ -262,7 +270,7 @@ export default function CourseDetailPage() {
         )}
 
         {activeTab === "tests" && (
-          <TestsTab tests={tests} modulesCount={modules.length} deletingTestId={deletingTestId} onOpenCreateModal={openTestCreateModal} onDeleteTest={handleDeleteTest} />
+          <TestsTab tests={tests} modulesCount={modules.length} deletingTestId={deletingTestId} labels={labels.testsTab} onOpenCreateModal={openTestCreateModal} onDeleteTest={handleDeleteTest} />
         )}
       </div>
 
@@ -271,6 +279,7 @@ export default function CourseDetailPage() {
         moduleName={moduleName}
         isEditing={Boolean(editingModule)}
         isSubmitting={isSavingModule}
+        labels={labels.moduleModal}
         onChangeName={setModuleName}
         onClose={closeModuleModal}
         onSubmit={handleSaveModule}
@@ -280,6 +289,7 @@ export default function CourseDetailPage() {
         isOpen={showTestModal}
         form={testForm}
         isSubmitting={isCreatingTest}
+        labels={labels.testModal}
         onChangeForm={setTestForm}
         onClose={() => {
           if (!creatingTestRef.current) setShowTestModal(false);

@@ -1,14 +1,9 @@
 import Link from "next/link";
-import { LANGUAGES } from "@/app/components/learningMarketplace";
+import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getCourseLearningLabels } from "@/lib/language-display";
 import LearningContent from "./components/LearningContent";
-
-const words = [
-  ["negotiate", "dam phan", "/nəˈɡoʊʃieɪt/", "We need to negotiate the deadline.", "Review", "Medium", "Business", "Tomorrow"],
-  ["sustainable", "ben vung", "/səˈsteɪnəbl/", "Sustainable habits compound over time.", "Learning", "Hard", "Academic", "3 days"],
-  ["context", "ngu canh", "/ˈkɑːntekst/", "Use context to infer meaning.", "Mastered", "Easy", "Reading", "Next week"],
-];
 
 export default async function StudentHocBaiPage({
   searchParams,
@@ -20,12 +15,13 @@ export default async function StudentHocBaiPage({
   const normalizedCourseId = typeof courseId === "string" ? courseId.trim() : "";
 
   if (!normalizedCourseId) {
-    return <VocabularyDashboard username={user.username} />;
+    redirect("/my-courses");
   }
 
   const course = await prisma.course.findUnique({
     where: { id: normalizedCourseId },
     include: {
+      language: { select: { name: true, code: true } },
       modules: { orderBy: { order: "asc" }, include: { lessons: true } },
     },
   });
@@ -66,123 +62,25 @@ export default async function StudentHocBaiPage({
     select: { content: true },
   });
   const completedIds = feedbacks.map((item) => item.content.replace("PROGRESS:", ""));
+  const courseLanguageKey = course.language?.code || course.language?.name || "vi";
+  const labels = getCourseLearningLabels(courseLanguageKey);
 
   return (
     <main className="h-[calc(100vh-4rem)] overflow-hidden bg-slate-50 p-4">
       <div className="mx-auto flex h-full max-w-[1400px] min-h-0 flex-col">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Course player</p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">{labels.player}</p>
             <h1 className="text-3xl font-bold text-slate-950">{course.name}</h1>
-            <p className="mt-1 text-slate-600">Modules on the left, lesson content and media on the right.</p>
+            <p className="mt-1 text-slate-600">{labels.description}</p>
           </div>
-          <Link href="/student/hoc-bai" className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">
-            Vocabulary dashboard
+          <Link href="/my-courses" className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-white">
+            Khóa học của tôi
           </Link>
         </div>
         <div className="mt-4 min-h-0 flex-1">
-          <LearningContent modules={course.modules} completedIds={completedIds} courseId={course.id} />
+          <LearningContent modules={course.modules} completedIds={completedIds} courseId={course.id} language={courseLanguageKey} />
         </div>
-      </div>
-    </main>
-  );
-}
-
-function VocabularyDashboard({ username }: { username: string }) {
-  return (
-    <main className="min-h-screen bg-slate-50 py-8">
-      <div className="mx-auto max-w-7xl space-y-6 px-4">
-        <section className="rounded-2xl border border-slate-200 bg-white p-6">
-          <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Vocabulary manager</p>
-          <h1 className="mt-2 text-3xl font-bold text-slate-950">Review queue for {username}</h1>
-          <p className="mt-2 max-w-2xl text-slate-600">
-            Manage vocabulary by language, study group, mastery status, and next review date.
-          </p>
-        </section>
-
-        <section className="grid gap-4 md:grid-cols-4">
-          {["Review queue", "Mastered", "Difficult words", "Study streak"].map((label, index) => (
-            <div key={label} className="rounded-xl border border-slate-200 bg-white p-5">
-              <p className="text-sm text-slate-500">{label}</p>
-              <p className="mt-2 text-3xl font-bold text-slate-950">{[24, 138, 12, 9][index]}</p>
-            </div>
-          ))}
-        </section>
-
-        <section className="rounded-xl border border-slate-200 bg-white p-4">
-          <div className="flex flex-wrap gap-2">
-            {LANGUAGES.map((language, index) => (
-              <button key={language} type="button" className={`rounded-full px-4 py-2 text-sm font-semibold ${index === 0 ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700"}`}>
-                {language}
-              </button>
-            ))}
-          </div>
-          <div className="mt-4 grid gap-3 md:grid-cols-5">
-            {["Flashcards", "Quiz", "Typing", "Listening recall", "Speaking review"].map((mode) => (
-              <button key={mode} type="button" className="rounded-lg border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 hover:border-blue-300 hover:bg-blue-50">
-                {mode}
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="grid gap-6 lg:grid-cols-3">
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <h2 className="font-bold text-slate-950">Vocabulary groups</h2>
-            <div className="mt-4 space-y-3">
-              {["Academic English", "Travel Japanese", "HSK Core", "TOPIK Daily"].map((group, index) => (
-                <div key={group} className="rounded-lg border border-slate-200 p-3">
-                  <div className="flex items-center justify-between">
-                    <p className="font-semibold text-slate-900">{group}</p>
-                    <span className="text-sm text-slate-500">{30 + index * 12} words</span>
-                  </div>
-                  <div className="mt-2 h-2 rounded-full bg-slate-100">
-                    <div className="h-2 rounded-full bg-blue-600" style={{ width: `${40 + index * 12}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="lg:col-span-2 rounded-xl border border-slate-200 bg-white p-5">
-            <h2 className="font-bold text-slate-950">Flashcards</h2>
-            <div className="mt-4 grid gap-4 sm:grid-cols-3">
-              {words.map((word) => (
-                <div key={word[0]} className="rounded-xl border border-slate-200 p-4">
-                  <p className="text-lg font-bold text-slate-950">{word[0]}</p>
-                  <p className="mt-1 text-sm text-slate-500">{word[2]}</p>
-                  <p className="mt-3 text-sm text-slate-700">{word[1]}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-          <div className="border-b border-slate-200 p-5">
-            <h2 className="font-bold text-slate-950">Vocabulary table</h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <thead className="bg-slate-50">
-                <tr>
-                  {["Word", "Meaning", "Pronunciation", "Example", "Status", "Difficulty", "Notes", "Next review"].map((heading) => (
-                    <th key={heading} className="px-4 py-3 text-left font-semibold text-slate-600">{heading}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {words.map((word) => (
-                  <tr key={word[0]}>
-                    {word.map((cell) => (
-                      <td key={`${word[0]}-${cell}`} className="whitespace-nowrap px-4 py-3 text-slate-700">{cell}</td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
       </div>
     </main>
   );

@@ -4,7 +4,6 @@ import { getCourseReviews } from "@/lib/course-reviews";
 export type PublicTeacher = {
   id: string;
   name: string;
-  email: string;
   avatar: string;
   title: string;
   summary: string;
@@ -47,17 +46,21 @@ function getInitials(name: string) {
 }
 
 function uniqueNonEmpty(values: Array<string | null | undefined>) {
-  return Array.from(new Set(values.map((value) => value?.trim()).filter(Boolean) as string[]));
+  const unique = new Set<string>();
+  for (const value of values) {
+    const normalized = value?.trim();
+    if (normalized) unique.add(normalized);
+  }
+  return Array.from(unique);
 }
 
 export async function getPublicTeachers(): Promise<PublicTeacher[]> {
   try {
     const teachers = await prisma.user.findMany({
-      where: { role: "TEACHER" },
+      where: { role: "TEACHER", isBanned: false, accountStatus: "ACTIVE" },
       select: {
         id: true,
         username: true,
-        email: true,
         courses: {
           where: { status: "ACTIVE" },
           select: {
@@ -87,7 +90,6 @@ export async function getPublicTeachers(): Promise<PublicTeacher[]> {
         return {
           id: teacher.id,
           name: teacher.username,
-          email: teacher.email,
           avatar: getInitials(teacher.username),
           title: primaryLanguage ? `Giảng viên ${primaryLanguage}` : "Giảng viên FinnCenter",
           summary:
@@ -112,11 +114,10 @@ export async function getPublicTeachers(): Promise<PublicTeacher[]> {
 export async function getPublicTeacherDetail(id: string): Promise<PublicTeacherDetail | null> {
   try {
     const teacher = await prisma.user.findFirst({
-      where: { id, role: "TEACHER" },
+      where: { id, role: "TEACHER", isBanned: false, accountStatus: "ACTIVE" },
       select: {
         id: true,
         username: true,
-        email: true,
         courses: {
           where: { status: "ACTIVE" },
           select: {
@@ -178,7 +179,6 @@ export async function getPublicTeacherDetail(id: string): Promise<PublicTeacherD
     return {
       id: teacher.id,
       name: teacher.username,
-      email: teacher.email,
       avatar: getInitials(teacher.username),
       title: primaryLanguage ? `Giảng viên ${primaryLanguage}` : "Giảng viên FinnCenter",
       summary:

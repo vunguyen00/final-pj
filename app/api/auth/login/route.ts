@@ -79,12 +79,13 @@ export async function POST(request: Request) {
         role: true,
         isBanned: true,
         accountStatus: true,
+        authVersion: true,
       },
     });
 
     if (!user || !verifyPassword(password, user.password)) {
       return NextResponse.json(
-        { error: "Email hoac mat khau khong dung." },
+        { error: "Email hoặc mật khẩu sai." },
         { status: 401 },
       );
     }
@@ -99,7 +100,7 @@ export async function POST(request: Request) {
     if (user.accountStatus !== "ACTIVE") {
       return NextResponse.json(
         {
-          error: "Tai khoan chua duoc xac thuc OTP qua email.",
+          error: "Tài khoản chưa được xác thực OTP qua email.",
           requiresVerification: true,
           email,
         },
@@ -107,7 +108,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const token = createAuthToken(user.id, user.role);
+    const token = createAuthToken(user.id, user.role, user.authVersion);
     await setAuthCookie(token);
 
     return NextResponse.json({

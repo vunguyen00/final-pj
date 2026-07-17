@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { getLevelLabel } from "@/app/components/learningMarketplace";
 import type { ResultFilter, StudentResultItem } from "@/lib/student-results";
 
 const filters = ["all", "TEST", "SPEAKING", "WRITING"] as const;
@@ -17,6 +16,14 @@ function getResultTypeLabel(type: ResultFilter) {
 function filterResults(results: StudentResultItem[], filter: ResultFilter) {
   if (filter === "all") return results;
   return results.filter((item) => item.type === filter);
+}
+
+function truncateSummary(value: string, limit = 20) {
+  const summary = value.trim();
+  const usesUnspacedCjkText = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(summary);
+  const units = usesUnspacedCjkText ? Array.from(summary) : summary.split(/\s+/u);
+  if (units.length <= limit) return summary;
+  return `${units.slice(0, limit).join(usesUnspacedCjkText ? "" : " ")}...`;
 }
 
 function buildStats(results: StudentResultItem[]) {
@@ -45,6 +52,9 @@ export default function ResultsClient({ initialResults }: { initialResults: Stud
               <h1 className="mt-2 text-3xl font-bold text-slate-950">Kết quả học tập</h1>
               <p className="mt-2 max-w-2xl text-slate-600">
                 Xem lại bài test, bài nói, bài viết, điểm số, cấp độ và phản hồi AI đã lưu.
+              </p>
+              <p className="mt-2 max-w-3xl text-sm text-amber-700">
+                IELTS, HSK, JLPT và TOPIK được hiển thị dưới dạng mức tham chiếu nội bộ, không thay thế kết quả thi chứng chỉ chính thức.
               </p>
             </div>
             <Link href="/student/rewards" className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">
@@ -99,19 +109,24 @@ function ResultCard({ item }: { item: StudentResultItem }) {
           <div className="flex flex-wrap gap-2">
             <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">{getResultTypeLabel(item.type)}</span>
             <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
-              {item.bandSystem === "GENERAL" ? "Tổng quát" : item.bandSystem} {getLevelLabel(item.bandLevel)}
+              Tham chiếu: {item.certificate.label}
             </span>
+            {item.language ? (
+              <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{item.language.name}</span>
+            ) : null}
           </div>
           <h2 className="mt-3 text-lg font-bold text-slate-950">{item.title}</h2>
           <p className="mt-1 text-sm text-slate-500">
-            {item.course?.name || "Luyện tập độc lập"} - {new Date(item.submittedAt).toLocaleString("vi-VN")}
+            {item.course?.name || "Luyện tập độc lập"} - {new Date(item.submittedAt).toLocaleString("vi-VN", { timeZone: "Asia/Bangkok" })}
           </p>
           {item.scoreOnly ? (
             <p className="mt-2 text-sm font-medium text-slate-600">
               Khóa học đã hoàn thành. Kết quả này chỉ gồm điểm số.
             </p>
           ) : item.summary ? (
-            <p className="mt-2 text-sm text-slate-600">{item.summary}</p>
+            <p className="mt-2 text-sm text-slate-600" title={item.summary}>
+              {truncateSummary(item.summary)}
+            </p>
           ) : null}
         </div>
         <div className="md:text-right">

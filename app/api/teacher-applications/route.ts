@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser, requireUser } from "@/lib/auth";
 import { sendBasicEmail } from "@/lib/mailer";
 import { prisma } from "@/lib/prisma";
+import { validateUploadSignature } from "@/lib/upload-validation";
 import {
   findEntranceTest,
   getActiveLanguages,
@@ -30,6 +31,7 @@ function serializeEntranceTest(test: Awaited<ReturnType<typeof findEntranceTest>
     id: test.id,
     name: test.name,
     description: test.description,
+    assessmentMode: test.assessmentMode,
     timeLimit: test.timeLimit,
     shuffleQuestions: test.shuffleQuestions,
     questions: test.questions.map((question) => ({
@@ -98,12 +100,12 @@ export async function POST(request: Request) {
   try {
     const user = await requireUser();
     if (user.role !== "STUDENT" && user.role !== "TEACHER") {
-      return NextResponse.json({ error: "Chi Student hoac Teacher duoc dang ky." }, { status: 403 });
+      return NextResponse.json({ error: "Chỉ học viên hoặc giảng viên được đăng ký." }, { status: 403 });
     }
 
     const setting = await getTeacherEntranceSetting();
     if (!setting.enabled) {
-      return NextResponse.json({ error: "Chuc nang dang ky giang vien dang tat." }, { status: 403 });
+      return NextResponse.json({ error: "Chức năng đăng ký giảng viên đang tạm tắt." }, { status: 403 });
     }
 
     const formData = await request.formData();
@@ -122,20 +124,42 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Ngôn ngữ không hợp lệ." }, { status: 400 });
     }
 
+    const duplicate = await prisma.teacherApplication.findFirst({
+      where: {
+        userId: user.id,
+        languageId,
+        status: { in: ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "APPROVED"] },
+      },
+      select: { id: true },
+    });
+    if (duplicate) {
+      return NextResponse.json(
+        { error: "Bạn đã có hồ sơ đang xử lý hoặc đã được duyệt cho ngôn ngữ này." },
+        { status: 409 },
+      );
+    }
+
     if (files.length === 0 || files.length > MAX_CERTIFICATES) {
       return NextResponse.json({ error: "Vui lòng upload từ 1 đến 3 file chứng chỉ." }, { status: 400 });
     }
 
+    const fileBuffers: Buffer[] = [];
     for (const [index, file] of files.entries()) {
       if (!ALLOWED_TYPES.has(file.type)) {
-        return NextResponse.json({ error: "Chi chap nhan JPG, PNG hoac PDF." }, { status: 400 });
+        return NextResponse.json({ error: "Chỉ chấp nhận tệp JPG, PNG hoặc PDF." }, { status: 400 });
       }
       if (file.size > MAX_FILE_SIZE) {
-        return NextResponse.json({ error: "Moi file toi da 10MB." }, { status: 400 });
+        return NextResponse.json({ error: "Mỗi tệp có dung lượng tối đa 10 MB." }, { status: 400 });
       }
-      if (!expiryDates[index] || Number.isNaN(Date.parse(expiryDates[index]))) {
-        return NextResponse.json({ error: "Vui lòng nhập expiry date cho từng chứng chỉ." }, { status: 400 });
+      const expiryTime = Date.parse(expiryDates[index] || "");
+      if (Number.isNaN(expiryTime) || expiryTime <= Date.now()) {
+        return NextResponse.json({ error: "Vui lòng nhập ngày hết hạn hợp lệ cho từng chứng chỉ." }, { status: 400 });
       }
+      const buffer = Buffer.from(await file.arrayBuffer());
+      if (!validateUploadSignature(buffer, file.type, file.name)) {
+        return NextResponse.json({ error: "Nội dung file chứng chỉ không đúng định dạng." }, { status: 400 });
+      }
+      fileBuffers.push(buffer);
     }
 
     const attemptNo = (await prisma.teacherApplication.count({ where: { userId: user.id } })) + 1;
@@ -148,7 +172,7 @@ export async function POST(request: Request) {
     const savedFiles = [];
     for (const [index, file] of files.entries()) {
       const uniqueName = `${randomUUID()}-${sanitizeFileName(file.name)}`;
-      const buffer = Buffer.from(await file.arrayBuffer());
+      const buffer = fileBuffers[index];
       await writeFile(path.join(uploadDir, uniqueName), buffer);
       savedFiles.push({
         fileName: file.name,

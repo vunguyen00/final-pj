@@ -3,9 +3,13 @@
 import { useEffect, useMemo, useReducer, useRef } from "react";
 import Link from "next/link";
 import { IeltsEvaluationResult } from "@/app/components/IeltsEvaluationResult";
+import { LanguageEvaluationResult } from "@/app/components/LanguageEvaluationResult";
+import { ModalDialog } from "@/app/components/ModalDialog";
 import type { IeltsSpeakingEvaluation } from "@/lib/ielts-rubric";
+import { getSpeakingRecordingLabels } from "@/lib/speaking-recording-labels";
 import {
   getDefaultSpeakingPrompt,
+  getSpeakingAiUiLabels,
   getSpeakingLanguageLabel,
   getSpeakingTaskOptions,
   getSpeakingWhisperLanguage,
@@ -23,6 +27,7 @@ type InitialSpeakingConfig = {
 
 type SpeakingResult = {
   assessmentId: string;
+  evaluationBasis?: "TRANSCRIPT_ESTIMATE";
   scoreOnly?: boolean;
   audioUrl: string | null;
   points?: { spent: number; available: number };
@@ -37,6 +42,7 @@ type SpeakingResult = {
       taskRelevance?: number;
       language: string;
       exam?: string;
+      taskType?: string;
       maxScore?: number;
       scoreScale?: string;
       band: { system: string; level: string; score: number; rationale: string };
@@ -44,20 +50,26 @@ type SpeakingResult = {
       onTopic?: boolean;
       offTopicReason?: string;
       detailedComment?: string;
+      criteriaFeedback?: Record<string, import("@/lib/test-ai-evaluation").TestAiCriterionFeedback>;
     };
     analysis: {
       strengths: string[];
       weaknesses: string[];
       feedback: string[];
       suggestions: string[];
+      majorErrors?: string[];
+      improvementsNeeded?: string[];
     };
     mistakes: {
       pronunciation: string[];
       grammar: string[];
       vocabulary: string[];
       fluency: string[];
+      majorErrors?: string[];
     };
     improvements: {
+      suggestions?: string[];
+      improvementsNeeded?: string[];
       practiceMethods: string[];
       sampleAnswer?: string;
     };
@@ -206,19 +218,15 @@ function formatClock(totalSeconds: number) {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
-function toDisplayCriterionName(key: string) {
-  const labels: Record<string, string> = {
-    fluency: "Độ trôi chảy",
-    fluencyCoherence: "Độ trôi chảy và mạch lạc",
-    pronunciation: "Phát âm",
-    grammar: "Ngữ pháp",
-    grammarRangeAccuracy: "Ngữ pháp và độ chính xác",
-    vocabulary: "Từ vựng",
-    lexicalResource: "Vốn từ vựng",
-    taskResponse: "Mức độ đáp ứng đề bài",
-    taskRelevance: "Độ bám đề",
-  };
-  return labels[key] || key.replace(/_/g, " ").replace(/([A-Z])/g, " $1").trim();
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function toDisplayCriterionName(
+  key: string,
+  labels: Record<string, string>,
+) {
+  return (
+    labels[key] ||
+    key.replace(/_/g, " ").replace(/([A-Z])/g, " $1").trim()
+  );
 }
 
 async function decodeAudioToMono16Khz(blob: Blob) {
@@ -259,6 +267,14 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
   const spentSeconds = useMemo(() => Math.max(0, state.durationSeconds - state.timeLeft), [state.durationSeconds, state.timeLeft]);
   const currentTurnTranscript = state.transcriptDraft.trim();
   const speakingTaskOptions = useMemo(() => getSpeakingTaskOptions(state.speakingLanguage), [state.speakingLanguage]);
+  const text = useMemo(
+    () => getSpeakingAiUiLabels(state.speakingLanguage),
+    [state.speakingLanguage],
+  );
+  const recordingText = useMemo(
+    () => getSpeakingRecordingLabels(state.speakingLanguage),
+    [state.speakingLanguage],
+  );
 
   async function startAiFeedbackPayment() {
     dispatch({ type: "PATCH", patch: { error: "" } });
@@ -269,14 +285,17 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ points: 7, returnTo }),
       });
-      const data = (await response.json().catch(() => ({}))) as { paymentUrl?: string; error?: string };
+      const data = (await response.json().catch(() => ({}))) as {
+        paymentUrl?: string;
+        error?: string;
+      };
       if (!response.ok || !data.paymentUrl) {
-        dispatch({ type: "PATCH", patch: { error: data.error || "Không tạo được giao dịch thanh toán." } });
+        dispatch({ type: "PATCH", patch: { error: data.error || text.paymentFailed } });
         return;
       }
       window.location.href = data.paymentUrl;
     } catch {
-      dispatch({ type: "PATCH", patch: { error: "Không tạo được giao dịch thanh toán." } });
+      dispatch({ type: "PATCH", patch: { error: text.paymentFailed } });
     }
   }
 
@@ -332,7 +351,7 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
       dispatch({ type: "PATCH", patch: { recording: true } });
       return true;
     } catch {
-      dispatch({ type: "PATCH", patch: { error: "Không mở được micro để ghi âm." } });
+      dispatch({ type: "PATCH", patch: { error: text.micError } });
       return false;
     }
   }
@@ -381,7 +400,7 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
       type: "PATCH",
       patch: {
         transcribing: true,
-        transcriptionStatus: "Đang chuẩn bị và phân tích bản ghi âm...",
+        transcriptionStatus: recordingText.preparingRecording,
       },
     });
 
@@ -400,8 +419,8 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
               type: "PATCH",
               patch: {
                 transcriptionStatus: percent !== null
-                  ? `Đang chuẩn bị bộ phân tích âm thanh: ${percent}%`
-                  : "Đang chuẩn bị bộ phân tích âm thanh...",
+                  ? recordingText.preparingAnalyzerProgress(percent)
+                  : recordingText.preparingAnalyzer,
               },
             });
             return;
@@ -410,7 +429,7 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
           if (message.id !== requestId) return;
 
           if (message.type === "transcribing") {
-            dispatch({ type: "PATCH", patch: { transcriptionStatus: "Hệ thống đang phân tích toàn bộ bản ghi âm..." } });
+            dispatch({ type: "PATCH", patch: { transcriptionStatus: recordingText.analyzingFullRecording } });
             return;
           }
 
@@ -422,13 +441,13 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
             return;
           }
 
-          reject(new Error(message.error || "Không thể chuyển audio thành văn bản."));
+          reject(new Error(message.error || text.audioToTextFailed));
         };
 
         const handleWorkerError = () => {
           worker.removeEventListener("message", handleMessage);
           worker.removeEventListener("error", handleWorkerError);
-          reject(new Error("Không thể khởi động bộ phân tích âm thanh trên trình duyệt này."));
+          reject(new Error(text.analyzerStartFailed));
         };
 
         worker.addEventListener("message", handleMessage);
@@ -450,7 +469,7 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
   async function generateSpeakingTopic() {
     const customTopic = state.topicInput.trim();
     if (state.topicMode === "custom" && !customTopic) {
-      dispatch({ type: "PATCH", patch: { topicError: "Hãy nhập topic hoặc chọn chế độ đề ngẫu nhiên." } });
+      dispatch({ type: "PATCH", patch: { topicError: text.customTopicRequired } });
       return;
     }
 
@@ -473,13 +492,13 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
       };
 
       if (!response.ok || !data.prompt) {
-        dispatch({ type: "PATCH", patch: { topicError: data.error || "Không tạo được đề Speaking." } });
+        dispatch({ type: "PATCH", patch: { topicError: data.error || text.topicFailed } });
         return;
       }
 
-      dispatch({ type: "TOPIC_SUCCESS", prompt: data.prompt, selectedTopic: data.topic || customTopic || "Random" });
+      dispatch({ type: "TOPIC_SUCCESS", prompt: data.prompt, selectedTopic: data.topic || customTopic || text.randomTopic });
     } catch {
-      dispatch({ type: "PATCH", patch: { topicError: "Không tạo được đề Speaking. Vui lòng thử lại." } });
+      dispatch({ type: "PATCH", patch: { topicError: text.topicFailedRetry } });
     } finally {
       dispatch({ type: "PATCH", patch: { generatingTopic: false } });
     }
@@ -490,7 +509,7 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
 
     dispatch({ type: "PATCH", patch: { error: "", result: null } });
     if (!state.prompt.trim()) {
-      dispatch({ type: "PATCH", patch: { error: "Cần nhập đề bài cho phần thi nói." } });
+      dispatch({ type: "PATCH", patch: { error: text.promptRequired } });
       return;
     }
 
@@ -516,7 +535,7 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
     if (false && includeAiFeedback && initialConfig.userRole !== "ADMIN" && !paymentTxnRef) {
       dispatch({
         type: "PATCH",
-        patch: { error: "Bạn cần thanh toán lượt nhận xét AI trước khi kết thúc phiên nói." },
+        patch: { error: text.paymentRequired },
       });
       return;
     }
@@ -530,13 +549,13 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
     try {
       const finalAudioBlob = audioBlobRef.current || state.audioBlob;
       if (!finalAudioBlob || finalAudioBlob.size === 0) {
-        dispatch({ type: "PATCH", patch: { error: "Không tìm thấy bản ghi âm để chuyển thành văn bản." } });
+        dispatch({ type: "PATCH", patch: { error: text.missingAudio } });
         return;
       }
 
       const studentTranscript = await transcribeRecordedAudio(finalAudioBlob);
       if (!studentTranscript) {
-        dispatch({ type: "PATCH", patch: { error: "Hệ thống không nhận diện được nội dung nói. Hãy kiểm tra bản ghi âm và thử lại." } });
+        dispatch({ type: "PATCH", patch: { error: text.noSpeech } });
         return;
       }
       transcriptDraftRef.current = studentTranscript;
@@ -550,8 +569,9 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
       form.set("includeAiFeedback", String(includeAiFeedback));
       if (paymentTxnRef) form.set("paymentTxnRef", paymentTxnRef);
       form.set("language", state.speakingLanguage);
+      form.set("task", String(state.speakingPart));
       form.set("durationSeconds", String(Math.max(1, spentSeconds || state.durationSeconds)));
-      form.set("title", `Speaking AI - ${getSpeakingLanguageLabel(state.speakingLanguage)}`);
+      form.set("title", `${text.titlePrefix} - ${getSpeakingLanguageLabel(state.speakingLanguage)}`);
       const courseId = new URLSearchParams(window.location.search).get("courseId");
       if (courseId) form.set("courseId", courseId);
       form.set("audio", finalAudioBlob, "speaking.webm");
@@ -564,23 +584,23 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
 
       if (!response.ok) {
         if ((data as { requiresPointPurchase?: boolean }).requiresPointPurchase) {
-          dispatch({ type: "PATCH", patch: { error: data.error || "Thanh toán lượt nhận xét AI không hợp lệ." } });
+          dispatch({ type: "PATCH", patch: { error: data.error || text.invalidPayment } });
           return;
         }
-        dispatch({ type: "PATCH", patch: { error: data.error || "Không chấm được bài nói." } });
+        dispatch({ type: "PATCH", patch: { error: data.error || text.scoreFailed } });
         return;
       }
 
       dispatch({
         type: "SUBMIT_SUCCESS",
         result: data,
-        message: autoSubmit ? "Hết thời gian. Hệ thống đã tự động nộp và chấm điểm." : undefined,
+        message: autoSubmit ? text.autoSubmitted : undefined,
       });
     } catch (submitError) {
       dispatch({
         type: "PATCH",
         patch: {
-          error: submitError instanceof Error ? submitError.message : "Không chấm được bài nói.",
+          error: submitError instanceof Error ? submitError.message : text.scoreFailed,
         },
       });
     } finally {
@@ -599,6 +619,8 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
     spentSeconds,
     currentTurnTranscript,
     speakingTaskOptions,
+    text,
+    recordingText,
     dispatch,
     startSession,
     finishAndSubmit,
@@ -610,23 +632,29 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
 function SpeakingAiView({ controller }: { controller: SpeakingController }) {
   const { state, userRole } = controller;
   const scoreOnly = Boolean(state.result?.scoreOnly || state.result?.data.scoreOnly);
-  const scoreMax =
-    state.result?.data.evaluation.maxScore ??
-    (state.result?.data.evaluation.exam === "IELTS"
-      ? 9
-      : state.result?.data.evaluation.exam === "HSK"
-        ? 100
-        : 10);
 
   return (
     <main className="min-h-screen bg-slate-50 py-8">
       <div className="mx-auto max-w-6xl space-y-6 px-4">
-        <SpeakingHeader userRole={userRole} />
+        <SpeakingHeader userRole={userRole} text={controller.text} />
         <SpeakingSessionPanel controller={controller} />
         <TranscriptPanel controller={controller} />
         {state.transcriptionStatus ? <StatusAlert tone="amber" message={state.transcriptionStatus} /> : null}
         {state.error ? <StatusAlert tone="red" message={state.error} /> : null}
-        {state.result ? <SpeakingResult result={state.result} userRole={userRole} scoreOnly={scoreOnly} scoreMax={scoreMax} /> : null}
+        {state.result ? (
+          <>
+            <StatusAlert
+              tone="amber"
+              message="Kết quả này là ước lượng từ bản chép lời và thời lượng. Hệ thống chưa phân tích âm học, nên điểm phát âm không phải phép đo trực tiếp từ giọng nói."
+            />
+            <SpeakingResult
+              result={state.result}
+              userRole={userRole}
+              scoreOnly={scoreOnly}
+              text={controller.text}
+            />
+          </>
+        ) : null}
       </div>
 
       {state.setupOpen ? <SpeakingSetupModal controller={controller} /> : null}
@@ -634,21 +662,30 @@ function SpeakingAiView({ controller }: { controller: SpeakingController }) {
   );
 }
 
-function SpeakingHeader({ userRole }: { userRole: string }) {
+function SpeakingHeader({
+  userRole,
+  text,
+}: {
+  userRole: string;
+  text: ReturnType<typeof getSpeakingAiUiLabels>;
+}) {
+  const isAdmin = userRole === "ADMIN";
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
-            Chấm điểm miễn phí · Nhận xét AI {userRole !== "ADMIN" ? "thanh toán theo lượt" : "miễn phí cho quản trị viên"}
+            {text.headerEyebrow(isAdmin)}
           </p>
-          <h1 className="mt-2 text-3xl font-bold text-slate-950">Luyện nói và chấm điểm bằng AI</h1>
+          <h1 className="mt-2 text-3xl font-bold text-slate-950">
+            {text.headerTitle}
+          </h1>
           <p className="mt-2 max-w-3xl text-slate-600">
-            Hệ thống ghi lại toàn bộ phần nói và phân tích âm thanh sau khi kết thúc. Chấm điểm không mất phí; nhận xét chi tiết là tính năng trả phí.
+            {text.headerDescription}
           </p>
         </div>
         <Link href="/student/results" className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">
-          Lịch sử kết quả
+          {text.resultHistory}
         </Link>
       </div>
     </section>
@@ -656,23 +693,24 @@ function SpeakingHeader({ userRole }: { userRole: string }) {
 }
 
 function SpeakingSessionPanel({ controller }: { controller: SpeakingController }) {
-  const { state, userRole, dispatch, startSession, finishAndSubmit } = controller;
+  const { state, userRole, dispatch, startSession, finishAndSubmit, text, recordingText } = controller;
+  const isAdmin = userRole === "ADMIN";
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-5">
       <div className="grid gap-4 md:grid-cols-3">
-        <InfoTile label="Ngôn ngữ" value={getSpeakingLanguageLabel(state.speakingLanguage)} />
-        <InfoTile label="Thời gian" value={`${Math.round(state.durationSeconds / 60)} phút`} />
+        <InfoTile label={text.language} value={getSpeakingLanguageLabel(state.speakingLanguage)} />
+        <InfoTile label={text.duration} value={`${Math.round(state.durationSeconds / 60)} ${text.minute}`} />
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Trạng thái</p>
-          <p className="mt-2 text-sm text-slate-700">{state.recording ? "Đang ghi âm" : "Chưa ghi âm"}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{text.status}</p>
+          <p className="mt-2 text-sm text-slate-700">{state.recording ? text.recording : text.notRecording}</p>
           <p className="mt-1 text-sm text-slate-700">
-            {state.transcribing ? "Đang phân tích âm thanh" : state.transcriptDraft ? "Đã phân tích xong bản ghi" : "Âm thanh sẽ được phân tích sau khi kết thúc"}
+            {state.transcribing ? recordingText.analyzingAudio : state.transcriptDraft ? text.analyzed : text.audioAfterFinish}
           </p>
         </div>
       </div>
 
-      <label htmlFor="speaking-prompt" className="mt-4 block text-sm font-semibold text-slate-700">Đề bài nói</label>
+      <label htmlFor="speaking-prompt" className="mt-4 block text-sm font-semibold text-slate-700">{text.promptLabel}</label>
       <textarea
         id="speaking-prompt"
         value={state.prompt}
@@ -682,15 +720,15 @@ function SpeakingSessionPanel({ controller }: { controller: SpeakingController }
         className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100"
       />
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">Speaking Task {state.speakingPart}</span>
-        {state.selectedTopic ? <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">Topic: {state.selectedTopic}</span> : null}
+        <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{text.taskBadge(state.speakingPart)}</span>
+        {state.selectedTopic ? <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">{text.topicBadge(state.selectedTopic)}</span> : null}
         <button
           type="button"
           onClick={() => dispatch({ type: "PATCH", patch: { setupOpen: true } })}
           disabled={state.sessionRunning || state.preparingSession || state.loading}
           className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
         >
-          Chọn đề khác
+          {text.chooseOtherTopic}
         </button>
       </div>
 
@@ -704,28 +742,28 @@ function SpeakingSessionPanel({ controller }: { controller: SpeakingController }
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
           >
             {state.transcribing
-              ? "Đang phân tích âm thanh..."
+              ? recordingText.analyzingAudio
               : state.loading
                 ? state.submitAction === "feedback"
-                  ? "AI đang nhận xét..."
-                  : "AI đang chấm điểm..."
+                  ? text.reviewing
+                  : text.scoring
                 : state.preparingSession
-                  ? "Đang khởi động micro..."
-                  : "Bắt đầu thi nói"}
+                  ? text.startingMic
+                  : text.startSession}
           </button>
           {userRole !== "ADMIN" ? (
             <button type="button" onClick={() => void controller.startAiFeedbackPayment()} disabled={state.loading || state.preparingSession} className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300">
-              Thanh toán lượt nhận xét AI
+              {text.payAiFeedback}
             </button>
           ) : null}
           </>
         ) : (
           <>
             <button type="button" onClick={() => void finishAndSubmit(false, false)} disabled={state.loading} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300">
-              Kết thúc và chấm điểm miễn phí
+              {text.finishScore}
             </button>
             <button type="button" onClick={() => void finishAndSubmit(false, true)} disabled={state.loading} className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300">
-              Kết thúc và nhận xét AI{userRole !== "ADMIN" ? " (đã thanh toán)" : ""}
+              {text.finishFeedback(isAdmin)}
             </button>
           </>
         )}
@@ -734,7 +772,7 @@ function SpeakingSessionPanel({ controller }: { controller: SpeakingController }
           {formatClock(state.timeLeft)}
         </span>
 
-        {state.preparingSession ? <span className="text-sm text-slate-500">Hãy đợi đến khi hệ thống báo sẵn sàng rồi mới bắt đầu nói.</span> : null}
+        {state.preparingSession ? <span className="text-sm text-slate-500">{text.waitReady}</span> : null}
       </div>
     </section>
   );
@@ -750,18 +788,18 @@ function InfoTile({ label, value }: { label: string; value: string }) {
 }
 
 function TranscriptPanel({ controller }: { controller: SpeakingController }) {
-  const { state, currentTurnTranscript } = controller;
+  const { state, currentTurnTranscript, text } = controller;
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-5">
-      <h2 className="text-lg font-bold text-slate-950">Bản ghi và nội dung nhận diện</h2>
+      <h2 className="text-lg font-bold text-slate-950">{text.transcriptTitle}</h2>
       <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Văn bản được tạo từ audio</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{text.transcriptLabel}</p>
         <p className="mt-2 min-h-16 whitespace-pre-wrap text-sm text-slate-800">
           {currentTurnTranscript ||
             (state.recording
-              ? "Đang ghi âm. Nội dung sẽ được nhận diện sau khi bạn kết thúc."
-              : "Chưa có nội dung nhận diện. Bấm bắt đầu để ghi âm phần trả lời.")}
+              ? text.transcriptRecording
+              : text.transcriptEmpty)}
         </p>
       </div>
 
@@ -785,17 +823,17 @@ function SpeakingResult({
   result,
   userRole,
   scoreOnly,
-  scoreMax,
+  text,
 }: {
   result: SpeakingResult;
   userRole: string;
   scoreOnly: boolean;
-  scoreMax: number;
+  text: ReturnType<typeof getSpeakingAiUiLabels>;
 }) {
   if (result.data.ielts) {
     return (
       <section className="space-y-6">
-        <SavedResultNotice result={result} userRole={userRole} scoreOnly={scoreOnly} />
+        <SavedResultNotice result={result} userRole={userRole} scoreOnly={scoreOnly} text={text} />
         <IeltsEvaluationResult evaluation={result.data.ielts} scoreOnly={scoreOnly} />
       </section>
     );
@@ -803,47 +841,61 @@ function SpeakingResult({
 
   return (
     <section className="space-y-6">
-      <LegacyResultSummary result={result} userRole={userRole} scoreOnly={scoreOnly} scoreMax={scoreMax} />
-      <div className="grid gap-4 md:grid-cols-4">
-        {Object.entries(result.data.evaluation.scores).map(([key, value]) => (
-          <div key={key} className="rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-sm capitalize text-slate-500">{toDisplayCriterionName(key)}</p>
-            <p className="mt-2 text-2xl font-bold text-slate-950">{Number(value).toFixed(1)}</p>
-          </div>
-        ))}
-      </div>
-      {!scoreOnly ? <DetailedSpeakingFeedback result={result} /> : null}
+      <SavedResultNotice result={result} userRole={userRole} scoreOnly={scoreOnly} text={text} />
+      <LanguageEvaluationResult
+        skill="speaking"
+        evaluation={result.data.evaluation}
+        analysis={result.data.analysis}
+        mistakes={{ ...result.data.mistakes }}
+        improvements={{ ...result.data.improvements }}
+        sampleAnswer={result.data.improvements.sampleAnswer}
+        taskType={result.data.evaluation.taskType}
+        scoreOnly={scoreOnly}
+      />
     </section>
   );
 }
 
-function SavedResultNotice({ result, userRole, scoreOnly }: { result: SpeakingResult; userRole: string; scoreOnly: boolean }) {
+function SavedResultNotice({
+  result,
+  userRole,
+  scoreOnly,
+  text,
+}: {
+  result: SpeakingResult;
+  userRole: string;
+  scoreOnly: boolean;
+  text: ReturnType<typeof getSpeakingAiUiLabels>;
+}) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4">
       <p className="text-sm font-semibold text-red-600">
         {scoreOnly
-          ? "Chấm điểm miễn phí"
+          ? text.scoreFree
           : userRole !== "ADMIN"
-            ? "Nhận xét AI · Đã thanh toán"
-            : "Nhận xét AI · Miễn phí cho quản trị viên"}
+            ? text.aiPaid
+            : text.aiAdminFree}
       </p>
       <Link href={`/student/results/${result.assessmentId}`} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">
-        Xem chi tiết đã lưu
+        {text.viewSaved}
       </Link>
     </div>
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function LegacyResultSummary({
   result,
   userRole,
   scoreOnly,
   scoreMax,
+  text,
 }: {
   result: SpeakingResult;
   userRole: string;
   scoreOnly: boolean;
   scoreMax: number;
+  text: ReturnType<typeof getSpeakingAiUiLabels>;
 }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6">
@@ -852,15 +904,15 @@ function LegacyResultSummary({
           <p className="text-sm font-semibold text-blue-600">
             {result.data.evaluation.language} - {result.data.evaluation.band.system}
           </p>
-          <h2 className="mt-1 text-2xl font-bold text-slate-950">Cấp độ {result.data.evaluation.band.level}</h2>
+          <h2 className="mt-1 text-2xl font-bold text-slate-950">{text.level} {result.data.evaluation.band.level}</h2>
           {scoreOnly ? (
-            <p className="mt-2 text-sm text-slate-600">Lần chấm này chỉ trả về điểm số, không bao gồm nhận xét chi tiết.</p>
+            <p className="mt-2 text-sm text-slate-600">{text.scoreOnlyNote}</p>
           ) : (
             <p className="mt-2 text-sm text-slate-600">{result.data.evaluation.summary}</p>
           )}
           {!scoreOnly && result.data.evaluation.onTopic === false ? (
             <p className="mt-2 rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">
-              Câu trả lời bị lạc đề: {result.data.evaluation.offTopicReason || "Nội dung chưa trả lời đúng yêu cầu của đề nói."}
+              {text.offTopic}: {result.data.evaluation.offTopicReason || text.offTopicFallback}
             </p>
           ) : null}
         </div>
@@ -871,46 +923,62 @@ function LegacyResultSummary({
           </p>
           <p className="text-sm font-semibold text-red-600">
             {scoreOnly
-              ? "Chấm điểm miễn phí"
+              ? text.scoreFree
               : userRole !== "ADMIN"
-                ? "Nhận xét AI · Đã thanh toán"
-                : "Nhận xét AI · Miễn phí cho quản trị viên"}
+                ? text.aiPaid
+                : text.aiAdminFree}
           </p>
           {!scoreOnly ? (
-            <p className="mt-1 text-xs font-semibold text-slate-500">Bám đề: {Math.round(result.data.evaluation.taskRelevance ?? 0)}/100</p>
+            <p className="mt-1 text-xs font-semibold text-slate-500">{text.relevance}: {Math.round(result.data.evaluation.taskRelevance ?? 0)}/100</p>
           ) : null}
         </div>
       </div>
       <Link href={`/student/results/${result.assessmentId}`} className="mt-4 inline-block rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">
-        Xem chi tiết đã lưu
+        {text.viewSaved}
       </Link>
     </div>
   );
 }
 
-function DetailedSpeakingFeedback({ result }: { result: SpeakingResult }) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function DetailedSpeakingFeedback({
+  result,
+  text,
+}: {
+  result: SpeakingResult;
+  text: ReturnType<typeof getSpeakingAiUiLabels>;
+}) {
+  const sectionLabels = getSpeakingFeedbackSectionLabels(result.data.evaluation.language);
+  const mistakeItems = [
+    ...(result.data.mistakes.majorErrors || []),
+    ...result.data.mistakes.pronunciation,
+    ...result.data.mistakes.grammar,
+    ...result.data.mistakes.vocabulary,
+    ...result.data.mistakes.fluency,
+  ];
+  const improvementItems = [...new Set([
+    ...(result.data.improvements.improvementsNeeded || []),
+    ...result.data.analysis.suggestions,
+    ...(result.data.improvements.suggestions || []),
+    ...result.data.improvements.practiceMethods,
+  ])].filter(Boolean);
+
   return (
     <>
-      <FeedbackBlock title="Phản hồi chi tiết" items={result.data.analysis.feedback} />
+      <FeedbackBlock title={sectionLabels.strengths} items={result.data.analysis.strengths} />
+      <FeedbackBlock title={sectionLabels.weaknesses} items={result.data.analysis.weaknesses} />
+      <FeedbackBlock title={text.detailedFeedback} items={result.data.analysis.feedback} />
       {result.data.evaluation.detailedComment ? (
         <section className="rounded-xl border border-blue-200 bg-blue-50 p-5">
-          <h2 className="text-lg font-bold text-blue-950">Nhận xét tổng hợp</h2>
+          <h2 className="text-lg font-bold text-blue-950">{text.summaryComment}</h2>
           <p className="mt-3 text-sm leading-6 text-blue-900">{result.data.evaluation.detailedComment}</p>
         </section>
       ) : null}
-      <FeedbackBlock
-        title="Phát âm, ngữ pháp, từ vựng và độ trôi chảy"
-        items={[
-          ...result.data.mistakes.pronunciation,
-          ...result.data.mistakes.grammar,
-          ...result.data.mistakes.vocabulary,
-          ...result.data.mistakes.fluency,
-        ]}
-      />
-      <FeedbackBlock title="Phương pháp cải thiện" items={[...result.data.analysis.suggestions, ...result.data.improvements.practiceMethods]} />
+      <FeedbackBlock title={text.criteriaTitle} items={mistakeItems} />
+      <FeedbackBlock title={text.improvementMethods} items={improvementItems} />
       {result.data.improvements.sampleAnswer ? (
         <section className="rounded-xl border border-slate-200 bg-white p-5">
-          <h2 className="text-lg font-bold text-slate-950">Câu trả lời mẫu đúng đề</h2>
+          <h2 className="text-lg font-bold text-slate-950">{text.sampleAnswer}</h2>
           <p className="mt-4 whitespace-pre-line text-sm leading-6 text-slate-700">{result.data.improvements.sampleAnswer}</p>
         </section>
       ) : null}
@@ -918,19 +986,33 @@ function DetailedSpeakingFeedback({ result }: { result: SpeakingResult }) {
   );
 }
 
+function getSpeakingFeedbackSectionLabels(language: string) {
+  const normalized = language.toLowerCase();
+  if (normalized.includes("chinese") || normalized.includes("zh") || normalized.includes("cn") || normalized.includes("\u4e2d\u6587")) {
+    return { strengths: "\u4f18\u70b9", weaknesses: "\u4e0d\u8db3" };
+  }
+  if (normalized.includes("japanese") || normalized.includes("ja") || normalized.includes("jp") || normalized.includes("\u65e5\u672c")) {
+    return { strengths: "\u826f\u3044\u70b9", weaknesses: "\u5f31\u70b9" };
+  }
+  if (normalized.includes("korean") || normalized.includes("ko") || normalized.includes("kr") || normalized.includes("\ud55c\uad6d")) {
+    return { strengths: "\uac15\uc810", weaknesses: "\uc57d\uc810" };
+  }
+  return { strengths: "Strengths", weaknesses: "Weaknesses" };
+}
+
 function SpeakingSetupModal({ controller }: { controller: SpeakingController }) {
-  const { state, speakingTaskOptions, dispatch, generateSpeakingTopic } = controller;
+  const { state, speakingTaskOptions, dispatch, generateSpeakingTopic, text } = controller;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-8">
-      <section role="dialog" aria-modal="true" aria-labelledby="speaking-setup-title" className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-        <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Tạo đề Speaking bằng AI</p>
-        <h2 id="speaking-setup-title" className="mt-2 text-2xl font-bold text-slate-950">Bạn muốn luyện topic nào?</h2>
+    <ModalDialog labelledBy="speaking-setup-title" onClose={() => dispatch({ type: "PATCH", patch: { setupOpen: false } })} className="z-50 py-8">
+      <section className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+        <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">{text.setupEyebrow}</p>
+        <h2 id="speaking-setup-title" className="mt-2 text-2xl font-bold text-slate-950">{text.setupTitle}</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          Chọn ngôn ngữ, Speaking Task và nhập chủ đề, hoặc để AI chọn ngẫu nhiên một đề phù hợp.
+          {text.setupDescription}
         </p>
 
-        <label htmlFor="speaking-language" className="mt-5 block text-sm font-semibold text-slate-700">Ngôn ngữ luyện nói</label>
+        <label htmlFor="speaking-language" className="mt-5 block text-sm font-semibold text-slate-700">{text.speakingLanguage}</label>
         <select
           id="speaking-language"
           value={state.speakingLanguage}
@@ -941,7 +1023,7 @@ function SpeakingSetupModal({ controller }: { controller: SpeakingController }) 
           {SPEAKING_LANGUAGES.map((language) => <option key={language.value} value={language.value}>{language.label}</option>)}
         </select>
 
-        <label htmlFor="speaking-part" className="mt-5 block text-sm font-semibold text-slate-700">Speaking Task</label>
+        <label htmlFor="speaking-part" className="mt-5 block text-sm font-semibold text-slate-700">{text.speakingTask}</label>
         <select
           id="speaking-part"
           value={state.speakingPart}
@@ -955,15 +1037,15 @@ function SpeakingSetupModal({ controller }: { controller: SpeakingController }) 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <TopicModeButton
             active={state.topicMode === "custom"}
-            title="Chọn topic"
-            description="AI tạo đề dựa trên chủ đề bạn nhập."
+            title={text.chooseTopic}
+            description={text.chooseTopicDescription}
             disabled={state.generatingTopic}
             onClick={() => dispatch({ type: "PATCH", patch: { topicMode: "custom", topicError: "" } })}
           />
           <TopicModeButton
             active={state.topicMode === "random"}
-            title="Random đề"
-            description="AI tự chọn topic cho ngôn ngữ và Speaking Task đã chọn."
+            title={text.randomTopicTitle}
+            description={text.randomTopicDescription}
             disabled={state.generatingTopic}
             onClick={() => dispatch({ type: "PATCH", patch: { topicMode: "random", topicError: "" } })}
           />
@@ -971,14 +1053,14 @@ function SpeakingSetupModal({ controller }: { controller: SpeakingController }) 
 
         {state.topicMode === "custom" ? (
           <>
-            <label htmlFor="speaking-topic" className="mt-4 block text-sm font-semibold text-slate-700">Topic</label>
+            <label htmlFor="speaking-topic" className="mt-4 block text-sm font-semibold text-slate-700">{text.topic}</label>
             <input
               id="speaking-topic"
               value={state.topicInput}
               onChange={(event) => dispatch({ type: "PATCH", patch: { topicInput: event.target.value, topicError: "" } })}
               maxLength={80}
               disabled={state.generatingTopic}
-              placeholder="Ví dụ: giáo dục, công nghệ, du lịch..."
+              placeholder={text.topicPlaceholder}
               className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100"
             />
           </>
@@ -988,14 +1070,14 @@ function SpeakingSetupModal({ controller }: { controller: SpeakingController }) 
 
         <div className="mt-6 flex flex-wrap justify-end gap-3">
           <button type="button" onClick={() => dispatch({ type: "PATCH", patch: { setupOpen: false } })} disabled={state.generatingTopic} className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
-            Tự nhập đề
+            {text.manualPrompt}
           </button>
           <button type="button" onClick={() => void generateSpeakingTopic()} disabled={state.generatingTopic} className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-slate-300">
-            {state.generatingTopic ? "AI đang tạo đề..." : "Tạo đề bằng AI"}
+            {state.generatingTopic ? text.generatingTopic : text.generateTopic}
           </button>
         </div>
       </section>
-    </div>
+    </ModalDialog>
   );
 }
 
@@ -1014,6 +1096,7 @@ function TopicModeButton({ active, title, description, disabled, onClick }: { ac
 }
 
 function FeedbackBlock({ title, items }: { title: string; items: string[] }) {
+  if (!items.length) return null;
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-5">
       <h2 className="text-lg font-bold text-slate-950">{title}</h2>

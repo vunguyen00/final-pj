@@ -45,7 +45,7 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Du lieu gui len khong hop le." }, { status: 400 });
+    return NextResponse.json({ error: "Dữ liệu gửi lên không hợp lệ." }, { status: 400 });
   }
 
   console.info("[auth/register] DATABASE_URL target:", getDatabaseUrlTarget());
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
 
     if (!username || !email || !password || !confirmPassword) {
       return NextResponse.json(
-        { error: "Vui lòng nhập đầy đủ username, email, mật khẩu và xác nhận mật khẩu." },
+        { error: "Vui lòng nhập đầy đủ tên hiển thị, email, mật khẩu và xác nhận mật khẩu." },
         { status: 400 },
       );
     }
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
 
     if (existingUser?.accountStatus === "ACTIVE") {
       return NextResponse.json(
-        { error: "Email da ton tai." },
+        { error: "Email đã tồn tại." },
         { status: 409 },
       );
     }
@@ -142,8 +142,8 @@ export async function POST(request: Request) {
         {
           error:
             otpResult.reason === "COOLDOWN"
-              ? `Vui long doi ${otpResult.retryAfter} giay truoc khi gui lai OTP.`
-              : "Ban da yeu cau OTP qua nhieu lan. Vui long thu lai sau.",
+              ? `Vui lòng đợi ${otpResult.retryAfter} giây trước khi gửi lại OTP.`
+              : "Bạn đã yêu cầu OTP quá nhiều lần. Vui lòng thử lại sau.",
           retryAfter: otpResult.retryAfter,
         },
         { status: 429 },
@@ -160,7 +160,7 @@ export async function POST(request: Request) {
   } catch (error) {
     if (isUniqueConstraintError(error)) {
       return NextResponse.json(
-        { error: "Email da ton tai." },
+        { error: "Email đã tồn tại." },
         { status: 409 },
       );
     }

@@ -140,7 +140,7 @@ He thong co 3 role chinh:
 2. Vao `/courses` de loc khoa hoc theo ngon ngu, trinh do, loai khoa hoc hoac tab pho bien/moi/combo/ky nang/luyen thi.
 3. Vao chi tiet khoa hoc, nap tien neu vi chua du so du, roi dang ky/mua khoa hoc.
 4. Vao `/student/hoc-bai?courseId=...` de hoc theo module va lesson.
-5. Voi bai hoc khong co video, he thong yeu cau hoc toi thieu 10 phut. Voi bai co video, phai xem het video va khong tua de duoc ghi nhan hoan thanh.
+5. Voi bai hoc khong co video, he thong yeu cau hoc toi thieu 3 phut. Voi bai co video, may chu xac minh heartbeat lien tuc va khong tua de ghi nhan hoan thanh.
 6. Khi tien do dat 100%, vao `/student/tests` de lam bai test khoa hoc. De phai du tong 100 diem moi duoc mo lam.
 7. Sau khi nop bai, xem ket qua tai `/student/tests/[testId]/result/[attemptId]` hoac trang tong hop `/student/results`.
 8. Neu dat bai test khoa hoc, he thong ghi nhan hoan thanh khoa hoc, co the gui email chung chi va mo quyen danh gia khoa hoc.
@@ -217,7 +217,7 @@ He thong co 3 role chinh:
 - Khoa hoc gom nhieu module, moi module gom nhieu lesson.
 - Hoc vien chi truy cap noi dung neu da enroll, la instructor hoac admin.
 - He thong ghi nhan bat dau hoc, hoan thanh lesson va phan tram tien do.
-- Bai khong co video yeu cau toi thieu 10 phut hoc.
+- Bai khong co video yeu cau toi thieu 3 phut hoc.
 - Bai co video yeu cau xem het va khong tua.
 - Khi hoan thanh 100% lesson, giao dien dan hoc vien sang bai test.
 - Hoat dong hoc duoc ghi vao `LearningActivity` de tinh streak/analytics.

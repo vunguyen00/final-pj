@@ -1,9 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type Dispatch, type FormEvent, type SetStateAction } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { isLikelyImageSearchUrl, normalizeCourseThumbnailUrl } from "@/lib/course-thumbnail";
+import {
+  COURSE_CATEGORIES,
+  getCourseCategoryLabel,
+  getCourseInfoLabels,
+  getCourseLevelLabel,
+  getCourseManagementLabels,
+  getLanguageDisplayLabel,
+} from "@/lib/language-display";
 
 type CourseStatus = "ACTIVE" | "LOCKED" | "PENDING_APPROVAL" | "PENDING_DELETE" | "REJECTED";
 
@@ -39,6 +48,12 @@ type User = {
   role: string;
 };
 
+type LearningLanguage = {
+  id: string;
+  name: string;
+  code: string;
+};
+
 const defaultForm = {
   name: "",
   description: "",
@@ -48,6 +63,7 @@ const defaultForm = {
   duration: "",
   thumbnail: "",
   status: "ACTIVE",
+  languageId: "",
 };
 
 const levelOptions = [
@@ -58,8 +74,8 @@ const levelOptions = [
   { value: "Advanced", label: "Nâng cao" },
 ];
 
-function getLevelLabel(level?: string | null) {
-  return levelOptions.find((item) => item.value === level)?.label || "Chưa chọn";
+function getLevelLabel(level?: string | null, language?: string | null) {
+  return level ? getCourseLevelLabel(level, language) : "Chưa chọn";
 }
 
 function getStatusUi(status: CourseStatus) {
@@ -70,14 +86,17 @@ function getStatusUi(status: CourseStatus) {
   return { label: "Bị từ chối", className: "bg-rose-100 text-rose-700" };
 }
 
-export default function TeacherCoursesPage() {
+function useTeacherCoursesPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [languages, setLanguages] = useState<LearningLanguage[]>([]);
+  const [teacherLanguage, setTeacherLanguage] = useState<LearningLanguage | null>(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [message, setMessage] = useState("");
+  const [courseSearch, setCourseSearch] = useState("");
   const [formData, setFormData] = useState(defaultForm);
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
   const [thumbnailUploadError, setThumbnailUploadError] = useState("");
@@ -89,6 +108,8 @@ export default function TeacherCoursesPage() {
       if (res.ok) {
         const data = await res.json();
         setCourses(data.courses || []);
+        setLanguages(data.languages || []);
+        setTeacherLanguage(data.teacherLanguage || null);
       }
     } catch (error) {
       console.error("Error fetching courses:", error);
@@ -210,6 +231,7 @@ export default function TeacherCoursesPage() {
       duration: course.duration || "",
       thumbnail: course.thumbnail || "",
       status: course.status,
+      languageId: course.language?.id || "",
     });
     setShowModal(true);
   };
@@ -254,7 +276,10 @@ export default function TeacherCoursesPage() {
   };
 
   const resetForm = () => {
-    setFormData(defaultForm);
+    setFormData({
+      ...defaultForm,
+      languageId: user?.role === "TEACHER" ? teacherLanguage?.id || languages[0]?.id || "" : "",
+    });
     setThumbnailUploadError("");
     setThumbnailPreviewError("");
   };
@@ -265,7 +290,98 @@ export default function TeacherCoursesPage() {
     setShowModal(true);
   };
 
+  const formLanguageOptions =
+    editingCourse?.language && !languages.some((language) => language.id === editingCourse.language?.id)
+      ? [editingCourse.language, ...languages]
+      : languages;
+  const selectedFormLanguage =
+    formLanguageOptions.find((language) => language.id === formData.languageId) || teacherLanguage;
+  const formLanguageKey =
+    selectedFormLanguage?.code ||
+    selectedFormLanguage?.name ||
+    editingCourse?.language?.code ||
+    editingCourse?.language?.name ||
+    "vi";
+  const formLabels = getCourseInfoLabels(formLanguageKey);
+  const formManagementLabels = getCourseManagementLabels(formLanguageKey);
+  const listLabels = getCourseManagementLabels("vi");
   const thumbnailPreviewUrl = normalizeCourseThumbnailUrl(formData.thumbnail);
+  const filteredCourses = useMemo(() => {
+    const keyword = courseSearch.trim().toLocaleLowerCase();
+    if (!keyword) return courses;
+    return courses.filter((course) =>
+      course.name.toLocaleLowerCase().includes(keyword),
+    );
+  }, [courseSearch, courses]);
+
+  return {
+    user,
+    courses,
+    loading,
+    showModal,
+    editingCourse,
+    message,
+    courseSearch,
+    formData,
+    uploadingThumbnail,
+    thumbnailUploadError,
+    thumbnailPreviewError,
+    formLanguageOptions,
+    formLanguageKey,
+    formLabels,
+    formManagementLabels,
+    listLabels,
+    thumbnailPreviewUrl,
+    filteredCourses,
+    setShowModal,
+    setEditingCourse,
+    setCourseSearch,
+    setFormData,
+    setThumbnailUploadError,
+    setThumbnailPreviewError,
+    handleThumbnailUpload,
+    handleSubmit,
+    handleEdit,
+    handleDelete,
+    handleToggleLock,
+    openCreateModal,
+  };
+}
+
+export default function TeacherCoursesPage() {
+  const controller = useTeacherCoursesPage();
+  const {
+    user,
+    courses,
+    loading,
+    showModal,
+    editingCourse,
+    message,
+    courseSearch,
+    formData,
+    uploadingThumbnail,
+    thumbnailUploadError,
+    thumbnailPreviewError,
+    formLanguageOptions,
+    formLanguageKey,
+    formLabels,
+    formManagementLabels,
+    listLabels,
+    thumbnailPreviewUrl,
+    filteredCourses,
+    setShowModal,
+    setEditingCourse,
+    setCourseSearch,
+    setFormData,
+    setThumbnailUploadError,
+    setThumbnailPreviewError,
+    handleThumbnailUpload,
+    handleSubmit,
+    handleEdit,
+    handleDelete,
+    handleToggleLock,
+    openCreateModal,
+  } = controller;
 
   if (loading) {
     return (
@@ -276,6 +392,7 @@ export default function TeacherCoursesPage() {
   }
 
   return (
+    <>
     <div className="min-h-screen bg-slate-50 py-8">
       <div className="mx-auto max-w-7xl px-4">
         {message ? <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">{message}</div> : null}
@@ -298,70 +415,90 @@ export default function TeacherCoursesPage() {
           </button>
         </div>
 
+        <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4">
+          <label htmlFor="course-search" className="block text-sm font-semibold text-slate-700">
+            Tìm kiếm khóa học
+          </label>
+          <input
+            id="course-search"
+            type="search"
+            value={courseSearch}
+            onChange={(event) => setCourseSearch(event.target.value)}
+            placeholder="Nhập tên khóa học..."
+            className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          />
+        </div>
+
         {courses.length === 0 ? (
           <div className="rounded-xl border border-slate-200 bg-white p-12 text-center">
             <h3 className="text-lg font-semibold text-slate-900">Chưa có khóa học nào</h3>
             <p className="mt-2 text-slate-600">Hãy tạo khóa học đầu tiên của bạn</p>
           </div>
+        ) : filteredCourses.length === 0 ? (
+          <div className="rounded-xl border border-slate-200 bg-white p-12 text-center">
+            <h3 className="text-lg font-semibold text-slate-900">Không tìm thấy khóa học</h3>
+            <p className="mt-2 text-slate-600">Thử nhập tên khóa học khác.</p>
+          </div>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-            <table className="min-w-full divide-y divide-slate-200">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+            <table className="w-full min-w-[1180px] divide-y divide-slate-200">
               <thead className="bg-slate-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Khóa học</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Ngôn ngữ</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Danh mục</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Trình độ</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Giá</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Học viên</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Trạng thái</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500">Thao tác</th>
+                  <th className="w-[300px] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Khóa học</th>
+                  <th className="w-[150px] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Ngôn ngữ</th>
+                  <th className="w-[120px] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Danh mục</th>
+                  <th className="w-[120px] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Trình độ</th>
+                  <th className="w-[100px] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Giá</th>
+                  <th className="w-[80px] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Học viên</th>
+                  <th className="w-[130px] px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Trạng thái</th>
+                  <th className="sticky right-0 w-[180px] bg-slate-50 px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500 shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.7)]">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white">
-                {courses.map((course) => {
-                  const ui = getStatusUi(course.status);
+                {filteredCourses.map((course) => {
+                  const courseLanguageKey = course.language?.code || course.language?.name || "vi";
+                  const ui = { ...getStatusUi(course.status), label: listLabels.status[course.status] || getStatusUi(course.status).label };
                   const courseThumbnailUrl = normalizeCourseThumbnailUrl(course.thumbnail);
                   return (
                     <tr key={course.id} className="hover:bg-slate-50">
-                      <td className="whitespace-nowrap px-6 py-4">
+                      <td className="px-4 py-4">
                         <div className="flex items-center">
-                          <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-slate-100">
+                          <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-slate-100">
                             {courseThumbnailUrl ? (
-                              <img src={courseThumbnailUrl} alt={course.name} className="h-full w-full object-cover" />
+                              <Image src={courseThumbnailUrl} alt={course.name} fill sizes="48px" className="object-cover" unoptimized />
                             ) : (
                               <div className="flex h-full w-full items-center justify-center text-slate-400">N/A</div>
                             )}
                           </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-slate-900">{course.name}</div>
-                            <div className="text-sm text-slate-500">{course._count.modules} chương - {course._count.tests} bài test</div>
+                          <div className="ml-4 min-w-0">
+                            <div className="truncate text-sm font-medium text-slate-900">{course.name}</div>
+                            <div className="text-sm text-slate-500">{listLabels.modules(course._count.modules)} - {listLabels.tests(course._count.tests)}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4">
-                        <span className="inline-flex rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">{course.language?.name || "Chưa gán"}</span>
+                      <td className="whitespace-nowrap px-4 py-4">
+                        <span className="inline-flex rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">{course.language ? getLanguageDisplayLabel(courseLanguageKey) : "Chưa gán"}</span>
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4">
-                        <span className="inline-flex rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">{course.category || "Chưa phân loại"}</span>
+                      <td className="whitespace-nowrap px-4 py-4">
+                        <span className="inline-flex rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">{getCourseCategoryLabel(course.category, "vi") || "Chưa phân loại"}</span>
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4">
-                        <span className="inline-flex rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">{getLevelLabel(course.level)}</span>
+                      <td className="whitespace-nowrap px-4 py-4">
+                        <span className="inline-flex rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">{getLevelLabel(course.level, "vi")}</span>
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-900">{course.price.toLocaleString("vi-VN")}đ</td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-900">{course._count.enrollments}</td>
-                      <td className="whitespace-nowrap px-6 py-4">
+                      <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-900">{course.price.toLocaleString("vi-VN")}đ</td>
+                      <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-900">{course._count.enrollments}</td>
+                      <td className="whitespace-nowrap px-4 py-4">
                         <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${ui.className}`}>{ui.label}</span>
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                        <div className="flex justify-end gap-2">
-                          <Link href={`/teacher/courses/${course.id}`} className="rounded-lg p-2 text-slate-600 hover:bg-slate-100" title="Quản lý chi tiết">
+                      <td className="sticky right-0 whitespace-nowrap bg-white px-3 py-4 text-right text-sm font-medium shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.7)]">
+                        <div className="flex justify-end gap-1">
+                          <Link href={`/teacher/courses/${course.id}`} className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100" title="Quản lý chi tiết" aria-label="Quản lý chi tiết">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
                               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                               <circle cx="12" cy="12" r="3" />
                             </svg>
                           </Link>
-                          <button type="button" onClick={() => handleEdit(course)} className="rounded-lg p-2 text-slate-600 hover:bg-slate-100" title="Chỉnh sửa" aria-label="Chỉnh sửa khóa học">
+                          <button type="button" onClick={() => handleEdit(course)} className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100" title="Chỉnh sửa" aria-label="Chỉnh sửa khóa học">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
                               <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
                             </svg>
@@ -370,18 +507,28 @@ export default function TeacherCoursesPage() {
                             <button
                               type="button"
                               onClick={() => void handleToggleLock(course.id, course.status)}
-                              className={`rounded-lg p-2 hover:bg-slate-100 ${course.status === "ACTIVE" ? "text-orange-600" : "text-green-600"}`}
+                              className={`inline-flex h-9 w-9 items-center justify-center rounded-lg hover:bg-slate-100 ${course.status === "ACTIVE" ? "text-orange-700" : "text-green-700"}`}
                               title={course.status === "ACTIVE" ? "Khóa khóa học" : "Mở khóa khóa học"}
                               aria-label={course.status === "ACTIVE" ? "Khóa khóa học" : "Mở khóa khóa học"}
                             >
-                              {course.status === "ACTIVE" ? "Khóa" : "Mở"}
+                              {course.status === "ACTIVE" ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+                                  <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                </svg>
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+                                  <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                                  <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+                                </svg>
+                              )}
                             </button>
                           ) : null}
                           <button
                             type="button"
                             onClick={() => void handleDelete(course.id)}
                             disabled={course.status === "PENDING_DELETE"}
-                            className="rounded-lg p-2 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
                             title={course.status === "PENDING_DELETE" ? "Đang chờ admin duyệt xóa" : "Xóa"}
                             aria-label={course.status === "PENDING_DELETE" ? "Đang chờ admin duyệt xóa" : "Xóa khóa học"}
                           >
@@ -401,58 +548,170 @@ export default function TeacherCoursesPage() {
         )}
       </div>
 
-      {showModal && (
+    </div>
+    {showModal ? (
+      <CourseEditorDialog
+        controller={{
+          user,
+          editingCourse,
+          formData,
+          uploadingThumbnail,
+          thumbnailUploadError,
+          thumbnailPreviewError,
+          formLanguageOptions,
+          formLanguageKey,
+          formLabels,
+          formManagementLabels,
+          thumbnailPreviewUrl,
+          setShowModal,
+          setEditingCourse,
+          setFormData,
+          setThumbnailUploadError,
+          setThumbnailPreviewError,
+          handleThumbnailUpload,
+          handleSubmit,
+        }}
+      />
+    ) : null}
+    </>
+  );
+}
+
+type CourseEditorController = {
+  user: User | null;
+  editingCourse: Course | null;
+  formData: typeof defaultForm;
+  uploadingThumbnail: boolean;
+  thumbnailUploadError: string;
+  thumbnailPreviewError: string;
+  formLanguageOptions: LearningLanguage[];
+  formLanguageKey: string;
+  formLabels: {
+    heading: string;
+    createHeading: string;
+    name: string;
+    courseDescription: string;
+    price: string;
+    category: string;
+    categoryPlaceholder: string;
+    level: string;
+    duration: string;
+    durationPlaceholder: string;
+    status: string;
+    thumbnail: string;
+    thumbnailPlaceholder: string;
+    uploadingImage: string;
+    uploadImage: string;
+    imageHint: string;
+    save: string;
+    create: string;
+  };
+  formManagementLabels: { status: Record<string, string> };
+  thumbnailPreviewUrl: string;
+  setShowModal: Dispatch<SetStateAction<boolean>>;
+  setEditingCourse: Dispatch<SetStateAction<Course | null>>;
+  setFormData: Dispatch<SetStateAction<typeof defaultForm>>;
+  setThumbnailUploadError: Dispatch<SetStateAction<string>>;
+  setThumbnailPreviewError: Dispatch<SetStateAction<string>>;
+  handleThumbnailUpload: (event: ChangeEvent<HTMLInputElement>) => Promise<void>;
+  handleSubmit: (event: FormEvent) => Promise<void>;
+};
+
+function CourseEditorDialog({ controller }: { controller: CourseEditorController }) {
+  const {
+    user,
+    editingCourse,
+    formData,
+    uploadingThumbnail,
+    thumbnailUploadError,
+    thumbnailPreviewError,
+    formLanguageOptions,
+    formLanguageKey,
+    formLabels,
+    formManagementLabels,
+    thumbnailPreviewUrl,
+    setShowModal,
+    setEditingCourse,
+    setFormData,
+    setThumbnailUploadError,
+    setThumbnailPreviewError,
+    handleThumbnailUpload,
+    handleSubmit,
+  } = controller;
+
+  return (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center">
           <div className="w-full max-w-lg max-h-[calc(100vh-2rem)] overflow-y-auto rounded-xl bg-white p-6">
-            <h2 className="text-xl font-bold text-slate-900">{editingCourse ? "Chỉnh sửa khóa học" : "Tạo khóa học mới"}</h2>
+            <h2 className="text-xl font-bold text-slate-900">{editingCourse ? formLabels.heading : formLabels.createHeading}</h2>
             <form onSubmit={handleSubmit} className="mt-4 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-900">Tên khóa học *</label>
-                <input type="text" required value={formData.name} onChange={(event) => setFormData({ ...formData, name: event.target.value })} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                <label htmlFor="course-name" className="block text-sm font-medium text-slate-900">{formLabels.name} *</label>
+                <input id="course-name" type="text" required value={formData.name} onChange={(event) => setFormData({ ...formData, name: event.target.value })} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-900">Mô tả *</label>
-                <textarea required rows={3} value={formData.description} onChange={(event) => setFormData({ ...formData, description: event.target.value })} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                <label htmlFor="course-description" className="block text-sm font-medium text-slate-900">{formLabels.courseDescription} *</label>
+                <textarea id="course-description" required rows={3} value={formData.description} onChange={(event) => setFormData({ ...formData, description: event.target.value })} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
               </div>
+              {user?.role === "ADMIN" || formLanguageOptions.length > 0 ? (
+                <div>
+                  <label htmlFor="course-language" className="block text-sm font-medium text-slate-900">Ngôn ngữ khóa học</label>
+                  <select
+                    id="course-language"
+                    value={formData.languageId}
+                    onChange={(event) => setFormData({ ...formData, languageId: event.target.value, category: "" })}
+                    className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  >
+                    <option value="">Chọn ngôn ngữ</option>
+                    {formLanguageOptions.map((language) => (
+                      <option key={language.id} value={language.id}>
+                        {getLanguageDisplayLabel(language.code || language.name)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
+                  Tài khoản giáo viên chưa có ngôn ngữ giảng dạy được duyệt.
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-900">Giá (VNĐ) *</label>
-                  <input type="number" required value={formData.price} onChange={(event) => setFormData({ ...formData, price: event.target.value })} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                  <label htmlFor="course-price" className="block text-sm font-medium text-slate-900">{formLabels.price} *</label>
+                  <input id="course-price" type="number" required value={formData.price} onChange={(event) => setFormData({ ...formData, price: event.target.value })} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-900">Danh mục</label>
-                  <select value={formData.category} onChange={(event) => setFormData({ ...formData, category: event.target.value })} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                    <option value="">Chọn danh mục</option>
-                    <option value="Speaking">Speaking</option>
-                    <option value="Writing">Writing</option>
-                    <option value="Reading">Reading</option>
-                    <option value="Listening">Listening</option>
-                    <option value="Grammar">Grammar</option>
-                    <option value="Vocabulary">Vocabulary</option>
+                  <label htmlFor="course-category" className="block text-sm font-medium text-slate-900">{formLabels.category}</label>
+                  <select id="course-category" value={formData.category} onChange={(event) => setFormData({ ...formData, category: event.target.value })} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                    <option value="">{formLabels.categoryPlaceholder}</option>
+                    {COURSE_CATEGORIES.map((category) => (
+                      <option key={category} value={category}>
+                        {getCourseCategoryLabel(category, formLanguageKey)}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-900">Trình độ</label>
-                  <select value={formData.level} onChange={(event) => setFormData({ ...formData, level: event.target.value })} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                  <label htmlFor="course-level" className="block text-sm font-medium text-slate-900">{formLabels.level}</label>
+                  <select id="course-level" value={formData.level} onChange={(event) => setFormData({ ...formData, level: event.target.value })} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
                     {levelOptions.map((level) => (
-                      <option key={level.value} value={level.value}>{level.label}</option>
+                      <option key={level.value} value={level.value}>{getCourseLevelLabel(level.value, formLanguageKey)}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-900">Thời lượng</label>
-                  <input type="text" placeholder="Ví dụ: 8 tuần" value={formData.duration} onChange={(event) => setFormData({ ...formData, duration: event.target.value })} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                  <label htmlFor="course-duration" className="block text-sm font-medium text-slate-900">{formLabels.duration}</label>
+                  <input id="course-duration" type="text" placeholder={formLabels.durationPlaceholder} value={formData.duration} onChange={(event) => setFormData({ ...formData, duration: event.target.value })} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 {user?.role === "ADMIN" ? (
                   <div>
-                    <label className="block text-sm font-medium text-slate-900">Trạng thái</label>
-                    <select value={formData.status} onChange={(event) => setFormData({ ...formData, status: event.target.value })} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                      <option value="ACTIVE">Hoạt động</option>
-                      <option value="LOCKED">Khóa</option>
+                    <label htmlFor="course-status" className="block text-sm font-medium text-slate-900">{formLabels.status}</label>
+                    <select id="course-status" value={formData.status} onChange={(event) => setFormData({ ...formData, status: event.target.value })} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                      <option value="ACTIVE">{formManagementLabels.status.ACTIVE}</option>
+                      <option value="LOCKED">{formManagementLabels.status.LOCKED}</option>
                     </select>
                   </div>
                 ) : (
@@ -462,8 +721,9 @@ export default function TeacherCoursesPage() {
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-900">Ảnh thumbnail</label>
+                <label htmlFor="course-thumbnail" className="block text-sm font-medium text-slate-900">{formLabels.thumbnail}</label>
                 <input
+                  id="course-thumbnail"
                   type="text"
                   value={formData.thumbnail}
                   onChange={(event) => {
@@ -477,7 +737,7 @@ export default function TeacherCoursesPage() {
                       setFormData((current) => ({ ...current, thumbnail: normalized }));
                     }
                   }}
-                  placeholder="Nhập URL ảnh hoặc tải ảnh lên bên dưới"
+                  placeholder={formLabels.thumbnailPlaceholder}
                   className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 />
                 {isLikelyImageSearchUrl(formData.thumbnail) && normalizeCourseThumbnailUrl(formData.thumbnail) === formData.thumbnail.trim() ? (
@@ -487,7 +747,7 @@ export default function TeacherCoursesPage() {
                 ) : null}
                 <div className="mt-2 flex items-center gap-3">
                   <label className={`inline-flex cursor-pointer items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 ${uploadingThumbnail ? "pointer-events-none opacity-60" : ""}`}>
-                    {uploadingThumbnail ? "Đang tải ảnh..." : "Chọn ảnh từ máy"}
+                    {uploadingThumbnail ? formLabels.uploadingImage : formLabels.uploadImage}
                     <input
                       type="file"
                       accept="image/jpeg,image/png,image/webp,image/gif"
@@ -496,16 +756,19 @@ export default function TeacherCoursesPage() {
                       className="hidden"
                     />
                   </label>
-                  <span className="text-xs text-slate-500">JPEG, PNG, WebP hoặc GIF, tối đa 5 MB</span>
+                  <span className="text-xs text-slate-500">{formLabels.imageHint}</span>
                 </div>
                 {thumbnailUploadError ? <p className="mt-2 text-xs text-red-600">{thumbnailUploadError}</p> : null}
                 {thumbnailPreviewError ? <p className="mt-2 text-xs text-red-600">{thumbnailPreviewError}</p> : null}
                 {thumbnailPreviewUrl ? (
-                  <div className="mt-3 h-32 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                    <img
+                  <div className="relative mt-3 h-32 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                    <Image
                       src={thumbnailPreviewUrl}
                       alt="Xem trước thumbnail"
-                      className="h-full w-full object-cover"
+                      fill
+                      sizes="(min-width: 768px) 32rem, 100vw"
+                      className="object-cover"
+                      unoptimized
                       onLoad={() => setThumbnailPreviewError("")}
                       onError={() => setThumbnailPreviewError("Không thể hiển thị ảnh từ link này. Vui lòng dùng link ảnh trực tiếp hoặc tải ảnh từ máy.")}
                     />
@@ -528,13 +791,11 @@ export default function TeacherCoursesPage() {
                   disabled={uploadingThumbnail}
                   className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {uploadingThumbnail ? "Đang tải ảnh..." : editingCourse ? "Lưu thay đổi" : "Tạo khóa học"}
+                  {uploadingThumbnail ? formLabels.uploadingImage : editingCourse ? formLabels.save : formLabels.create}
                 </button>
               </div>
             </form>
           </div>
         </div>
-      )}
-    </div>
   );
 }

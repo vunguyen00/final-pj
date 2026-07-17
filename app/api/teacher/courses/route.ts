@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { getCourseAutoApprovalSetting } from "@/lib/course-approval";
 import { normalizeCourseThumbnailUrl } from "@/lib/course-thumbnail";
-
-const COURSE_STATUSES = new Set(["ACTIVE", "LOCKED", "PENDING_APPROVAL", "PENDING_DELETE", "REJECTED"]);
 
 export async function GET() {
   try {
@@ -17,7 +14,8 @@ export async function GET() {
       );
     }
 
-    const courses = await prisma.course.findMany({
+    const [courses, languages, teacherLanguage] = await Promise.all([
+      prisma.course.findMany({
       where: user.role === "ADMIN" 
         ? {} 
         : { instructorId: user.id },
@@ -47,9 +45,37 @@ export async function GET() {
       orderBy: {
         createdAt: "desc",
       },
-    });
+      }),
+      user.role === "ADMIN"
+        ? prisma.learningLanguage.findMany({
+            where: { isActive: true },
+            select: { id: true, name: true, code: true },
+            orderBy: { name: "asc" },
+          })
+        : prisma.teacherApplication
+            .findMany({
+              where: { userId: user.id, status: "APPROVED" },
+              select: { language: { select: { id: true, name: true, code: true } } },
+              orderBy: { reviewedAt: "desc" },
+            })
+            .then((applications) => {
+              const seen = new Set<string>();
+              return applications.flatMap((application) => {
+                if (!application.language || seen.has(application.language.id)) return [];
+                seen.add(application.language.id);
+                return [application.language];
+              });
+            }),
+      user.role === "TEACHER"
+        ? prisma.teacherApplication.findFirst({
+            where: { userId: user.id, status: "APPROVED" },
+            select: { language: { select: { id: true, name: true, code: true } } },
+            orderBy: { reviewedAt: "desc" },
+          })
+        : Promise.resolve(null),
+    ]);
 
-    return NextResponse.json({ courses });
+    return NextResponse.json({ courses, languages, teacherLanguage: teacherLanguage?.language ?? null });
   } catch (error) {
     console.error("Error fetching courses:", error);
     return NextResponse.json(
@@ -71,7 +97,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { name, description, price, category, level, duration, thumbnail, status, languageId } = body;
+    const { name, description, price, category, level, duration, thumbnail, languageId } = body;
 
     if (!name || !description || price === undefined) {
       return NextResponse.json(
@@ -88,31 +114,26 @@ export async function POST(request: Request) {
       );
     }
 
-    const [autoApproval, approvedApplication] = await Promise.all([
-      user.role === "TEACHER"
-        ? getCourseAutoApprovalSetting()
-        : Promise.resolve({ enabled: true }),
-      user.role === "TEACHER"
-        ? prisma.teacherApplication.findFirst({
-            where: { userId: user.id, status: "APPROVED" },
+    const approvedApplication = user.role === "TEACHER"
+      ? await prisma.teacherApplication.findFirst({
+            where: {
+              userId: user.id,
+              status: "APPROVED",
+              ...(typeof languageId === "string" && languageId ? { languageId } : {}),
+            },
             select: { languageId: true },
             orderBy: { reviewedAt: "desc" },
           })
-        : Promise.resolve(null),
-    ]);
-    const nextStatus =
-      user.role === "ADMIN"
-        ? status || "ACTIVE"
-        : autoApproval.enabled
-          ? "ACTIVE"
-          : "PENDING_APPROVAL";
+      : null;
 
-    if (!COURSE_STATUSES.has(nextStatus)) {
+    if (user.role === "TEACHER" && typeof languageId === "string" && languageId && !approvedApplication) {
       return NextResponse.json(
-        { error: "Invalid course status" },
-        { status: 400 }
+        { error: "You can only assign an approved teaching language to this course" },
+        { status: 403 },
       );
     }
+    // Khóa học mới chưa thể công khai trước khi có chương, bài học và bài kiểm tra.
+    const nextStatus = "PENDING_APPROVAL";
 
     const course = await prisma.course.create({
       data: {
@@ -154,7 +175,7 @@ export async function POST(request: Request) {
       {
         course,
         requiresApproval: user.role === "TEACHER" && nextStatus === "PENDING_APPROVAL",
-        autoApproved: user.role === "TEACHER" && nextStatus === "ACTIVE",
+        autoApproved: false,
       },
       { status: 201 },
     );

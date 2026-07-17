@@ -1,20 +1,15 @@
 "use client";
 
-import { useMemo, useReducer, useRef } from "react";
+import { useReducer, useRef } from "react";
 import type { AnalyticsPayload, AnalyticsPreset } from "@/lib/admin-analytics";
 import { loadDashboardAnalytics } from "./analytics-actions";
 import {
   AnalyticsHeader,
-  CourseEnrollmentSection,
+  CourseAndLanguageSection,
   ExportReportsPanel,
-  GovernanceSection,
-  GrowthAndRevenueSection,
-  LearningActivityPanel,
+  FinanceSection,
   OverviewKpis,
-  PointsLanguageSection,
-  RankingsSection,
-  TestAndAiSection,
-  type GrowthMode,
+  UserAndEnrollmentSection,
 } from "./AnalyticsDashboardSections";
 
 type Props = {
@@ -28,12 +23,10 @@ type DashboardState = {
   toDate: string;
   loading: boolean;
   error: string;
-  growthMode: GrowthMode;
 };
 
 type DashboardAction =
   | { type: "SET_FILTERS"; preset: AnalyticsPreset; fromDate: string; toDate: string }
-  | { type: "SET_GROWTH_MODE"; growthMode: GrowthMode }
   | { type: "LOAD_START" }
   | { type: "LOAD_SUCCESS"; data: AnalyticsPayload }
   | { type: "LOAD_ERROR"; error: string };
@@ -46,7 +39,6 @@ function createInitialState(initialData: AnalyticsPayload): DashboardState {
     toDate: initialData.range.end.slice(0, 10),
     loading: false,
     error: "",
-    growthMode: "day",
   };
 }
 
@@ -54,8 +46,6 @@ function dashboardReducer(state: DashboardState, action: DashboardAction): Dashb
   switch (action.type) {
     case "SET_FILTERS":
       return { ...state, preset: action.preset, fromDate: action.fromDate, toDate: action.toDate };
-    case "SET_GROWTH_MODE":
-      return { ...state, growthMode: action.growthMode };
     case "LOAD_START":
       return { ...state, loading: true, error: "" };
     case "LOAD_SUCCESS":
@@ -82,14 +72,14 @@ function convertJsonToCsvRows(data: AnalyticsPayload) {
   lines.push(`Users,Total Users,${data.overview.users.totalUsers}`);
   lines.push(`Users,New Users,${data.overview.users.newUsers}`);
   lines.push(`Courses,Total Courses,${data.overview.courses.totalCourses}`);
+  lines.push(`Courses,Active Courses,${data.overview.courses.activeCourses}`);
   lines.push(`Revenue,Total Revenue,${data.overview.revenue.totalRevenue}`);
-  lines.push(`Revenue,Admin Revenue,${data.overview.revenue.adminRevenue}`);
-  lines.push(`Revenue,Teacher Revenue,${data.overview.revenue.teacherRevenue}`);
+  lines.push(`Revenue,Admin Commission,${data.overview.revenue.adminRevenue}`);
+  lines.push(`Revenue,Teacher Commission,${data.overview.revenue.teacherRevenue}`);
   lines.push(`Revenue,Successful Transactions,${data.overview.revenue.successfulTransactions}`);
-  lines.push(`AI,Total Assessments,${data.overview.aiAssessment.totalAssessments}`);
-  lines.push(`Tests,Attempts,${data.overview.tests.totalAttempts}`);
-  lines.push(`Points,Issued,${data.pointAnalytics.issued}`);
-  lines.push(`Points,Used,${data.pointAnalytics.used}`);
+  lines.push(`Withdrawals,Count,${data.overview.revenue.withdrawalCount}`);
+  lines.push(`Withdrawals,Amount,${data.overview.revenue.withdrawalAmount}`);
+  lines.push(`Language,Most Learned,${data.languageAnalytics.mostPopularLanguage?.name ?? ""}`);
   return lines.join("\n");
 }
 
@@ -106,14 +96,7 @@ function downloadBlob(filename: string, content: BlobPart, type: string) {
 export default function AnalyticsDashboard({ initialData }: Props) {
   const [state, dispatch] = useReducer(dashboardReducer, initialData, createInitialState);
   const requestSeq = useRef(0);
-  const { data, preset, fromDate, toDate, loading, error, growthMode } = state;
-
-  const growthSeries = useMemo(() => {
-    if (growthMode === "day") return data.userGrowth.byDay;
-    if (growthMode === "week") return data.userGrowth.byWeek;
-    if (growthMode === "month") return data.userGrowth.byMonth;
-    return data.userGrowth.byYear;
-  }, [data.userGrowth, growthMode]);
+  const { data, preset, fromDate, toDate, loading, error } = state;
 
   async function refreshAnalytics(nextPreset: AnalyticsPreset, nextFromDate: string, nextToDate: string) {
     requestSeq.current += 1;
@@ -131,7 +114,7 @@ export default function AnalyticsDashboard({ initialData }: Props) {
       }
     } catch {
       if (activeRequest === requestSeq.current) {
-        dispatch({ type: "LOAD_ERROR", error: "Không thể tải dữ liệu analytics." });
+        dispatch({ type: "LOAD_ERROR", error: "Không thể tải dữ liệu thống kê." });
       }
     }
   }
@@ -168,7 +151,10 @@ export default function AnalyticsDashboard({ initialData }: Props) {
       { Section: "Users", Metric: "Total Users", Value: data.overview.users.totalUsers },
       { Section: "Courses", Metric: "Total Courses", Value: data.overview.courses.totalCourses },
       { Section: "Revenue", Metric: "Total Revenue", Value: data.overview.revenue.totalRevenue },
-      { Section: "AI", Metric: "Total Assessments", Value: data.overview.aiAssessment.totalAssessments },
+      { Section: "Revenue", Metric: "Admin Commission", Value: data.overview.revenue.adminRevenue },
+      { Section: "Revenue", Metric: "Teacher Commission", Value: data.overview.revenue.teacherRevenue },
+      { Section: "Withdrawals", Metric: "Count", Value: data.overview.revenue.withdrawalCount },
+      { Section: "Withdrawals", Metric: "Amount", Value: data.overview.revenue.withdrawalAmount },
     ]);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Analytics");
@@ -182,7 +168,7 @@ export default function AnalyticsDashboard({ initialData }: Props) {
     ]);
     const doc = new jsPDF();
     doc.setFontSize(14);
-    doc.text("E-Learning Analytics Report", 14, 16);
+    doc.text("FinnCenter Analytics Report", 14, 16);
     doc.setFontSize(10);
     doc.text(`Range: ${data.range.label}`, 14, 24);
 
@@ -191,11 +177,11 @@ export default function AnalyticsDashboard({ initialData }: Props) {
       head: [["Section", "Metric", "Value"]],
       body: [
         ["Users", "Total", String(data.overview.users.totalUsers)],
-        ["Users", "New", String(data.overview.users.newUsers)],
         ["Courses", "Total", String(data.overview.courses.totalCourses)],
         ["Revenue", "Total", String(data.overview.revenue.totalRevenue)],
-        ["Tests", "Attempts", String(data.overview.tests.totalAttempts)],
-        ["AI", "Assessments", String(data.overview.aiAssessment.totalAssessments)],
+        ["Revenue", "Admin Commission", String(data.overview.revenue.adminRevenue)],
+        ["Revenue", "Teacher Commission", String(data.overview.revenue.teacherRevenue)],
+        ["Withdrawals", "Count", String(data.overview.revenue.withdrawalCount)],
       ],
     });
 
@@ -216,18 +202,9 @@ export default function AnalyticsDashboard({ initialData }: Props) {
         onToDateChange={changeToDate}
       />
       <OverviewKpis data={data} />
-      <GrowthAndRevenueSection
-        data={data}
-        growthMode={growthMode}
-        growthSeries={growthSeries}
-        onGrowthModeChange={(mode) => dispatch({ type: "SET_GROWTH_MODE", growthMode: mode })}
-      />
-      <CourseEnrollmentSection data={data} />
-      <TestAndAiSection data={data} />
-      <GovernanceSection data={data} />
-      <LearningActivityPanel data={data} />
-      <PointsLanguageSection data={data} />
-      <RankingsSection data={data} />
+      <FinanceSection data={data} />
+      <CourseAndLanguageSection data={data} />
+      <UserAndEnrollmentSection data={data} />
       <ExportReportsPanel
         onExportCsv={exportCsv}
         onExportXlsx={() => void exportXlsx()}

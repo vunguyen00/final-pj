@@ -17,6 +17,7 @@ model User {
   isBanned                    Boolean                             @default(false)
   accountStatus               UserAccountStatus                   @default(ACTIVE)
   emailVerifiedAt             DateTime?
+  authVersion                 Int                                 @default(0)
   learningLanguageId          String?
   createdAt                   DateTime                            @default(now())
   sessions                    Session[]
@@ -41,9 +42,12 @@ model User {
   notifications               Notification[]
   emailLogs                   EmailLog[]
   teacherBankAccount          TeacherBankAccount?
+  teacherBankAccountChangeOtps TeacherBankAccountChangeOtp[]
+  teacherBankAccountChangeLogs TeacherBankAccountChangeLog[]
   revenueWithdrawals          TeacherRevenueWithdrawal[]
   revenueWithdrawalComplaints TeacherRevenueWithdrawalComplaint[]
   processedRevenueWithdrawals TeacherRevenueWithdrawal[]           @relation("RevenueWithdrawalProcessor")
+  videoWatchProgress          VideoWatchProgress[]
 }
 
 model Session {
@@ -178,7 +182,28 @@ model Lesson {
   content  String
   videoUrl String?
 
-  module Module @relation(fields: [moduleId], references: [id])
+  module        Module               @relation(fields: [moduleId], references: [id])
+  watchProgress VideoWatchProgress[]
+}
+
+model VideoWatchProgress {
+  id                  String    @id @default(uuid())
+  userId              String
+  lessonId            String
+  lastPositionSeconds Float     @default(0)
+  durationSeconds     Float?
+  lastHeartbeatAt     DateTime  @default(now())
+  startedAt           DateTime  @default(now())
+  completedAt         DateTime?
+  seekViolation       Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([lessonId, updatedAt])
 }
 
 model Enrollment {
@@ -541,6 +566,8 @@ model OrderItem {
   order  Order  @relation(fields: [orderId], references: [id])
   course Course @relation(fields: [courseId], references: [id])
   refundRequest CourseRefundRequest?
+
+  @@unique([orderId, courseId])
 }
 
 enum CourseRefundRequestStatus {
@@ -562,6 +589,7 @@ model CourseRefundRequest {
   processedAt   DateTime?
   createdAt     DateTime                  @default(now())
   updatedAt     DateTime                  @updatedAt
+  refundMethod  String                    @default("EXTERNAL_ACCOUNT")
 
   student    User      @relation("RefundRequestStudent", fields: [studentId], references: [id], onDelete: Cascade)
   course     Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -599,6 +627,44 @@ model TeacherBankAccount {
   updatedAt          DateTime                             @updatedAt
 
   teacher User @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+}
+
+model TeacherBankAccountChangeOtp {
+  id         String    @id @default(uuid())
+  teacherId  String
+  email      String
+  codeHash   String
+  payload    Json
+  expiresAt  DateTime
+  consumedAt DateTime?
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  teacher User @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@index([teacherId, createdAt])
+  @@index([email, createdAt])
+}
+
+model TeacherBankAccountChangeLog {
+  id                          String   @id @default(uuid())
+  teacherId                   String
+  previousBankName            String?
+  previousAccountNumberMasked String?
+  previousAccountName         String?
+  previousBranch              String?
+  nextBankName                String
+  nextAccountNumberMasked     String
+  nextAccountName             String
+  nextBranch                  String?
+  requestIp                   String?
+  deviceFingerprint           String?
+  createdAt                   DateTime @default(now())
+
+  teacher User @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@index([teacherId, createdAt])
 }
 
 enum TeacherRevenueWithdrawalComplaintReason {
@@ -646,6 +712,8 @@ model TeacherRevenueWithdrawalComplaint {
   reason         TeacherRevenueWithdrawalComplaintReason
   reportedAmount Int?
   message        String
+  evidenceImageUrl String?
+  evidenceImageName String?
   status         TeacherRevenueWithdrawalComplaintStatus @default(OPEN)
   adminNote      String?
   resolvedAt     DateTime?

@@ -1,12 +1,18 @@
 "use client";
 
-import { useRef, useState, type FormEvent, type ReactNode, type UIEvent } from "react";
+import { useRef, useState, useSyncExternalStore, type Dispatch, type FormEvent, type ReactNode, type SetStateAction, type UIEvent } from "react";
 import { useRouter } from "next/navigation";
+import { createPollingStore } from "@/lib/client-polling-store";
 
 const currency = new Intl.NumberFormat("vi-VN", {
   style: "currency",
   currency: "VND",
   maximumFractionDigits: 0,
+});
+const revenueDateTime = new Intl.DateTimeFormat("vi-VN", {
+  dateStyle: "short",
+  timeStyle: "short",
+  timeZone: "Asia/Ho_Chi_Minh",
 });
 
 type ComplaintReason = "NOT_RECEIVED" | "WRONG_AMOUNT" | "OTHER";
@@ -29,6 +35,8 @@ type WithdrawalComplaint = {
   reason: ComplaintReason;
   reportedAmount: number | null;
   message: string;
+  evidenceImageUrl: string | null;
+  evidenceImageName: string | null;
   status: ComplaintStatus;
   adminNote: string | null;
   resolvedAt: string | null;
@@ -45,6 +53,14 @@ type Withdrawal = {
   note: string | null;
   createdAt: string;
   complaint: WithdrawalComplaint | null;
+};
+
+type TeacherRevenueSnapshot = {
+  availableRevenue: number;
+  bankAccount: TeacherBankAccount | null;
+  unreadNotificationCount: number;
+  withdrawals: Withdrawal[];
+  notifications: RevenueNotification[];
 };
 
 const statusLabel = {
@@ -69,7 +85,15 @@ const complaintStatusUi: Record<ComplaintStatus, { label: string; className: str
 
 const fieldClassName = "w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-950 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10";
 
-export function RevenueWithdrawalPanel({
+async function readApiJson<T extends object>(response: Response): Promise<T> {
+  try {
+    return (await response.json()) as T;
+  } catch {
+    return {} as T;
+  }
+}
+
+function useRevenueWithdrawalPanel({
   availableRevenue,
   bankAccount,
   unreadNotificationCount,
@@ -83,11 +107,37 @@ export function RevenueWithdrawalPanel({
   notifications: RevenueNotification[];
 }) {
   const router = useRouter();
+  const [revenueStore] = useState(() => createPollingStore<TeacherRevenueSnapshot>({
+    initialValue: { availableRevenue, bankAccount, unreadNotificationCount, withdrawals, notifications },
+    intervalMs: 8000,
+    load: async () => {
+      const response = await fetch("/api/teacher/revenue-withdrawals", { cache: "no-store" });
+      const data = await readApiJson<Partial<TeacherRevenueSnapshot> & { error?: string }>(response);
+      if (!response.ok || !data.withdrawals || typeof data.availableRevenue !== "number") {
+        return { availableRevenue, bankAccount, unreadNotificationCount, withdrawals, notifications };
+      }
+      return {
+        availableRevenue: data.availableRevenue,
+        bankAccount: data.bankAccount ?? null,
+        unreadNotificationCount: data.unreadNotificationCount ?? unreadNotificationCount,
+        withdrawals: data.withdrawals,
+        notifications: data.notifications ?? notifications,
+      };
+    },
+  }));
+  const revenueSnapshot = useSyncExternalStore(revenueStore.subscribe, revenueStore.getSnapshot, revenueStore.getSnapshot);
+  const liveAvailableRevenue = revenueSnapshot.availableRevenue;
+  const liveWithdrawals = revenueSnapshot.withdrawals;
+  const [bankAccountState, setBankAccountState] = useState(bankAccount);
   const [amount, setAmount] = useState("");
   const [bankName, setBankName] = useState(bankAccount?.bankName ?? "");
   const [bankBranch, setBankBranch] = useState(bankAccount?.branch ?? "");
   const [accountNumber, setAccountNumber] = useState(bankAccount?.accountNumber ?? "");
   const [accountName, setAccountName] = useState(bankAccount?.accountName ?? "");
+  const [bankAccountOpen, setBankAccountOpen] = useState(false);
+  const [bankAccountLoading, setBankAccountLoading] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [bankAccountOtp, setBankAccountOtp] = useState("");
   const [withdrawalLoading, setWithdrawalLoading] = useState(false);
   const [complaintLoading, setComplaintLoading] = useState(false);
   const [error, setError] = useState("");
@@ -104,9 +154,15 @@ export function RevenueWithdrawalPanel({
   const [complaintReason, setComplaintReason] = useState<ComplaintReason>("NOT_RECEIVED");
   const [reportedAmount, setReportedAmount] = useState("");
   const [complaintMessage, setComplaintMessage] = useState("");
+  const [complaintEvidenceFile, setComplaintEvidenceFile] = useState<File | null>(null);
 
   async function submitWithdrawal(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!bankAccountState) {
+      setError("Vui lòng lưu và xác nhận OTP tài khoản nhận tiền trước khi rút doanh thu.");
+      setBankAccountOpen(true);
+      return;
+    }
     setWithdrawalLoading(true);
     setError("");
     setMessage("");
@@ -114,9 +170,9 @@ export function RevenueWithdrawalPanel({
       const response = await fetch("/api/teacher/revenue-withdrawals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: Number(amount), bankName, bankBranch, accountNumber, accountName }),
+        body: JSON.stringify({ amount: Number(amount) }),
       });
-      const data = (await response.json()) as { error?: string };
+      const data = await readApiJson<{ error?: string }>(response);
       if (!response.ok) {
         setError(data.error ?? "Không thể tạo yêu cầu rút tiền.");
         return;
@@ -124,6 +180,7 @@ export function RevenueWithdrawalPanel({
       setAmount("");
       setMessage("Yêu cầu rút doanh thu đã được ghi nhận.");
       setWithdrawalOpen(false);
+      void revenueStore.refresh();
       router.refresh();
     } catch {
       setError("Lỗi mạng. Vui lòng thử lại.");
@@ -138,6 +195,7 @@ export function RevenueWithdrawalPanel({
     setComplaintReason("NOT_RECEIVED");
     setReportedAmount("");
     setComplaintMessage("");
+    setComplaintEvidenceFile(null);
     setError("");
     setMessage("");
   }
@@ -146,6 +204,70 @@ export function RevenueWithdrawalPanel({
     setWithdrawalOpen(true);
     setError("");
     setMessage("");
+  }
+
+  function openBankAccountForm() {
+    setBankName(bankAccountState?.bankName ?? "");
+    setBankBranch(bankAccountState?.branch ?? "");
+    setAccountNumber(bankAccountState?.accountNumber ?? "");
+    setAccountName(bankAccountState?.accountName ?? "");
+    setBankAccountOtp("");
+    setOtpSent(false);
+    setBankAccountOpen(true);
+    setError("");
+    setMessage("");
+  }
+
+  async function requestBankAccountOtp(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBankAccountLoading(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/teacher/bank-account/request-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bankName, bankBranch, accountNumber, accountName }),
+      });
+      const data = await readApiJson<{ error?: string }>(response);
+      if (!response.ok) {
+        setError(data.error ?? "Không gửi được OTP xác nhận tài khoản.");
+        return;
+      }
+      setOtpSent(true);
+      setMessage("OTP đã được gửi về email tài khoản của bạn.");
+    } catch {
+      setError("Lỗi mạng. Vui lòng thử lại.");
+    } finally {
+      setBankAccountLoading(false);
+    }
+  }
+
+  async function verifyBankAccountOtp() {
+    setBankAccountLoading(true);
+    setError("");
+    try {
+      const response = await fetch("/api/teacher/bank-account/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ otp: bankAccountOtp }),
+      });
+      const data = await readApiJson<{ error?: string; bankAccount?: TeacherBankAccount }>(response);
+      if (!response.ok || !data.bankAccount) {
+        setError(data.error ?? "Không xác nhận được OTP.");
+        return;
+      }
+      setBankAccountState(data.bankAccount);
+      setBankAccountOpen(false);
+      setOtpSent(false);
+      setBankAccountOtp("");
+      setMessage("Đã cập nhật tài khoản nhận tiền sau khi xác nhận OTP.");
+      router.refresh();
+    } catch {
+      setError("Lỗi mạng. Vui lòng thử lại.");
+    } finally {
+      setBankAccountLoading(false);
+    }
   }
 
   async function markNotificationsAsRead() {
@@ -181,22 +303,25 @@ export function RevenueWithdrawalPanel({
     setError("");
     setMessage("");
     try {
+      const formData = new FormData();
+      formData.set("reason", complaintReason);
+      formData.set("reportedAmount", reportedAmount ? String(Number(reportedAmount)) : "");
+      formData.set("message", complaintMessage);
+      if (complaintEvidenceFile) formData.set("evidenceImage", complaintEvidenceFile);
+
       const response = await fetch(`/api/teacher/revenue-withdrawals/${complaintTarget.id}/complaints`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reason: complaintReason,
-          reportedAmount: reportedAmount ? Number(reportedAmount) : null,
-          message: complaintMessage,
-        }),
+        body: formData,
       });
-      const data = (await response.json()) as { error?: string };
+      const data = await readApiJson<{ error?: string }>(response);
       if (!response.ok) {
         setError(data.error ?? "Không thể gửi khiếu nại.");
         return;
       }
       setComplaintTarget(null);
+      setComplaintEvidenceFile(null);
       setMessage("Khiếu nại đã được gửi tới admin để kiểm tra.");
+      void revenueStore.refresh();
       router.refresh();
     } catch {
       setError("Lỗi mạng. Vui lòng thử lại.");
@@ -212,11 +337,11 @@ export function RevenueWithdrawalPanel({
     setLoadingMoreNotifications(true);
     try {
       const response = await fetch(`/api/teacher/revenue-notifications?skip=${loadedNotifications.length}&take=${NOTIFICATION_PAGE_SIZE}`);
-      const data = (await response.json()) as {
+      const data = await readApiJson<{
         error?: string;
         notifications?: RevenueNotification[];
         hasMore?: boolean;
-      };
+      }>(response);
       if (!response.ok || !data.notifications) {
         setHasMoreNotifications(false);
         return;
@@ -244,13 +369,140 @@ export function RevenueWithdrawalPanel({
     }
   }
 
+  return {
+    liveAvailableRevenue,
+    liveWithdrawals,
+    bankAccountState,
+    amount,
+    bankName,
+    bankBranch,
+    accountNumber,
+    accountName,
+    bankAccountOpen,
+    bankAccountLoading,
+    otpSent,
+    bankAccountOtp,
+    withdrawalLoading,
+    complaintLoading,
+    error,
+    message,
+    withdrawalOpen,
+    activityOpen,
+    activityTab,
+    loadedNotifications,
+    unreadCount,
+    hasMoreNotifications,
+    loadingMoreNotifications,
+    complaintTarget,
+    complaintReason,
+    reportedAmount,
+    complaintMessage,
+    complaintEvidenceFile,
+    setAmount,
+    setBankName,
+    setBankBranch,
+    setAccountNumber,
+    setAccountName,
+    setBankAccountOpen,
+    setBankAccountOtp,
+    setWithdrawalOpen,
+    setActivityOpen,
+    setComplaintTarget,
+    setComplaintReason,
+    setReportedAmount,
+    setComplaintMessage,
+    setComplaintEvidenceFile,
+    submitWithdrawal,
+    openComplaint,
+    openWithdrawal,
+    openBankAccountForm,
+    requestBankAccountOtp,
+    verifyBankAccountOtp,
+    openNotifications,
+    openWithdrawalHistory,
+    submitComplaint,
+    handleActivityScroll,
+  };
+}
+
+export function RevenueWithdrawalPanel(props: {
+  availableRevenue: number;
+  bankAccount: TeacherBankAccount | null;
+  unreadNotificationCount: number;
+  withdrawals: Withdrawal[];
+  notifications: RevenueNotification[];
+}) {
+  const controller = useRevenueWithdrawalPanel(props);
+  const {
+    liveAvailableRevenue,
+    liveWithdrawals,
+    bankAccountState,
+    amount,
+    bankName,
+    bankBranch,
+    accountNumber,
+    accountName,
+    bankAccountOpen,
+    bankAccountLoading,
+    otpSent,
+    bankAccountOtp,
+    withdrawalLoading,
+    complaintLoading,
+    error,
+    message,
+    withdrawalOpen,
+    activityOpen,
+    activityTab,
+    loadedNotifications,
+    unreadCount,
+    hasMoreNotifications,
+    loadingMoreNotifications,
+    complaintTarget,
+    complaintReason,
+    reportedAmount,
+    complaintMessage,
+    complaintEvidenceFile,
+    setAmount,
+    setBankName,
+    setBankBranch,
+    setAccountNumber,
+    setAccountName,
+    setBankAccountOpen,
+    setBankAccountOtp,
+    setWithdrawalOpen,
+    setActivityOpen,
+    setComplaintTarget,
+    setComplaintReason,
+    setReportedAmount,
+    setComplaintMessage,
+    setComplaintEvidenceFile,
+    submitWithdrawal,
+    openComplaint,
+    openWithdrawal,
+    openBankAccountForm,
+    requestBankAccountOtp,
+    verifyBankAccountOtp,
+    openNotifications,
+    openWithdrawalHistory,
+    submitComplaint,
+    handleActivityScroll,
+  } = controller;
+
   return (
     <section className="mt-6">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm text-slate-600">
-          Khả dụng: <strong className="text-emerald-700">{currency.format(availableRevenue)}</strong>
+          Khả dụng: <strong className="text-emerald-700">{currency.format(liveAvailableRevenue)}</strong>
         </div>
         <div className="flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={openBankAccountForm}
+            className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-white px-4 py-2.5 text-sm font-bold text-emerald-700 shadow-sm hover:bg-emerald-50"
+          >
+            <BanknoteIcon />
+            <span>{bankAccountState ? "Tài khoản nhận tiền" : "Lưu tài khoản"}</span>
+          </button>
           <button
             type="button"
             onClick={openWithdrawal}
@@ -279,7 +531,7 @@ export function RevenueWithdrawalPanel({
           >
             <HistoryIcon />
             <span>Lịch sử rút tiền</span>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">{withdrawals.length}</span>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">{liveWithdrawals.length}</span>
           </button>
         </div>
       </div>
@@ -294,7 +546,7 @@ export function RevenueWithdrawalPanel({
                 <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Rút doanh thu</p>
                 <h2 className="mt-1 text-xl font-bold text-slate-950">Tạo yêu cầu rút tiền</h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  Khả dụng: <strong className="text-emerald-700">{currency.format(availableRevenue)}</strong>
+                  Khả dụng: <strong className="text-emerald-700">{currency.format(liveAvailableRevenue)}</strong>
                 </p>
               </div>
               <button type="button" onClick={() => setWithdrawalOpen(false)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">
@@ -304,10 +556,56 @@ export function RevenueWithdrawalPanel({
 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
               <p className="text-sm text-slate-600">Khoản này chỉ đến từ doanh thu bán khóa học, tách biệt với các thanh toán mua khóa học hoặc thanh toán AI theo lượt.</p>
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-slate-950">Tài khoản nhận tiền cố định</p>
+                    {bankAccountState ? (
+                      <p className="mt-1 text-sm text-slate-600">
+                        {bankAccountState.bankName} · ••••{bankAccountState.accountNumber.slice(-4)} · {bankAccountState.accountName}
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-sm text-rose-600">Chưa lưu tài khoản nhận tiền.</p>
+                    )}
+                  </div>
+                  <button type="button" onClick={openBankAccountForm} className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50">
+                    {bankAccountState ? "Đổi tài khoản" : "Lưu tài khoản"}
+                  </button>
+                </div>
+              </div>
+              <div className="mt-5 grid gap-4">
                 <Field label="Số tiền (VND)">
-                  <input aria-label="Số tiền muốn rút" inputMode="numeric" min="1" max={availableRevenue} required value={amount} onChange={(event) => setAmount(event.target.value.replace(/\D/g, ""))} className={fieldClassName} placeholder="Ví dụ: 500000" />
+                  <input aria-label="Số tiền muốn rút" inputMode="numeric" min="1" max={liveAvailableRevenue} required value={amount} onChange={(event) => setAmount(event.target.value.replace(/\D/g, ""))} className={fieldClassName} placeholder="Ví dụ: 500000" />
                 </Field>
+              </div>
+              {error && !complaintTarget ? <p role="alert" className="mt-4 rounded-lg bg-rose-50 p-3 text-sm font-medium text-rose-700">{error}</p> : null}
+            </div>
+
+            <div className="border-t border-slate-200 bg-slate-50 px-5 py-4">
+              <button disabled={withdrawalLoading || liveAvailableRevenue <= 0 || !bankAccountState} className="w-full rounded-lg bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300">
+                {withdrawalLoading ? "Đang gửi yêu cầu..." : "Yêu cầu rút doanh thu"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      {bankAccountOpen ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/70 px-4 py-6 backdrop-blur-sm">
+          <form onSubmit={requestBankAccountOtp} className="flex max-h-[86vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-white/20">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Tài khoản nhận tiền</p>
+                <h2 className="mt-1 text-xl font-bold text-slate-950">Lưu tài khoản rút doanh thu</h2>
+                <p className="mt-1 text-sm text-slate-600">Mọi thay đổi đều cần OTP gửi về email và được ghi nhật ký.</p>
+              </div>
+              <button type="button" onClick={() => setBankAccountOpen(false)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">
+                Đóng
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Ngân hàng">
                   <input required maxLength={100} value={bankName} onChange={(event) => setBankName(event.target.value)} className={fieldClassName} placeholder="Tên ngân hàng" />
                 </Field>
@@ -321,19 +619,93 @@ export function RevenueWithdrawalPanel({
                   <input required maxLength={100} value={accountName} onChange={(event) => setAccountName(event.target.value.toUpperCase())} className={`${fieldClassName} uppercase`} placeholder="NGUYEN VAN A" />
                 </Field>
               </div>
+
+              {otpSent ? (
+                <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                  <Field label="OTP xác nhận">
+                    <input inputMode="numeric" maxLength={6} value={bankAccountOtp} onChange={(event) => setBankAccountOtp(event.target.value.replace(/\D/g, "").slice(0, 6))} className={fieldClassName} placeholder="Nhập OTP 6 chữ số" />
+                  </Field>
+                  <p className="mt-2 text-xs text-emerald-800">Chỉ khi OTP hợp lệ, hệ thống mới cập nhật tài khoản và ghi nhật ký thay đổi.</p>
+                </div>
+              ) : null}
+
               {error && !complaintTarget ? <p role="alert" className="mt-4 rounded-lg bg-rose-50 p-3 text-sm font-medium text-rose-700">{error}</p> : null}
             </div>
 
-            <div className="border-t border-slate-200 bg-slate-50 px-5 py-4">
-              <button disabled={withdrawalLoading || availableRevenue <= 0} className="w-full rounded-lg bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300">
-                {withdrawalLoading ? "Đang gửi yêu cầu..." : "Yêu cầu rút doanh thu"}
+            <div className="flex flex-col-reverse gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:justify-end">
+              <button type="submit" disabled={bankAccountLoading} className="rounded-lg border border-emerald-200 bg-white px-4 py-3 text-sm font-bold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60">
+                {otpSent ? "Gửi lại OTP" : "Gửi OTP xác nhận"}
               </button>
+              {otpSent ? (
+                <button type="button" onClick={() => void verifyBankAccountOtp()} disabled={bankAccountLoading || bankAccountOtp.length !== 6} className="rounded-lg bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300">
+                  {bankAccountLoading ? "Đang xác nhận..." : "Xác nhận và lưu"}
+                </button>
+              ) : null}
             </div>
           </form>
         </div>
       ) : null}
 
-      {activityOpen ? (
+      <RevenueActivityDialog
+        controller={{
+          activityOpen,
+          activityTab,
+          loadedNotifications,
+          loadingMoreNotifications,
+          hasMoreNotifications,
+          liveWithdrawals,
+          setActivityOpen,
+          handleActivityScroll,
+          openComplaint,
+        }}
+      />
+      <RevenueComplaintDialog
+        controller={{
+          complaintTarget,
+          complaintReason,
+          reportedAmount,
+          complaintMessage,
+          complaintEvidenceFile,
+          complaintLoading,
+          error,
+          setComplaintTarget,
+          setComplaintReason,
+          setReportedAmount,
+          setComplaintMessage,
+          setComplaintEvidenceFile,
+          submitComplaint,
+        }}
+      />
+    </section>
+  );
+}
+
+type RevenueActivityController = {
+  activityOpen: boolean;
+  activityTab: ActivityTab;
+  loadedNotifications: RevenueNotification[];
+  loadingMoreNotifications: boolean;
+  hasMoreNotifications: boolean;
+  liveWithdrawals: Withdrawal[];
+  setActivityOpen: Dispatch<SetStateAction<boolean>>;
+  handleActivityScroll: (event: UIEvent<HTMLDivElement>) => void;
+  openComplaint: (item: Withdrawal) => void;
+};
+
+function RevenueActivityDialog({ controller }: { controller: RevenueActivityController }) {
+  const {
+    activityOpen,
+    activityTab,
+    loadedNotifications,
+    loadingMoreNotifications,
+    hasMoreNotifications,
+    liveWithdrawals,
+    setActivityOpen,
+    handleActivityScroll,
+    openComplaint,
+  } = controller;
+
+  return activityOpen ? (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/70 px-4 py-6 backdrop-blur-sm">
           <div className="flex h-[84vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-white/20">
             <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
@@ -362,7 +734,7 @@ export function RevenueWithdrawalPanel({
                         <p className="text-sm font-bold text-blue-900">{item.title}</p>
                         <p className="mt-1 text-sm text-slate-600">{item.body}</p>
                       </div>
-                      <p className="whitespace-nowrap text-xs text-slate-400">{new Date(item.createdAt).toLocaleString("vi-VN")}</p>
+                      <p className="whitespace-nowrap text-xs text-slate-400">{revenueDateTime.format(new Date(item.createdAt))}</p>
                     </article>
                   ))}
                   {loadedNotifications.length === 0 ? <p className="py-8 text-center text-sm text-slate-500">Chưa có thông báo rút doanh thu.</p> : null}
@@ -371,7 +743,7 @@ export function RevenueWithdrawalPanel({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {withdrawals.map((item) => {
+                  {liveWithdrawals.map((item) => {
                     const complaintUi = item.complaint ? complaintStatusUi[item.complaint.status] : null;
 
                     return (
@@ -383,7 +755,7 @@ export function RevenueWithdrawalPanel({
                               {statusLabel[item.status]}
                             </span>
                           </div>
-                          <p className="mt-1 text-sm text-slate-500">{item.bankName} · ••••{item.accountNumber.slice(-4)} · {new Date(item.createdAt).toLocaleString("vi-VN")}</p>
+                          <p className="mt-1 text-sm text-slate-500">{item.bankName} · ••••{item.accountNumber.slice(-4)} · {revenueDateTime.format(new Date(item.createdAt))}</p>
                           {item.note ? <p className="mt-1 text-xs text-rose-600">{item.note}</p> : null}
                           {item.complaint && complaintUi ? (
                             <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
@@ -395,6 +767,11 @@ export function RevenueWithdrawalPanel({
                                 <p className="mt-1 text-xs text-amber-800">Số tiền thực nhận: {currency.format(item.complaint.reportedAmount)}</p>
                               ) : null}
                               <p className="mt-1 text-xs text-slate-600">{item.complaint.message}</p>
+                              {item.complaint.evidenceImageUrl ? (
+                                <a href={item.complaint.evidenceImageUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-xs font-bold text-blue-700 hover:text-blue-900">
+                                  Xem ảnh minh chứng{item.complaint.evidenceImageName ? `: ${item.complaint.evidenceImageName}` : ""}
+                                </a>
+                              ) : null}
                               {item.complaint.adminNote ? <p className="mt-1 text-xs font-semibold text-slate-700">Phản hồi admin: {item.complaint.adminNote}</p> : null}
                             </div>
                           ) : null}
@@ -409,15 +786,49 @@ export function RevenueWithdrawalPanel({
                       </article>
                     );
                   })}
-                  {withdrawals.length === 0 ? <p className="py-10 text-center text-sm text-slate-500">Chưa có yêu cầu rút doanh thu.</p> : null}
+                  {liveWithdrawals.length === 0 ? <p className="py-10 text-center text-sm text-slate-500">Chưa có yêu cầu rút doanh thu.</p> : null}
                 </div>
               )}
             </div>
           </div>
         </div>
-      ) : null}
+      ) : null;
+}
 
-      {complaintTarget ? (
+type RevenueComplaintController = {
+  complaintTarget: Withdrawal | null;
+  complaintReason: ComplaintReason;
+  reportedAmount: string;
+  complaintMessage: string;
+  complaintEvidenceFile: File | null;
+  complaintLoading: boolean;
+  error: string;
+  setComplaintTarget: Dispatch<SetStateAction<Withdrawal | null>>;
+  setComplaintReason: Dispatch<SetStateAction<ComplaintReason>>;
+  setReportedAmount: Dispatch<SetStateAction<string>>;
+  setComplaintMessage: Dispatch<SetStateAction<string>>;
+  setComplaintEvidenceFile: Dispatch<SetStateAction<File | null>>;
+  submitComplaint: (event: FormEvent<HTMLFormElement>) => Promise<void>;
+};
+
+function RevenueComplaintDialog({ controller }: { controller: RevenueComplaintController }) {
+  const {
+    complaintTarget,
+    complaintReason,
+    reportedAmount,
+    complaintMessage,
+    complaintEvidenceFile,
+    complaintLoading,
+    error,
+    setComplaintTarget,
+    setComplaintReason,
+    setReportedAmount,
+    setComplaintMessage,
+    setComplaintEvidenceFile,
+    submitComplaint,
+  } = controller;
+
+  return complaintTarget ? (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/70 px-4 py-6 backdrop-blur-sm">
           <form onSubmit={submitComplaint} className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl">
             <div className="flex items-start justify-between gap-3">
@@ -445,6 +856,15 @@ export function RevenueWithdrawalPanel({
               <Field label="Mô tả chi tiết">
                 <textarea required minLength={20} maxLength={1000} value={complaintMessage} onChange={(event) => setComplaintMessage(event.target.value)} className={`${fieldClassName} min-h-28 resize-y`} placeholder="Mô tả giao dịch, thời điểm kiểm tra tài khoản hoặc số tiền thực nhận..." />
               </Field>
+              <Field label="Ảnh minh chứng">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  onChange={(event) => setComplaintEvidenceFile(event.target.files?.[0] ?? null)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 file:mr-3 file:rounded-md file:border-0 file:bg-amber-100 file:px-3 file:py-1.5 file:text-sm file:font-bold file:text-amber-800 hover:file:bg-amber-200"
+                />
+                {complaintEvidenceFile ? <span className="mt-1.5 block text-xs font-semibold text-slate-500">{complaintEvidenceFile.name}</span> : null}
+              </Field>
             </div>
 
             {error ? <p role="alert" className="mt-4 rounded-lg bg-rose-50 p-3 text-sm font-medium text-rose-700">{error}</p> : null}
@@ -458,10 +878,7 @@ export function RevenueWithdrawalPanel({
             </div>
           </form>
         </div>
-      ) : null}
-
-    </section>
-  );
+      ) : null;
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {

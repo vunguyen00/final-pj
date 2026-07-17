@@ -215,7 +215,7 @@ export default function WalletClient({ initialData, initialNotice, canBuy = true
                   <div className="min-w-0">
                     <p className="font-medium text-slate-900">{tx.description}</p>
                     <p className="text-xs text-slate-500">
-                      {new Date(tx.createdAt).toLocaleString("vi-VN")} · Còn lại: {formatBeans(tx.balanceAfter)}
+                      {new Date(tx.createdAt).toLocaleString("vi-VN", { timeZone: "Asia/Bangkok" })} · Còn lại: {formatBeans(tx.balanceAfter)}
                     </p>
                   </div>
                   <p className={`shrink-0 font-semibold ${amountClass(tx.amount)}`}>

@@ -55,16 +55,24 @@ export async function POST(
     let earned = 0;
     let rawMax = 0;
     const questionResults = [];
-    const aiInputs = test.questions
-      .filter((question) => question.type === "ESSAY" || question.type === "SPEAKING")
-      .map((question) => ({
-        questionId: question.id,
-        mode: question.type === "SPEAKING" ? "SPEAKING" as const : "WRITING" as const,
-        answer: String(answers[question.id] || "").trim(),
-        prompt: question.content,
-        languageCode: application.language.code,
-      }))
-      .filter((input) => input.answer);
+    const aiInputs = test.questions.flatMap((question) => {
+      if (question.type !== "ESSAY" && question.type !== "SPEAKING") {
+        return [];
+      }
+
+      const answer = String(answers[question.id] || "").trim();
+      if (!answer) return [];
+
+      return [
+        {
+          questionId: question.id,
+          mode: question.type === "SPEAKING" ? ("SPEAKING" as const) : ("WRITING" as const),
+          answer,
+          prompt: question.content,
+          languageCode: application.language.code,
+        },
+      ];
+    });
     const aiResults = await evaluateTestAiAnswers(aiInputs);
     const failedAiResult = aiInputs
       .map((input) => aiResults.get(input.questionId))
@@ -76,7 +84,20 @@ export async function POST(
         { status: invalidResponse ? 502 : 503 },
       );
     }
+    const deadline = application.startedAt && test.timeLimit
+      ? application.startedAt.getTime() + (test.timeLimit * 60 + 15) * 1000
+      : null;
+    if (deadline && Date.now() > deadline) {
+      await prisma.teacherApplication.update({
+        where: { id: application.id },
+        data: { status: "EXPIRED" },
+      });
+      return NextResponse.json({ error: "Bài test đã quá thời gian cho phép." }, { status: 408 });
+    }
 
+    const previousAttempts = await prisma.testAttempt.count({
+      where: { testId: test.id, userId: user.id },
+    });
     for (const question of test.questions) {
       rawMax += question.score;
       const rawAnswer = answers[question.id] ?? "";
@@ -141,9 +162,7 @@ export async function POST(
 
     const finalScore = rawMax > 0 ? (earned / rawMax) * FIXED_TEST_MAX_SCORE : 0;
     const isPassed = finalScore >= test.passingScore;
-    const attemptNo = (await prisma.testAttempt.count({
-      where: { testId: test.id, userId: user.id },
-    })) + 1;
+    const attemptNo = previousAttempts + 1;
 
     const attempt = await prisma.testAttempt.create({
       data: {

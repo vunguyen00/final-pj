@@ -25,8 +25,8 @@ function buildHref(params: Record<string, string | undefined>) {
     const nextValue = value?.trim();
     if (nextValue && nextValue !== "all") query.set(key, nextValue);
   });
-  const qs = query.toString();
-  return qs ? `/courses?${qs}` : "/courses";
+  const queryString = query.toString();
+  return queryString ? `/courses?${queryString}` : "/courses";
 }
 
 export function CourseFilterPanel({
@@ -53,24 +53,30 @@ export function CourseFilterPanel({
           </p>
         </div>
 
-        <div className="overflow-x-auto pb-1">
+        <nav aria-label="Nhóm khóa học" className="w-full overflow-x-auto pb-1 lg:w-auto">
           <div className="flex min-w-max gap-2">
             {tabs.map((tab) => (
               <Link
                 key={tab.key}
                 href={buildHref({ ...params, tab: tab.key })}
+                aria-current={activeTab === tab.key ? "page" : undefined}
                 className={`rounded-full px-3.5 py-2 text-sm font-semibold transition ${
-                  activeTab === tab.key ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:opacity-90"
+                  activeTab === tab.key
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-secondary-foreground hover:opacity-90"
                 }`}
               >
                 {tab.label}
               </Link>
             ))}
           </div>
-        </div>
+        </nav>
       </div>
 
-      <form action="/courses" className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1.3fr)_1fr_1fr_1fr_1fr_auto_auto]">
+      <form
+        action="/courses"
+        className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1.3fr)_1fr_1fr_1fr_1fr_auto_auto]"
+      >
         {activeTab !== "popular" ? <input type="hidden" name="tab" value={activeTab} /> : null}
         {params.skill ? <input type="hidden" name="skill" value={params.skill} /> : null}
 
@@ -119,10 +125,10 @@ export function CourseFilterPanel({
           <option value="name">Tên A-Z</option>
         </FilterSelect>
 
-        <button type="submit" className="h-10 self-end rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90">
+        <button type="submit" className="h-10 self-end whitespace-nowrap rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90">
           Áp dụng
         </button>
-        <Link href="/courses" className="flex h-10 items-center justify-center self-end rounded-lg border border-border bg-white px-4 text-sm font-semibold text-foreground hover:bg-muted">
+        <Link href="/courses" className="flex h-10 items-center justify-center self-end whitespace-nowrap rounded-lg border border-border bg-white px-4 text-sm font-semibold text-foreground hover:bg-muted">
           Đặt lại
         </Link>
       </form>

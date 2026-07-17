@@ -1,8 +1,38 @@
 import Link from "next/link";
 import { FeatureList, Stats } from "@/components/base/content";
 import { Section, SectionHeader } from "@/components/base/section";
+import { prisma } from "@/lib/prisma";
+import { formatCount } from "@/lib/public-teachers";
 
-export default function AboutPage() {
+export const dynamic = "force-dynamic";
+
+async function getAboutStats() {
+  try {
+    const [students, courses, teachers, languages] = await Promise.all([
+      prisma.user.count({
+        where: { role: "STUDENT", isBanned: false, accountStatus: "ACTIVE" },
+      }),
+      prisma.course.count({
+        where: {
+          status: "ACTIVE",
+          instructor: { is: { isBanned: false, accountStatus: "ACTIVE" } },
+        },
+      }),
+      prisma.user.count({
+        where: { role: "TEACHER", isBanned: false, accountStatus: "ACTIVE" },
+      }),
+      prisma.learningLanguage.count({ where: { isActive: true } }),
+    ]);
+
+    return { students, courses, teachers, languages };
+  } catch {
+    return { students: 0, courses: 0, teachers: 0, languages: 0 };
+  }
+}
+
+export default async function AboutPage() {
+  const stats = await getAboutStats();
+
   return (
     <main className="min-h-screen bg-background">
       <Section background="muted" padding="lg">
@@ -28,10 +58,10 @@ export default function AboutPage() {
           <Stats
             className="lg:grid-cols-1"
             stats={[
-              { label: "Học viên", value: "50,000+" },
-              { label: "Khóa học", value: "200+" },
-              { label: "Giảng viên", value: "50+" },
-              { label: "Đánh giá", value: "4.8/5" },
+              { label: "Học viên đang hoạt động", value: formatCount(stats.students) },
+              { label: "Khóa học đang mở", value: formatCount(stats.courses) },
+              { label: "Giảng viên đang hoạt động", value: formatCount(stats.teachers) },
+              { label: "Ngôn ngữ đang hỗ trợ", value: formatCount(stats.languages) },
             ]}
           />
         </div>
@@ -58,20 +88,27 @@ export default function AboutPage() {
       </Section>
 
       <Section padding="md">
-        <SectionHeader title="Đội ngũ lãnh đạo" centered />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {[
-            ["Nguyễn Văn A", "CEO & Founder"],
-            ["Trần Thị B", "COO"],
-            ["Lê Văn C", "CTO"],
-          ].map(([name, role]) => (
-            <article key={name} className="rounded-xl border border-border bg-card p-5 text-center">
-              <div className="mx-auto h-20 w-20 rounded-full bg-muted" />
-              <p className="mt-4 font-semibold text-foreground">{name}</p>
-              <p className="text-sm text-muted-foreground">{role}</p>
-            </article>
-          ))}
-        </div>
+        <SectionHeader
+          title="Cách FinnCenter vận hành"
+          subtitle="Mọi nội dung công khai đều gắn với dữ liệu và quy trình đang hoạt động trên hệ thống."
+          centered
+        />
+        <FeatureList
+          items={[
+            {
+              title: "Nội dung có kiểm duyệt",
+              description: "Khóa học chỉ được công khai khi đã có đầy đủ chương, bài học và bài kiểm tra đạt yêu cầu.",
+            },
+            {
+              title: "Tiến độ có thể kiểm chứng",
+              description: "Hoạt động học, kết quả kiểm tra và quyền đánh giá được ghi nhận theo tài khoản của từng học viên.",
+            },
+            {
+              title: "Giao dịch minh bạch",
+              description: "Thanh toán, hoàn tiền và doanh thu giảng viên có trạng thái xử lý rõ ràng để người dùng theo dõi.",
+            },
+          ]}
+        />
       </Section>
 
       <Section background="muted" padding="sm">

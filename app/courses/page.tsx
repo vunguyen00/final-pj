@@ -14,10 +14,14 @@ import {
 async function getCourses() {
   try {
     return await prisma.course.findMany({
-      where: { status: "ACTIVE" },
+      where: {
+        status: "ACTIVE",
+        instructor: { is: { isBanned: false, accountStatus: "ACTIVE" } },
+      },
       include: {
         instructor: { select: { id: true, username: true } },
         language: { select: { name: true, code: true } },
+        modules: { select: { _count: { select: { lessons: true } } } },
         _count: { select: { enrollments: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -32,7 +36,11 @@ export default async function CoursesPage({
 }: {
   searchParams: Promise<{ language?: string; level?: string; type?: string; tab?: string; skill?: string; q?: string; sort?: string }>;
 }) {
-  const [params, courses, user] = await Promise.all([searchParams, getCourses(), authenticate()]);
+  const [params, rawCourses, user] = await Promise.all([searchParams, getCourses(), authenticate()]);
+  const courses = rawCourses.map(({ modules, ...course }) => ({
+    ...course,
+    lessons: modules.reduce((total, module) => total + module._count.lessons, 0),
+  }));
   const enrolledIds = new Set<string>();
 
   if (user) {

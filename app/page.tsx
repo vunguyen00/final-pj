@@ -10,10 +10,14 @@ import { formatCount, getPublicTeachers } from "@/lib/public-teachers";
 async function getHomeCourses() {
   try {
     return await prisma.course.findMany({
-      where: { status: "ACTIVE" },
+      where: {
+        status: "ACTIVE",
+        instructor: { is: { isBanned: false, accountStatus: "ACTIVE" } },
+      },
       include: {
         instructor: { select: { username: true } },
         language: { select: { name: true, code: true } },
+        modules: { select: { _count: { select: { lessons: true } } } },
         _count: { select: { enrollments: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -40,7 +44,11 @@ async function getHomeStats() {
 }
 
 export default async function HomePage() {
-  const [courses, stats, teachers] = await Promise.all([getHomeCourses(), getHomeStats(), getPublicTeachers()]);
+  const [rawCourses, stats, teachers] = await Promise.all([getHomeCourses(), getHomeStats(), getPublicTeachers()]);
+  const courses = rawCourses.map(({ modules, ...course }) => ({
+    ...course,
+    lessons: modules.reduce((total, module) => total + module._count.lessons, 0),
+  }));
   const featured = courses.slice(0, 4);
   const featuredTeachers = teachers.slice(0, 4);
 
@@ -51,7 +59,7 @@ export default async function HomePage() {
         title="Xây dựng lộ trình ngoại ngữ cùng FinnCenter"
         description="Khóa học, lộ trình combo, luyện kỹ năng, gói từ vựng, đề thi thử và chương trình luyện thi chứng chỉ cho tiếng Anh, Trung, Nhật và Hàn."
         primaryAction={{ label: "Khám phá khóa học", href: "/courses" }}
-        secondaryAction={{ label: "Làm bài kiểm tra đầu vào", href: "/student/tests" }}
+        secondaryAction={{ label: "Luyện tập với bài test", href: "/student/tests" }}
       />
 
       <Section padding="md">
@@ -70,7 +78,7 @@ export default async function HomePage() {
           items={[
             {
               title: "Học tập thích ứng",
-              description: "Bài kiểm tra đầu vào giúp học viên lựa chọn đúng trình độ.",
+              description: "Bài test thực hành giúp học viên tự đánh giá kiến thức và theo dõi kết quả theo từng lần làm.",
             },
             {
               title: "Nhiều lựa chọn học tập",

@@ -1,10 +1,12 @@
 import Link from "next/link";
+import type { CourseManagementLabels } from "@/lib/language-display";
 import type { Test } from "../types";
 
 type TestsTabProps = {
   tests: Test[];
   modulesCount: number;
   deletingTestId: string | null;
+  labels: CourseManagementLabels["testsTab"];
   onOpenCreateModal: () => void;
   onDeleteTest: (testId: string) => void;
 };
@@ -13,6 +15,7 @@ export function TestsTab({
   tests,
   modulesCount,
   deletingTestId,
+  labels,
   onOpenCreateModal,
   onDeleteTest,
 }: TestsTabProps) {
@@ -20,9 +23,9 @@ export function TestsTab({
   const cannotCreate = modulesCount === 0 || tests.length > 0;
   const createTitle =
     tests.length > 0
-      ? "Khóa học đã có bài test. Mỗi khóa học chỉ được có một bài test."
+      ? labels.alreadyHasTest
       : modulesCount === 0
-        ? "Khóa học phải có ít nhất một chương trước khi tạo bài test."
+        ? labels.needsModule
         : "";
 
   return (
@@ -39,15 +42,15 @@ export function TestsTab({
           }`}
           title={createTitle}
         >
-          Tạo bài test
+          {labels.createTest}
         </button>
       </div>
 
       {!test ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
-          <p className="font-semibold text-slate-700">Chưa có bài test nào</p>
+          <p className="font-semibold text-slate-700">{labels.emptyTitle}</p>
           <p className="mt-1 text-sm text-slate-500">
-            Tạo bài kiểm tra sau khi khóa học đã có ít nhất một chương.
+            {labels.emptyDescription}
           </p>
         </div>
       ) : (
@@ -56,13 +59,11 @@ export function TestsTab({
             <div>
               <h3 className="text-lg font-semibold text-slate-900">{test.name}</h3>
               <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-500">
-                <span>Điểm tối đa: {test.maxScore}</span>
-                <span>Điểm đạt: {test.passingScore}</span>
-                <span>Lượt đã làm: {test._count.attempts}</span>
-                <span>
-                  Thời gian: {test.timeLimit ? `${test.timeLimit} phút` : "Không giới hạn"}
-                </span>
-                <span>{test._count.questions} câu hỏi</span>
+                <span>{labels.maxScore(test.maxScore)}</span>
+                <span>{labels.passingScore(test.passingScore)}</span>
+                <span>{labels.attempts(test._count.attempts)}</span>
+                <span>{labels.timeLimit(test.timeLimit)}</span>
+                <span>{labels.questions(test._count.questions)}</span>
               </div>
             </div>
 
@@ -71,13 +72,13 @@ export function TestsTab({
                 href={`/teacher/tests/${test.id}`}
                 className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
               >
-                Chỉnh sửa thông tin
+                {labels.editInfo}
               </Link>
               <Link
                 href={`/teacher/tests/${test.id}/questions`}
                 className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
               >
-                Quản lý câu hỏi
+                {labels.manageQuestions}
               </Link>
               <button
                 type="button"
@@ -85,7 +86,7 @@ export function TestsTab({
                 disabled={deletingTestId === test.id}
                 className="rounded-xl border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {deletingTestId === test.id ? "Đang xóa..." : "Xóa"}
+                {deletingTestId === test.id ? labels.deleting : labels.delete}
               </button>
             </div>
           </div>

@@ -2,6 +2,7 @@ import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 import type { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { sendRegistrationOtpEmail } from "@/lib/mailer";
+import { getRequiredAuthSecret } from "@/lib/server-secret";
 
 export const REGISTRATION_OTP_EXPIRY_MINUTES = 10;
 export const REGISTRATION_OTP_RESEND_SECONDS = 60;
@@ -12,7 +13,7 @@ const MAX_DEVICE_OTPS_PER_HOUR = 10;
 
 function hashOtp(code: string) {
   return createHash("sha256")
-    .update(`${process.env.AUTH_SECRET ?? process.env.JWT_SECRET ?? "dev_auth_secret_change_me"}:${code}`)
+    .update(`${getRequiredAuthSecret()}:${code}`)
     .digest("hex");
 }
 
@@ -150,7 +151,7 @@ export async function createAndSendRegistrationOtp(params: {
       data: {
         userId: params.userId,
         to: params.email,
-        subject: "Ma OTP xac thuc tai khoan",
+        subject: "Mã OTP xác thực tài khoản",
         status: "SENT",
         sentAt: new Date(),
       },
@@ -160,7 +161,7 @@ export async function createAndSendRegistrationOtp(params: {
       data: {
         userId: params.userId,
         to: params.email,
-        subject: "Ma OTP xac thuc tai khoan",
+        subject: "Mã OTP xác thực tài khoản",
         status: "FAILED",
         error: error instanceof Error ? error.message : String(error),
       },
@@ -188,10 +189,10 @@ export async function verifyRegistrationOtp(params: {
 }) {
   const user = await prisma.user.findUnique({
     where: { email: params.email },
-    select: { id: true, role: true, accountStatus: true },
+    select: { id: true, role: true, accountStatus: true, authVersion: true },
   });
 
-  if (!user) return { ok: false as const, status: 404, error: "Khong tim thay tai khoan." };
+  if (!user) return { ok: false as const, status: 404, error: "Không tìm thấy tài khoản." };
   if (user.accountStatus === "ACTIVE") return { ok: true as const, user, alreadyActive: true };
 
   const otp = await prisma.emailVerificationOtp.findFirst({
@@ -200,7 +201,7 @@ export async function verifyRegistrationOtp(params: {
   });
 
   if (!otp) {
-    return { ok: false as const, status: 400, error: "Ma OTP khong ton tai hoac da duoc su dung." };
+    return { ok: false as const, status: 400, error: "Mã OTP không tồn tại hoặc đã được sử dụng." };
   }
 
   if (otp.expiresAt < new Date()) {
@@ -212,7 +213,7 @@ export async function verifyRegistrationOtp(params: {
       eventType: "OTP_EXPIRED",
       detail: { otpId: otp.id },
     });
-    return { ok: false as const, status: 400, error: "Ma OTP da het han. Vui long gui lai ma moi." };
+    return { ok: false as const, status: 400, error: "Mã OTP đã hết hạn. Vui lòng gửi lại mã mới." };
   }
 
   if (otp.attempts >= REGISTRATION_OTP_MAX_ATTEMPTS) {
@@ -224,7 +225,7 @@ export async function verifyRegistrationOtp(params: {
       eventType: "OTP_ATTEMPTS_EXCEEDED",
       detail: { otpId: otp.id },
     });
-    return { ok: false as const, status: 429, error: "Ban da nhap sai OTP qua nhieu lan. Vui long gui lai ma moi." };
+    return { ok: false as const, status: 429, error: "Bạn đã nhập sai OTP quá nhiều lần. Vui lòng gửi lại mã mới." };
   }
 
   if (!compareHash(params.code, otp.codeHash)) {
@@ -244,7 +245,7 @@ export async function verifyRegistrationOtp(params: {
     return {
       ok: false as const,
       status: updated.attempts >= REGISTRATION_OTP_MAX_ATTEMPTS ? 429 : 400,
-      error: "Ma OTP khong dung.",
+      error: "Mã OTP không đúng.",
       attemptsRemaining: Math.max(0, REGISTRATION_OTP_MAX_ATTEMPTS - updated.attempts),
     };
   }

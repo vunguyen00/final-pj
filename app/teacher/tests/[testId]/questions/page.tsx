@@ -7,14 +7,11 @@ import { QuestionCard } from "./components/QuestionCard";
 import { QuestionModal } from "./components/QuestionModal";
 import { TestMaterialPanel } from "@/app/components/TestMaterialPanel";
 import type { ChartMaterialData } from "@/lib/test-material";
-import { createDefaultForm, inferKindFromQuestion, mapKindToPayload } from "./helpers";
+import { buildAnswersForKind, createDefaultForm, inferKindFromQuestion, mapKindToPayload } from "./helpers";
+import { getQuestionEditorLabels, getQuestionPageLabels } from "./labels";
 import { Question, QuestionForm, QuestionKind, Test } from "./types";
-import {
-  FIXED_TEST_MAX_SCORE,
-  getAssessmentModeLabel,
-  getRemainingQuestionScore,
-  isTestReady,
-} from "@/lib/test-rules";
+import { FIXED_TEST_MAX_SCORE, getRemainingQuestionScore, isTestReady } from "@/lib/test-rules";
+import { ModalDialog } from "@/app/components/ModalDialog";
 
 export default function TeacherTestQuestionsPage() {
   const params = useParams();
@@ -40,10 +37,16 @@ export default function TeacherTestQuestionsPage() {
   const [uploadingAudio, setUploadingAudio] = useState(false);
   const [audioUploadMessage, setAudioUploadMessage] = useState("");
   const [isSavingQuestion, setIsSavingQuestion] = useState(false);
+  const [notice, setNotice] = useState<{ tone: "success" | "error"; message: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Question | null>(null);
+  const [isDeletingQuestion, setIsDeletingQuestion] = useState(false);
   const savingQuestionRef = useRef(false);
 
   const totalQuestionScore = useMemo(() => questions.reduce((sum, question) => sum + Number(question.score || 0), 0), [questions]);
   const remainingScore = getRemainingQuestionScore(totalQuestionScore);
+  const questionLanguageCode = test?.language?.code || test?.course?.language?.code || "vi";
+  const questionLabels = useMemo(() => getQuestionEditorLabels(questionLanguageCode), [questionLanguageCode]);
+  const pageLabels = useMemo(() => getQuestionPageLabels(questionLanguageCode), [questionLanguageCode]);
   const fetchTestAndQuestions = useCallback(async () => {
     try {
       const [testRes, questionsRes] = await Promise.all([
@@ -63,7 +66,7 @@ export default function TeacherTestQuestionsPage() {
         setPageError(null);
       } else {
         const data = await testRes.json().catch(() => ({}));
-        setPageError(data?.error || "Không thể tải thông tin bài test.");
+        setPageError(data?.error || pageLabels.loadTestFailed);
       }
       if (questionsRes.ok) {
         const data = await questionsRes.json();
@@ -74,7 +77,7 @@ export default function TeacherTestQuestionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [testId]);
+  }, [pageLabels.loadTestFailed, testId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -98,7 +101,7 @@ export default function TeacherTestQuestionsPage() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setMaterialMessage(data.error || "Không thể tải tài liệu lên.");
+        setMaterialMessage(data.error || pageLabels.uploadMaterialFailed);
         return;
       }
       setMaterialForm((current) => ({
@@ -107,11 +110,9 @@ export default function TeacherTestQuestionsPage() {
         type: data.type,
         data: null,
       }));
-      setMaterialMessage(
-        "Đã tải tệp lên. Bấm Lưu tài liệu để áp dụng cho đề.",
-      );
+      setMaterialMessage(pageLabels.materialUploaded);
     } catch {
-      setMaterialMessage("Không thể tải tài liệu lên.");
+      setMaterialMessage(pageLabels.uploadMaterialFailed);
     } finally {
       setUploadingMaterial(false);
     }
@@ -120,7 +121,7 @@ export default function TeacherTestQuestionsPage() {
   async function uploadQuestionAudio(file: File | null) {
     if (!file) return;
     setUploadingAudio(true);
-    setAudioUploadMessage("");
+    setAudioUploadMessage(questionLabels.uploadingAudio);
     try {
       const form = new FormData();
       form.set("file", file);
@@ -130,20 +131,18 @@ export default function TeacherTestQuestionsPage() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setAudioUploadMessage(data.error || "Không thể tải audio lên.");
+        setAudioUploadMessage(data.error || questionLabels.audioRequired);
         return;
       }
       setQuestionForm((current) => ({
         ...current,
-        kind: "LISTENING",
+        kind: current.kind === "MULTIPLE_CHOICE" ? "MULTIPLE_CHOICE" : "LISTENING",
         audioUrl: data.url,
         hasListening: true,
       }));
-      setAudioUploadMessage(
-        "Đã tải file audio lên. Câu hỏi sẽ dùng file này khi lưu.",
-      );
+      setAudioUploadMessage(questionLabels.audioUploaded);
     } catch {
-      setAudioUploadMessage("Không thể tải audio lên.");
+      setAudioUploadMessage(questionLabels.audioRequired);
     } finally {
       setUploadingAudio(false);
     }
@@ -166,7 +165,7 @@ export default function TeacherTestQuestionsPage() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setMaterialMessage(data.error || "Không thể lưu tài liệu đề bài.");
+        setMaterialMessage(data.error || pageLabels.saveMaterialFailed);
         return;
       }
       setTest((current) =>
@@ -181,21 +180,22 @@ export default function TeacherTestQuestionsPage() {
             }
           : current,
       );
-      setMaterialMessage("Đã lưu tài liệu đề bài.");
+      setMaterialMessage(pageLabels.materialSaved);
     } catch {
-      setMaterialMessage("Không thể lưu tài liệu đề bài.");
+      setMaterialMessage(pageLabels.saveMaterialFailed);
     } finally {
       setSavingMaterial(false);
     }
   }
 
   const openCreateModal = () => {
+    setNotice(null);
     if (!test) {
-      alert("Không tìm thấy bài test. Vui lòng thử lại.");
+      setNotice({ tone: "error", message: pageLabels.noTestAlert });
       return;
     }
     if (remainingScore <= 0) {
-      alert("Tổng điểm câu hỏi đã đạt 100. Hãy sửa hoặc xóa câu hỏi trước khi thêm mới.");
+      setNotice({ tone: "error", message: pageLabels.maxScoreAlert });
       return;
     }
     setEditingQuestion(null);
@@ -207,7 +207,9 @@ export default function TeacherTestQuestionsPage() {
   };
 
   const openEditModal = (question: Question) => {
+    setNotice(null);
     const kind = inferKindFromQuestion(question);
+    const existingAnswers = question.answers?.length ? question.answers : buildAnswersForKind(kind);
     setEditingQuestion(question);
     setAudioUploadMessage("");
     setIsSavingQuestion(false);
@@ -221,38 +223,45 @@ export default function TeacherTestQuestionsPage() {
       score: String(question.score),
       explanation: question.explanation || "",
       hint: question.hint || "",
-      answers: question.answers || [],
+      answers: existingAnswers,
     });
     setShowModal(true);
   };
 
   const validateForm = (form: QuestionForm): string | null => {
-    if (!form.kind) return "Vui lòng chọn dạng câu hỏi";
-    if (!form.content.trim()) return "Vui lòng nhập nội dung câu hỏi";
-    if (!form.score || Number(form.score) <= 0) return "Điểm số phải lớn hơn 0";
-    if (form.kind === "LISTENING" && !form.audioUrl.trim()) return "Vui lòng nhập URL hoặc tải file audio";
+    if (!form.kind) return questionLabels.kindOptions[0].label;
+    if (!form.content.trim()) return questionLabels.contentLabel.replace(" *", "");
+    if (!form.score || Number(form.score) <= 0) return questionLabels.score;
+    const audioUrl = form.audioUrl.trim();
+    if (form.kind === "LISTENING" && !audioUrl) return questionLabels.audioRequired;
 
     if ((form.kind === "MULTIPLE_CHOICE" || form.kind === "TRUE_FALSE") && form.answers.some((a) => !a.content.trim())) {
-      return "Vui lòng điền đủ nội dung cho tất cả đáp án";
+      return pageLabels.answerContentRequired;
     }
     if ((form.kind === "MULTIPLE_CHOICE" || form.kind === "TRUE_FALSE") && !form.answers.some((a) => a.isCorrect)) {
-      return "Vui lòng chọn đáp án đúng";
+      return pageLabels.chooseCorrectAnswer;
     }
-    if (form.kind === "FILL_IN_BLANK" && !form.answers[0]?.content?.trim()) return "Vui lòng nhập đáp án đúng";
+    if ((form.kind === "FILL_IN_BLANK" || form.kind === "LISTENING") && !form.answers[0]?.content?.trim()) {
+      return questionLabels.correctAnswer;
+    }
     return null;
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (savingQuestionRef.current || uploadingAudio) return;
+    if (savingQuestionRef.current) return;
+    if (uploadingAudio) {
+      setNotice({ tone: "error", message: questionLabels.uploadingAudio });
+      return;
+    }
 
     if (!test) {
-      alert("Bài test không tồn tại hoặc bạn không có quyền truy cập.");
+      setNotice({ tone: "error", message: pageLabels.testMissingAlert });
       return;
     }
     const validationError = validateForm(questionForm);
     if (validationError) {
-      alert(validationError);
+      setNotice({ tone: "error", message: validationError });
       return;
     }
 
@@ -260,14 +269,13 @@ export default function TeacherTestQuestionsPage() {
     setIsSavingQuestion(true);
 
     const kindPayload = mapKindToPayload(questionForm.kind as QuestionKind);
+    const audioUrl = questionForm.audioUrl.trim();
     const payload = {
       ...questionForm,
       ...kindPayload,
-      audioUrl: kindPayload.hasListening ? questionForm.audioUrl : null,
-      answers:
-        questionForm.kind === "ESSAY" || questionForm.kind === "LISTENING" || questionForm.kind === "SPEAKING"
-          ? []
-          : questionForm.answers,
+      hasListening: kindPayload.hasListening || Boolean(audioUrl),
+      audioUrl: audioUrl || null,
+      answers: questionForm.kind === "ESSAY" || questionForm.kind === "SPEAKING" ? [] : questionForm.answers,
     };
 
     try {
@@ -283,9 +291,9 @@ export default function TeacherTestQuestionsPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         const errorMessage = data?.details
-          ? `${data.error || "Không thể lưu câu hỏi"}: ${data.details}`
-          : data?.error || "Không thể lưu câu hỏi. Vui lòng thử lại.";
-        alert(errorMessage);
+          ? `${data.error || pageLabels.saveQuestionFailed}: ${data.details}`
+          : data?.error || pageLabels.saveQuestionFallback;
+        setNotice({ tone: "error", message: errorMessage });
         return;
       }
 
@@ -294,9 +302,10 @@ export default function TeacherTestQuestionsPage() {
       setAudioUploadMessage("");
       resetForm();
       await fetchTestAndQuestions();
+      setNotice({ tone: "success", message: editingQuestion ? "Đã cập nhật câu hỏi." : "Đã thêm câu hỏi." });
     } catch (error) {
       console.error("Error saving question:", error);
-      alert("Lỗi khi lưu câu hỏi.");
+      setNotice({ tone: "error", message: pageLabels.saveQuestionError });
     } finally {
       savingQuestionRef.current = false;
       setIsSavingQuestion(false);
@@ -304,12 +313,22 @@ export default function TeacherTestQuestionsPage() {
   };
 
   const handleDelete = async (questionId: string) => {
-    if (!confirm("Bạn có chắc chắn muốn xóa câu hỏi này?")) return;
+    setIsDeletingQuestion(true);
     try {
       const res = await fetch(`/api/teacher/tests/${testId}/questions/${questionId}`, { method: "DELETE" });
-      if (res.ok) await fetchTestAndQuestions();
+      if (res.ok) {
+        setDeleteTarget(null);
+        await fetchTestAndQuestions();
+        setNotice({ tone: "success", message: "Đã xóa câu hỏi." });
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setNotice({ tone: "error", message: data?.error || "Không thể xóa câu hỏi." });
+      }
     } catch (error) {
       console.error("Error deleting question:", error);
+      setNotice({ tone: "error", message: "Có lỗi khi xóa câu hỏi. Vui lòng thử lại." });
+    } finally {
+      setIsDeletingQuestion(false);
     }
   };
 
@@ -327,13 +346,13 @@ export default function TeacherTestQuestionsPage() {
         <div className="mb-4 flex items-center justify-between">
           {test?.course?.id ? (
             <Link href={`/teacher/courses/${test.course.id}`} className="text-sm text-slate-600 hover:text-slate-900">
-              Quay lại khóa học
+              {pageLabels.backToCourse}
             </Link>
           ) : (
-            <span className="text-sm text-slate-500">Đề test độc lập</span>
+            <span className="text-sm text-slate-500">{pageLabels.standaloneTest}</span>
           )}
           <Link href="/teacher/courses" className="text-sm text-slate-600 hover:text-slate-900">
-            Danh sách khóa học
+            {pageLabels.courseList}
           </Link>
         </div>
 
@@ -342,19 +361,19 @@ export default function TeacherTestQuestionsPage() {
             <div>
               <h1 className="text-2xl font-bold text-slate-900">{test?.name}</h1>
               <p className="mt-1 text-sm text-slate-600">
-                {test?.course?.name ? `Khóa học: ${test.course.name}` : `Loại đề: ${getAssessmentModeLabel(test?.assessmentMode || "STANDARD")}`}
+                {test?.course?.name ? pageLabels.coursePrefix(test.course.name) : pageLabels.assessmentPrefix(test?.assessmentMode || "STANDARD")}
               </p>
               <p className="mt-1 text-sm text-slate-500">
-                Ngôn ngữ: {test?.language?.name || test?.course?.language?.name || "Chưa gán"}
+                {pageLabels.languagePrefix(test?.language?.name || test?.course?.language?.name || pageLabels.unassignedLanguage)}
               </p>
             </div>
             <button onClick={openCreateModal} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white">
-              Thêm câu hỏi
+              {pageLabels.addQuestion}
             </button>
           </div>
 
           <div className={`mt-4 rounded-lg border p-4 text-sm ${isTestReady(totalQuestionScore) ? "border-emerald-200 bg-emerald-50 text-emerald-700" : remainingScore > 0 ? "border-amber-200 bg-amber-50 text-amber-700" : "border-red-200 bg-red-50 text-red-700"}`}>
-            Tổng điểm hiện tại: <strong>{totalQuestionScore}</strong> / {FIXED_TEST_MAX_SCORE}. {isTestReady(totalQuestionScore) ? "Đề đã hợp lệ để sử dụng." : remainingScore > 0 ? `Còn thiếu ${remainingScore} điểm.` : `Vượt ${Math.abs(remainingScore)} điểm, cần giảm xuống ${FIXED_TEST_MAX_SCORE}.`}
+            {pageLabels.scoreSummary(totalQuestionScore, FIXED_TEST_MAX_SCORE, remainingScore, isTestReady(totalQuestionScore))}
           </div>
         </div>
 
@@ -364,15 +383,20 @@ export default function TeacherTestQuestionsPage() {
           </div>
         ) : null}
 
+        {notice ? (
+          <div role="status" className={`fixed right-4 top-4 z-[70] max-w-md rounded-lg border p-3 text-sm shadow-lg ${notice.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}`}>
+            {notice.message}
+          </div>
+        ) : null}
+
         <section className="mb-6 rounded-xl border border-slate-200 bg-white p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="text-lg font-bold text-slate-950">
-                Tài liệu chung của đề
+                {pageLabels.materialTitle}
               </h2>
               <p className="mt-1 text-sm text-slate-600">
-                Passage, ảnh hoặc PDF sẽ nằm ở cột trái; câu hỏi nằm ở cột
-                phải khi học viên làm bài.
+                {pageLabels.materialDescription}
               </p>
             </div>
             <button
@@ -388,14 +412,14 @@ export default function TeacherTestQuestionsPage() {
               }
               className="text-sm font-semibold text-red-600"
             >
-              Xóa nội dung đang nhập
+              {pageLabels.clearDraft}
             </button>
           </div>
 
           <div className="mt-5 grid gap-5 lg:grid-cols-2">
             <div className="space-y-4">
               <label className="block text-sm font-semibold text-slate-700">
-                Tiêu đề tài liệu
+                {pageLabels.materialTitleLabel}
                 <input
                   value={materialForm.title}
                   onChange={(event) =>
@@ -404,13 +428,13 @@ export default function TeacherTestQuestionsPage() {
                       title: event.target.value,
                     }))
                   }
-                  placeholder="Ví dụ: Nineteenth-Century Paperback Literature"
+                  placeholder={pageLabels.materialTitlePlaceholder}
                   className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
                 />
               </label>
 
               <label className="block text-sm font-semibold text-slate-700">
-                Passage hoặc dữ liệu dạng văn bản
+                {pageLabels.passageLabel}
                 <textarea
                   rows={9}
                   value={materialForm.content}
@@ -420,13 +444,13 @@ export default function TeacherTestQuestionsPage() {
                       content: event.target.value,
                     }))
                   }
-                  placeholder="Nhập bài đọc, mô tả bảng số liệu hoặc hướng dẫn chung..."
+                  placeholder={pageLabels.passagePlaceholder}
                   className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal leading-6"
                 />
               </label>
 
               <label className="block text-sm font-semibold text-slate-700">
-                Ảnh hoặc PDF
+                {pageLabels.fileLabel}
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
@@ -454,7 +478,7 @@ export default function TeacherTestQuestionsPage() {
                     }
                     className="ml-3 font-semibold text-red-600"
                   >
-                    Bỏ tệp
+                    {pageLabels.removeFile}
                   </button>
                 </div>
               ) : null}
@@ -472,16 +496,16 @@ export default function TeacherTestQuestionsPage() {
                 className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {uploadingMaterial
-                  ? "Đang tải tệp..."
+                  ? pageLabels.uploadingFile
                   : savingMaterial
-                    ? "Đang lưu..."
-                    : "Lưu tài liệu đề bài"}
+                    ? pageLabels.saving
+                    : pageLabels.saveMaterial}
               </button>
             </div>
 
             <div>
               <p className="mb-2 text-sm font-semibold text-slate-700">
-                Xem trước cột tài liệu
+                {pageLabels.previewTitle}
               </p>
               {materialForm.title ||
               materialForm.content ||
@@ -499,7 +523,7 @@ export default function TeacherTestQuestionsPage() {
                 />
               ) : (
                 <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">
-                  Chưa có tài liệu để xem trước.
+                  {pageLabels.previewEmpty}
                 </div>
               )}
             </div>
@@ -508,12 +532,22 @@ export default function TeacherTestQuestionsPage() {
 
         {questions.length === 0 ? (
           <div className="rounded-xl border border-slate-200 bg-white p-12 text-center text-slate-600">
-            Chưa có câu hỏi nào
+            {pageLabels.noQuestions}
           </div>
         ) : (
           <div className="space-y-4">
             {questions.map((question, index) => (
-              <QuestionCard key={question.id} question={question} index={index} onEdit={openEditModal} onDelete={handleDelete} />
+              <QuestionCard
+                key={question.id}
+                question={question}
+                index={index}
+                languageCode={questionLanguageCode}
+                onEdit={openEditModal}
+                onDelete={() => {
+                  setNotice(null);
+                  setDeleteTarget(question);
+                }}
+              />
             ))}
           </div>
         )}
@@ -523,6 +557,7 @@ export default function TeacherTestQuestionsPage() {
         show={showModal}
         isEditing={Boolean(editingQuestion)}
         form={questionForm}
+        languageCode={questionLanguageCode}
         onClose={() => {
           if (savingQuestionRef.current) return;
           setShowModal(false);
@@ -534,8 +569,26 @@ export default function TeacherTestQuestionsPage() {
         isSubmitting={isSavingQuestion}
         uploadingAudio={uploadingAudio}
         audioUploadMessage={audioUploadMessage}
+        notice={notice}
         onAudioUpload={uploadQuestionAudio}
       />
+
+      {deleteTarget ? (
+        <ModalDialog labelledBy="delete-question-title" onClose={() => { if (!isDeletingQuestion) setDeleteTarget(null); }}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <h2 id="delete-question-title" className="text-lg font-bold text-slate-950">Xóa câu hỏi?</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">{pageLabels.deleteConfirm}</p>
+            <p className="mt-2 line-clamp-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">{deleteTarget.content}</p>
+            {notice?.tone === "error" ? <p role="alert" className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{notice.message}</p> : null}
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" disabled={isDeletingQuestion} onClick={() => setDeleteTarget(null)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50">Hủy</button>
+              <button type="button" disabled={isDeletingQuestion} onClick={() => void handleDelete(deleteTarget.id)} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                {isDeletingQuestion ? "Đang xóa..." : pageLabels.delete}
+              </button>
+            </div>
+          </div>
+        </ModalDialog>
+      ) : null}
     </div>
   );
 }

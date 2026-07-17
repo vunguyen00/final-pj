@@ -1,1 +1,5 @@
-export { default } from "@/app/student/wallet/page";
+import { redirect } from "next/navigation";
+
+export default function LegacyWalletPage() {
+  redirect("/student/wallet");
+}

@@ -21,6 +21,7 @@ type EntranceTest = {
   id: string;
   name: string;
   description: string | null;
+  assessmentMode: "STANDARD" | "WRITING" | "SPEAKING";
   timeLimit: number | null;
   shuffleQuestions: boolean;
   questions: Question[];
@@ -59,12 +60,35 @@ type SubmittedQuestionResult = {
   aiEvaluation?: SubmittedAiEvaluation;
 };
 
+const applicationStatusLabels: Record<string, string> = {
+  DRAFT: "Đang hoàn thiện",
+  SUBMITTED: "Đã nộp",
+  UNDER_REVIEW: "Đang được xét duyệt",
+  APPROVED: "Đã được duyệt",
+  REJECTED: "Bị từ chối",
+  EXPIRED: "Đã hết hạn",
+};
+
 function formatCountdown(seconds: number) {
   const minutes = Math.floor(seconds / 60);
   return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-export default function TeacherRegistrationPage() {
+function getEntranceTestDisplayName(
+  test: EntranceTest,
+  ui: ReturnType<typeof getLearningUiLabels>,
+) {
+  if (/^Teacher Entrance (Writing|Speaking)/i.test(test.name)) {
+    return `${ui.testKind.TEACHER_ENTRANCE} - ${ui.assessment[test.assessmentMode]}`;
+  }
+
+  return test.name;
+}
+
+function useTeacherRegistrationPage() {
+  const [loadingData, setLoadingData] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [minimumExpiryDate, setMinimumExpiryDate] = useState("");
   const [enabled, setEnabled] = useState(false);
   const [languages, setLanguages] = useState<Language[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
@@ -189,27 +213,45 @@ export default function TeacherRegistrationPage() {
   );
 
   async function loadData() {
-    const response = await fetch("/api/teacher-applications", { cache: "no-store" });
-    const data = await response.json();
-    setEnabled(Boolean(data.setting?.enabled));
-    setLanguages(data.languages || []);
-    setApplications(data.applications || []);
-    const draft = (data.applications || []).find((item: Application) => item.status === "DRAFT" && item.entranceTest);
-    if (draft) {
-      setActiveApplication(draft);
-      setAnswers((draft.answerState as Record<string, string>) || {});
-      if (draft.entranceTest?.timeLimit) {
-        const elapsedSeconds = draft.startedAt
-          ? Math.floor(
-              (Date.now() - new Date(draft.startedAt).getTime()) / 1000,
-            )
-          : 0;
-        setTimeLeft(
-          Math.max(0, draft.entranceTest.timeLimit * 60 - elapsedSeconds),
-        );
+    setLoadError("");
+    try {
+      const response = await fetch("/api/teacher-applications", { cache: "no-store" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || "Không thể tải thông tin đăng ký giảng viên.");
+      }
+
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      setMinimumExpiryDate(tomorrow.toISOString().slice(0, 10));
+
+      setEnabled(Boolean(data.setting?.enabled));
+      setLanguages(data.languages || []);
+      setApplications(data.applications || []);
+      const draft = (data.applications || []).find((item: Application) => item.status === "DRAFT" && item.entranceTest);
+      if (draft) {
+        setActiveApplication(draft);
+        setAnswers((draft.answerState as Record<string, string>) || {});
+        if (draft.entranceTest?.timeLimit) {
+          const elapsedSeconds = draft.startedAt
+            ? Math.floor(
+                (Date.now() - new Date(draft.startedAt).getTime()) / 1000,
+              )
+            : 0;
+          setTimeLeft(
+            Math.max(0, draft.entranceTest.timeLimit * 60 - elapsedSeconds),
+          );
+        } else {
+          setTimeLeft(null);
+        }
       } else {
+        setActiveApplication(null);
         setTimeLeft(null);
       }
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Không thể tải thông tin đăng ký giảng viên.");
+    } finally {
+      setLoadingData(false);
     }
   }
 
@@ -296,6 +338,102 @@ export default function TeacherRegistrationPage() {
     setSpeakingBusyByQuestion(speakingBusyRef.current);
   }
 
+  return {
+    loadingData,
+    loadError,
+    minimumExpiryDate,
+    enabled,
+    languages,
+    languageId,
+    files,
+    expiryDates,
+    activeApplication,
+    answers,
+    timeLeft,
+    message,
+    submitting,
+    questions,
+    latestApplications,
+    ui,
+    speechLocale,
+    testLocked,
+    submittedAiQuestionResults,
+    setLanguageId,
+    setExpiryDates,
+    setAnswers,
+    onFilesSelected,
+    submitCertificates,
+    submitTest,
+    handleSpeakingBusyChange,
+    setLoadingData,
+    loadData,
+  };
+}
+
+export default function TeacherRegistrationPage() {
+  const {
+    loadingData,
+    loadError,
+    minimumExpiryDate,
+    enabled,
+    languages,
+    languageId,
+    files,
+    expiryDates,
+    activeApplication,
+    answers,
+    timeLeft,
+    message,
+    submitting,
+    questions,
+    latestApplications,
+    ui,
+    speechLocale,
+    testLocked,
+    submittedAiQuestionResults,
+    setLanguageId,
+    setExpiryDates,
+    setAnswers,
+    onFilesSelected,
+    submitCertificates,
+    submitTest,
+    handleSpeakingBusyChange,
+    setLoadingData,
+    loadData,
+  } = useTeacherRegistrationPage();
+
+  if (loadingData) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+        <div className="text-center" role="status" aria-live="polite">
+          <div className="mx-auto h-11 w-11 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600" />
+          <p className="mt-4 text-sm font-semibold text-slate-600">Đang tải thông tin đăng ký giảng viên...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+        <div className="w-full max-w-lg rounded-xl border border-red-200 bg-white p-6 text-center shadow-sm">
+          <h1 className="text-xl font-bold text-slate-950">Không thể tải trang đăng ký</h1>
+          <p className="mt-2 text-sm text-red-700">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => {
+              setLoadingData(true);
+              void loadData();
+            }}
+            className="mt-5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+          >
+            Thử lại
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   if (!enabled) {
     return (
       <main className="min-h-screen bg-slate-50 p-6">
@@ -370,7 +508,9 @@ export default function TeacherRegistrationPage() {
 
         {activeApplication?.entranceTest ? (
           <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
-            <h2 className="text-xl font-bold text-slate-950">{activeApplication.entranceTest.name}</h2>
+            <h2 className="text-xl font-bold text-slate-950">
+              {getEntranceTestDisplayName(activeApplication.entranceTest, ui)}
+            </h2>
             <div className="mt-5 space-y-5">
               {questions.map((question, index) => (
                 <article key={question.id} className="rounded-lg border border-slate-200 p-4">
@@ -420,6 +560,7 @@ export default function TeacherRegistrationPage() {
                         value={answers[question.id] || ""}
                         onChange={(value) => setAnswers((prev) => ({ ...prev, [question.id]: value }))}
                         languageLocale={speechLocale}
+                        languageCode={activeApplication.language.code}
                         disabled={testLocked}
                         forceStop={timeLeft === 0}
                         onBusyChange={(busy) =>
@@ -445,7 +586,7 @@ export default function TeacherRegistrationPage() {
             <h2 className="text-xl font-bold text-slate-950">Hồ sơ mới</h2>
             <form onSubmit={submitCertificates} className="mt-5 grid gap-4">
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-slate-700">Ngôn ngữ apply</span>
+                <span className="mb-1 block text-sm font-medium text-slate-700">Ngôn ngữ đăng ký giảng dạy</span>
                 <select value={languageId} onChange={(event) => setLanguageId(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2">
                   <option value="">Chọn ngôn ngữ</option>
                   {languages.map((language) => (
@@ -456,7 +597,7 @@ export default function TeacherRegistrationPage() {
                 </select>
               </label>
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-slate-700">Chứng chỉ JPG, PNG hoặc PDF</span>
+                <span className="mb-1 block text-sm font-medium text-slate-700">Tải lên chứng chỉ JPG, PNG hoặc PDF</span>
                 <input
                   type="file"
                   accept=".jpg,.jpeg,.png,.pdf"
@@ -471,13 +612,17 @@ export default function TeacherRegistrationPage() {
                     <p className="font-medium text-slate-900">{file.name}</p>
                     <p className="text-sm text-slate-500">{Math.round(file.size / 1024)} KB</p>
                   </div>
-                  <input
-                    aria-label={`${file.name} expiry date`}
-                    type="date"
-                    value={expiryDates[index] || ""}
-                    onChange={(event) => setExpiryDates((prev) => prev.map((value, itemIndex) => (itemIndex === index ? event.target.value : value)))}
-                    className="rounded-lg border border-slate-300 px-3 py-2"
-                  />
+                  <label className="text-sm font-medium text-slate-700">
+                    Ngày hết hạn
+                    <input
+                      aria-label={`Ngày hết hạn của ${file.name}`}
+                      type="date"
+                      min={minimumExpiryDate || undefined}
+                      value={expiryDates[index] || ""}
+                      onChange={(event) => setExpiryDates((prev) => prev.map((value, itemIndex) => (itemIndex === index ? event.target.value : value)))}
+                      className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2"
+                    />
+                  </label>
                 </div>
               ))}
               <button type="submit" disabled={submitting} className="w-fit rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
@@ -497,7 +642,9 @@ export default function TeacherRegistrationPage() {
                   <p className="font-semibold text-slate-900">
                     {ui.teacherEntrance.applicationAttempt(application.attemptNo)} - {application.language.name}
                   </p>
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">{application.status}</span>
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                    {applicationStatusLabels[application.status] || application.status}
+                  </span>
                 </div>
                 <p className="mt-1 text-sm text-slate-500">{new Date(application.createdAt).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}</p>
               </div>

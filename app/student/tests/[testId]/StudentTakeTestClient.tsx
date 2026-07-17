@@ -288,23 +288,19 @@ export default function StudentTakeTestClient({
   function handleAnswerChange(questionId: string, answer: string) {
     if (isInteractionLocked) return;
 
-    setAnswers((previous) => {
-      const next = { ...previous, [questionId]: answer };
-      answersRef.current = next;
-      sessionStorage.setItem(answersStorageKey, JSON.stringify(next));
-      return next;
-    });
+    const next = { ...answersRef.current, [questionId]: answer };
+    answersRef.current = next;
+    sessionStorage.setItem(answersStorageKey, JSON.stringify(next));
+    setAnswers(next);
   }
 
   function handleSpeakingAnswerChange(questionId: string, answer: string) {
     if (submittingRef.current) return;
 
-    setAnswers((previous) => {
-      const next = { ...previous, [questionId]: answer };
-      answersRef.current = next;
-      sessionStorage.setItem(answersStorageKey, JSON.stringify(next));
-      return next;
-    });
+    const next = { ...answersRef.current, [questionId]: answer };
+    answersRef.current = next;
+    sessionStorage.setItem(answersStorageKey, JSON.stringify(next));
+    setAnswers(next);
   }
 
   function handleSpeakingBusyChange(questionId: string, busy: boolean) {
@@ -548,7 +544,7 @@ export default function StudentTakeTestClient({
                   </fieldset>
                 ) : null}
 
-                {question.type === "FILL_IN_BLANK" ? (
+                {question.type === "FILL_IN_BLANK" || (question.type === "ESSAY" && question.audioUrl) ? (
                   <input
                     type="text"
                     value={answers[question.id] || ""}
@@ -561,7 +557,7 @@ export default function StudentTakeTestClient({
                   />
                 ) : null}
 
-                {question.type === "ESSAY" ? (
+                {question.type === "ESSAY" && !question.audioUrl ? (
                   <textarea
                     value={answers[question.id] || ""}
                     onChange={(event) =>
@@ -582,6 +578,7 @@ export default function StudentTakeTestClient({
                         handleSpeakingAnswerChange(question.id, value)
                       }
                       languageLocale={speechLocale}
+                      languageCode={test.language?.code}
                       disabled={isInteractionLocked}
                       forceStop={isExpired}
                       onBusyChange={(busy) =>

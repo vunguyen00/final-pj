@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useReducer } from "react";
+import { useMemo, useReducer, type ReactNode } from "react";
 import type { CertificateSummary, ManagedUser, StudentsManagementData } from "@/lib/teacher-students";
+import { ModalDialog } from "@/app/components/ModalDialog";
 
 type EditForm = {
   email: string;
@@ -385,6 +386,16 @@ function UserRow({
   );
 }
 
+function ModalFrame({ titleId, onClose, maxWidth, children }: { titleId: string; onClose: () => void; maxWidth: string; children: ReactNode }) {
+  return (
+    <ModalDialog labelledBy={titleId} onClose={onClose}>
+      <div className={`w-full ${maxWidth} rounded-2xl bg-white p-6 shadow-2xl outline-none`}>
+        {children}
+      </div>
+    </ModalDialog>
+  );
+}
+
 function EditUserModal({
   user,
   form,
@@ -399,11 +410,10 @@ function EditUserModal({
   onSave: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/50 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+    <ModalFrame titleId="edit-user-title" onClose={onClose} maxWidth="max-w-md">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-slate-950">Chỉnh sửa người dùng</h2>
+            <h2 id="edit-user-title" className="text-lg font-bold text-slate-950">Chỉnh sửa người dùng</h2>
             <p className="mt-1 text-sm text-slate-500">{user.username}</p>
           </div>
           <button type="button" onClick={onClose} className="rounded-lg px-2 py-1 text-sm text-slate-500 hover:bg-slate-100">
@@ -441,8 +451,7 @@ function EditUserModal({
             Lưu thay đổi
           </button>
         </div>
-      </div>
-    </div>
+    </ModalFrame>
   );
 }
 
@@ -454,10 +463,9 @@ function CertificatesModal({
   onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/50 p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+    <ModalFrame titleId="certificates-title" onClose={onClose} maxWidth="max-w-lg">
         <div className="flex items-start justify-between">
-          <h2 className="text-lg font-bold text-slate-950">Chứng chỉ giảng viên</h2>
+          <h2 id="certificates-title" className="text-lg font-bold text-slate-950">Chứng chỉ giảng viên</h2>
           <button type="button" onClick={onClose} className="rounded-lg px-2 py-1 text-sm text-slate-500 hover:bg-slate-100">
             Đóng
           </button>
@@ -479,8 +487,7 @@ function CertificatesModal({
             ))
           )}
         </div>
-      </div>
-    </div>
+    </ModalFrame>
   );
 }
 
@@ -492,11 +499,10 @@ function CoursesModal({
   onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/50 p-4">
-      <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
+    <ModalFrame titleId="courses-title" onClose={onClose} maxWidth="max-w-xl">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-slate-950">Khóa học tham gia</h2>
+            <h2 id="courses-title" className="text-lg font-bold text-slate-950">Khóa học tham gia</h2>
             <p className="mt-1 text-sm text-slate-500">{user.username}</p>
           </div>
           <button type="button" onClick={onClose} className="rounded-lg px-2 py-1 text-sm text-slate-500 hover:bg-slate-100">
@@ -509,12 +515,11 @@ function CoursesModal({
             <div key={course.id} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
               <p className="font-semibold text-slate-950">{course.name}</p>
               <p className="mt-1 text-xs text-slate-500">
-                Tham gia ngày {new Date(course.enrolledAt).toLocaleDateString("vi-VN")}
+                Tham gia ngày {new Date(course.enrolledAt).toLocaleDateString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}
               </p>
             </div>
           ))}
         </div>
-      </div>
-    </div>
+    </ModalFrame>
   );
 }

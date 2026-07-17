@@ -18,31 +18,6 @@ export function ForgotPasswordForm() {
     updateForm({ loading: true, error: "", message: "" });
 
     try {
-      const checkRes = await fetch("/api/auth/verify-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      const checkData = await checkRes.json();
-
-      if (!checkRes.ok) {
-        updateForm({ error: checkData.error ?? "Không kiểm tra được email.", loading: false });
-        return;
-      }
-
-      if (!checkData.exists) {
-        updateForm({ error: "Email không tồn tại trong hệ thống.", loading: false });
-        return;
-      }
-
-      if (checkData.role === "ADMIN") {
-        const adminMessage =
-          "Tài khoản admin phải liên hệ quản trị hệ thống để được cấp mật khẩu mới. Không thể đặt lại mật khẩu bằng OTP.";
-        updateForm({ error: adminMessage, loading: false });
-        window.alert(adminMessage);
-        return;
-      }
-
       const response = await fetch("/api/auth/forgot-password/request-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -22,14 +22,14 @@ export default async function RewardCenterPage() {
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-emerald-600">Điểm đậu</p>
-              <h1 className="mt-2 text-3xl font-bold text-slate-950">Mua điểm đậu, dùng dần cho AI</h1>
+              <p className="text-sm font-semibold uppercase tracking-wide text-emerald-600">Trung tâm sử dụng điểm</p>
+              <h1 className="mt-2 text-3xl font-bold text-slate-950">Bảng giá nhận xét AI</h1>
               <p className="mt-2 max-w-2xl text-slate-600">
-                FinnCenter đã bỏ ví tiền. Điểm đậu vẫn được mua trực tiếp qua VNPay theo số lượng bạn chọn, ví dụ 100 điểm.
+                Trang này giúp bạn so sánh chi phí và mở nhanh các tính năng AI. Mua điểm, xem số dư và lịch sử giao dịch tại trang quản lý điểm.
               </p>
             </div>
             <Link href="/student/wallet" className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">
-              Mua điểm đậu
+              Quản lý và mua điểm
             </Link>
           </div>
         </section>

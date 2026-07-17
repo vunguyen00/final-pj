@@ -4,11 +4,24 @@ import { getCurrentUser } from "@/lib/auth";
 import { getCourseAutoApprovalSetting } from "@/lib/course-approval";
 import { normalizeCourseThumbnailUrl } from "@/lib/course-thumbnail";
 import { sendBasicEmail } from "@/lib/mailer";
+import { getCourseReadiness } from "@/lib/course-readiness";
 
 const COURSE_STATUSES = new Set(["ACTIVE", "LOCKED", "PENDING_APPROVAL", "PENDING_DELETE", "REJECTED"]);
 
 async function deleteCourseWithRelations(courseId: string) {
-  await prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx) => {
+    const [enrollments, orderItems, payments] = await Promise.all([
+      tx.enrollment.count({ where: { courseId } }),
+      tx.orderItem.count({ where: { courseId } }),
+      tx.payment.count({ where: { courseId } }),
+    ]);
+    if (enrollments > 0 || orderItems > 0 || payments > 0) {
+      await tx.course.update({
+        where: { id: courseId },
+        data: { status: "LOCKED", deleteRequestedFromStatus: null },
+      });
+      return { deleted: false, archived: true };
+    }
     const tests = await tx.test.findMany({
       where: { courseId },
       select: { id: true },
@@ -53,6 +66,7 @@ async function deleteCourseWithRelations(courseId: string) {
     await tx.feedback.deleteMany({ where: { courseId } });
     await tx.orderItem.deleteMany({ where: { courseId } });
     await tx.course.delete({ where: { id: courseId } });
+    return { deleted: true, archived: false };
   });
 }
 
@@ -139,7 +153,29 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ course });
+    const languages =
+      user.role === "ADMIN"
+        ? await prisma.learningLanguage.findMany({
+            where: { isActive: true },
+            select: { id: true, name: true, code: true },
+            orderBy: { name: "asc" },
+          })
+        : await prisma.teacherApplication
+            .findMany({
+              where: { userId: user.id, status: "APPROVED" },
+              select: { language: { select: { id: true, name: true, code: true } } },
+              orderBy: { reviewedAt: "desc" },
+            })
+            .then((applications) => {
+              const seen = new Set<string>();
+              return applications.flatMap((application) => {
+                if (!application.language || seen.has(application.language.id)) return [];
+                seen.add(application.language.id);
+                return [application.language];
+              });
+            });
+
+    return NextResponse.json({ course, languages });
   } catch (error) {
     console.error("Error fetching course:", error);
     return NextResponse.json(
@@ -215,10 +251,35 @@ export async function PUT(
       updateData.price = normalizedPrice;
     }
 
-    if (user.role === "ADMIN") {
-      if (typeof languageId === "string" && languageId) {
+    if (typeof languageId === "string" && languageId) {
+      if (user.role === "ADMIN") {
+        const language = await prisma.learningLanguage.findFirst({
+          where: { id: languageId, isActive: true },
+          select: { id: true },
+        });
+        if (!language) {
+          return NextResponse.json(
+            { error: "Invalid course language" },
+            { status: 400 },
+          );
+        }
+        updateData.languageId = languageId;
+      } else {
+        const approvedLanguage = await prisma.teacherApplication.findFirst({
+          where: { userId: user.id, status: "APPROVED", languageId },
+          select: { languageId: true },
+        });
+        if (!approvedLanguage && languageId !== course.languageId) {
+          return NextResponse.json(
+            { error: "You can only assign an approved teaching language to this course" },
+            { status: 403 },
+          );
+        }
         updateData.languageId = languageId;
       }
+    }
+
+    if (user.role === "ADMIN") {
       if (status) {
         if (!COURSE_STATUSES.has(status)) {
           return NextResponse.json(
@@ -334,6 +395,12 @@ export async function PATCH(
         );
       }
       const newStatus = course.status === "ACTIVE" ? "LOCKED" : "ACTIVE";
+      if (newStatus === "ACTIVE") {
+        const readiness = await getCourseReadiness(courseId);
+        if (!readiness.ready) {
+          return NextResponse.json({ error: readiness.errors.join(" ") }, { status: 400 });
+        }
+      }
       const updatedCourse = await prisma.course.update({
         where: { id: courseId },
         data: { status: newStatus },
@@ -395,7 +462,7 @@ export async function PATCH(
 
       if (course.status === "PENDING_DELETE") {
         if (decision === "APPROVE") {
-          await deleteCourseWithRelations(courseId);
+          const deletion = await deleteCourseWithRelations(courseId);
           if (course.instructorId) {
             await prisma.notification.create({
               data: {
@@ -405,7 +472,7 @@ export async function PATCH(
               },
             });
           }
-          return NextResponse.json({ deleted: true, courseId });
+          return NextResponse.json({ ...deletion, courseId });
         }
 
         const restoredStatus = course.deleteRequestedFromStatus ?? "ACTIVE";
@@ -440,6 +507,12 @@ export async function PATCH(
               orderBy: { reviewedAt: "desc" },
             })
           : null;
+      if (decision === "APPROVE") {
+        const readiness = await getCourseReadiness(courseId);
+        if (!readiness.ready) {
+          return NextResponse.json({ error: readiness.errors.join(" ") }, { status: 400 });
+        }
+      }
       const updatedCourse = await prisma.course.update({
         where: { id: courseId },
         data: {
@@ -481,6 +554,10 @@ export async function PATCH(
           { error: "Course deletion is pending admin approval" },
           { status: 400 }
         );
+      }
+      const readiness = await getCourseReadiness(courseId);
+      if (!readiness.ready) {
+        return NextResponse.json({ error: readiness.errors.join(" ") }, { status: 400 });
       }
       const autoApproval = await getCourseAutoApprovalSetting();
       const approvedApplication = !course.languageId
@@ -550,8 +627,8 @@ export async function DELETE(
     }
 
     if (user.role === "ADMIN") {
-      await deleteCourseWithRelations(courseId);
-      return NextResponse.json({ success: true });
+      const deletion = await deleteCourseWithRelations(courseId);
+      return NextResponse.json({ success: true, ...deletion });
     }
 
     if (course.status === "PENDING_DELETE") {

@@ -1,13 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-
-const TOKEN_SECRET =
-  process.env.AUTH_SECRET ??
-  process.env.JWT_SECRET ??
-  (process.env.NODE_ENV === "production" ? "" : "dev_auth_secret_change_me");
-
-if (!TOKEN_SECRET) {
-  throw new Error("AUTH_SECRET is required for test attempt tokens.");
-}
+import { getRequiredAuthSecret } from "@/lib/server-secret";
 
 type TestAttemptTokenPayload = {
   userId: string;
@@ -31,7 +23,9 @@ function decodeBase64url(input: string) {
 }
 
 function signPayload(encodedPayload: string) {
-  return base64url(createHmac("sha256", TOKEN_SECRET).update(encodedPayload).digest());
+  return base64url(
+    createHmac("sha256", getRequiredAuthSecret()).update(encodedPayload).digest(),
+  );
 }
 
 export function createTestAttemptToken(params: {
@@ -85,4 +79,3 @@ export function verifyTestAttemptToken(params: {
     return { ok: false as const, reason: "INVALID" as const };
   }
 }
-

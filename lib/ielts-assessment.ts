@@ -7,7 +7,14 @@ import {
 } from "@/lib/ielts-rubric";
 
 function uniqueStrings(items: string[]) {
-  return [...new Set(items.map((item) => item.trim()).filter(Boolean))];
+  return [
+    ...new Set(
+      items.flatMap((item) => {
+        const trimmed = item.trim();
+        return trimmed ? [trimmed] : [];
+      }),
+    ),
+  ];
 }
 
 function collectCriterionField(

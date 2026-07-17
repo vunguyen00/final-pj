@@ -10,7 +10,7 @@ import {
   AI_POINT_PRICE_VND,
   getAiPointsSummary,
   recordLearningActivity,
-  spendAiPoints,
+  spendAiPointsWithClient,
   WRITING_AI_COST,
 } from "@/lib/ai-points";
 import { prisma } from "@/lib/prisma";
@@ -18,6 +18,7 @@ import { canUseAiForCourse, shouldChargeAiPoints } from "@/lib/ai-access";
 import { evaluateIeltsWriting } from "@/lib/ielts-grading";
 import { buildWritingAssessmentPayload } from "@/lib/ielts-assessment";
 import { evaluateTestAiAnswers } from "@/lib/test-ai-evaluation";
+import { getCertificateRubric } from "@/lib/ai-rubrics";
 import type {
   IeltsWritingEvaluation,
   IeltsWritingTaskType,
@@ -225,15 +226,13 @@ export async function POST(request: NextRequest) {
       }
 
       const evaluation = evaluationResult.aiEvaluation;
-      const criteria = Object.fromEntries(
-        Object.entries(evaluation.criteria || {})
-          .filter(([key]) =>
-            ["task_response", "coherence", "vocabulary", "grammar"].includes(
-              key,
-            ),
-          )
-          .map(([key, value]) => [key, Number(value)]),
-      );
+      const languageCode = getWritingLanguageCode(writingLanguage);
+      const rubric = getCertificateRubric(languageCode, "WRITING");
+      const criteriaEntries: Array<[string, number]> = rubric.criteria.map(({ key }) => {
+        const score100 = evaluation.criteriaScores?.[key] ?? (evaluation.criteria?.[key] ?? 0) * 10;
+        return [key, Math.round(Number(score100)) / 10];
+      });
+      const criteria = Object.fromEntries(criteriaEntries);
       overall = evaluationResult.normalizedScore;
       maxScore = 10;
       bandLevel = `${overall.toFixed(1)}/10`;
@@ -251,6 +250,7 @@ export async function POST(request: NextRequest) {
           taskRelevance: evaluation.taskRelevance ?? 0,
           language: evaluation.language,
           exam: evaluationSystem,
+          taskType: taskType || "task_2",
           maxScore,
           scoreScale: "SCORE_0_10",
           band: {
@@ -264,20 +264,25 @@ export async function POST(request: NextRequest) {
           offTopicReason: evaluation.offTopicReason || "",
           detailedComment:
             evaluation.detailedComment || evaluation.summary,
+          criteriaFeedback: evaluation.criteriaFeedback || {},
         },
         analysis: {
           strengths: evaluation.strengths,
           weaknesses: evaluation.weaknesses,
           feedback: evaluation.feedback || [],
           suggestions: evaluation.suggestions,
+          majorErrors: evaluation.majorErrors || [],
+          improvementsNeeded: evaluation.improvementsNeeded || [],
         },
         mistakes: {
           grammar: evaluation.grammarErrors || [],
           vocabulary: evaluation.vocabularyErrors || [],
           corrections: evaluation.corrections || [],
+          majorErrors: evaluation.majorErrors || [],
         },
         improvements: {
           suggestions: evaluation.suggestions,
+          improvementsNeeded: evaluation.improvementsNeeded || [],
           sampleAnswer: sampleAnswer || "",
         },
       };
@@ -285,15 +290,17 @@ export async function POST(request: NextRequest) {
         grammar: evaluation.grammarErrors || [],
         vocabulary: evaluation.vocabularyErrors || [],
         corrections: evaluation.corrections || [],
+        majorErrors: evaluation.majorErrors || [],
       };
       improvementsPayload = {
         suggestions: evaluation.suggestions,
+        improvementsNeeded: evaluation.improvementsNeeded || [],
         sampleAnswer: sampleAnswer || "",
       };
     }
 
-    const assessment = await prisma.aiAssessment.create({
-      data: {
+    const saved = await prisma.$transaction(async (tx) => {
+      const assessment = await tx.aiAssessment.create({ data: {
         userId: user.id,
         courseId: courseId || null,
         type: "WRITING",
@@ -315,12 +322,24 @@ export async function POST(request: NextRequest) {
         improvements: improvementsPayload,
         sampleAnswer,
         submittedAt: new Date(),
-      },
-    });
-
-    const pointResult = chargePoints
-      ? await spendAiPoints(user.id, courseId || null, WRITING_AI_COST, "WRITING_AI", assessment.id)
-      : { spent: 0, available: (await getAiPointsSummary(user.id)).available };
+      }});
+      const pointResult = chargePoints
+        ? await spendAiPointsWithClient(
+            tx,
+            user.id,
+            courseId || null,
+            WRITING_AI_COST,
+            "WRITING_AI",
+            assessment.id,
+          )
+        : null;
+      return { assessment, pointResult };
+    }, { isolationLevel: "Serializable" });
+    const assessment = saved.assessment;
+    const pointResult = saved.pointResult ?? {
+      spent: 0,
+      available: (await getAiPointsSummary(user.id)).available,
+    };
     const activity = await recordLearningActivity({
       userId: user.id,
       courseId: courseId || null,

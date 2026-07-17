@@ -4,6 +4,7 @@
  */
 
 import { AIEvaluationResponse } from "./types";
+import { normalizeFeedbackTextItems } from "@/lib/ai-feedback-normalization";
 
 function stripMarkdownCodeFence(input: string): string {
   let cleaned = input.trim();
@@ -192,13 +193,7 @@ export function parseAIResponse(rawResponse: string): AIEvaluationResponse | nul
 }
 
 function normalizeStringArray(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.map((item) => String(item).trim()).filter(Boolean);
-  }
-  if (typeof value === "string" && value.trim()) {
-    return [value.trim()];
-  }
-  return [];
+  return normalizeFeedbackTextItems(value);
 }
 
 function normalizeScore(value: unknown): number {
@@ -243,16 +238,16 @@ function normalizeAIResponse(value: unknown): Record<string, unknown> {
   const correctionsSource = source.corrections ?? improvements?.corrections;
   normalized.corrections = Array.isArray(correctionsSource)
     ? correctionsSource
-        .map((item) => {
+        .flatMap((item) => {
           const correction = item as Record<string, unknown>;
           const improved = correction.improved ?? correction.suggestion ?? correction.corrected;
-          return {
+          const normalized = {
             original: String(correction.original ?? "").trim(),
             improved: String(improved ?? "").trim(),
             reason: String(correction.reason ?? "Suggested wording improvement.").trim(),
           };
+          return normalized.original && normalized.improved ? [normalized] : [];
         })
-        .filter((item) => item.original && item.improved)
     : [];
 
   if (!normalized.summary) {
@@ -376,40 +371,62 @@ export function sanitizeResponse(response: AIEvaluationResponse): AIEvaluationRe
     task_requirements: {
       prompt_understanding: String(response.task_requirements?.prompt_understanding || "").trim(),
       addressed_points: (response.task_requirements?.addressed_points || [])
-        .map((p) => String(p).trim())
-        .filter(Boolean),
+        .flatMap((p) => {
+          const point = String(p).trim();
+          return point ? [point] : [];
+        }),
       missing_points: (response.task_requirements?.missing_points || [])
-        .map((p) => String(p).trim())
-        .filter(Boolean),
+        .flatMap((p) => {
+          const point = String(p).trim();
+          return point ? [point] : [];
+        }),
     },
     writing_structure: response.writing_structure
       ? {
           exam: String(response.writing_structure.exam || "GENERAL").trim(),
           task_type: String(response.writing_structure.task_type || "").trim(),
           sections: (response.writing_structure.sections || [])
-            .map((section) => ({
-              name: String(section.name || "").trim(),
-              score: Number(section.score || 0),
-              max_score: Number(section.max_score || 10),
-              feedback: String(section.feedback || "").trim(),
-            }))
-            .filter((section) => section.name),
+            .flatMap((section) => {
+              const normalized = {
+                name: String(section.name || "").trim(),
+                score: Number(section.score || 0),
+                max_score: Number(section.max_score || 10),
+                feedback: String(section.feedback || "").trim(),
+              };
+              return normalized.name ? [normalized] : [];
+            }),
         }
       : undefined,
     // Ensure no null/undefined values
     summary: response.summary || "",
-    strengths: (response.strengths || []).map((s) => String(s).trim()).filter(Boolean),
-    weaknesses: (response.weaknesses || []).map((w) => String(w).trim()).filter(Boolean),
-    feedback: (response.feedback || []).map((f) => String(f).trim()).filter(Boolean),
-    suggestions: (response.suggestions || []).map((s) => String(s).trim()).filter(Boolean),
+    strengths: (response.strengths || []).flatMap((s) => {
+      const strength = String(s).trim();
+      return strength ? [strength] : [];
+    }),
+    weaknesses: (response.weaknesses || []).flatMap((w) => {
+      const weakness = String(w).trim();
+      return weakness ? [weakness] : [];
+    }),
+    feedback: (response.feedback || []).flatMap((f) => {
+      const item = String(f).trim();
+      return item ? [item] : [];
+    }),
+    suggestions: (response.suggestions || []).flatMap((s) => {
+      const suggestion = String(s).trim();
+      return suggestion ? [suggestion] : [];
+    }),
     improved_version: response.improved_version || "",
     corrections: (response.corrections || [])
-      .map((c) => ({
-        original: String(c.original || "").trim(),
-        improved: String(c.improved || "").trim(),
-        reason: String(c.reason || "").trim(),
-      }))
-      .filter((c) => c.original && c.improved && c.reason),
+      .flatMap((c) => {
+        const correction = {
+          original: String(c.original || "").trim(),
+          improved: String(c.improved || "").trim(),
+          reason: String(c.reason || "").trim(),
+        };
+        return correction.original && correction.improved && correction.reason
+          ? [correction]
+          : [];
+      }),
   };
 }
 

@@ -1,11 +1,14 @@
 "use client";
 
 import { useState, type ChangeEvent, type FormEvent } from "react";
+import Image from "next/image";
 import { isLikelyImageSearchUrl, normalizeCourseThumbnailUrl } from "@/lib/course-thumbnail";
-import type { Course } from "../types";
+import { COURSE_CATEGORIES, getCourseCategoryLabel, getCourseInfoLabels, getCourseLevelLabel, getLanguageDisplayLabel } from "@/lib/language-display";
+import type { Course, LearningLanguage } from "../types";
 
 type CourseInfoTabProps = {
   course: Course;
+  languages: LearningLanguage[];
   onUpdated: (course: Partial<Course>) => void;
 };
 
@@ -17,6 +20,7 @@ type CourseInfoForm = {
   level: string;
   duration: string;
   thumbnail: string;
+  languageId: string;
 };
 
 const levelOptions = [
@@ -27,7 +31,7 @@ const levelOptions = [
   { value: "Advanced", label: "Nâng cao" },
 ];
 
-export function CourseInfoTab({ course, onUpdated }: CourseInfoTabProps) {
+export function CourseInfoTab({ course, languages, onUpdated }: CourseInfoTabProps) {
   const [form, setForm] = useState<CourseInfoForm>({
     name: course.name,
     description: course.description,
@@ -36,12 +40,20 @@ export function CourseInfoTab({ course, onUpdated }: CourseInfoTabProps) {
     level: course.level || "Beginner",
     duration: course.duration || "",
     thumbnail: course.thumbnail || "",
+    languageId: course.language?.id || "",
   });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const thumbnailPreviewUrl = normalizeCourseThumbnailUrl(form.thumbnail);
+  const languageOptions =
+    course.language && !languages.some((language) => language.id === course.language?.id)
+      ? [course.language, ...languages]
+      : languages;
+  const selectedLanguage = languageOptions.find((language) => language.id === form.languageId) || course.language || null;
+  const courseLanguageKey = selectedLanguage?.code || selectedLanguage?.name || "vi";
+  const labels = getCourseInfoLabels(courseLanguageKey);
 
   const inputClass =
     "mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
@@ -96,6 +108,7 @@ export function CourseInfoTab({ course, onUpdated }: CourseInfoTabProps) {
           level: form.level,
           duration: form.duration.trim(),
           thumbnail: normalizeCourseThumbnailUrl(form.thumbnail),
+          languageId: form.languageId,
         }),
       });
       const data = await response.json().catch(() => ({}));
@@ -122,9 +135,9 @@ export function CourseInfoTab({ course, onUpdated }: CourseInfoTabProps) {
   return (
     <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div>
-        <h2 className="text-xl font-bold text-slate-950">Chỉnh sửa thông tin khóa học</h2>
+        <h2 className="text-xl font-bold text-slate-950">{labels.heading}</h2>
         <p className="mt-1 text-sm text-slate-500">
-          Cập nhật nội dung giới thiệu, học phí, danh mục và ảnh đại diện của khóa học.
+          {labels.description}
         </p>
       </div>
 
@@ -141,7 +154,7 @@ export function CourseInfoTab({ course, onUpdated }: CourseInfoTabProps) {
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-5">
         <label className="block text-sm font-semibold text-slate-700">
-          Tên khóa học
+          {labels.name}
           <input
             required
             value={form.name}
@@ -151,7 +164,7 @@ export function CourseInfoTab({ course, onUpdated }: CourseInfoTabProps) {
         </label>
 
         <label className="block text-sm font-semibold text-slate-700">
-          Mô tả khóa học
+          {labels.courseDescription}
           <textarea
             required
             rows={5}
@@ -161,9 +174,30 @@ export function CourseInfoTab({ course, onUpdated }: CourseInfoTabProps) {
           />
         </label>
 
+        <label className="block text-sm font-semibold text-slate-700">
+          Ngôn ngữ khóa học
+          <select
+            value={form.languageId}
+            onChange={(event) => setForm({ ...form, languageId: event.target.value, category: "" })}
+            className={inputClass}
+          >
+            <option value="">Chọn ngôn ngữ</option>
+            {languageOptions.map((language) => (
+              <option key={language.id} value={language.id}>
+                {getLanguageDisplayLabel(language.code || language.name)}
+              </option>
+            ))}
+          </select>
+          {languages.length === 0 ? (
+            <span className="mt-2 block text-xs font-normal text-amber-700">
+              Tài khoản giáo viên chưa có ngôn ngữ giảng dạy được duyệt nên chưa thể đổi ngôn ngữ khóa học.
+            </span>
+          ) : null}
+        </label>
+
         <div className="grid gap-5 md:grid-cols-4">
           <label className="block text-sm font-semibold text-slate-700">
-            Học phí (VNĐ)
+            {labels.price}
             <input
               type="number"
               min={0}
@@ -175,41 +209,40 @@ export function CourseInfoTab({ course, onUpdated }: CourseInfoTabProps) {
           </label>
 
           <label className="block text-sm font-semibold text-slate-700">
-            Danh mục
+            {labels.category}
             <select
               value={form.category}
               onChange={(event) => setForm({ ...form, category: event.target.value })}
               className={inputClass}
             >
-              <option value="">Chọn danh mục</option>
-              <option value="Speaking">Nói</option>
-              <option value="Writing">Viết</option>
-              <option value="Reading">Đọc</option>
-              <option value="Listening">Nghe</option>
-              <option value="Grammar">Ngữ pháp</option>
-              <option value="Vocabulary">Từ vựng</option>
+              <option value="">{labels.categoryPlaceholder}</option>
+              {COURSE_CATEGORIES.map((category) => (
+                <option key={category} value={category}>
+                  {getCourseCategoryLabel(category, courseLanguageKey)}
+                </option>
+              ))}
             </select>
           </label>
 
           <label className="block text-sm font-semibold text-slate-700">
-            Trình độ
+            {labels.level}
             <select
               value={form.level}
               onChange={(event) => setForm({ ...form, level: event.target.value })}
               className={inputClass}
             >
               {levelOptions.map((level) => (
-                <option key={level.value} value={level.value}>{level.label}</option>
+                <option key={level.value} value={level.value}>{getCourseLevelLabel(level.value, courseLanguageKey)}</option>
               ))}
             </select>
           </label>
 
           <label className="block text-sm font-semibold text-slate-700">
-            Thời lượng
+            {labels.duration}
             <input
               value={form.duration}
               onChange={(event) => setForm({ ...form, duration: event.target.value })}
-              placeholder="Ví dụ: 8 tuần"
+              placeholder={labels.durationPlaceholder}
               className={inputClass}
             />
           </label>
@@ -217,7 +250,7 @@ export function CourseInfoTab({ course, onUpdated }: CourseInfoTabProps) {
 
         <div>
           <label className="block text-sm font-semibold text-slate-700">
-            Ảnh đại diện khóa học
+            {labels.thumbnail}
             <input
               value={form.thumbnail}
               onChange={(event) => setForm({ ...form, thumbnail: event.target.value })}
@@ -227,7 +260,7 @@ export function CourseInfoTab({ course, onUpdated }: CourseInfoTabProps) {
                   setForm((current) => ({ ...current, thumbnail: normalized }));
                 }
               }}
-              placeholder="Nhập URL ảnh hoặc tải ảnh lên"
+              placeholder={labels.thumbnailPlaceholder}
               className={inputClass}
             />
           </label>
@@ -243,7 +276,7 @@ export function CourseInfoTab({ course, onUpdated }: CourseInfoTabProps) {
                 uploading ? "pointer-events-none opacity-60" : ""
               }`}
             >
-              {uploading ? "Đang tải ảnh..." : "Chọn ảnh từ máy"}
+              {uploading ? labels.uploadingImage : labels.uploadImage}
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/gif"
@@ -252,12 +285,12 @@ export function CourseInfoTab({ course, onUpdated }: CourseInfoTabProps) {
                 className="hidden"
               />
             </label>
-            <span className="text-xs text-slate-500">JPEG, PNG, WebP hoặc GIF, tối đa 5 MB</span>
+            <span className="text-xs text-slate-500">{labels.imageHint}</span>
           </div>
 
           {thumbnailPreviewUrl ? (
-            <div className="mt-4 h-48 max-w-xl overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-              <img src={thumbnailPreviewUrl} alt="Xem trước ảnh khóa học" className="h-full w-full object-cover" />
+            <div className="relative mt-4 h-48 max-w-xl overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+              <Image src={thumbnailPreviewUrl} alt="Xem trước ảnh khóa học" fill sizes="(min-width: 768px) 36rem, 100vw" className="object-cover" unoptimized />
             </div>
           ) : null}
         </div>
@@ -268,7 +301,7 @@ export function CourseInfoTab({ course, onUpdated }: CourseInfoTabProps) {
             disabled={saving || uploading}
             className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {saving ? "Đang lưu..." : "Lưu thay đổi"}
+            {saving ? labels.saving : labels.save}
           </button>
         </div>
       </form>

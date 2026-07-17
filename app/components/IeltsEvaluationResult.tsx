@@ -10,6 +10,12 @@ import {
 } from "@/lib/ielts-rubric";
 import type { ReactNode } from "react";
 
+const MINI_LIST_COLORS = {
+  emerald: "bg-emerald-50 text-emerald-900",
+  red: "bg-red-50 text-red-900",
+  blue: "bg-blue-50 text-blue-900",
+};
+
 export function IeltsEvaluationResult({
   evaluation,
   scoreOnly = false,
@@ -59,8 +65,7 @@ export function IeltsEvaluationResult({
             <h2 className="text-3xl font-bold">Overall band</h2>
             {scoreOnly ? (
               <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-100">
-                Lần chấm này chỉ trả về điểm số. Nhận xét chi tiết chỉ có khi sử
-                dụng chế độ Nhận xét AI.
+                This scoring run returns scores only. Detailed feedback is available in AI feedback mode.
               </p>
             ) : (
               <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-100">
@@ -86,28 +91,28 @@ export function IeltsEvaluationResult({
       {!scoreOnly ? (
         <>
           <section className="grid gap-6 lg:grid-cols-2">
-        <ResultSection title="Lỗi cụ thể trong bài">
-          {specificErrors.length ? (
-            <ul className="space-y-3 text-sm text-slate-700">
-              {specificErrors.map((item, index) => (
-                <li
-                  key={`${item}-${index}`}
-                  className="rounded-lg border border-red-100 bg-red-50 p-3"
-                >
-                  {item}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-slate-500">
-              Chưa có lỗi cụ thể đủ bằng chứng để trích dẫn.
-            </p>
-          )}
-        </ResultSection>
+            <ResultSection title="Specific Errors In The Response">
+              {specificErrors.length ? (
+                <ul className="space-y-3 text-sm text-slate-700">
+                  {specificErrors.map((item, index) => (
+                    <li
+                      key={`${item}-${index}`}
+                      className="rounded-lg border border-red-100 bg-red-50 p-3"
+                    >
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-slate-500">
+                  No specific evidence-based errors were found.
+                </p>
+              )}
+            </ResultSection>
 
-        <ResultSection title="Ưu tiên cải thiện">
-          <FeedbackList items={evaluation.priority_to_improve} />
-        </ResultSection>
+            <ResultSection title="Improvement Priorities">
+              <FeedbackList items={evaluation.priority_to_improve} />
+            </ResultSection>
           </section>
 
           <ResultSection title="Examiner-style comment">
@@ -168,18 +173,10 @@ function CriterionCard({
           </p>
 
           <div className="mt-5 grid gap-4 sm:grid-cols-3">
+            <MiniList title="Strengths" items={criterion.strengths} tone="emerald" />
+            <MiniList title="Weaknesses" items={criterion.weaknesses} tone="red" />
             <MiniList
-              title="Điểm mạnh"
-              items={criterion.strengths}
-              tone="emerald"
-            />
-            <MiniList
-              title="Điểm yếu"
-              items={criterion.weaknesses}
-              tone="red"
-            />
-            <MiniList
-              title="Cách cải thiện"
+              title="How To Improve"
               items={criterion.improvement_suggestions}
               tone="blue"
             />
@@ -217,7 +214,7 @@ function ResultSection({
 
 function FeedbackList({ items }: { items: string[] }) {
   if (!items.length) {
-    return <p className="text-sm text-slate-500">Chưa có đề xuất cụ thể.</p>;
+    return <p className="text-sm text-slate-500">No specific suggestions yet.</p>;
   }
 
   return (
@@ -243,14 +240,8 @@ function MiniList({
   items: string[];
   tone: "emerald" | "red" | "blue";
 }) {
-  const colors = {
-    emerald: "bg-emerald-50 text-emerald-900",
-    red: "bg-red-50 text-red-900",
-    blue: "bg-blue-50 text-blue-900",
-  };
-
   return (
-    <div className={`rounded-xl p-3 ${colors[tone]}`}>
+    <div className={`rounded-xl p-3 ${MINI_LIST_COLORS[tone]}`}>
       <p className="text-xs font-bold uppercase tracking-wide">{title}</p>
       {items.length ? (
         <ul className="mt-2 space-y-2 text-xs leading-5">
@@ -259,7 +250,7 @@ function MiniList({
           ))}
         </ul>
       ) : (
-        <p className="mt-2 text-xs opacity-70">Chưa có.</p>
+        <p className="mt-2 text-xs opacity-70">None yet.</p>
       )}
     </div>
   );
@@ -285,9 +276,7 @@ function isPronunciationCriterion(
   return "intelligibility" in criterion;
 }
 
-function collectWritingErrors(
-  criteria: IeltsWritingCriterionFeedback[],
-) {
+function collectWritingErrors(criteria: IeltsWritingCriterionFeedback[]) {
   const errors: string[] = [];
 
   for (const criterion of criteria) {
@@ -299,11 +288,11 @@ function collectWritingErrors(
       const original = criterion.examples_from_answer[index];
       const corrected = criterion.corrected_examples[index];
       if (original && corrected) {
-        errors.push(`"${original}" → "${corrected}"`);
+        errors.push(`"${original}" -> "${corrected}"`);
       } else if (original) {
         errors.push(`"${original}"`);
       } else if (corrected) {
-        errors.push(`Gợi ý sửa: "${corrected}"`);
+        errors.push(`Suggested correction: "${corrected}"`);
       }
     }
   }

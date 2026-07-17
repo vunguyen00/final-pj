@@ -1,12 +1,16 @@
 "use client";
 
-import { Fragment, useMemo, useState, type ButtonHTMLAttributes } from "react";
+import { Fragment, useMemo, useState, useSyncExternalStore, type ButtonHTMLAttributes } from "react";
+import { createPollingStore } from "@/lib/client-polling-store";
+import { ModalDialog } from "@/app/components/ModalDialog";
 
 type WithdrawalComplaint = {
   id: string;
   reason: "NOT_RECEIVED" | "WRONG_AMOUNT" | "OTHER";
   reportedAmount: number | null;
   message: string;
+  evidenceImageUrl: string | null;
+  evidenceImageName: string | null;
   status: "OPEN" | "RESOLVED" | "REJECTED";
   adminNote: string | null;
   resolvedAt: string | null;
@@ -27,7 +31,12 @@ export type AdminWithdrawal = {
   complaint: WithdrawalComplaint | null;
 };
 
+type ActionDialog =
+  | { kind: "withdrawal"; item: AdminWithdrawal; action: "APPROVE" | "PAY" | "REJECT" }
+  | { kind: "complaint"; item: AdminWithdrawal; action: "RESOLVE" | "REJECT" };
+
 const money = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 });
+const dateTime = new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Ho_Chi_Minh" });
 const statusText = { PENDING: "Chờ duyệt", APPROVED: "Đã duyệt", PAID: "Đã thanh toán", COMPLETED: "Đã hoàn thành", REJECTED: "Đã từ chối" };
 const complaintReasonText = {
   NOT_RECEIVED: "Tiền chưa về tài khoản",
@@ -47,14 +56,27 @@ const summaryColors = {
 };
 
 function formatDate(value: string | null) {
-  return value ? new Date(value).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" }) : "-";
+  return value ? dateTime.format(new Date(value)) : "-";
 }
 
-export default function AdminRevenueWithdrawals({ initialWithdrawals }: { initialWithdrawals: AdminWithdrawal[] }) {
-  const [withdrawals, setWithdrawals] = useState(initialWithdrawals);
+function useAdminRevenueWithdrawals(initialWithdrawals: AdminWithdrawal[]) {
+  const [withdrawalStore] = useState(() => createPollingStore({
+    initialValue: initialWithdrawals,
+    intervalMs: 8000,
+    load: async () => {
+      const response = await fetch("/api/admin/revenue-withdrawals", { cache: "no-store" });
+      const data = (await response.json().catch(() => ({}))) as { withdrawals?: AdminWithdrawal[] };
+      if (!response.ok || !data.withdrawals) return initialWithdrawals;
+      return data.withdrawals;
+    },
+  }));
+  const withdrawals = useSyncExternalStore(withdrawalStore.subscribe, withdrawalStore.getSnapshot, withdrawalStore.getSnapshot);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [actionDialog, setActionDialog] = useState<ActionDialog | null>(null);
+  const [actionForm, setActionForm] = useState({ note: "", systemBankName: "", transferTransactionCode: "" });
+  const [actionError, setActionError] = useState("");
   const pendingCount = useMemo(() => withdrawals.filter((item) => item.status === "PENDING").length, [withdrawals]);
   const approvedCount = useMemo(() => withdrawals.filter((item) => item.status === "APPROVED").length, [withdrawals]);
   const openComplaintCount = useMemo(() => withdrawals.filter((item) => item.complaint?.status === "OPEN").length, [withdrawals]);
@@ -64,12 +86,13 @@ export default function AdminRevenueWithdrawals({ initialWithdrawals }: { initia
   const totalPaidAmount = useMemo(() => withdrawals.filter((item) => item.status === "PAID" || item.status === "COMPLETED").reduce((sum, item) => sum + item.amount, 0), [withdrawals]);
   const openComplaintAmount = useMemo(() => withdrawals.filter((item) => item.complaint?.status === "OPEN").reduce((sum, item) => sum + item.amount, 0), [withdrawals]);
 
-  async function processWithdrawal(item: AdminWithdrawal, action: "APPROVE" | "PAY" | "REJECT") {
-    const note = action === "REJECT" ? window.prompt("Lý do từ chối yêu cầu rút tiền?")?.trim() : "";
-    if (action === "REJECT" && !note) return;
-    const systemBankName = action === "PAY" ? window.prompt("Tài khoản/ngân hàng nguồn đã dùng để chuyển khoản?", "")?.trim() ?? "" : "";
-    const transferTransactionCode = action === "PAY" ? window.prompt("Mã giao dịch chuyển khoản (nếu có)?", "")?.trim() ?? "" : "";
+  function openActionDialog(dialog: ActionDialog) {
+    setActionDialog(dialog);
+    setActionForm({ note: "", systemBankName: "", transferTransactionCode: "" });
+    setActionError("");
+  }
 
+  async function processWithdrawal(item: AdminWithdrawal, action: "APPROVE" | "PAY" | "REJECT", note: string, systemBankName: string, transferTransactionCode: string) {
     setProcessingId(`withdrawal:${item.id}`);
     setMessage("");
     try {
@@ -80,28 +103,21 @@ export default function AdminRevenueWithdrawals({ initialWithdrawals }: { initia
       });
       const data = (await response.json()) as { error?: string; withdrawal?: AdminWithdrawal };
       if (!response.ok || !data.withdrawal) {
-        setMessage(data.error ?? "Không thể xử lý yêu cầu.");
+        setActionError(data.error ?? "Không thể xử lý yêu cầu.");
         return;
       }
-      setWithdrawals((current) => current.map((entry) => entry.id === item.id ? data.withdrawal! : entry));
+      withdrawalStore.setValue((current) => current.map((entry) => entry.id === item.id ? data.withdrawal! : entry));
       setMessage(action === "APPROVE" ? "Đã duyệt yêu cầu và thông báo cho giảng viên." : action === "PAY" ? "Đã xác nhận thanh toán và thông báo cho giảng viên." : "Đã từ chối yêu cầu và thông báo cho giảng viên.");
+      setActionDialog(null);
     } catch {
-      setMessage("Lỗi mạng. Vui lòng thử lại.");
+      setActionError("Lỗi mạng. Vui lòng thử lại.");
     } finally {
       setProcessingId(null);
     }
   }
 
-  async function processComplaint(item: AdminWithdrawal, action: "RESOLVE" | "REJECT") {
+  async function processComplaint(item: AdminWithdrawal, action: "RESOLVE" | "REJECT", note: string) {
     if (!item.complaint) return;
-
-    const promptText = action === "RESOLVE"
-      ? "Ghi chú đóng khiếu nại (không bắt buộc):"
-      : "Lý do từ chối khiếu nại?";
-    const promptValue = window.prompt(promptText, "");
-    if (promptValue === null) return;
-    const note = promptValue.trim();
-    if (action === "REJECT" && !note) return;
 
     setProcessingId(`complaint:${item.complaint.id}`);
     setMessage("");
@@ -113,17 +129,88 @@ export default function AdminRevenueWithdrawals({ initialWithdrawals }: { initia
       });
       const data = (await response.json()) as { error?: string; complaint?: WithdrawalComplaint };
       if (!response.ok || !data.complaint) {
-        setMessage(data.error ?? "Không thể xử lý khiếu nại.");
+        setActionError(data.error ?? "Không thể xử lý khiếu nại.");
         return;
       }
-      setWithdrawals((current) => current.map((entry) => entry.id === item.id ? { ...entry, complaint: data.complaint! } : entry));
+      withdrawalStore.setValue((current) => current.map((entry) => entry.id === item.id ? { ...entry, complaint: data.complaint! } : entry));
       setMessage(action === "RESOLVE" ? "Đã đóng khiếu nại và thông báo cho giảng viên." : "Đã từ chối khiếu nại và thông báo cho giảng viên.");
+      setActionDialog(null);
     } catch {
-      setMessage("Lỗi mạng. Vui lòng thử lại.");
+      setActionError("Lỗi mạng. Vui lòng thử lại.");
     } finally {
       setProcessingId(null);
     }
   }
+
+  async function submitActionDialog(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!actionDialog) return;
+    const note = actionForm.note.trim();
+    const systemBankName = actionForm.systemBankName.trim();
+    const transferTransactionCode = actionForm.transferTransactionCode.trim();
+    if (actionDialog.action === "REJECT" && !note) {
+      setActionError("Vui lòng nhập lý do từ chối.");
+      return;
+    }
+    if (actionDialog.kind === "withdrawal" && actionDialog.action === "PAY" && (!systemBankName || !transferTransactionCode)) {
+      setActionError("Vui lòng nhập ngân hàng nguồn và mã giao dịch chuyển khoản.");
+      return;
+    }
+    setActionError("");
+    if (actionDialog.kind === "withdrawal") {
+      await processWithdrawal(actionDialog.item, actionDialog.action, note, systemBankName, transferTransactionCode);
+    } else {
+      await processComplaint(actionDialog.item, actionDialog.action, note);
+    }
+  }
+
+  return {
+    withdrawals,
+    processingId,
+    message,
+    expandedId,
+    actionDialog,
+    actionForm,
+    actionError,
+    pendingCount,
+    approvedCount,
+    openComplaintCount,
+    paidCount,
+    totalPendingAmount,
+    totalApprovedAmount,
+    totalPaidAmount,
+    openComplaintAmount,
+    setExpandedId,
+    setActionDialog,
+    setActionForm,
+    openActionDialog,
+    submitActionDialog,
+  };
+}
+
+export default function AdminRevenueWithdrawals({ initialWithdrawals }: { initialWithdrawals: AdminWithdrawal[] }) {
+  const {
+    withdrawals,
+    processingId,
+    message,
+    expandedId,
+    actionDialog,
+    actionForm,
+    actionError,
+    pendingCount,
+    approvedCount,
+    openComplaintCount,
+    paidCount,
+    totalPendingAmount,
+    totalApprovedAmount,
+    totalPaidAmount,
+    openComplaintAmount,
+    setExpandedId,
+    setActionDialog,
+    setActionForm,
+    openActionDialog,
+    submitActionDialog,
+  } = useAdminRevenueWithdrawals(initialWithdrawals);
 
   return (
     <div className="space-y-5">
@@ -214,14 +301,14 @@ export default function AdminRevenueWithdrawals({ initialWithdrawals }: { initia
                             </button>
                             {item.status === "PENDING" ? (
                               <>
-                                <Action disabled={processingId === `withdrawal:${item.id}`} onClick={() => void processWithdrawal(item, "APPROVE")}>Duyệt</Action>
-                                <Action danger disabled={processingId === `withdrawal:${item.id}`} onClick={() => void processWithdrawal(item, "REJECT")}>Từ chối</Action>
+                                <Action disabled={processingId === `withdrawal:${item.id}`} onClick={() => openActionDialog({ kind: "withdrawal", item, action: "APPROVE" })}>Duyệt</Action>
+                                <Action danger disabled={processingId === `withdrawal:${item.id}`} onClick={() => openActionDialog({ kind: "withdrawal", item, action: "REJECT" })}>Từ chối</Action>
                               </>
                             ) : null}
                             {item.status === "APPROVED" ? (
                               <>
-                                <Action disabled={processingId === `withdrawal:${item.id}`} onClick={() => void processWithdrawal(item, "PAY")}>Đã chuyển</Action>
-                                <Action danger disabled={processingId === `withdrawal:${item.id}`} onClick={() => void processWithdrawal(item, "REJECT")}>Từ chối</Action>
+                                <Action disabled={processingId === `withdrawal:${item.id}`} onClick={() => openActionDialog({ kind: "withdrawal", item, action: "PAY" })}>Đã chuyển</Action>
+                                <Action danger disabled={processingId === `withdrawal:${item.id}`} onClick={() => openActionDialog({ kind: "withdrawal", item, action: "REJECT" })}>Từ chối</Action>
                               </>
                             ) : null}
                           </div>
@@ -245,6 +332,11 @@ export default function AdminRevenueWithdrawals({ initialWithdrawals }: { initia
                                         <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${complaintUi.className}`}>{complaintUi.label}</span>
                                       </div>
                                       <p className="mt-2 text-sm leading-6 text-slate-700">{item.complaint.message}</p>
+                                      {item.complaint.evidenceImageUrl ? (
+                                        <a href={item.complaint.evidenceImageUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-xs font-bold text-blue-700 hover:text-blue-900">
+                                          Xem ảnh minh chứng{item.complaint.evidenceImageName ? `: ${item.complaint.evidenceImageName}` : ""}
+                                        </a>
+                                      ) : null}
                                       <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-600">
                                         <span>Gửi lúc {formatDate(item.complaint.createdAt)}</span>
                                         {item.complaint.reportedAmount !== null ? <span>Thực nhận {money.format(item.complaint.reportedAmount)}</span> : null}
@@ -254,8 +346,8 @@ export default function AdminRevenueWithdrawals({ initialWithdrawals }: { initia
                                     </div>
                                     {item.complaint.status === "OPEN" ? (
                                       <div className="grid shrink-0 grid-cols-2 gap-2">
-                                        <Action disabled={processingId === `complaint:${item.complaint.id}`} onClick={() => void processComplaint(item, "RESOLVE")}>Đóng</Action>
-                                        <Action danger disabled={processingId === `complaint:${item.complaint.id}`} onClick={() => void processComplaint(item, "REJECT")}>Từ chối</Action>
+                                        <Action disabled={processingId === `complaint:${item.complaint.id}`} onClick={() => openActionDialog({ kind: "complaint", item, action: "RESOLVE" })}>Đóng</Action>
+                                        <Action danger disabled={processingId === `complaint:${item.complaint.id}`} onClick={() => openActionDialog({ kind: "complaint", item, action: "REJECT" })}>Từ chối</Action>
                                       </div>
                                     ) : null}
                                   </div>
@@ -284,7 +376,7 @@ export default function AdminRevenueWithdrawals({ initialWithdrawals }: { initia
                 <div>
                   <p className="font-bold text-slate-950">{item.teacher.username}</p>
                   <p className="text-sm text-slate-500">{item.teacher.email}</p>
-                  <p className="mt-1 text-xs text-slate-400">Gửi lúc {new Date(item.createdAt).toLocaleString("vi-VN")}</p>
+                  <p className="mt-1 text-xs text-slate-400">Gửi lúc {formatDate(item.createdAt)}</p>
                 </div>
                 <div>
                   <p className="text-xs font-semibold uppercase text-slate-400">Số tiền</p>
@@ -298,8 +390,8 @@ export default function AdminRevenueWithdrawals({ initialWithdrawals }: { initia
                 </div>
                 <div className="flex min-w-48 flex-col items-stretch gap-2">
                   <span className={`rounded-full px-3 py-1 text-center text-xs font-bold ${item.status === "PAID" || item.status === "COMPLETED" ? "bg-emerald-50 text-emerald-700" : item.status === "REJECTED" ? "bg-rose-50 text-rose-700" : item.status === "APPROVED" ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>{statusText[item.status]}</span>
-                  {item.status === "PENDING" ? <div className="grid grid-cols-2 gap-2"><Action disabled={processingId === `withdrawal:${item.id}`} onClick={() => void processWithdrawal(item, "APPROVE")}>Duyệt</Action><Action danger disabled={processingId === `withdrawal:${item.id}`} onClick={() => void processWithdrawal(item, "REJECT")}>Từ chối</Action></div> : null}
-                  {item.status === "APPROVED" ? <div className="grid grid-cols-2 gap-2"><Action disabled={processingId === `withdrawal:${item.id}`} onClick={() => void processWithdrawal(item, "PAY")}>Đã chuyển</Action><Action danger disabled={processingId === `withdrawal:${item.id}`} onClick={() => void processWithdrawal(item, "REJECT")}>Từ chối</Action></div> : null}
+                  {item.status === "PENDING" ? <div className="grid grid-cols-2 gap-2"><Action disabled={processingId === `withdrawal:${item.id}`} onClick={() => openActionDialog({ kind: "withdrawal", item, action: "APPROVE" })}>Duyệt</Action><Action danger disabled={processingId === `withdrawal:${item.id}`} onClick={() => openActionDialog({ kind: "withdrawal", item, action: "REJECT" })}>Từ chối</Action></div> : null}
+                  {item.status === "APPROVED" ? <div className="grid grid-cols-2 gap-2"><Action disabled={processingId === `withdrawal:${item.id}`} onClick={() => openActionDialog({ kind: "withdrawal", item, action: "PAY" })}>Đã chuyển</Action><Action danger disabled={processingId === `withdrawal:${item.id}`} onClick={() => openActionDialog({ kind: "withdrawal", item, action: "REJECT" })}>Từ chối</Action></div> : null}
                 </div>
                 {item.complaint && complaintUi ? (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 xl:col-span-4">
@@ -310,17 +402,22 @@ export default function AdminRevenueWithdrawals({ initialWithdrawals }: { initia
                           <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${complaintUi.className}`}>{complaintUi.label}</span>
                         </div>
                         <p className="mt-1 text-sm text-slate-700">{item.complaint.message}</p>
+                        {item.complaint.evidenceImageUrl ? (
+                          <a href={item.complaint.evidenceImageUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-xs font-bold text-blue-700 hover:text-blue-900">
+                            Xem ảnh minh chứng{item.complaint.evidenceImageName ? `: ${item.complaint.evidenceImageName}` : ""}
+                          </a>
+                        ) : null}
                         <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-600">
-                          <span>Gửi lúc {new Date(item.complaint.createdAt).toLocaleString("vi-VN")}</span>
+                          <span>Gửi lúc {formatDate(item.complaint.createdAt)}</span>
                           {item.complaint.reportedAmount !== null ? <span>Thực nhận {money.format(item.complaint.reportedAmount)}</span> : null}
-                          {item.complaint.resolvedAt ? <span>Xử lý lúc {new Date(item.complaint.resolvedAt).toLocaleString("vi-VN")}</span> : null}
+                          {item.complaint.resolvedAt ? <span>Xử lý lúc {formatDate(item.complaint.resolvedAt)}</span> : null}
                         </div>
                         {item.complaint.adminNote ? <p className="mt-2 text-xs font-semibold text-slate-700">Ghi chú admin: {item.complaint.adminNote}</p> : null}
                       </div>
                       {item.complaint.status === "OPEN" ? (
                         <div className="grid shrink-0 grid-cols-2 gap-2">
-                          <Action disabled={processingId === `complaint:${item.complaint.id}`} onClick={() => void processComplaint(item, "RESOLVE")}>Đóng khiếu nại</Action>
-                          <Action danger disabled={processingId === `complaint:${item.complaint.id}`} onClick={() => void processComplaint(item, "REJECT")}>Từ chối</Action>
+                          <Action disabled={processingId === `complaint:${item.complaint.id}`} onClick={() => openActionDialog({ kind: "complaint", item, action: "RESOLVE" })}>Đóng khiếu nại</Action>
+                          <Action danger disabled={processingId === `complaint:${item.complaint.id}`} onClick={() => openActionDialog({ kind: "complaint", item, action: "REJECT" })}>Từ chối</Action>
                         </div>
                       ) : null}
                     </div>
@@ -332,6 +429,38 @@ export default function AdminRevenueWithdrawals({ initialWithdrawals }: { initia
           {withdrawals.length === 0 ? <p className="px-5 py-12 text-center text-sm text-slate-500">Chưa có yêu cầu rút doanh thu.</p> : null}
         </div>
       </section>
+
+      {actionDialog ? (
+        <ModalDialog labelledBy="withdrawal-action-title" onClose={() => { if (!processingId) setActionDialog(null); }}>
+          <form onSubmit={submitActionDialog} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+            <h2 id="withdrawal-action-title" className="text-lg font-bold text-slate-950">
+              {actionDialog.kind === "complaint" ? (actionDialog.action === "RESOLVE" ? "Đóng khiếu nại" : "Từ chối khiếu nại") : actionDialog.action === "APPROVE" ? "Duyệt yêu cầu rút tiền" : actionDialog.action === "PAY" ? "Xác nhận đã chuyển tiền" : "Từ chối yêu cầu rút tiền"}
+            </h2>
+            <div className="mt-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-700">
+              <p className="font-semibold">{actionDialog.item.teacher.username}</p>
+              <p className="mt-1">Số tiền: <strong>{money.format(actionDialog.item.amount)}</strong></p>
+              <p className="mt-1">Nhận tại: {actionDialog.item.bankName} · {actionDialog.item.accountNumber}</p>
+            </div>
+            {actionDialog.kind === "withdrawal" && actionDialog.action === "PAY" ? (
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <label className="text-sm font-semibold text-slate-700">Ngân hàng/tài khoản nguồn *<input autoFocus value={actionForm.systemBankName} onChange={(event) => setActionForm((current) => ({ ...current, systemBankName: event.target.value }))} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" /></label>
+                <label className="text-sm font-semibold text-slate-700">Mã giao dịch *<input value={actionForm.transferTransactionCode} onChange={(event) => setActionForm((current) => ({ ...current, transferTransactionCode: event.target.value }))} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" /></label>
+              </div>
+            ) : null}
+            <label className="mt-4 block text-sm font-semibold text-slate-700">
+              {actionDialog.action === "REJECT" ? "Lý do từ chối *" : "Ghi chú xử lý (không bắt buộc)"}
+              <textarea autoFocus={actionDialog.action === "REJECT"} rows={3} maxLength={500} value={actionForm.note} onChange={(event) => setActionForm((current) => ({ ...current, note: event.target.value }))} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" />
+            </label>
+            {actionError ? <p role="alert" className="mt-3 rounded-lg bg-rose-50 p-3 text-sm font-semibold text-rose-700">{actionError}</p> : null}
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" disabled={processingId !== null} onClick={() => setActionDialog(null)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50">Hủy</button>
+              <button type="submit" disabled={processingId !== null} className={`rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 ${actionDialog.action === "REJECT" ? "bg-rose-600" : "bg-blue-600"}`}>
+                {processingId ? "Đang xử lý..." : "Xác nhận"}
+              </button>
+            </div>
+          </form>
+        </ModalDialog>
+      ) : null}
     </div>
   );
 }

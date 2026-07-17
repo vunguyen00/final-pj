@@ -1,16 +1,19 @@
 import { Question } from "../types";
-import { getQuestionTypeLabel } from "../helpers";
+import { getQuestionPageLabels } from "../labels";
 import { FormattedHint } from "@/app/components/FormattedHint";
 
 type Props = {
   question: Question;
   index: number;
+  languageCode?: string | null;
   onEdit: (question: Question) => void;
   onDelete: (questionId: string) => void;
 };
 
-export function QuestionCard({ question, index, onEdit, onDelete }: Props) {
-  const isAiQuestion = question.type === "ESSAY" || question.type === "SPEAKING" || Boolean(question.audioUrl);
+export function QuestionCard({ question, index, languageCode, onEdit, onDelete }: Props) {
+  const labels = getQuestionPageLabels(languageCode);
+  const isListeningQuestion = Boolean(question.audioUrl) && question.type !== "MULTIPLE_CHOICE";
+  const isAiQuestion = !isListeningQuestion && (question.type === "ESSAY" || question.type === "SPEAKING");
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6">
@@ -21,16 +24,16 @@ export function QuestionCard({ question, index, onEdit, onDelete }: Props) {
               {index + 1}
             </span>
             <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-              {getQuestionTypeLabel(question)}
+              {labels.questionType(question)}
             </span>
-            <span className="text-sm text-slate-500">{question.score} điểm</span>
+            <span className="text-sm text-slate-500">{labels.points(question.score)}</span>
           </div>
 
           {question.audioUrl && (
             <div className="mt-2">
               <audio controls className="h-8 w-full max-w-md">
                 <source src={question.audioUrl} />
-                Trình duyệt của bạn không hỗ trợ phát âm thanh.
+                {labels.unsupportedAudio}
               </audio>
             </div>
           )}
@@ -39,9 +42,9 @@ export function QuestionCard({ question, index, onEdit, onDelete }: Props) {
 
           {(question.type === "MULTIPLE_CHOICE" || question.type === "TRUE_FALSE") && question.answers && (
             <div className="mt-3 space-y-2">
-              {question.answers.map((answer, idx) => (
+              {question.answers.map((answer) => (
                 <div
-                  key={idx}
+                  key={answer.id}
                   className={`flex items-center gap-2 rounded-lg border p-3 ${
                     answer.isCorrect ? "border-green-300 bg-green-50" : "border-slate-200"
                   }`}
@@ -52,22 +55,22 @@ export function QuestionCard({ question, index, onEdit, onDelete }: Props) {
             </div>
           )}
 
-          {question.type === "FILL_IN_BLANK" && question.answers?.[0] && (
+          {(question.type === "FILL_IN_BLANK" || isListeningQuestion) && question.answers?.[0] && (
             <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3">
-              <span className="text-sm font-medium text-green-700">Đáp án: </span>
+              <span className="text-sm font-medium text-green-700">{labels.correctAnswer} </span>
               <span className="text-sm text-slate-700">{question.answers[0].content}</span>
             </div>
           )}
 
           {isAiQuestion && (
             <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-              Câu hỏi này được AI chấm điểm, không có đáp án đúng/sai cố định.
+              {labels.aiQuestionNotice}
             </div>
           )}
 
           {question.explanation && (
             <div className="mt-3 rounded-lg border border-yellow-200 bg-yellow-50 p-3">
-              <span className="text-sm font-medium text-yellow-700">Giải thích: </span>
+              <span className="text-sm font-medium text-yellow-700">{labels.explanation} </span>
               <span className="text-sm text-slate-700">{question.explanation}</span>
             </div>
           )}
@@ -76,11 +79,19 @@ export function QuestionCard({ question, index, onEdit, onDelete }: Props) {
         </div>
 
         <div className="ml-4 flex gap-2">
-          <button onClick={() => onEdit(question)} className="rounded-lg p-2 text-slate-600 hover:bg-slate-100">
-            Sửa
+          <button
+            type="button"
+            onClick={() => onEdit(question)}
+            className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"
+          >
+            {labels.edit}
           </button>
-          <button onClick={() => onDelete(question.id)} className="rounded-lg p-2 text-red-600 hover:bg-red-50">
-            Xóa
+          <button
+            type="button"
+            onClick={() => onDelete(question.id)}
+            className="rounded-lg p-2 text-red-600 hover:bg-red-50"
+          >
+            {labels.delete}
           </button>
         </div>
       </div>

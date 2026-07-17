@@ -33,12 +33,23 @@ export type Course = {
     username: string;
     email: string;
   } | null;
+  language?: {
+    id: string;
+    name: string;
+    code: string;
+  } | null;
   _count: {
     enrollments: number;
     modules: number;
     tests: number;
     feedbacks: number;
   };
+};
+
+export type LearningLanguage = {
+  id: string;
+  name: string;
+  code: string;
 };
 
 export type User = {

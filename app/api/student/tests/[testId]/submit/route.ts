@@ -14,6 +14,7 @@ import {
   recordLearningActivity,
   SPEAKING_AI_COST,
   spendAiPoints,
+  spendAiPointsWithClient,
   WRITING_AI_COST,
 } from "@/lib/ai-points";
 import { shouldChargeAiPoints } from "@/lib/ai-access";
@@ -23,6 +24,14 @@ import {
 } from "@/lib/test-ai-evaluation";
 import { verifyTestAttemptToken } from "@/lib/test-attempt-token";
 import { FIXED_TEST_MAX_SCORE, isTestReady } from "@/lib/test-rules";
+
+function normalizeComparableAnswer(value: unknown) {
+  return String(value || "")
+    .normalize("NFKC")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase();
+}
 
 export async function POST(
   request: NextRequest,
@@ -122,7 +131,7 @@ export async function POST(
     const languageCode = test.language?.code || test.course?.language?.code || null;
     const scoreOnlyAiFeedback = !includeAiFeedback;
     const aiInputs = test.questions
-        .filter((question) => question.type === "ESSAY" || question.type === "SPEAKING")
+        .filter((question) => (question.type === "ESSAY" && !question.audioUrl) || question.type === "SPEAKING")
         .map((question) => ({
           questionId: question.id,
           mode: question.type === "SPEAKING" ? "SPEAKING" as const : "WRITING" as const,
@@ -202,10 +211,12 @@ export async function POST(
           isCorrect = selectedAnswer.id === correctAns.id;
           correctAnswer = correctAns.content;
         }
-      } else if (question.type === "FILL_IN_BLANK") {
+      } else if (question.type === "FILL_IN_BLANK" || (question.type === "ESSAY" && question.audioUrl)) {
         const correctAns = question.answers.find((a) => a.isCorrect);
         if (correctAns && studentAnswerDisplay.trim()) {
-          isCorrect = studentAnswerDisplay.trim().toLowerCase() === correctAns.content.trim().toLowerCase();
+          isCorrect =
+            normalizeComparableAnswer(studentAnswerDisplay) ===
+            normalizeComparableAnswer(correctAns.content);
           correctAnswer = correctAns.content;
         }
       } else if (question.type === "ESSAY") {
@@ -302,13 +313,12 @@ export async function POST(
       });
     }
 
-    const attemptCount = await prisma.testAttempt.count({
-      where: { testId, userId: user.id },
-    });
-    const attemptNo = attemptCount + 1;
-
-    const testAttempt = await prisma.testAttempt.create({
-      data: {
+    const savedAttempt = await prisma.$transaction(async (tx) => {
+      const attemptCount = await tx.testAttempt.count({
+        where: { testId, userId: user.id },
+      });
+      const attemptNo = attemptCount + 1;
+      const testAttempt = await tx.testAttempt.create({ data: {
         testId,
         userId: user.id,
         attemptNo,
@@ -327,18 +337,24 @@ export async function POST(
         startedAt: new Date(tokenResult.payload.startedAt),
         submittedAt: new Date(),
         isPassed,
-      } as never,
-    }) as unknown as { id: string; attemptNo: number };
-
-    const feedbackPointResult = shouldChargeFeedback
-      ? await spendAiPoints(
-          user.id,
-          test.courseId ?? null,
-          feedbackCost,
-          feedbackMode === "SPEAKING" ? "SPEAKING_AI" : "WRITING_AI",
-          `TEST_ATTEMPT:${testAttempt.id}`,
-        )
-      : { spent: 0, available: (await getAiPointsSummary(user.id)).available };
+      } as never }) as unknown as { id: string; attemptNo: number };
+      const feedbackPointResult = shouldChargeFeedback
+        ? await spendAiPointsWithClient(
+            tx,
+            user.id,
+            test.courseId ?? null,
+            feedbackCost,
+            feedbackMode === "SPEAKING" ? "SPEAKING_AI" : "WRITING_AI",
+            `TEST_ATTEMPT:${testAttempt.id}`,
+          )
+        : null;
+      return { testAttempt, feedbackPointResult };
+    }, { isolationLevel: "Serializable" });
+    const testAttempt = savedAttempt.testAttempt;
+    const feedbackPointResult = savedAttempt.feedbackPointResult ?? {
+      spent: 0,
+      available: (await getAiPointsSummary(user.id)).available,
+    };
 
     await recordLearningActivity({
       userId: user.id,

@@ -50,7 +50,7 @@ export async function getCourseProgressPercent(userId: string, courseId: string)
 
   const lessons = course.modules.flatMap((module) => module.lessons);
   if (lessons.length === 0) {
-    return 100;
+    return 0;
   }
 
   const completedIds = await getCompletedLessonIds(userId, courseId);

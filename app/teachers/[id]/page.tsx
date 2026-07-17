@@ -61,9 +61,9 @@ export default async function TeacherDetailPage({ params }: Props) {
                       href={`/courses/${course.id}`}
                       className="grid gap-4 rounded-lg border border-border p-4 transition hover:bg-muted sm:grid-cols-[120px_1fr]"
                     >
-                      <div className="aspect-video overflow-hidden rounded-lg bg-muted">
+                      <div className="relative aspect-video overflow-hidden rounded-lg bg-muted">
                         {thumbnailUrl ? (
-                          <img src={thumbnailUrl} alt={course.name} className="h-full w-full object-cover" />
+                          <Image src={thumbnailUrl} alt={course.name} fill sizes="120px" className="object-cover" unoptimized />
                         ) : (
                           <div className="flex h-full items-center justify-center text-xs font-semibold text-muted-foreground">
                             {course.language || "FinnCenter"}
@@ -96,7 +96,6 @@ export default async function TeacherDetailPage({ params }: Props) {
           <aside className="rounded-xl border border-border bg-card p-6">
             <h3 className="text-lg font-semibold text-foreground">Thống kê</h3>
             <div className="mt-4 space-y-3 text-sm text-muted-foreground">
-              <p>Email: {teacher.email}</p>
               <p>Tổng lượt đăng ký: {formatCount(teacher.studentsCount)}</p>
               <p>Khóa học hiện tại: {formatCount(teacher.coursesCount)}</p>
             </div>
@@ -106,3 +105,4 @@ export default async function TeacherDetailPage({ params }: Props) {
     </main>
   );
 }
+import Image from "next/image";

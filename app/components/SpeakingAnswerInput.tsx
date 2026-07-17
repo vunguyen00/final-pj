@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getSpeakingRecordingLabels } from "@/lib/speaking-recording-labels";
 
 type TranscriptionWorkerMessage = {
   type: "progress" | "transcribing" | "result" | "error";
@@ -61,8 +62,9 @@ async function transcribeAudio(
   blob: Blob,
   languageLocale: string,
   onStatus: (status: string) => void,
+  labels: ReturnType<typeof getSpeakingRecordingLabels>,
 ) {
-  onStatus("Đang chuẩn bị bản ghi âm...");
+  onStatus(labels.preparingRecording);
   const audio = await decodeAudioToMono16Khz(blob);
   const worker = getTranscriptionWorker();
   const requestId = ++transcriptionRequestId;
@@ -80,8 +82,8 @@ async function transcribeAudio(
             : null;
         onStatus(
           percent === null
-            ? "Đang chuẩn bị bộ phân tích âm thanh..."
-            : `Đang chuẩn bị bộ phân tích âm thanh: ${percent}%`,
+            ? labels.preparingAnalyzer
+            : labels.preparingAnalyzerProgress(percent),
         );
         return;
       }
@@ -89,7 +91,7 @@ async function transcribeAudio(
       if (message.id !== requestId) return;
 
       if (message.type === "transcribing") {
-        onStatus("Đang phân tích âm thanh...");
+        onStatus(labels.analyzingAudio);
         return;
       }
 
@@ -100,7 +102,7 @@ async function transcribeAudio(
       }
       reject(
         new Error(
-          message.error || "Không thể nhận diện nội dung từ bản ghi âm.",
+          message.error || labels.recognitionFailed,
         ),
       );
     };
@@ -111,7 +113,7 @@ async function transcribeAudio(
       sharedWorker = null;
       reject(
         new Error(
-          "Không thể khởi động bộ phân tích âm thanh trên trình duyệt này.",
+          labels.workerStartFailed,
         ),
       );
     };
@@ -138,6 +140,7 @@ export function SpeakingAnswerInput({
   value,
   onChange,
   languageLocale,
+  languageCode,
   disabled = false,
   forceStop = false,
   onBusyChange,
@@ -145,10 +148,12 @@ export function SpeakingAnswerInput({
   value: string;
   onChange: (value: string) => void;
   languageLocale: string;
+  languageCode?: string | null;
   disabled?: boolean;
   forceStop?: boolean;
   onBusyChange?: (busy: boolean) => void;
 }) {
+  const labels = getSpeakingRecordingLabels(languageCode || languageLocale);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -206,7 +211,7 @@ export function SpeakingAnswerInput({
       stopTracks();
 
       if (!blob.size) {
-        throw new Error("Bản ghi âm không có dữ liệu.");
+        throw new Error(labels.emptyRecording);
       }
 
       if (previewUrlRef.current) {
@@ -220,21 +225,20 @@ export function SpeakingAnswerInput({
         blob,
         languageLocale,
         setStatus,
+        labels,
       );
       if (!transcript) {
-        throw new Error(
-          "Không nhận diện được nội dung nói. Hãy thử ghi âm lại.",
-        );
+        throw new Error(labels.noSpeech);
       }
 
       onChange(transcript);
       setHasCompletedRecording(true);
-      setStatus("Đã phân tích xong bản ghi âm.");
+      setStatus(labels.completedRecording);
     } catch (error) {
       setSupportError(
         error instanceof Error
           ? error.message
-          : "Không thể xử lý bản ghi âm.",
+          : labels.processFailed,
       );
       setStatus("");
     } finally {
@@ -242,7 +246,7 @@ export function SpeakingAnswerInput({
       finishingRef.current = false;
       stopTracks();
     }
-  }, [languageLocale, onChange, stopTracks, transcribing]);
+  }, [labels, languageLocale, onChange, stopTracks, transcribing]);
 
   useEffect(() => {
     if (forceStop && recording) {
@@ -267,7 +271,7 @@ export function SpeakingAnswerInput({
     if (disabled || preparing || transcribing || recording) return;
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
       setSupportError(
-        "Trình duyệt chưa hỗ trợ ghi âm. Hãy dùng Chrome, Edge hoặc Firefox phiên bản mới.",
+        labels.unsupportedBrowser,
       );
       return;
     }
@@ -311,7 +315,7 @@ export function SpeakingAnswerInput({
       recorderRef.current = null;
       setPreparing(false);
       setSupportError(
-        "Không mở được micro. Hãy kiểm tra quyền micro của trình duyệt.",
+        labels.microphoneDenied,
       );
     }
   }
@@ -329,12 +333,12 @@ export function SpeakingAnswerInput({
             className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
           >
             {preparing
-              ? "Đang khởi động micro..."
+              ? labels.startingMic
               : transcribing
-                ? "Đang phân tích âm thanh..."
+                ? labels.analyzingAudio
                 : hasCompletedRecording
-                  ? "Ghi âm lại"
-                  : "Bắt đầu ghi âm"}
+                  ? labels.recordAgain
+                  : labels.startRecording}
           </button>
         ) : (
           <button
@@ -343,7 +347,7 @@ export function SpeakingAnswerInput({
             disabled={disabled}
             className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
           >
-            Dừng ghi và phân tích âm thanh
+            {labels.stopAndAnalyze}
           </button>
         )}
         <span
@@ -354,12 +358,12 @@ export function SpeakingAnswerInput({
           }`}
         >
           {recording
-            ? "Đang ghi âm..."
+            ? labels.recording
             : transcribing
-              ? "Đang phân tích âm thanh..."
+              ? labels.analyzingAudio
               : hasCompletedRecording
-                ? "Đã phân tích xong"
-                : "Sẵn sàng"}
+                ? labels.analyzed
+                : labels.ready}
         </span>
       </div>
 

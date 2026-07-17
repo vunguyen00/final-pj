@@ -7,13 +7,14 @@ import {
   getAiPointsSummary,
   recordLearningActivity,
   SPEAKING_AI_COST,
-  spendAiPoints,
+  spendAiPointsWithClient,
 } from "@/lib/ai-points";
 import { prisma } from "@/lib/prisma";
 import { ollamaService, sanitizeEssay, validateEssay, validatePromptSafety } from "@/lib/ai";
 import { getSpeakingAiSetting } from "@/lib/speaking-ai-setting";
 import { canUseAiForCourse, shouldChargeAiPoints } from "@/lib/ai-access";
 import { evaluateTestAiAnswers } from "@/lib/test-ai-evaluation";
+import { getCertificateRubric } from "@/lib/ai-rubrics";
 import { evaluateIeltsSpeaking } from "@/lib/ielts-grading";
 import { buildSpeakingAssessmentPayload } from "@/lib/ielts-assessment";
 import {
@@ -29,6 +30,13 @@ import {
   getSpeakingLanguageFromExamSetting,
   normalizeSpeakingLanguage,
 } from "@/lib/speaking-languages";
+
+const SPEAKING_RUBRIC_LANGUAGE_CODES = {
+  ENGLISH: "en",
+  CHINESE: "zh",
+  JAPANESE: "ja",
+  KOREAN: "ko",
+} as const;
 
 async function saveSpeakingAudio(file: File | null, userId: string) {
   if (!file || file.size === 0) return null;
@@ -68,6 +76,7 @@ export async function POST(request: NextRequest) {
     const transcript = String(form.get("transcript") || "").trim();
     const prompt = String(form.get("prompt") || "").trim();
     const title = String(form.get("title") || "Speaking AI").trim();
+    const speakingTask = Math.max(1, Math.min(3, Number(form.get("task") || 1)));
     const courseId = String(form.get("courseId") || "").trim();
     const conversation = String(form.get("conversation") || "").trim();
     const durationSeconds = Number(form.get("durationSeconds") || 0);
@@ -193,17 +202,15 @@ export async function POST(request: NextRequest) {
       const evaluation = evaluationResult.aiEvaluation;
       const normalizedOverall = evaluationResult.normalizedScore;
       const taskRelevance = evaluation.taskRelevance ?? 0;
-      const normalizedCriteria = evaluation.criteria || {};
       const isHsk = exam === "HSK";
+      const rubric = getCertificateRubric(SPEAKING_RUBRIC_LANGUAGE_CODES[speakingLanguage], "SPEAKING");
       const toExamScore = (score: number) =>
         isHsk ? Math.round(score * 10) : Math.round(score * 10) / 10;
-      const criteria = Object.fromEntries(
-        Object.entries(normalizedCriteria)
-          .filter(([key]) =>
-            ["fluency", "vocabulary", "grammar", "pronunciation"].includes(key),
-          )
-          .map(([key, value]) => [key, toExamScore(Number(value))]),
-      );
+      const criteriaEntries: Array<[string, number]> = rubric.criteria.map(({ key }) => {
+        const score100 = evaluation.criteriaScores?.[key] ?? (evaluation.criteria?.[key] ?? 0) * 10;
+        return [key, isHsk ? Math.round(Number(score100)) : Math.round(Number(score100)) / 10];
+      });
+      const criteria = Object.fromEntries(criteriaEntries);
       overall = toExamScore(normalizedOverall);
       maxScore = isHsk ? 100 : 10;
       bandLevel = isHsk
@@ -220,6 +227,7 @@ export async function POST(request: NextRequest) {
           taskRelevance,
           language: evaluation.language,
           exam,
+          taskType: `task_${speakingTask}`,
           maxScore,
           scoreScale: isHsk ? "SCORE_0_100" : "SCORE_0_10",
           band: {
@@ -232,20 +240,26 @@ export async function POST(request: NextRequest) {
           onTopic: evaluation.onTopic ?? true,
           offTopicReason: evaluation.offTopicReason || "",
           detailedComment: evaluation.detailedComment || evaluation.summary,
+          criteriaFeedback: evaluation.criteriaFeedback || {},
         },
         analysis: {
           strengths: evaluation.strengths,
           weaknesses: evaluation.weaknesses,
           feedback: evaluation.feedback || [],
           suggestions: evaluation.suggestions,
+          majorErrors: evaluation.majorErrors || [],
+          improvementsNeeded: evaluation.improvementsNeeded || [],
         },
         mistakes: {
           pronunciation: evaluation.pronunciationErrors || [],
           grammar: evaluation.grammarErrors || [],
           vocabulary: evaluation.vocabularyErrors || [],
           fluency: evaluation.fluencyIssues || [],
+          majorErrors: evaluation.majorErrors || [],
         },
         improvements: {
+          suggestions: evaluation.suggestions,
+          improvementsNeeded: evaluation.improvementsNeeded || [],
           practiceMethods: evaluation.practiceMethods || [],
           sampleAnswer: sampleAnswer || "",
         },
@@ -255,20 +269,22 @@ export async function POST(request: NextRequest) {
         grammar: evaluation.grammarErrors || [],
         vocabulary: evaluation.vocabularyErrors || [],
         fluency: evaluation.fluencyIssues || [],
+        majorErrors: evaluation.majorErrors || [],
       };
       improvementsPayload = {
         suggestions: evaluation.suggestions,
+        improvementsNeeded: evaluation.improvementsNeeded || [],
         practiceMethods: evaluation.practiceMethods || [],
         sampleAnswer: sampleAnswer || "",
       };
     }
 
-    const assessment = await prisma.aiAssessment.create({
-      data: {
+    const saved = await prisma.$transaction(async (tx) => {
+      const assessment = await tx.aiAssessment.create({ data: {
         userId: user.id,
         courseId: courseId || null,
         type: "SPEAKING",
-        taskType: exam.toLowerCase(),
+        taskType: `${exam.toLowerCase()}_task_${speakingTask}`,
         title,
         prompt: prompt || null,
         submissionText: sanitizedTranscript,
@@ -288,12 +304,24 @@ export async function POST(request: NextRequest) {
         improvements: improvementsPayload,
         sampleAnswer,
         submittedAt: new Date(),
-      },
-    });
-
-    const pointResult = chargePoints
-      ? await spendAiPoints(user.id, courseId || null, SPEAKING_AI_COST, "SPEAKING_AI", assessment.id)
-      : { spent: 0, available: (await getAiPointsSummary(user.id)).available };
+      }});
+      const pointResult = chargePoints
+        ? await spendAiPointsWithClient(
+            tx,
+            user.id,
+            courseId || null,
+            SPEAKING_AI_COST,
+            "SPEAKING_AI",
+            assessment.id,
+          )
+        : null;
+      return { assessment, pointResult };
+    }, { isolationLevel: "Serializable" });
+    const assessment = saved.assessment;
+    const pointResult = saved.pointResult ?? {
+      spent: 0,
+      available: (await getAiPointsSummary(user.id)).available,
+    };
     const activity = await recordLearningActivity({
       userId: user.id,
       courseId: courseId || null,
@@ -310,6 +338,7 @@ export async function POST(request: NextRequest) {
       data: feedbackPayload,
       scoreOnly,
       aiFeedbackPurchased: includeAiFeedback,
+      evaluationBasis: "TRANSCRIPT_ESTIMATE",
       durationMs: Date.now() - startTime,
     });
   } catch (error) {

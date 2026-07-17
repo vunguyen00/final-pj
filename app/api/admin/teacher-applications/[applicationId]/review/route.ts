@@ -25,11 +25,47 @@ export async function PUT(
 
     const application = await prisma.teacherApplication.findUnique({
       where: { id: applicationId },
-      include: { user: true },
+      include: { user: true, certificates: true },
     });
 
     if (!application) {
       return NextResponse.json({ error: "Không tìm thấy hồ sơ." }, { status: 404 });
+    }
+    if (application.status !== "UNDER_REVIEW") {
+      return NextResponse.json({ error: "Chỉ hồ sơ đang chờ duyệt mới được xử lý." }, { status: 409 });
+    }
+    if (action === "REJECT" && !rejectionReason) {
+      return NextResponse.json({ error: "Vui lòng nhập lý do từ chối." }, { status: 400 });
+    }
+    if (action === "APPROVE") {
+      const validCertificates =
+        application.certificates.length > 0 &&
+        application.certificates.every((certificate) => certificate.expiryDate > new Date());
+      if (!validCertificates) {
+        return NextResponse.json(
+          { error: "Hồ sơ phải có ít nhất một chứng chỉ còn hạn." },
+          { status: 400 },
+        );
+      }
+      if (application.entranceTestId) {
+        const passedAttempt = application.entranceAttemptId
+          ? await prisma.testAttempt.findFirst({
+              where: {
+                id: application.entranceAttemptId,
+                userId: application.userId,
+                testId: application.entranceTestId,
+                isPassed: true,
+              },
+              select: { id: true },
+            })
+          : null;
+        if (!passedAttempt) {
+          return NextResponse.json(
+            { error: "Ứng viên chưa vượt qua bài test đầu vào." },
+            { status: 400 },
+          );
+        }
+      }
     }
 
     const nextStatus = action === "APPROVE" ? "APPROVED" : "REJECTED";

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 const labelClass = "mb-1.5 block text-sm font-bold text-slate-700";
 const inputClass = "w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100";
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function RegisterForm() {
   const router = useRouter();
@@ -19,6 +20,16 @@ export function RegisterForm() {
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     updateForm({ loading: true, error: "" });
+
+    if (!username.trim() || !email.trim() || !password || !confirmPassword) {
+      updateForm({ error: "Vui lòng nhập đầy đủ tên hiển thị, email, mật khẩu và xác nhận mật khẩu.", loading: false });
+      return;
+    }
+
+    if (!emailPattern.test(email.trim())) {
+      updateForm({ error: "Vui lòng nhập email hợp lệ.", loading: false });
+      return;
+    }
 
     if (password !== confirmPassword) {
       updateForm({ error: "Xác nhận mật khẩu không khớp.", loading: false });
@@ -40,7 +51,7 @@ export function RegisterForm() {
 
       if (data.requiresOtp) {
         setOtpEmail(data.email ?? email);
-        setOtpMessage("Ma OTP da duoc gui den email cua ban.");
+        setOtpMessage("Mã OTP đã được gửi đến email của bạn.");
         return;
       }
 
@@ -58,6 +69,11 @@ export function RegisterForm() {
     updateForm({ loading: true, error: "" });
     setOtpMessage("");
 
+    if (!/^\d{6}$/.test(otpCode)) {
+      updateForm({ error: "Vui lòng nhập mã OTP gồm 6 chữ số.", loading: false });
+      return;
+    }
+
     try {
       const response = await fetch("/api/auth/verify-registration-otp", {
         method: "POST",
@@ -67,14 +83,14 @@ export function RegisterForm() {
       const data = await response.json();
 
       if (!response.ok) {
-        updateForm({ error: data.error ?? "Xac thuc OTP that bai." });
+        updateForm({ error: data.error ?? "Xác thực OTP thất bại." });
         return;
       }
 
       router.push(data.redirectTo ?? "/");
       window.location.href = data.redirectTo ?? "/";
     } catch {
-      updateForm({ error: "Loi mang. Vui long thu lai." });
+      updateForm({ error: "Lỗi mạng. Vui lòng thử lại." });
     } finally {
       updateForm({ loading: false });
     }
@@ -94,13 +110,13 @@ export function RegisterForm() {
       const data = await response.json();
 
       if (!response.ok) {
-        updateForm({ error: data.error ?? "Khong gui lai duoc OTP." });
+        updateForm({ error: data.error ?? "Không gửi lại được OTP." });
         return;
       }
 
-      setOtpMessage(data.alreadyActive ? "Tai khoan da duoc kich hoat." : "Ma OTP moi da duoc gui.");
+      setOtpMessage(data.alreadyActive ? "Tài khoản đã được kích hoạt." : "Mã OTP mới đã được gửi.");
     } catch {
-      updateForm({ error: "Loi mang. Vui long thu lai." });
+      updateForm({ error: "Lỗi mạng. Vui lòng thử lại." });
     } finally {
       setResending(false);
     }
@@ -108,10 +124,10 @@ export function RegisterForm() {
 
   if (otpEmail) {
     return (
-      <form className="space-y-4" onSubmit={verifyOtp}>
+      <form className="space-y-4" onSubmit={verifyOtp} noValidate>
         <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
-          <p className="font-semibold">Xac thuc email</p>
-          <p className="mt-1">Nhap ma OTP 6 chu so da gui den {otpEmail}.</p>
+          <p className="font-semibold">Xác thực email</p>
+          <p className="mt-1">Nhập mã OTP gồm 6 chữ số đã gửi đến {otpEmail}.</p>
         </div>
 
         <div>
@@ -130,6 +146,7 @@ export function RegisterForm() {
             required
             autoComplete="one-time-code"
             placeholder="123456"
+            title="Nhập mã OTP gồm 6 chữ số"
           />
         </div>
 
@@ -141,7 +158,7 @@ export function RegisterForm() {
           disabled={loading}
           className="w-full rounded-xl bg-blue-600 px-4 py-3 font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {loading ? "Dang xac thuc..." : "Xac thuc va dang nhap"}
+          {loading ? "Đang xác thực..." : "Xác thực và đăng nhập"}
         </button>
         <button
           type="button"
@@ -149,14 +166,14 @@ export function RegisterForm() {
           onClick={() => void resendOtp()}
           className="w-full rounded-xl border border-slate-300 px-4 py-3 font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {resending ? "Dang gui lai..." : "Gui lai OTP"}
+          {resending ? "Đang gửi lại..." : "Gửi lại OTP"}
         </button>
       </form>
     );
   }
 
   return (
-    <form className="space-y-4" onSubmit={onSubmit}>
+    <form className="space-y-4" onSubmit={onSubmit} noValidate>
       <div>
         <label className={labelClass} htmlFor="username">
           Tên hiển thị

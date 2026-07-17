@@ -7,8 +7,106 @@ import {
   RESERVED_WITHDRAWAL_STATUSES,
 } from "@/lib/teacher-revenue";
 
-function cleanText(value: unknown, maxLength: number) {
-  return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
+export async function GET() {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "TEACHER") {
+    return NextResponse.json({ error: "Chi giang vien moi co the xem doanh thu." }, { status: 403 });
+  }
+
+  const [earned, reserved, withdrawals, notifications, unreadNotificationCount, bankAccount] = await Promise.all([
+    prisma.orderItem.aggregate({
+      where: {
+        course: { instructorId: user.id },
+        ...REVENUE_ELIGIBLE_ORDER_ITEM_WHERE,
+      },
+      _sum: { teacherRevenue: true },
+    }),
+    prisma.teacherRevenueWithdrawal.aggregate({
+      where: {
+        teacherId: user.id,
+        status: { in: [...RESERVED_WITHDRAWAL_STATUSES] },
+      },
+      _sum: { amount: true },
+    }),
+    prisma.teacherRevenueWithdrawal.findMany({
+      where: { teacherId: user.id },
+      select: {
+        id: true,
+        amount: true,
+        bankName: true,
+        accountNumber: true,
+        accountName: true,
+        status: true,
+        note: true,
+        createdAt: true,
+        complaint: {
+          select: {
+            id: true,
+            reason: true,
+            reportedAmount: true,
+            message: true,
+            evidenceImageUrl: true,
+            evidenceImageName: true,
+            status: true,
+            adminNote: true,
+            resolvedAt: true,
+            createdAt: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+    prisma.notification.findMany({
+      where: {
+        userId: user.id,
+        title: { contains: "doanh thu", mode: "insensitive" },
+      },
+      select: { id: true, title: true, body: true, readAt: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+    prisma.notification.count({
+      where: {
+        userId: user.id,
+        title: { contains: "doanh thu", mode: "insensitive" },
+        readAt: null,
+      },
+    }),
+    prisma.teacherBankAccount.findUnique({
+      where: { teacherId: user.id },
+      select: {
+        bankName: true,
+        accountNumber: true,
+        accountName: true,
+        branch: true,
+        verificationStatus: true,
+        updatedAt: true,
+      },
+    }),
+  ]);
+
+  return NextResponse.json({
+    availableRevenue: calculateAvailableTeacherRevenue(earned._sum.teacherRevenue ?? 0, reserved._sum.amount ?? 0),
+    bankAccount: bankAccount ? { ...bankAccount, updatedAt: bankAccount.updatedAt.toISOString() } : null,
+    unreadNotificationCount,
+    withdrawals: withdrawals.map((item) => ({
+      ...item,
+      createdAt: item.createdAt.toISOString(),
+      complaint: item.complaint
+        ? {
+            ...item.complaint,
+            createdAt: item.complaint.createdAt.toISOString(),
+            resolvedAt: item.complaint.resolvedAt?.toISOString() ?? null,
+          }
+        : null,
+    })),
+    notifications: notifications.map((item) => ({
+      ...item,
+      readAt: item.readAt?.toISOString() ?? null,
+      createdAt: item.createdAt.toISOString(),
+    })),
+  });
 }
 
 export async function POST(request: Request) {
@@ -25,10 +123,6 @@ export async function POST(request: Request) {
   }
 
   const amount = Number(body.amount);
-  const bankName = cleanText(body.bankName, 100);
-  const bankBranch = cleanText(body.bankBranch, 100);
-  const accountNumber = cleanText(body.accountNumber, 30).replace(/\s/g, "");
-  const accountName = cleanText(body.accountName, 100).toUpperCase();
 
   if (!Number.isSafeInteger(amount) || amount <= 0) {
     return NextResponse.json({ error: "So tien rut phai la so nguyen lon hon 0." }, { status: 400 });
@@ -37,14 +131,10 @@ export async function POST(request: Request) {
   const savedBankAccount = await prisma.teacherBankAccount.findUnique({
     where: { teacherId: user.id },
   });
-  const finalBankName = bankName || savedBankAccount?.bankName || "";
-  const finalBankBranch = bankBranch || savedBankAccount?.branch || "";
-  const finalAccountNumber = accountNumber || savedBankAccount?.accountNumber || "";
-  const finalAccountName = accountName || savedBankAccount?.accountName || "";
 
-  if (!finalBankName || !finalAccountName || !/^[0-9]{6,30}$/.test(finalAccountNumber)) {
+  if (!savedBankAccount || savedBankAccount.verificationStatus !== "VERIFIED") {
     return NextResponse.json(
-      { error: "Vui long nhap thong tin tai khoan ngan hang truoc khi rut tien." },
+      { error: "Vui lòng lưu và xác thực OTP tài khoản nhận tiền trước khi tạo yêu cầu rút tiền." },
       { status: 400 },
     );
   }
@@ -76,46 +166,19 @@ export async function POST(request: Request) {
         throw new Error("INSUFFICIENT_REVENUE");
       }
 
-      const shouldResetVerification =
-        savedBankAccount &&
-        (savedBankAccount.bankName !== finalBankName ||
-          savedBankAccount.accountNumber !== finalAccountNumber ||
-          savedBankAccount.accountName !== finalAccountName ||
-          (savedBankAccount.branch || "") !== finalBankBranch);
-
-      const bankAccount = await tx.teacherBankAccount.upsert({
-        where: { teacherId: user.id },
-        create: {
-          teacherId: user.id,
-          bankName: finalBankName,
-          accountNumber: finalAccountNumber,
-          accountName: finalAccountName,
-          branch: finalBankBranch || null,
-        },
-        update: {
-          bankName: finalBankName,
-          accountNumber: finalAccountNumber,
-          accountName: finalAccountName,
-          branch: finalBankBranch || null,
-          verificationStatus: shouldResetVerification
-            ? "UNVERIFIED"
-            : savedBankAccount?.verificationStatus ?? "UNVERIFIED",
-        },
-      });
-
       const withdrawal = await tx.teacherRevenueWithdrawal.create({
         data: {
           teacherId: user.id,
           amount,
-          bankName: finalBankName,
-          accountNumber: finalAccountNumber,
-          accountName: finalAccountName,
-          bankBranch: finalBankBranch || null,
-          bankVerificationStatus: bankAccount.verificationStatus,
+          bankName: savedBankAccount.bankName,
+          accountNumber: savedBankAccount.accountNumber,
+          accountName: savedBankAccount.accountName,
+          bankBranch: savedBankAccount.branch,
+          bankVerificationStatus: savedBankAccount.verificationStatus,
         },
       });
 
-      return { withdrawal, bankAccount, available: available - amount };
+      return { withdrawal, bankAccount: savedBankAccount, available: available - amount };
     }, { isolationLevel: "Serializable" });
 
     return NextResponse.json({ success: true, ...result }, { status: 201 });

@@ -419,6 +419,7 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
     pointTransactionsInRange,
     paymentsInRange,
     orderItemsInRange,
+    withdrawalsInRange,
     teacherApplicationsInRange,
     antiCheatLogsInRange,
     cheatingLogsInRange,
@@ -461,6 +462,8 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
             id: true,
             name: true,
             instructorId: true,
+            languageId: true,
+            language: { select: { id: true, name: true, code: true } },
             instructor: { select: { id: true, username: true } },
           },
         },
@@ -516,7 +519,11 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
       select: { id: true, userId: true, courseId: true, type: true, amount: true, createdAt: true },
     }),
     prisma.payment.findMany({
-      where: { createdAt: dateFilter, status: "SUCCESS" },
+      where: {
+        createdAt: dateFilter,
+        status: "PAID",
+        purpose: "AI_POINTS_PURCHASE",
+      },
       select: { id: true, amount: true, createdAt: true, status: true },
     }),
     prisma.orderItem.findMany({
@@ -541,6 +548,10 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
         },
         order: { select: { id: true, createdAt: true } },
       },
+    }),
+    prisma.teacherRevenueWithdrawal.findMany({
+      where: { createdAt: dateFilter },
+      select: { id: true, amount: true, status: true, createdAt: true, processedAt: true },
     }),
     prisma.teacherApplication.findMany({
       where: { createdAt: dateFilter },
@@ -574,7 +585,7 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
     }),
     prisma.feedback.findMany({
       where: { createdAt: dateFilter },
-      select: { id: true, userId: true, courseId: true, createdAt: true },
+      select: { id: true, userId: true, courseId: true, content: true, createdAt: true },
     }),
     prisma.learningLanguage.findMany({
       select: { id: true, name: true, code: true },
@@ -597,10 +608,11 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
     activeLearners.add(enrollment.userId);
     accumulateCounter(enrollmentByCourse, enrollment.courseId);
     enrollmentCourseNameMap.set(enrollment.courseId, enrollment.course.name);
-    if (enrollment.course.instructorId) {
-      accumulateCounter(enrollmentByInstructor, enrollment.course.instructorId);
-      const instructorName = enrollment.course.instructor?.username ?? userNameMap.get(enrollment.course.instructorId) ?? enrollment.course.instructorId;
-      instructorNameMap.set(enrollment.course.instructorId, instructorName);
+    const instructorId = enrollment.course.instructorId;
+    if (instructorId) {
+      accumulateCounter(enrollmentByInstructor, instructorId);
+      const instructorName = enrollment.course.instructor?.username ?? userNameMap.get(instructorId) ?? instructorId;
+      instructorNameMap.set(instructorId, instructorName);
     }
   }
 
@@ -672,9 +684,6 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
         accumulateCounter(positivePointsByStudent, point.userId, point.amount);
       }
     }
-    if (point.courseId && point.type.toUpperCase().includes("COURSE_COMPLETED")) {
-      accumulateCounter(pointsByCourseCompletion, point.courseId, 1);
-    }
   }
 
   const paymentRevenue = paymentsInRange.reduce((sum, item) => sum + item.amount, 0);
@@ -684,6 +693,21 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
   const courseOrderCount = new Set(orderItemsInRange.map((item) => item.order.id)).size;
   const avgOrderValue = orderItemsInRange.length ? courseRevenue / orderItemsInRange.length : 0;
   const revenueEntries = orderItemsInRange.map((item) => ({ date: item.order.createdAt, amount: item.price }));
+  const paidWithdrawalStatuses = new Set(["PAID", "COMPLETED"]);
+  const pendingWithdrawals = withdrawalsInRange.filter((item) => item.status === "PENDING");
+  const approvedWithdrawals = withdrawalsInRange.filter((item) => item.status === "APPROVED");
+  const paidWithdrawals = withdrawalsInRange.filter((item) => paidWithdrawalStatuses.has(item.status));
+  const rejectedWithdrawals = withdrawalsInRange.filter((item) => item.status === "REJECTED");
+  const totalWithdrawalAmount = withdrawalsInRange.reduce((sum, item) => sum + item.amount, 0);
+  const pendingWithdrawalAmount = pendingWithdrawals.reduce((sum, item) => sum + item.amount, 0);
+  const approvedWithdrawalAmount = approvedWithdrawals.reduce((sum, item) => sum + item.amount, 0);
+  const paidWithdrawalAmount = paidWithdrawals.reduce((sum, item) => sum + item.amount, 0);
+  const withdrawalEntries = withdrawalsInRange.map((item) => ({ date: item.createdAt, amount: item.amount }));
+  const withdrawalsByStatus = ["PENDING", "APPROVED", "PAID", "COMPLETED", "REJECTED"].map((status) => ({
+    status,
+    count: withdrawalsInRange.filter((item) => item.status === status).length,
+    amount: withdrawalsInRange.filter((item) => item.status === status).reduce((sum, item) => sum + item.amount, 0),
+  }));
   const orderByCourseRevenue = new Map<string, number>();
   const orderByCourseCount = new Map<string, number>();
   const orderByTeacherRevenue = new Map<string, number>();
@@ -693,16 +717,22 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
     accumulateCounter(orderByCourseRevenue, item.courseId, item.price);
     accumulateCounter(orderByCourseCount, item.courseId, 1);
     orderCourseNameMap.set(item.courseId, item.course.name);
-    if (item.course.instructorId) {
-      accumulateCounter(orderByTeacherRevenue, item.course.instructorId, item.teacherRevenue);
-      const teacherName = item.course.instructor?.username ?? userNameMap.get(item.course.instructorId) ?? item.course.instructorId;
-      instructorNameMap.set(item.course.instructorId, teacherName);
+    const instructorId = item.course.instructorId;
+    if (instructorId) {
+      accumulateCounter(orderByTeacherRevenue, instructorId, item.teacherRevenue);
+      const teacherName = item.course.instructor?.username ?? userNameMap.get(instructorId) ?? instructorId;
+      instructorNameMap.set(instructorId, teacherName);
     }
   }
 
   const feedbackByCourse = new Map<string, number>();
   for (const feedback of feedbacksInRange) {
-    accumulateCounter(feedbackByCourse, feedback.courseId);
+    if (feedback.content.startsWith("COURSE_REVIEW:")) {
+      accumulateCounter(feedbackByCourse, feedback.courseId);
+    }
+    if (feedback.content.startsWith("COURSE_COMPLETED:")) {
+      accumulateCounter(pointsByCourseCompletion, feedback.courseId, 1);
+    }
   }
 
   const popularCourseIds = new Set<string>([
@@ -899,6 +929,7 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
   const studentsByLanguage = new Map<string, number>();
   const coursesByLanguage = new Map<string, number>();
   const testsByLanguage = new Map<string, number>();
+  const enrollmentsByLanguage = new Map<string, number>();
 
   for (const user of usersInRange) {
     if (user.role !== "STUDENT" || !user.learningLanguageId) continue;
@@ -911,6 +942,11 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
     const language = languageById.get(course.languageId);
     if (!language) continue;
     accumulateCounter(coursesByLanguage, language.name);
+  }
+  for (const enrollment of enrollmentsInRange) {
+    const languageName = enrollment.course.language?.name;
+    if (!languageName) continue;
+    accumulateCounter(enrollmentsByLanguage, languageName);
   }
   for (const test of testsInRange) {
     if (!test.languageId) continue;
@@ -1029,6 +1065,10 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
         walletTopUpRevenue: formatNumber(paymentRevenue, 2),
         averageOrderValue: formatNumber(avgOrderValue, 2),
         successfulTransactions: orderItemsInRange.length,
+        withdrawalCount: withdrawalsInRange.length,
+        withdrawalAmount: formatNumber(totalWithdrawalAmount, 2),
+        pendingWithdrawalCount: pendingWithdrawals.length,
+        pendingWithdrawalAmount: formatNumber(pendingWithdrawalAmount, 2),
       },
     },
     userGrowth: {
@@ -1141,6 +1181,17 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
       walletTopUpRevenue: formatNumber(paymentRevenue, 2),
       orderCount: courseOrderCount,
       averageOrderValue: formatNumber(avgOrderValue, 2),
+      withdrawalCount: withdrawalsInRange.length,
+      withdrawalAmount: formatNumber(totalWithdrawalAmount, 2),
+      withdrawalPaidAmount: formatNumber(paidWithdrawalAmount, 2),
+      withdrawalPendingAmount: formatNumber(pendingWithdrawalAmount, 2),
+      withdrawalApprovedAmount: formatNumber(approvedWithdrawalAmount, 2),
+      withdrawalRejectedCount: rejectedWithdrawals.length,
+      withdrawalsByStatus: withdrawalsByStatus.map((item) => ({
+        ...item,
+        amount: formatNumber(item.amount, 2),
+      })),
+      withdrawalsByTime: buildSumSeries(withdrawalEntries, range.start, range.end, bucketGranularity),
       topSellingCourses: topFromMap(orderByCourseCount, 10).map((item) => ({
         courseId: item.name,
         courseName: orderCourseNameMap.get(item.name) ?? item.name,
@@ -1181,8 +1232,9 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
     languageAnalytics: {
       studentsByLanguage: topFromMap(studentsByLanguage, 20),
       coursesByLanguage: topFromMap(coursesByLanguage, 20),
+      enrollmentsByLanguage: topFromMap(enrollmentsByLanguage, 20),
       testsByLanguage: topFromMap(testsByLanguage, 20),
-      mostPopularLanguage: topFromMap(studentsByLanguage, 1)[0] ?? null,
+      mostPopularLanguage: topFromMap(enrollmentsByLanguage, 1)[0] ?? topFromMap(studentsByLanguage, 1)[0] ?? null,
     },
     rankings: {
       students: {

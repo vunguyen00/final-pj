@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Badge, BadgeGroup } from "@/components/base/badge";
 import { normalizeCourseThumbnailUrl } from "@/lib/course-thumbnail";
 import {
@@ -10,6 +11,7 @@ import {
   type CourseLike,
 } from "@/app/components/learningMarketplace";
 import { getLearningUiLabels } from "@/lib/test-language-labels";
+import { getCourseCategoryLabel, getCourseLevelLabel } from "@/lib/language-display";
 
 type CourseCardCourse = CourseLike & {
   id: string;
@@ -30,30 +32,22 @@ export function CourseCard({
   compact?: boolean;
 }) {
   const language = getCourseLanguage(course);
-  const ui = getLearningUiLabels(course.language?.code || course.language?.name || language);
+  const courseLanguage = course.language?.code || course.language?.name || language;
+  const ui = getLearningUiLabels(courseLanguage);
   const level = getCourseLevel(course);
   const thumbnailUrl = normalizeCourseThumbnailUrl(course.thumbnail);
   const courseHref = href ?? `/courses/${course.id}`;
   const actionHref = isEnrolled ? `/student/hoc-bai?courseId=${course.id}` : courseHref;
-  const category = course.category?.trim() || ui.course.categoryFallback;
+  const category = getCourseCategoryLabel(course.category, courseLanguage) || ui.course.categoryFallback;
   const enrollments = course._count?.enrollments ?? 0;
-  const levelLabel =
-    level === "Advanced"
-      ? ui.levels.advanced
-      : level === "Upper Intermediate"
-        ? ui.levels.upperIntermediate
-        : level === "Intermediate"
-          ? ui.levels.intermediate
-          : level === "Elementary"
-            ? ui.levels.elementary
-            : ui.levels.beginner;
+  const levelLabel = getCourseLevelLabel(level, courseLanguage);
 
   return (
     <article className="flex h-full flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
       <Link href={courseHref} className="block">
-        <div className="aspect-video bg-muted">
+        <div className="relative aspect-video bg-muted">
           {thumbnailUrl ? (
-            <img src={thumbnailUrl} alt={course.name} className="h-full w-full object-cover" />
+            <Image src={thumbnailUrl} alt={course.name} fill sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw" className="object-cover" unoptimized />
           ) : (
             <div className="flex h-full items-center justify-center px-4 text-center text-sm font-semibold text-muted-foreground">
               {getLanguageLabel(language)}

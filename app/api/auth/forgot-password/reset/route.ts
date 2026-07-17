@@ -66,23 +66,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: activeOtp.userId },
-      select: { role: true },
-    });
+    const user = await prisma.user.findUnique({ where: { id: activeOtp.userId } });
 
     if (!user) {
       return NextResponse.json({ error: "Tài khoản không tồn tại." }, { status: 404 });
-    }
-
-    if (user.role === "ADMIN") {
-      return NextResponse.json(
-        {
-          error:
-            "Tài khoản admin không được đặt lại mật khẩu bằng OTP. Vui lòng liên hệ quản trị hệ thống để được cấp mật khẩu mới.",
-        },
-        { status: 403 },
-      );
     }
 
     if (activeOtp.attempts >= OTP_MAX_ATTEMPTS) {
@@ -120,7 +107,10 @@ export async function POST(request: Request) {
     await prisma.$transaction([
       prisma.user.update({
         where: { id: activeOtp.userId },
-        data: { password: passwordHash },
+        data: {
+          password: passwordHash,
+          authVersion: { increment: 1 },
+        },
       }),
       prisma.passwordResetOtp.updateMany({
         where: {
@@ -131,6 +121,7 @@ export async function POST(request: Request) {
           consumedAt: now,
         },
       }),
+      prisma.session.deleteMany({ where: { userId: activeOtp.userId } }),
     ]);
 
     return NextResponse.json({
