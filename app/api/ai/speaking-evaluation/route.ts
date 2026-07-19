@@ -24,7 +24,7 @@ import {
   validateUploadSignature,
 } from "@/lib/upload-validation";
 import type { IeltsSpeakingEvaluation } from "@/lib/ielts-rubric";
-import type { Prisma } from "@/app/generated/prisma/client";
+import type { Prisma } from "@/.generated/prisma/client";
 import {
   getSpeakingEvaluationSystem,
   getSpeakingLanguageFromExamSetting,

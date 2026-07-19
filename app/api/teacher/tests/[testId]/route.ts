@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { FIXED_TEST_MAX_SCORE, requiresLanguageForTest } from "@/lib/test-rules";
-import { Prisma } from "@/app/generated/prisma/client";
+import { Prisma } from "@/.generated/prisma/client";
 
 async function deleteTestWithRelations(testId: string) {
   await prisma.$transaction(async (tx) => {

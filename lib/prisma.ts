@@ -1,5 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@/app/generated/prisma/client";
+import type { PrismaClientOptions as RuntimePrismaClientOptions } from "@prisma/client/runtime/client";
+import { PrismaClient } from "@/.generated/prisma/client";
 import { getDatabaseAdapterConfig, getDatabaseUrlTarget } from "@/lib/database-url";
 
 declare global {
@@ -53,6 +54,7 @@ const adapter = new PrismaPg(
   { connectionString: databaseConfig.connectionString },
   databaseConfig.schema ? { schema: databaseConfig.schema } : undefined,
 );
+const prismaClientOptions: RuntimePrismaClientOptions = { adapter };
 
 if (!global.prisma) {
   console.info("[prisma] DATABASE_URL target:", getDatabaseUrlTarget());
@@ -60,9 +62,7 @@ if (!global.prisma) {
 
 export const prisma =
   getReusablePrismaClient() ??
-  new PrismaClient({
-    adapter,
-  });
+  new PrismaClient(prismaClientOptions);
 
 if (process.env.NODE_ENV !== "production") {
   global.prisma = prisma;

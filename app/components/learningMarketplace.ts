@@ -142,13 +142,6 @@ export function getCourseDuration(course: CourseLike) {
   return `${Math.max(2, Math.ceil(lessons * 1.5))} giờ`;
 }
 
-export function getLanguageSkills(language: string) {
-  if (language === "Japanese") return ["Nghe", "Đọc", "Kanji", "Ngữ pháp", "Từ vựng", "Thi thử JLPT"];
-  if (language === "Chinese") return ["Nghe", "Đọc", "Hán tự", "Ngữ pháp", "Từ vựng", "Thi thử HSK"];
-  if (language === "Korean") return ["Nghe", "Đọc", "Hangul", "Ngữ pháp", "Từ vựng", "Thi thử TOPIK"];
-  return ["Nghe", "Nói", "Đọc", "Viết", "Ngữ pháp", "Từ vựng", "Phát âm"];
-}
-
 export function priceLabel(price?: number) {
   const value = Number(price ?? 0);
   return value > 0 ? `${value.toLocaleString("vi-VN")}đ` : "Miễn phí";

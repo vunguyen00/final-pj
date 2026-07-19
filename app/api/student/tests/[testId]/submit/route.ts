@@ -20,6 +20,7 @@ import {
 import { shouldChargeAiPoints } from "@/lib/ai-access";
 import {
   evaluateTestAiAnswers,
+  getTestAiScoreRatio,
   isTestAiAnswerCorrect,
 } from "@/lib/test-ai-evaluation";
 import { verifyTestAttemptToken } from "@/lib/test-attempt-token";
@@ -224,8 +225,7 @@ export async function POST(
         if (studentAnswerDisplay.trim()) {
           const aiResult = aiResults.get(question.id);
           if (aiResult) {
-            const scorePercentage = aiResult.normalizedScore / 10;
-            earnedScore = Math.round(question.score * scorePercentage);
+            earnedScore = Math.round(question.score * getTestAiScoreRatio(aiResult) * 10) / 10;
             isCorrect = isTestAiAnswerCorrect(aiResult);
             totalScore += earnedScore;
             aiEvaluation = aiResult.aiEvaluation;
@@ -235,8 +235,7 @@ export async function POST(
         if (studentAnswerDisplay.trim()) {
           const aiResult = aiResults.get(question.id);
           if (aiResult) {
-            const scorePercentage = aiResult.normalizedScore / 10;
-            earnedScore = Math.round(question.score * scorePercentage);
+            earnedScore = Math.round(question.score * getTestAiScoreRatio(aiResult) * 10) / 10;
             isCorrect = isTestAiAnswerCorrect(aiResult);
             totalScore += earnedScore;
             aiEvaluation = aiResult.aiEvaluation;

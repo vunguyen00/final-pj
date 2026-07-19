@@ -1033,11 +1033,3 @@ labels.ko = {
 export function getLearningUiLabels(languageCode?: string | null): LearningUiLabels {
   return labels[normalizeLanguageCode(languageCode)];
 }
-
-export function getSubmitButtonLabel(languageCode?: string | null) {
-  return getLearningUiLabels(languageCode).submit;
-}
-
-export function getTrueFalseLabels(languageCode?: string | null) {
-  return getLearningUiLabels(languageCode).trueFalse;
-}

@@ -58,15 +58,6 @@ export function getLanguageDisplayLabel(value?: string | null) {
   return "Ti\u1ebfng Vi\u1ec7t";
 }
 
-export function getNativeLanguageLabel(value?: string | null) {
-  const language = getContentUiLanguage(value);
-  if (language === "en") return "English";
-  if (language === "zh") return "\u4e2d\u6587";
-  if (language === "ja") return "\u65e5\u672c\u8a9e";
-  if (language === "ko") return "\ud55c\uad6d\uc5b4";
-  return "Ti\u1ebfng Vi\u1ec7t";
-}
-
 const categoryLabels: Record<UiLanguage, Record<CanonicalCourseCategory, string>> = {
   en: {
     Speaking: "Speaking",

@@ -4,7 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FormattedHint } from "@/app/components/FormattedHint";
-import { SpeakingAnswerInput } from "@/app/components/SpeakingAnswerInput";
+import {
+  SpeakingAnswerInput,
+  type SpeakingActivity,
+} from "@/app/components/SpeakingAnswerInput";
 import { TestMaterialPanel } from "@/app/components/TestMaterialPanel";
 import { getLearningUiLabels } from "@/lib/test-language-labels";
 import type { ChartMaterialData } from "@/lib/test-material";
@@ -121,12 +124,12 @@ export default function StudentTakeTestClient({
         ? initialData.test.timeLimit * 60
         : null,
   );
-  const [speakingBusyByQuestion, setSpeakingBusyByQuestion] = useState<
-    Record<string, boolean>
+  const [speakingActivityByQuestion, setSpeakingActivityByQuestion] = useState<
+    Record<string, SpeakingActivity>
   >({});
 
   const answersRef = useRef<Record<string, string>>(answers);
-  const speakingBusyRef = useRef<Record<string, boolean>>({});
+  const speakingActivityRef = useRef<Record<string, SpeakingActivity>>({});
   const submittingRef = useRef(false);
   const autoSubmitTriggeredRef = useRef(false);
   const deadlineRef = useRef<number | null>(null);
@@ -144,8 +147,8 @@ export default function StudentTakeTestClient({
     [answers, questions],
   );
   const hasSpeakingBusy = useMemo(
-    () => Object.values(speakingBusyByQuestion).some(Boolean),
-    [speakingBusyByQuestion],
+    () => Object.values(speakingActivityByQuestion).some((activity) => activity !== "idle"),
+    [speakingActivityByQuestion],
   );
 
   const handleSubmit = useCallback(
@@ -157,7 +160,7 @@ export default function StudentTakeTestClient({
       includeAiFeedback?: boolean;
     } = {}) => {
       if (submittingRef.current) return;
-      if (Object.values(speakingBusyRef.current).some(Boolean)) {
+      if (Object.values(speakingActivityRef.current).some((activity) => activity !== "idle")) {
         if (skipConfirmation) {
           autoSubmitTriggeredRef.current = false;
         } else {
@@ -303,14 +306,14 @@ export default function StudentTakeTestClient({
     setAnswers(next);
   }
 
-  function handleSpeakingBusyChange(questionId: string, busy: boolean) {
-    if (speakingBusyRef.current[questionId] === busy) return;
+  function setSpeakingActivity(questionId: string, activity: SpeakingActivity) {
+    if (speakingActivityRef.current[questionId] === activity) return;
 
-    speakingBusyRef.current = {
-      ...speakingBusyRef.current,
-      [questionId]: busy,
+    speakingActivityRef.current = {
+      ...speakingActivityRef.current,
+      [questionId]: activity,
     };
-    setSpeakingBusyByQuestion(speakingBusyRef.current);
+    setSpeakingActivityByQuestion(speakingActivityRef.current);
   }
 
   const speechLocale = getSpeechRecognitionLocale(test?.language?.code);
@@ -581,8 +584,9 @@ export default function StudentTakeTestClient({
                       languageCode={test.language?.code}
                       disabled={isInteractionLocked}
                       forceStop={isExpired}
-                      onBusyChange={(busy) =>
-                        handleSpeakingBusyChange(question.id, busy)
+                      activity={speakingActivityByQuestion[question.id] ?? "idle"}
+                      setActivity={(activity) =>
+                        setSpeakingActivity(question.id, activity)
                       }
                     />
                     <div>

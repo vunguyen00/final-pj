@@ -32,6 +32,13 @@ const statusUi: Record<string, { label: string; className: string }> = {
   REJECTED: { label: "Bị từ chối", className: "bg-rose-50 text-rose-700 ring-rose-200" },
 };
 
+const SUMMARY_CARD_TONE_MAP = {
+  emerald: "border-emerald-200 bg-emerald-50 text-emerald-900",
+  blue: "border-blue-200 bg-blue-50 text-blue-900",
+  slate: "border-slate-200 bg-white text-slate-950",
+  amber: "border-amber-200 bg-amber-50 text-amber-900",
+};
+
 function formatCurrency(value: number) {
   return currencyFormatter.format(Math.round(value));
 }
@@ -343,15 +350,8 @@ function SummaryCard({
   hint: string;
   tone: "emerald" | "blue" | "slate" | "amber";
 }) {
-  const toneMap = {
-    emerald: "border-emerald-200 bg-emerald-50 text-emerald-900",
-    blue: "border-blue-200 bg-blue-50 text-blue-900",
-    slate: "border-slate-200 bg-white text-slate-950",
-    amber: "border-amber-200 bg-amber-50 text-amber-900",
-  };
-
   return (
-    <article className={`rounded-2xl border p-4 shadow-sm ${toneMap[tone]}`}>
+    <article className={`rounded-2xl border p-4 shadow-sm ${SUMMARY_CARD_TONE_MAP[tone]}`}>
       <p className="text-xs font-semibold uppercase opacity-70">{label}</p>
       <p className="mt-2 text-2xl font-bold">{value}</p>
       <p className="mt-1 text-xs opacity-75">{hint}</p>

@@ -1,5 +1,16 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+const VNP_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Asia/Ho_Chi_Minh",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
+
 export type VnpayConfig = {
   tmnCode: string;
   hashSecret: string;
@@ -129,16 +140,7 @@ export function createTxnRef() {
 }
 
 export function formatVnpDate(date: Date) {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  }).formatToParts(date);
+  const parts = VNP_DATE_FORMATTER.formatToParts(date);
   const yyyy = parts.find((part) => part.type === "year")?.value ?? "";
   const mm = parts.find((part) => part.type === "month")?.value ?? "";
   const dd = parts.find((part) => part.type === "day")?.value ?? "";

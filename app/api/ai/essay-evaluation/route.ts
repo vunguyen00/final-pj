@@ -23,7 +23,7 @@ import type {
   IeltsWritingEvaluation,
   IeltsWritingTaskType,
 } from "@/lib/ielts-rubric";
-import type { Prisma } from "@/app/generated/prisma/client";
+import type { Prisma } from "@/.generated/prisma/client";
 import {
   getWritingEvaluationSystem,
   getWritingLanguageCode,

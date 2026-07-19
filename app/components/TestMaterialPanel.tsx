@@ -5,6 +5,7 @@ import type { ChartMaterialData, TestMaterial } from "@/lib/test-material";
 import { isChartMaterialData } from "@/lib/test-material";
 
 const SERIES_COLORS = ["#2563eb", "#7c3aed", "#059669", "#ea580c"];
+const CHART_PADDING = { top: 40, right: 24, bottom: 80, left: 58 };
 
 export function TestMaterialPanel({
   material,
@@ -72,7 +73,7 @@ function ChartView({ data }: { data: ChartMaterialData }) {
 
   const width = 720;
   const height = 390;
-  const padding = { top: 40, right: 24, bottom: 80, left: 58 };
+  const padding = CHART_PADDING;
   const plotWidth = width - padding.left - padding.right;
   const plotHeight = height - padding.top - padding.bottom;
   const allValues = data.series.flatMap((series) => series.values);

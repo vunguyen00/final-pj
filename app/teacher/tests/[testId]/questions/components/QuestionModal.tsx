@@ -178,7 +178,7 @@ export function QuestionModal({
             <div className="space-y-2">
               <p className="block text-sm font-medium text-slate-700">{labels.answers}</p>
               {form.answers.map((answer, index) => (
-                <div key={answer.id || `answer-${index}`} className="flex items-center gap-2">
+                <div key={answer.id} className="flex items-center gap-2">
                   <button
                     type="button"
                     aria-label={labels.answerPlaceholder(index)}

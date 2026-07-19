@@ -7,6 +7,7 @@ import {
   averageScoreKeys,
   capScoreRecord,
   detectLikelyIeltsWritingTask,
+  getClassroomSpeakingEvidenceCap,
   getGeneralWritingEvidenceCap,
   getIeltsWritingEvidenceCap,
   getSpeakingEvidenceCap,
@@ -79,6 +80,18 @@ export function isTestAiAnswerCorrect(result: TestAiAnswerResult) {
   }
 
   return result.normalizedScore >= 7;
+}
+
+export function getTestAiScoreRatio(result: TestAiAnswerResult) {
+  const totalScore = Number(result.aiEvaluation.totalScore);
+  if (Number.isFinite(totalScore) && totalScore > 0) {
+    return Math.max(0, Math.min(100, totalScore)) / 100;
+  }
+
+  const normalizedScore = Number(result.normalizedScore);
+  return Number.isFinite(normalizedScore)
+    ? Math.max(0, Math.min(10, normalizedScore)) / 10
+    : 0;
 }
 
 class AiEvaluationResponseError extends Error {
@@ -265,15 +278,18 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function calibrateTestScore(input: {
+export function calibrateTestScore(input: {
   answer: string;
   mode: "WRITING" | "SPEAKING";
   prompt?: string;
   relevance: number;
   reportedScore: number;
+  certificateScore?: number;
   criteria: Record<string, number>;
   source: Record<string, unknown>;
+  scoringProfile?: "strict" | "classroom";
 }) {
+  const isStrictProfile = input.scoringProfile !== "classroom";
   const relevanceCap =
     input.relevance <= 20
       ? 1.5
@@ -289,9 +305,9 @@ function calibrateTestScore(input: {
     const taskType = detectLikelyIeltsWritingTask(input.prompt || "");
     evidenceCap = taskType
       ? getIeltsWritingEvidenceCap(input.answer, taskType)
-      : getGeneralWritingEvidenceCap(input.answer);
+      : getGeneralWritingEvidenceCap(input.answer, input.prompt);
 
-    if (taskType) {
+    if (taskType && isStrictProfile) {
       const feedbackText = sourceFeedbackText(input.source);
       const paragraphCount = input.answer
         .split(/\n\s*\n/)
@@ -326,8 +342,10 @@ function calibrateTestScore(input: {
       }
     }
   } else {
-    evidenceCap = getSpeakingEvidenceCap(input.answer);
-    if (Number.isFinite(criteria.pronunciation)) {
+    evidenceCap = isStrictProfile
+      ? getSpeakingEvidenceCap(input.answer)
+      : getClassroomSpeakingEvidenceCap(input.answer);
+    if (isStrictProfile && Number.isFinite(criteria.pronunciation)) {
       criteria.pronunciation = Math.min(criteria.pronunciation, 6);
     }
   }
@@ -338,14 +356,39 @@ function calibrateTestScore(input: {
       ? ["task_response", "coherence", "vocabulary", "grammar"]
       : ["fluency", "vocabulary", "grammar", "pronunciation"];
   const criteriaAverage = averageScoreKeys(criteria, relevantCriteria);
-  const normalizedScore = roundToHalf(
-    Math.min(
-      input.reportedScore,
-      criteriaAverage ?? input.reportedScore,
-      evidenceCap,
-      relevanceCap,
-    ),
+  const hasCertificateScore = Number.isFinite(input.certificateScore);
+  const rubricScoreSource = hasCertificateScore
+    ? Number(input.certificateScore)
+    : criteriaAverage ?? input.reportedScore;
+  const rubricAlignedScore = isStrictProfile
+    ? roundToHalf(rubricScoreSource)
+    : Math.round(Math.max(0, Math.min(10, rubricScoreSource)) * 10) / 10;
+  const classroomScore =
+    criteriaAverage == null && !Number.isFinite(input.certificateScore)
+      ? input.reportedScore
+      : hasCertificateScore && input.relevance >= 80
+        ? rubricAlignedScore
+        : input.relevance >= 80
+        ? Math.min(
+            Math.max(input.reportedScore, rubricAlignedScore - 0.5),
+            rubricAlignedScore + 0.5,
+          )
+        : input.relevance >= 60
+          ? Math.min(
+              Math.max(input.reportedScore, rubricAlignedScore - 1),
+              rubricAlignedScore + 0.5,
+            )
+          : Math.min(input.reportedScore, rubricAlignedScore);
+  const rawNormalizedScore = Math.min(
+    isStrictProfile
+      ? Math.min(input.reportedScore, criteriaAverage ?? input.reportedScore)
+      : classroomScore,
+    evidenceCap,
+    relevanceCap,
   );
+  const normalizedScore = isStrictProfile
+    ? roundToHalf(rawNormalizedScore)
+    : Math.round(Math.max(0, Math.min(10, rawNormalizedScore)) * 10) / 10;
 
   return { criteria, normalizedScore };
 }
@@ -424,8 +467,10 @@ function parseBatchResponse(raw: string, inputs: TestAiAnswerInput[]) {
       prompt: input.prompt,
       relevance,
       reportedScore: clampScore(reportedOverall),
+      certificateScore: totalScore / 10,
       criteria: parsedCriteria,
       source,
+      scoringProfile: rubric.system === "IELTS" ? "strict" : "classroom",
     });
     const reportedOnTopic = booleanValue(source.onTopic ?? source.on_topic, relevance >= 60);
     const onTopic = reportedOnTopic && relevance >= 60;
@@ -491,12 +536,12 @@ function buildEvaluationMessages(
   return [
     {
       role: "system" as const,
-      content: `You are a strict language examiner. Grade every submitted answer independently.
+      content: `You are a fair language examiner. Grade every submitted answer independently.
 Return only compact valid JSON. Criteria and overall scores use a 0-10 scale. Task relevance uses a 0-100 scale.
 Also grade with the provided certificateRubric. Return criteriaScores on a 0-100 scale using the exact rubric criterion keys and weights. Return totalScore as a weighted 0-100 score. Include majorErrors, improvementsNeeded, suggestions, sampleAnswer, and certificateFit.
 Task relevance is mandatory. If the answer does not address the requested topic or required points, set onTopic=false, explain why, and score it very low.
 Completely unrelated answers: relevance <=20 and overall <=1.5. Mostly unrelated answers: relevance <=40 and overall <=3. Partly off-topic answers: relevance <=60 and overall <=5.
-Calibrate conservatively. A score of 5 is limited, 6 is competent with noticeable limitations, 7 requires consistently developed ideas and flexible language, 8 requires precise wide-ranging language and strong control, and 9-10 must be rare and exceptional. Start at 5 and increase only when the answer demonstrates concrete evidence for the higher level.
+Calibrate fairly. A score of 5 is limited, 6 is competent with noticeable limitations, 7 is solid and clearly successful, 8 shows strong control, and 9-10 should be rare. For short classroom prompts and non-IELTS rubrics, a concise answer can receive 7-9 when it fully answers the prompt and the language control is strong; do not default to 5 when the rubric criteria are high.
 For writing, calculate overallScore from task_response, coherence, vocabulary, and grammar. IELTS-like Task 2 responses below 250 words must not exceed 6.5. A missing conclusion or unclear position limits task_response to 5.
 For speaking transcripts, calculate overallScore from fluency, vocabulary, grammar, and pronunciation. A basic or repetitive response should normally remain at 6 or below. A transcript below 150 words must not exceed 6.5. Without acoustic audio analysis, pronunciation must not exceed 6.
 Speaking transcripts may come from browser automatic speech recognition. Isolated misspellings, homophones, missing punctuation, or contextually improbable substitutions may be recognition errors. Infer an intended word only when the prompt and surrounding sentence provide strong evidence. Do not penalize that isolated token as a definite learner error, but do not excuse repeated misuse, broken grammar, or plausible learner mistakes. If uncertain, label it as a possible recognition error. Transcript spelling alone is not pronunciation evidence.
@@ -621,68 +666,6 @@ function failedEvaluation(
       feedback: [],
       suggestions: ["Please try submitting the test again."],
       corrections: [],
-    },
-  };
-}
-
-export async function evaluateWritingAnswer(essayText: string, taskPrompt?: string): Promise<{
-  normalizedScore: number;
-  aiEvaluation: TestAiFeedback;
-}> {
-  const result = (await evaluateTestAiAnswers([
-    {
-      questionId: "writing",
-      mode: "WRITING",
-      answer: essayText,
-      prompt: taskPrompt,
-    },
-  ])).get("writing");
-
-  return result ?? {
-    normalizedScore: 0,
-    aiEvaluation: {
-      mode: "WRITING",
-      language: "Unknown",
-      overallScore: 0,
-      summary: "Could not evaluate writing answer.",
-      strengths: [],
-      weaknesses: ["AI evaluation is temporarily unavailable."],
-      feedback: [],
-      suggestions: [],
-      corrections: [],
-    },
-  };
-}
-
-export async function evaluateSpeakingAnswer(input: {
-  transcript: string;
-  prompt?: string;
-  languageCode?: string | null;
-}): Promise<{
-  normalizedScore: number;
-  aiEvaluation: TestAiFeedback;
-}> {
-  const result = (await evaluateTestAiAnswers([
-    {
-      questionId: "speaking",
-      mode: "SPEAKING",
-      answer: input.transcript,
-      prompt: input.prompt,
-      languageCode: input.languageCode,
-    },
-  ])).get("speaking");
-
-  return result ?? {
-    normalizedScore: 0,
-    aiEvaluation: {
-      mode: "SPEAKING",
-      language: "Unknown",
-      overallScore: 0,
-      summary: "Could not evaluate speaking answer.",
-      strengths: [],
-      weaknesses: ["AI evaluation is temporarily unavailable."],
-      feedback: [],
-      suggestions: [],
     },
   };
 }

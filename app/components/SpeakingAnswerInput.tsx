@@ -11,6 +11,12 @@ type TranscriptionWorkerMessage = {
   error?: string;
 };
 
+export type SpeakingActivity =
+  | "idle"
+  | "preparing"
+  | "recording"
+  | "transcribing";
+
 let sharedWorker: Worker | null = null;
 let transcriptionRequestId = 0;
 
@@ -143,7 +149,8 @@ export function SpeakingAnswerInput({
   languageCode,
   disabled = false,
   forceStop = false,
-  onBusyChange,
+  activity,
+  setActivity,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -151,7 +158,8 @@ export function SpeakingAnswerInput({
   languageCode?: string | null;
   disabled?: boolean;
   forceStop?: boolean;
-  onBusyChange?: (busy: boolean) => void;
+  activity: SpeakingActivity;
+  setActivity: (activity: SpeakingActivity) => void;
 }) {
   const labels = getSpeakingRecordingLabels(languageCode || languageLocale);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -160,17 +168,14 @@ export function SpeakingAnswerInput({
   const previewUrlRef = useRef("");
   const finishingRef = useRef(false);
 
-  const [recording, setRecording] = useState(false);
-  const [preparing, setPreparing] = useState(false);
-  const [transcribing, setTranscribing] = useState(false);
   const [hasCompletedRecording, setHasCompletedRecording] = useState(false);
   const [previewUrl, setPreviewUrl] = useState("");
   const [status, setStatus] = useState("");
   const [supportError, setSupportError] = useState("");
 
-  useEffect(() => {
-    onBusyChange?.(recording || preparing || transcribing);
-  }, [onBusyChange, preparing, recording, transcribing]);
+  const recording = activity === "recording";
+  const preparing = activity === "preparing";
+  const transcribing = activity === "transcribing";
 
   const stopTracks = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -181,14 +186,13 @@ export function SpeakingAnswerInput({
     if (finishingRef.current || transcribing) return;
     const recorder = recorderRef.current;
     if (!recorder || recorder.state === "inactive") {
-      setRecording(false);
+      setActivity("idle");
       stopTracks();
       return;
     }
 
     finishingRef.current = true;
-    setRecording(false);
-    setTranscribing(true);
+    setActivity("transcribing");
     setSupportError("");
 
     try {
@@ -242,11 +246,11 @@ export function SpeakingAnswerInput({
       );
       setStatus("");
     } finally {
-      setTranscribing(false);
+      setActivity("idle");
       finishingRef.current = false;
       stopTracks();
     }
-  }, [labels, languageLocale, onChange, stopTracks, transcribing]);
+  }, [labels, languageLocale, onChange, setActivity, stopTracks, transcribing]);
 
   useEffect(() => {
     if (forceStop && recording) {
@@ -276,7 +280,7 @@ export function SpeakingAnswerInput({
       return;
     }
 
-    setPreparing(true);
+    setActivity("preparing");
     setSupportError("");
     setStatus("");
 
@@ -293,8 +297,7 @@ export function SpeakingAnswerInput({
       recorder.addEventListener(
         "start",
         () => {
-          setPreparing(false);
-          setRecording(true);
+          setActivity("recording");
         },
         { once: true },
       );
@@ -313,14 +316,14 @@ export function SpeakingAnswerInput({
     } catch {
       stopTracks();
       recorderRef.current = null;
-      setPreparing(false);
+      setActivity("idle");
       setSupportError(
         labels.microphoneDenied,
       );
     }
   }
 
-  const busy = recording || preparing || transcribing;
+  const busy = activity !== "idle";
 
   return (
     <div className="space-y-3">

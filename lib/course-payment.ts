@@ -1,4 +1,4 @@
-import type { Prisma } from "@/app/generated/prisma/client";
+import type { Prisma } from "@/.generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { calculateCourseRevenueSplit } from "@/lib/revenue";
 import { VNPAY_PROVIDER } from "@/lib/wallet";

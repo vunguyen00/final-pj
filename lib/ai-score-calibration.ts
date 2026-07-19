@@ -28,6 +28,8 @@ const CONCLUSION_PATTERN =
   /\b(in conclusion|to conclude|to sum up|in summary|all in all|on balance|for these reasons)\b/i;
 const OVERVIEW_PATTERN =
   /\b(overall|in general|it is clear that|it can be seen that)\b/i;
+const SHORT_RESPONSE_PROMPT_PATTERN =
+  /\b(short|brief|paragraph|short paragraph|short answer|concise|doan van ngan|doan ngan|viet ngan|ngan gon)\b|短い|短文|段落|简短|短文|짧은|단락/i;
 
 export function countResponseWords(value: string) {
   const normalized = value.trim();
@@ -94,12 +96,35 @@ export function getIeltsWritingEvidenceCap(
   return 9;
 }
 
-export function getGeneralWritingEvidenceCap(answer: string) {
+export function getGeneralWritingEvidenceCap(
+  answer: string,
+  prompt = "",
+) {
   const wordCount = countResponseWords(answer);
+
+  if (SHORT_RESPONSE_PROMPT_PATTERN.test(prompt)) {
+    if (wordCount < 8) return 2;
+    if (wordCount < 15) return 4;
+    if (wordCount < 25) return 6;
+    if (wordCount < 40) return 7.5;
+    if (wordCount < 60) return 8.5;
+    return 10;
+  }
+
   if (wordCount < 20) return 2;
-  if (wordCount < 50) return 3.5;
-  if (wordCount < 100) return 5;
-  if (wordCount < 150) return 6;
+  if (wordCount < 40) return 4.5;
+  if (wordCount < 70) return 6.5;
+  if (wordCount < 100) return 8;
+  return 10;
+}
+
+export function getClassroomSpeakingEvidenceCap(transcript: string) {
+  const wordCount = countResponseWords(transcript);
+  if (wordCount < 10) return 2.5;
+  if (wordCount < 20) return 4;
+  if (wordCount < 40) return 6;
+  if (wordCount < 70) return 7.5;
+  if (wordCount < 100) return 8.5;
   return 10;
 }
 

@@ -6,7 +6,7 @@ import {
 } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { Role } from "@/app/generated/prisma/enums";
+import { Role } from "@/.generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 import { getRequiredAuthSecret } from "@/lib/server-secret";
 
@@ -21,14 +21,6 @@ export const ROLE_HOME: Record<AppRole, string> = {
   TEACHER: "/",
   ADMIN: "/",
 };
-
-export function normalizeRole(value: string): AppRole | null {
-  if (value in Role) {
-    return value as AppRole;
-  }
-
-  return null;
-}
 
 function base64urlEncode(input: string | Buffer): string {
   return Buffer.from(input)

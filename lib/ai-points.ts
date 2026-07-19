@@ -1,12 +1,9 @@
-import type { Prisma } from "@/app/generated/prisma/client";
+import type { Prisma } from "@/.generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { VNPAY_PROVIDER } from "@/lib/wallet";
 
-export const COURSE_COMPLETION_POINTS = 0;
 export const SPEAKING_AI_COST = 7;
 export const WRITING_AI_COST = 3;
-export const STREAK_3_DAY_POINTS = 0;
-export const STREAK_7_DAY_POINTS = 0;
 export const AI_POINT_PRICE_VND = Math.max(1, Number(process.env.AI_POINT_PRICE_VND ?? 1000));
 export const AI_POINT_PAYMENT_PURPOSE = "AI_POINTS_PURCHASE";
 export const AI_POINT_PAYMENT_EXPIRE_MINUTES = 15;
@@ -19,12 +16,6 @@ export const AI_POINT_PAYMENT_STATUS = {
   CANCELLED: "CANCELLED",
   EXPIRED: "EXPIRED",
 } as const;
-
-export const AI_FEEDBACK_FEATURES = new Set([
-  "WRITING_AI",
-  "SPEAKING_AI",
-  "TEST_AI_FEEDBACK",
-]);
 
 type ActivityType = "LESSON" | "QUIZ" | "SPEAKING" | "WRITING" | "PRACTICE_TEST" | "COURSE";
 
@@ -55,17 +46,6 @@ function normalizeKeyPart(value: string) {
   return value.trim().replace(/[^a-zA-Z0-9:_-]/g, "_");
 }
 
-function base64urlDecode(value: string) {
-  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
-  const padding = "=".repeat((4 - (normalized.length % 4 || 4)) % 4);
-  return Buffer.from(normalized + padding, "base64").toString("utf8");
-}
-
-export function normalizeAiFeedbackFeature(value: unknown) {
-  const feature = typeof value === "string" ? normalizeKeyPart(value.toUpperCase()) : "";
-  return AI_FEEDBACK_FEATURES.has(feature) ? feature : null;
-}
-
 export function getAiFeedbackCost(feature: string) {
   if (feature === "SPEAKING_AI") return SPEAKING_AI_COST;
   if (feature === "WRITING_AI") return WRITING_AI_COST;
@@ -73,39 +53,11 @@ export function getAiFeedbackCost(feature: string) {
   throw new Error("INVALID_AI_FEEDBACK_FEATURE");
 }
 
-export function normalizeAiReturnTo(value: unknown) {
-  if (typeof value !== "string") return "/student/results";
-  const trimmed = value.trim();
-  if (!trimmed.startsWith("/") || trimmed.startsWith("//") || trimmed.includes("\\")) {
-    return "/student/results";
-  }
-  return trimmed.slice(0, 500);
-}
-
 function buildAiPaymentOrderInfo(params: {
   points: number;
   txnRef: string;
 }) {
   return `AI_POINTS|${params.points}|${params.txnRef}`;
-}
-
-export function parseAiPaymentOrderInfo(orderInfo?: string | null) {
-  const [kind, second, encodedReturnTo] = String(orderInfo || "").split("|");
-  if (kind === "AI_POINTS") {
-    const points = normalizeAiPointAmount(second);
-    return { feature: null as string | null, returnTo: "/student/wallet", points };
-  }
-  if (kind !== "AI_FEEDBACK") {
-    return { feature: null as string | null, returnTo: "/student/wallet", points: null as number | null };
-  }
-  const normalizedFeature = normalizeAiFeedbackFeature(second);
-  let returnTo = "/student/results";
-  try {
-    returnTo = normalizeAiReturnTo(base64urlDecode(encodedReturnTo || ""));
-  } catch {
-    returnTo = "/student/results";
-  }
-  return { feature: normalizedFeature, returnTo, points: null as number | null };
 }
 
 function isUsablePointTransaction(item: { type: string; amount: number }) {
@@ -161,16 +113,6 @@ async function recordPointTransactionWithClient(client: PointClient, input: Poin
   });
 
   return { created: true, transaction };
-}
-
-export async function recordPointTransaction(input: PointTransactionInput) {
-  return recordPointTransactionWithClient(prisma, input);
-}
-
-export async function grantCourseCompletionPoints(userId: string, courseId: string) {
-  void userId;
-  void courseId;
-  return { awarded: false, points: 0 };
 }
 
 export async function spendAiPoints(
@@ -400,72 +342,6 @@ export async function confirmAiPointPaymentFromVnpay(params: {
       statusBefore: payment.status,
       statusAfter,
     };
-  });
-}
-
-export async function reservePaidAiFeedbackPayment(params: {
-  txnRef: string;
-  userId: string;
-  feature: string;
-  expectedPoints: number;
-}) {
-  const normalizedFeature = normalizeAiFeedbackFeature(params.feature);
-  if (!normalizedFeature) {
-    throw new Error("INVALID_AI_FEEDBACK_FEATURE");
-  }
-
-  return prisma.$transaction(async (tx) => {
-    const payment = await tx.payment.findUnique({
-      where: { txnRef: params.txnRef },
-      select: {
-        id: true,
-        userId: true,
-        purpose: true,
-        pointAmount: true,
-        status: true,
-        orderInfo: true,
-      },
-    });
-
-    const info = parseAiPaymentOrderInfo(payment?.orderInfo);
-    if (
-      !payment ||
-      payment.userId !== params.userId ||
-      payment.purpose !== AI_POINT_PAYMENT_PURPOSE ||
-      payment.pointAmount !== params.expectedPoints ||
-      payment.status !== AI_POINT_PAYMENT_STATUS.PAID ||
-      info.feature !== normalizedFeature
-    ) {
-      throw new Error("AI_PAYMENT_REQUIRED");
-    }
-
-    const updated = await tx.payment.updateMany({
-      where: {
-        id: payment.id,
-        status: AI_POINT_PAYMENT_STATUS.PAID,
-      },
-      data: { status: AI_POINT_PAYMENT_STATUS.PROCESSING },
-    });
-
-    if (updated.count === 0) {
-      throw new Error("AI_PAYMENT_REQUIRED");
-    }
-
-    return { paymentId: payment.id };
-  });
-}
-
-export async function completePaidAiFeedbackPayment(paymentId: string) {
-  await prisma.payment.updateMany({
-    where: { id: paymentId, status: AI_POINT_PAYMENT_STATUS.PROCESSING },
-    data: { status: AI_POINT_PAYMENT_STATUS.USED },
-  });
-}
-
-export async function releasePaidAiFeedbackPayment(paymentId: string) {
-  await prisma.payment.updateMany({
-    where: { id: paymentId, status: AI_POINT_PAYMENT_STATUS.PROCESSING },
-    data: { status: AI_POINT_PAYMENT_STATUS.PAID },
   });
 }
 

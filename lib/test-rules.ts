@@ -20,17 +20,6 @@ export function requiresLanguageForTest(kind: TestKind): boolean {
   return kind !== "COURSE";
 }
 
-export function canUseEssayQuestion(params: {
-  assessmentMode: TestAssessmentMode;
-  courseCategory?: string | null;
-}) {
-  return params.assessmentMode === "WRITING" || (params.courseCategory || "").trim().toLowerCase() === "writing";
-}
-
-export function canUseSpeakingQuestion(assessmentMode: TestAssessmentMode) {
-  return assessmentMode === "SPEAKING";
-}
-
 export function getRemainingQuestionScore(totalQuestionScore: number) {
   return FIXED_TEST_MAX_SCORE - totalQuestionScore;
 }

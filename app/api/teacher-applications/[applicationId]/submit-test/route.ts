@@ -4,6 +4,7 @@ import { sendBasicEmail } from "@/lib/mailer";
 import { prisma } from "@/lib/prisma";
 import {
   evaluateTestAiAnswers,
+  getTestAiScoreRatio,
   isTestAiAnswerCorrect,
 } from "@/lib/test-ai-evaluation";
 import { logTeacherApplication } from "@/lib/teacher-onboarding";
@@ -124,7 +125,7 @@ export async function POST(
       if (question.type === "ESSAY" && studentAnswer.trim()) {
         const aiResult = aiResults.get(question.id);
         if (aiResult) {
-          earnedScore = Math.round(question.score * (aiResult.normalizedScore / 10));
+          earnedScore = Math.round(question.score * getTestAiScoreRatio(aiResult) * 10) / 10;
           isCorrect = isTestAiAnswerCorrect(aiResult);
           earned += earnedScore;
           aiEvaluation = aiResult.aiEvaluation;
@@ -134,7 +135,7 @@ export async function POST(
       if (question.type === "SPEAKING" && studentAnswer.trim()) {
         const aiResult = aiResults.get(question.id);
         if (aiResult) {
-          earnedScore = Math.round(question.score * (aiResult.normalizedScore / 10));
+          earnedScore = Math.round(question.score * getTestAiScoreRatio(aiResult) * 10) / 10;
           isCorrect = isTestAiAnswerCorrect(aiResult);
           earned += earnedScore;
           aiEvaluation = aiResult.aiEvaluation;

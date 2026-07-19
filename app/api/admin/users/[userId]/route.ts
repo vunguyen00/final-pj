@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import type { Role } from "@/app/generated/prisma/enums";
+import type { Role } from "@/.generated/prisma/enums";
 
 export async function PATCH(
   request: Request,

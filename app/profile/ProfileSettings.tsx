@@ -14,8 +14,12 @@ export default function ProfileSettings({
 }: {
   user: ProfileUser;
 }) {
-  const [username, setUsername] = useState(user.username);
-  const [phoneNumber, setPhoneNumber] = useState(user.phoneNumber ?? "");
+  return <ProfileSettingsForm key={user.email} user={user} />;
+}
+
+function ProfileSettingsForm({ user }: { user: ProfileUser }) {
+  const [username, setUsername] = useState(() => user.username);
+  const [phoneNumber, setPhoneNumber] = useState(() => user.phoneNumber ?? "");
   const [profileMessage, setProfileMessage] = useState("");
   const [passwordMessage, setPasswordMessage] = useState("");
   const [passwordForm, setPasswordForm] = useState({

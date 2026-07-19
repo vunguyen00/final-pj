@@ -582,7 +582,7 @@ export function RevenueWithdrawalPanel(props: {
             </div>
 
             <div className="border-t border-slate-200 bg-slate-50 px-5 py-4">
-              <button disabled={withdrawalLoading || liveAvailableRevenue <= 0 || !bankAccountState} className="w-full rounded-lg bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300">
+              <button type="submit" disabled={withdrawalLoading || liveAvailableRevenue <= 0 || !bankAccountState} className="w-full rounded-lg bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300">
                 {withdrawalLoading ? "Đang gửi yêu cầu..." : "Yêu cầu rút doanh thu"}
               </button>
             </div>
@@ -872,7 +872,7 @@ function RevenueComplaintDialog({ controller }: { controller: RevenueComplaintCo
               <button type="button" onClick={() => setComplaintTarget(null)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50">
                 Hủy
               </button>
-              <button disabled={complaintLoading} className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-slate-300">
+              <button type="submit" disabled={complaintLoading} className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-slate-300">
                 {complaintLoading ? "Đang gửi..." : "Gửi khiếu nại"}
               </button>
             </div>

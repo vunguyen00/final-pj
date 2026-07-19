@@ -504,8 +504,8 @@ function toScoreOnlySpeakingEvaluation(
   };
 }
 
-function containsAny(value: string, signals: string[]) {
-  return signals.some((signal) => value.includes(signal));
+function containsAny(text: string, signals: string[]) {
+  return signals.some((signal) => text.includes(signal));
 }
 
 async function requestValidatedEvaluation<T>(
