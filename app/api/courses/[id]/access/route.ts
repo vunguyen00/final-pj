@@ -26,12 +26,16 @@ export async function GET(
 
     const enrollment = await prisma.enrollment.findUnique({
       where: { userId_courseId: { userId: user.id, courseId } },
-      select: { id: true, createdAt: true },
+      select: { id: true, createdAt: true, accessStatus: true },
     });
 
     return NextResponse.json({
-      canAccess: Boolean(enrollment),
-      reason: enrollment ? "ENROLLED" : "NOT_PURCHASED",
+      canAccess: enrollment?.accessStatus === "ACTIVE",
+      reason: enrollment?.accessStatus === "REFUND_PENDING"
+        ? "REFUND_PENDING"
+        : enrollment
+          ? "ENROLLED"
+          : "NOT_PURCHASED",
       enrolledAt: enrollment?.createdAt ?? null,
     });
   } catch {

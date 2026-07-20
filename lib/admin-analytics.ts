@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { REVENUE_ELIGIBLE_ORDER_ITEM_WHERE } from "@/lib/teacher-revenue";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const APP_STATUSES = ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "APPROVED", "REJECTED", "EXPIRED"] as const;
+const APP_STATUSES = ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "APPROVED", "REJECTED", "EXPIRED", "FAILED_CHEATING"] as const;
 
 export type AnalyticsPreset =
   | "TODAY"
@@ -310,6 +310,25 @@ function buildAverageSeries(entries: Array<{ date: Date; amount: number }>, star
   });
 }
 
+function buildNamedCountSeries(
+  entries: Array<{ name: string; date: Date }>,
+  start: Date,
+  end: Date,
+  granularity: Granularity,
+) {
+  const names = [...new Set(entries.map((entry) => entry.name))];
+  const datesByName = new Map<string, Date[]>();
+  for (const entry of entries) {
+    const dates = datesByName.get(entry.name) ?? [];
+    dates.push(entry.date);
+    datesByName.set(entry.name, dates);
+  }
+  return names.map((name) => ({
+    name,
+    points: buildCountSeries(datesByName.get(name) ?? [], start, end, granularity),
+  }));
+}
+
 function accumulateCounter(map: Map<string, number>, key: string, value = 1) {
   map.set(key, (map.get(key) ?? 0) + value);
 }
@@ -427,6 +446,8 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
     notificationsInRange,
     emailsInRange,
     feedbacksInRange,
+    courseReportsInRange,
+    refundRequestsInRange,
     languagesAll,
   ] = await Promise.all([
     prisma.user.count(),
@@ -586,6 +607,14 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
     prisma.feedback.findMany({
       where: { createdAt: dateFilter },
       select: { id: true, userId: true, courseId: true, content: true, createdAt: true },
+    }),
+    prisma.courseReport.findMany({
+      where: { createdAt: dateFilter },
+      select: { id: true, courseId: true, status: true, createdAt: true, course: { select: { name: true } } },
+    }),
+    prisma.courseRefundRequest.findMany({
+      where: { createdAt: dateFilter },
+      select: { id: true, status: true, amount: true, createdAt: true },
     }),
     prisma.learningLanguage.findMany({
       select: { id: true, name: true, code: true },
@@ -925,11 +954,26 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
     return status.includes("FAIL") || status.includes("ERROR");
   }).length;
 
+  const courseReportStatusCounter = new Map<string, number>();
+  const courseReportByCourse = new Map<string, number>();
+  const courseReportCourseNames = new Map<string, string>();
+  for (const report of courseReportsInRange) {
+    accumulateCounter(courseReportStatusCounter, report.status);
+    accumulateCounter(courseReportByCourse, report.courseId);
+    courseReportCourseNames.set(report.courseId, report.course.name);
+  }
+
+  const refundStatusCounter = new Map<string, number>();
+  const approvedRefunds = refundRequestsInRange.filter((item) => item.status === "APPROVED");
+  for (const refund of refundRequestsInRange) accumulateCounter(refundStatusCounter, refund.status);
+  const refundedAmount = approvedRefunds.reduce((sum, item) => sum + item.amount, 0);
+
   const languageById = new Map(languagesAll.map((item) => [item.id, item]));
   const studentsByLanguage = new Map<string, number>();
   const coursesByLanguage = new Map<string, number>();
   const testsByLanguage = new Map<string, number>();
   const enrollmentsByLanguage = new Map<string, number>();
+  const languageEnrollmentEntries: Array<{ name: string; date: Date }> = [];
 
   for (const user of usersInRange) {
     if (user.role !== "STUDENT" || !user.learningLanguageId) continue;
@@ -947,6 +991,7 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
     const languageName = enrollment.course.language?.name;
     if (!languageName) continue;
     accumulateCounter(enrollmentsByLanguage, languageName);
+    languageEnrollmentEntries.push({ name: languageName, date: enrollment.createdAt });
   }
   for (const test of testsInRange) {
     if (!test.languageId) continue;
@@ -1199,6 +1244,37 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
         revenue: formatNumber(orderByCourseRevenue.get(item.name) ?? 0, 2),
       })),
     },
+    reportAnalytics: {
+      total: courseReportsInRange.length,
+      pending: courseReportStatusCounter.get("PENDING") ?? 0,
+      inReview: courseReportStatusCounter.get("IN_REVIEW") ?? 0,
+      resolved: courseReportStatusCounter.get("RESOLVED") ?? 0,
+      rejected: courseReportStatusCounter.get("REJECTED") ?? 0,
+      byTime: buildCountSeries(courseReportsInRange.map((item) => item.createdAt), range.start, range.end, bucketGranularity),
+      topCourses: topFromMap(courseReportByCourse, 5).map((item) => ({
+        courseId: item.name,
+        courseName: courseReportCourseNames.get(item.name) ?? item.name,
+        reports: item.value,
+      })),
+    },
+    refundAnalytics: {
+      total: refundRequestsInRange.length,
+      pending: refundStatusCounter.get("PENDING") ?? 0,
+      approved: refundStatusCounter.get("APPROVED") ?? 0,
+      rejected: refundStatusCounter.get("REJECTED") ?? 0,
+      refundedAmount: formatNumber(refundedAmount, 2),
+      refundRate: formatNumber(safePercent(refundedAmount, courseRevenue), 2),
+      amountByTime: buildSumSeries(
+        approvedRefunds.map((item) => ({ date: item.createdAt, amount: item.amount })),
+        range.start,
+        range.end,
+        bucketGranularity,
+      ),
+      requestsByStatus: ["PENDING", "APPROVED", "REJECTED"].map((status) => ({
+        status,
+        value: refundStatusCounter.get(status) ?? 0,
+      })),
+    },
     teacherApplicationAnalytics: {
       total: teacherApplicationsInRange.length,
       status: APP_STATUSES.map((status) => ({ status, count: appStatusCounter.get(status) ?? 0 })),
@@ -1235,6 +1311,7 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
       enrollmentsByLanguage: topFromMap(enrollmentsByLanguage, 20),
       testsByLanguage: topFromMap(testsByLanguage, 20),
       mostPopularLanguage: topFromMap(enrollmentsByLanguage, 1)[0] ?? topFromMap(studentsByLanguage, 1)[0] ?? null,
+      enrollmentTrend: buildNamedCountSeries(languageEnrollmentEntries, range.start, range.end, bucketGranularity),
     },
     rankings: {
       students: {

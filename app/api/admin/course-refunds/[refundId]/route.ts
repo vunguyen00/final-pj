@@ -83,6 +83,15 @@ export async function PATCH(
             },
           }),
         ]);
+      } else {
+        await tx.enrollment.updateMany({
+          where: {
+            userId: current.studentId,
+            courseId: current.courseId,
+            accessStatus: "REFUND_PENDING",
+          },
+          data: { accessStatus: "ACTIVE" },
+        });
       }
 
       const refund = await tx.courseRefundRequest.update({
@@ -107,7 +116,7 @@ export async function PATCH(
           body:
             action === "APPROVE"
               ? `Yêu cầu hoàn ${current.amount.toLocaleString("vi-VN")}đ cho khóa học "${current.course.name}" đã được duyệt. Khoản tiền sẽ được xử lý bên ngoài hệ thống và hoàn vào tài khoản của bạn.`
-              : `Yêu cầu hoàn tiền khóa học "${current.course.name}" bị từ chối. Lý do: ${note}`,
+              : `Yêu cầu hoàn tiền khóa học "${current.course.name}" bị từ chối. Quyền học đã được mở lại để bạn tiếp tục từ tiến độ hiện tại. Lý do: ${note}`,
         },
       });
 

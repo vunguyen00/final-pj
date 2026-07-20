@@ -9,6 +9,7 @@ import {
   ExportReportsPanel,
   FinanceSection,
   OverviewKpis,
+  ReportAndRefundSection,
   UserAndEnrollmentSection,
 } from "./AnalyticsDashboardSections";
 
@@ -203,6 +204,7 @@ export default function AnalyticsDashboard({ initialData }: Props) {
       />
       <OverviewKpis data={data} />
       <FinanceSection data={data} />
+      <ReportAndRefundSection data={data} />
       <CourseAndLanguageSection data={data} />
       <UserAndEnrollmentSection data={data} />
       <ExportReportsPanel

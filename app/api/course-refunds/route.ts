@@ -113,6 +113,10 @@ export async function POST(request: Request) {
           where: { role: "ADMIN" },
           select: { id: true },
         }),
+        tx.enrollment.update({
+          where: { userId_courseId: { userId: user.id, courseId } },
+          data: { accessStatus: "REFUND_PENDING" },
+        }),
       ]);
 
       if (admins.length > 0) {

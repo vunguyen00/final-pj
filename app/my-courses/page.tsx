@@ -14,6 +14,7 @@ type CourseStat = {
   enrollment: {
     id: string;
     createdAt: Date;
+    accessStatus: "ACTIVE" | "REFUND_PENDING";
     course: {
       id: string;
       name: string;
@@ -201,12 +202,18 @@ function EmptyState({ message }: { message: string }) {
 
 function CourseRow({ item }: { item: CourseStat }) {
   const course = item.enrollment.course;
+  const refundPending = item.enrollment.accessStatus === "REFUND_PENDING";
 
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-base font-bold text-slate-950">{course.name}</h3>
+          {refundPending ? (
+            <p className="mt-2 w-fit rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
+              Tạm khóa · Yêu cầu hoàn tiền đang chờ xử lý
+            </p>
+          ) : null}
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
             <span>Đăng ký: {item.enrollment.createdAt.toLocaleString("vi-VN")}</span>
             <span className="h-1 w-1 rounded-full bg-slate-300" />
@@ -220,12 +227,18 @@ function CourseRow({ item }: { item: CourseStat }) {
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2 md:justify-end">
-          <Link
-            href={`/student/hoc-bai?courseId=${course.id}`}
-            className="inline-flex h-9 items-center justify-center rounded-md bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700"
-          >
-            Vào học
-          </Link>
+          {refundPending ? (
+            <span className="inline-flex h-9 cursor-not-allowed items-center justify-center rounded-md bg-slate-200 px-4 text-sm font-bold text-slate-500">
+              Đang tạm khóa
+            </span>
+          ) : (
+            <Link
+              href={`/student/hoc-bai?courseId=${course.id}`}
+              className="inline-flex h-9 items-center justify-center rounded-md bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700"
+            >
+              Vào học
+            </Link>
+          )}
         </div>
       </div>
     </article>

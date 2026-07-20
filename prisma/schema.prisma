@@ -8,46 +8,48 @@ datasource db {
 }
 
 model User {
-  id                          String                              @id @default(uuid())
-  username                    String
-  email                       String                              @unique
-  password                    String
-  role                        Role                                @default(STUDENT)
-  phoneNumber                 String?
-  isBanned                    Boolean                             @default(false)
-  accountStatus               UserAccountStatus                   @default(ACTIVE)
-  emailVerifiedAt             DateTime?
-  authVersion                 Int                                 @default(0)
-  learningLanguageId          String?
-  createdAt                   DateTime                            @default(now())
-  sessions                    Session[]
-  passwordResetOtps           PasswordResetOtp[]
-  emailVerificationOtps       EmailVerificationOtp[]
-  registrationSecurityEvents  RegistrationSecurityEvent[]
-  enrollments                 Enrollment[]
-  testAttempts                TestAttempt[]
-  feedbacks                   Feedback[]
-  orders                      Order[]
-  payments                    Payment[]
-  wallet                      Wallet?
-  courses                     Course[]
-  refundRequests              CourseRefundRequest[]               @relation("RefundRequestStudent")
-  reviewedRefundRequests      CourseRefundRequest[]               @relation("RefundRequestReviewer")
-  aiAssessments               AiAssessment[]
-  pointTransactions           PointTransaction[]
-  learningActivities          LearningActivity[]
-  learningLanguage            LearningLanguage?                   @relation("UserLearningLanguage", fields: [learningLanguageId], references: [id])
-  teacherApplications         TeacherApplication[]                @relation("TeacherApplicationUser")
-  reviewedTeacherApplications TeacherApplication[]                @relation("TeacherApplicationReviewer")
-  notifications               Notification[]
-  emailLogs                   EmailLog[]
-  teacherBankAccount          TeacherBankAccount?
+  id                           String                              @id @default(uuid())
+  username                     String
+  email                        String                              @unique
+  password                     String
+  role                         Role                                @default(STUDENT)
+  phoneNumber                  String?
+  isBanned                     Boolean                             @default(false)
+  accountStatus                UserAccountStatus                   @default(ACTIVE)
+  emailVerifiedAt              DateTime?
+  authVersion                  Int                                 @default(0)
+  learningLanguageId           String?
+  createdAt                    DateTime                            @default(now())
+  sessions                     Session[]
+  passwordResetOtps            PasswordResetOtp[]
+  emailVerificationOtps        EmailVerificationOtp[]
+  registrationSecurityEvents   RegistrationSecurityEvent[]
+  enrollments                  Enrollment[]
+  testAttempts                 TestAttempt[]
+  feedbacks                    Feedback[]
+  orders                       Order[]
+  payments                     Payment[]
+  wallet                       Wallet?
+  courses                      Course[]
+  refundRequests               CourseRefundRequest[]               @relation("RefundRequestStudent")
+  reviewedRefundRequests       CourseRefundRequest[]               @relation("RefundRequestReviewer")
+  courseReports                CourseReport[]                      @relation("CourseReportReporter")
+  respondedCourseReports       CourseReport[]                      @relation("CourseReportResponder")
+  aiAssessments                AiAssessment[]
+  pointTransactions            PointTransaction[]
+  learningActivities           LearningActivity[]
+  learningLanguage             LearningLanguage?                   @relation("UserLearningLanguage", fields: [learningLanguageId], references: [id])
+  teacherApplications          TeacherApplication[]                @relation("TeacherApplicationUser")
+  reviewedTeacherApplications  TeacherApplication[]                @relation("TeacherApplicationReviewer")
+  notifications                Notification[]
+  emailLogs                    EmailLog[]
+  teacherBankAccount           TeacherBankAccount?
   teacherBankAccountChangeOtps TeacherBankAccountChangeOtp[]
   teacherBankAccountChangeLogs TeacherBankAccountChangeLog[]
-  revenueWithdrawals          TeacherRevenueWithdrawal[]
-  revenueWithdrawalComplaints TeacherRevenueWithdrawalComplaint[]
-  processedRevenueWithdrawals TeacherRevenueWithdrawal[]           @relation("RevenueWithdrawalProcessor")
-  videoWatchProgress          VideoWatchProgress[]
+  revenueWithdrawals           TeacherRevenueWithdrawal[]
+  revenueWithdrawalComplaints  TeacherRevenueWithdrawalComplaint[]
+  processedRevenueWithdrawals  TeacherRevenueWithdrawal[]          @relation("RevenueWithdrawalProcessor")
+  videoWatchProgress           VideoWatchProgress[]
 }
 
 model Session {
@@ -127,24 +129,24 @@ model RegistrationSecurityEvent {
 }
 
 model Course {
-  id           String       @id @default(uuid())
-  name         String
-  description  String
-  thumbnail    String?
-  category     String?
-  level        String?
-  duration     String?
-  lessons      Int          @default(0)
-  status       CourseStatus @default(ACTIVE)
+  id                        String        @id @default(uuid())
+  name                      String
+  description               String
+  thumbnail                 String?
+  category                  String?
+  level                     String?
+  duration                  String?
+  lessons                   Int           @default(0)
+  status                    CourseStatus  @default(ACTIVE)
   deleteRequestedFromStatus CourseStatus?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  price        Float
-  languageId   String?
-  instructorId String? // ID của giảng viên
+  createdAt                 DateTime      @default(now())
+  updatedAt                 DateTime      @updatedAt
+  price                     Float
+  languageId                String?
+  instructorId              String? // ID của giảng viên
 
-  instructor         User?              @relation(fields: [instructorId], references: [id])
-  language           LearningLanguage?  @relation(fields: [languageId], references: [id])
+  instructor         User?                 @relation(fields: [instructorId], references: [id])
+  language           LearningLanguage?     @relation(fields: [languageId], references: [id])
   modules            Module[]
   enrollments        Enrollment[]
   tests              Test[]
@@ -155,6 +157,7 @@ model Course {
   pointTransactions  PointTransaction[]
   learningActivities LearningActivity[]
   payments           Payment[]
+  reports            CourseReport[]
 }
 
 enum CourseStatus {
@@ -184,6 +187,7 @@ model Lesson {
 
   module        Module               @relation(fields: [moduleId], references: [id])
   watchProgress VideoWatchProgress[]
+  reports       CourseReport[]
 }
 
 model VideoWatchProgress {
@@ -206,11 +210,17 @@ model VideoWatchProgress {
   @@index([lessonId, updatedAt])
 }
 
+enum EnrollmentAccessStatus {
+  ACTIVE
+  REFUND_PENDING
+}
+
 model Enrollment {
-  id        String   @id @default(uuid())
-  userId    String
-  courseId  String
-  createdAt DateTime @default(now())
+  id           String                 @id @default(uuid())
+  userId       String
+  courseId     String
+  accessStatus EnrollmentAccessStatus @default(ACTIVE)
+  createdAt    DateTime               @default(now())
 
   user   User   @relation(fields: [userId], references: [id])
   course Course @relation(fields: [courseId], references: [id])
@@ -259,25 +269,27 @@ enum TestAssessmentMode {
 }
 
 enum QuestionType {
-  MULTIPLE_CHOICE 
-  FILL_IN_BLANK 
+  MULTIPLE_CHOICE
+  FILL_IN_BLANK
   ESSAY
-  TRUE_FALSE 
-  SPEAKING 
+  TRUE_FALSE
+  SPEAKING
 }
 
 model Question {
-  id          String       @id @default(uuid())
-  testId      String
-  type        QuestionType
-  content     String // Nội dung câu hỏi
-  audioUrl    String? // URL audio cho câu hỏi listening
-  order       Int
-  score       Float // Điểm cho câu này
-  explanation String? // Giải thích/Lý do đúng
-  hint        String? // Gợi ý
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id                     String       @id @default(uuid())
+  testId                 String
+  type                   QuestionType
+  content                String // Nội dung câu hỏi
+  audioUrl               String? // URL audio cho câu hỏi listening
+  order                  Int
+  score                  Float // Điểm cho câu này
+  explanation            String? // Giải thích/Lý do đúng
+  hint                   String? // Gợi ý
+  preparationTimeSeconds Int?
+  answerTimeSeconds      Int?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
 
   test    Test     @relation(fields: [testId], references: [id])
   answers Answer[]
@@ -415,21 +427,28 @@ model SystemSetting {
 }
 
 model TeacherApplication {
-  id                String                   @id @default(uuid())
-  userId            String
-  languageId        String
-  status            TeacherApplicationStatus @default(DRAFT)
-  attemptNo         Int
-  entranceTestId    String?
-  entranceAttemptId String?
-  answerState       Json?
-  startedAt         DateTime?
-  submittedAt       DateTime?
-  reviewedAt        DateTime?
-  reviewedById      String?
-  rejectionReason   String?
-  createdAt         DateTime                 @default(now())
-  updatedAt         DateTime                 @updatedAt
+  id                       String                   @id @default(uuid())
+  userId                   String
+  languageId               String
+  status                   TeacherApplicationStatus @default(DRAFT)
+  attemptNo                Int
+  entranceTestId           String?
+  entranceAttemptId        String?
+  answerState              Json?
+  startedAt                DateTime?
+  submittedAt              DateTime?
+  reviewedAt               DateTime?
+  reviewedById             String?
+  rejectionReason          String?
+  violationCount           Int                      @default(0)
+  failureReason            String?
+  antiCheatAcknowledgedAt  DateTime?
+  proctorSessionId         String?
+  proctorHeartbeatAt       DateTime?
+  proctorHeartbeatSequence Int                      @default(0)
+  questionRevealState      Json?
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
 
   user             User                    @relation("TeacherApplicationUser", fields: [userId], references: [id], onDelete: Cascade)
   language         LearningLanguage        @relation(fields: [languageId], references: [id])
@@ -451,6 +470,7 @@ enum TeacherApplicationStatus {
   APPROVED
   REJECTED
   EXPIRED
+  FAILED_CHEATING
 }
 
 model TeacherCertificate {
@@ -484,14 +504,21 @@ model AntiCheatLog {
   eventType       String
   detail          String?
   severity        Int       @default(1)
+  durationSeconds Int?
+  confidence      Float?
+  counted         Boolean   @default(false)
   clientTimestamp DateTime?
   serverTimestamp DateTime  @default(now())
   metadata        Json?
+  incidentId      String?
 
   application TeacherApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   testAttempt TestAttempt?       @relation(fields: [testAttemptId], references: [id])
 
+  @@unique([applicationId, incidentId])
   @@index([applicationId, serverTimestamp])
+  @@index([applicationId, eventType, serverTimestamp])
+  @@index([applicationId, counted])
 }
 
 model SuspiciousEvent {
@@ -563,8 +590,8 @@ model OrderItem {
   teacherRevenue Int    @default(0)
   revenueSplit   String @default("ADMIN_ONLY")
 
-  order  Order  @relation(fields: [orderId], references: [id])
-  course Course @relation(fields: [courseId], references: [id])
+  order         Order                @relation(fields: [orderId], references: [id])
+  course        Course               @relation(fields: [courseId], references: [id])
   refundRequest CourseRefundRequest?
 
   @@unique([orderId, courseId])
@@ -577,19 +604,19 @@ enum CourseRefundRequestStatus {
 }
 
 model CourseRefundRequest {
-  id            String                    @id @default(uuid())
-  studentId     String
-  courseId      String
-  orderItemId   String                    @unique
-  amount        Int
-  reason        String
-  status        CourseRefundRequestStatus @default(PENDING)
-  adminNote     String?
-  reviewedById  String?
-  processedAt   DateTime?
-  createdAt     DateTime                  @default(now())
-  updatedAt     DateTime                  @updatedAt
-  refundMethod  String                    @default("EXTERNAL_ACCOUNT")
+  id           String                    @id @default(uuid())
+  studentId    String
+  courseId     String
+  orderItemId  String                    @unique
+  amount       Int
+  reason       String
+  status       CourseRefundRequestStatus @default(PENDING)
+  adminNote    String?
+  reviewedById String?
+  processedAt  DateTime?
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+  refundMethod String                    @default("EXTERNAL_ACCOUNT")
 
   student    User      @relation("RefundRequestStudent", fields: [studentId], references: [id], onDelete: Cascade)
   course     Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -599,6 +626,49 @@ model CourseRefundRequest {
   @@index([studentId, createdAt])
   @@index([courseId, createdAt])
   @@index([status, createdAt])
+}
+
+enum CourseReportCategory {
+  INACCURATE_CONTENT
+  BROKEN_RESOURCE
+  ACCESS_PROBLEM
+  INAPPROPRIATE_CONTENT
+  QUALITY_MISMATCH
+  INSTRUCTOR_PROBLEM
+  OTHER
+}
+
+enum CourseReportStatus {
+  PENDING
+  IN_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+model CourseReport {
+  id                String               @id @default(uuid())
+  courseId          String
+  reporterId        String
+  lessonId          String?
+  category          CourseReportCategory
+  title             String
+  description       String
+  truthfulConfirmed Boolean              @default(false)
+  status            CourseReportStatus   @default(PENDING)
+  response          String?
+  respondedById     String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  course      Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  reporter    User    @relation("CourseReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  lesson      Lesson? @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  respondedBy User?   @relation("CourseReportResponder", fields: [respondedById], references: [id], onDelete: SetNull)
+
+  @@index([courseId, createdAt])
+  @@index([reporterId, createdAt])
+  @@index([status, createdAt])
+  @@index([lessonId])
 }
 
 enum TeacherRevenueWithdrawalStatus {
@@ -680,45 +750,45 @@ enum TeacherRevenueWithdrawalComplaintStatus {
 }
 
 model TeacherRevenueWithdrawal {
-  id            String                         @id @default(uuid())
-  teacherId     String
-  amount        Int
-  bankName      String
-  accountNumber String
-  accountName   String
-  bankBranch    String?
-  bankVerificationStatus TeacherBankAccountVerificationStatus @default(UNVERIFIED)
-  status        TeacherRevenueWithdrawalStatus @default(PENDING)
-  note          String?
-  systemBankName String?
+  id                      String                               @id @default(uuid())
+  teacherId               String
+  amount                  Int
+  bankName                String
+  accountNumber           String
+  accountName             String
+  bankBranch              String?
+  bankVerificationStatus  TeacherBankAccountVerificationStatus @default(UNVERIFIED)
+  status                  TeacherRevenueWithdrawalStatus       @default(PENDING)
+  note                    String?
+  systemBankName          String?
   transferTransactionCode String?
-  processedById String?
-  processedAt   DateTime?
-  createdAt     DateTime                       @default(now())
-  updatedAt     DateTime                       @updatedAt
+  processedById           String?
+  processedAt             DateTime?
+  createdAt               DateTime                             @default(now())
+  updatedAt               DateTime                             @updatedAt
 
-  teacher   User                               @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  processedBy User?                            @relation("RevenueWithdrawalProcessor", fields: [processedById], references: [id], onDelete: SetNull)
-  complaint TeacherRevenueWithdrawalComplaint?
+  teacher     User                               @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  processedBy User?                              @relation("RevenueWithdrawalProcessor", fields: [processedById], references: [id], onDelete: SetNull)
+  complaint   TeacherRevenueWithdrawalComplaint?
 
   @@index([teacherId, createdAt])
   @@index([status, createdAt])
 }
 
 model TeacherRevenueWithdrawalComplaint {
-  id             String                                  @id @default(uuid())
-  withdrawalId   String                                  @unique
-  teacherId      String
-  reason         TeacherRevenueWithdrawalComplaintReason
-  reportedAmount Int?
-  message        String
-  evidenceImageUrl String?
+  id                String                                  @id @default(uuid())
+  withdrawalId      String                                  @unique
+  teacherId         String
+  reason            TeacherRevenueWithdrawalComplaintReason
+  reportedAmount    Int?
+  message           String
+  evidenceImageUrl  String?
   evidenceImageName String?
-  status         TeacherRevenueWithdrawalComplaintStatus @default(OPEN)
-  adminNote      String?
-  resolvedAt     DateTime?
-  createdAt      DateTime                                @default(now())
-  updatedAt      DateTime                                @updatedAt
+  status            TeacherRevenueWithdrawalComplaintStatus @default(OPEN)
+  adminNote         String?
+  resolvedAt        DateTime?
+  createdAt         DateTime                                @default(now())
+  updatedAt         DateTime                                @updatedAt
 
   withdrawal TeacherRevenueWithdrawal @relation(fields: [withdrawalId], references: [id], onDelete: Cascade)
   teacher    User                     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
@@ -738,14 +808,14 @@ model Wallet {
 }
 
 model Payment {
-  id                String   @id @default(uuid())
-  orderId           String?  @unique
+  id                String    @id @default(uuid())
+  orderId           String?   @unique
   userId            String
   courseId          String?
   purpose           String?
   pointAmount       Int?
-  provider          String   @default("VNPAY")
-  txnRef            String   @unique
+  provider          String    @default("VNPAY")
+  txnRef            String    @unique
   amount            Int
   status            String
   orderInfo         String?
@@ -756,11 +826,11 @@ model Payment {
   payDate           String?
   rawResponse       Json?
   expiresAt         DateTime?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  order Order? @relation(fields: [orderId], references: [id])
-  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order  Order?  @relation(fields: [orderId], references: [id])
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   course Course? @relation(fields: [courseId], references: [id])
 
   @@index([userId, createdAt])

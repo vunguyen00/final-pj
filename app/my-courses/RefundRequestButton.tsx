@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { ModalDialog } from "@/app/components/ModalDialog";
 
 type RefundStatus = "PENDING" | "APPROVED" | "REJECTED";
@@ -35,6 +36,7 @@ const currency = new Intl.NumberFormat("vi-VN", {
 });
 
 export default function RefundRequestButton({ courses }: { courses: RefundableCourse[] }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState(courses[0]?.courseId ?? "");
   const [statuses, setStatuses] = useState<Record<string, RefundStatus | null>>(() =>
@@ -77,7 +79,8 @@ export default function RefundRequestButton({ courses }: { courses: RefundableCo
 
       setStatuses((current) => ({ ...current, [selectedCourse.courseId]: data.refund!.status }));
       setReason("");
-      setMessage("Đã gửi yêu cầu hoàn tiền tới admin.");
+      setMessage("Đã gửi yêu cầu. Quyền học được tạm khóa cho tới khi admin xử lý.");
+      router.refresh();
     } catch {
       setMessage("Lỗi mạng. Vui lòng thử lại.");
     } finally {

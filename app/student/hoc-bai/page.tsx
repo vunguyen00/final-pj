@@ -43,14 +43,19 @@ export default async function StudentHocBaiPage({
   const enrollment = await prisma.enrollment.findUnique({
     where: { userId_courseId: { userId: user.id, courseId: normalizedCourseId } },
   });
-  const canAccess = isAdmin || isInstructor || Boolean(enrollment);
+  const refundPending = enrollment?.accessStatus === "REFUND_PENDING";
+  const canAccess = isAdmin || isInstructor || enrollment?.accessStatus === "ACTIVE";
 
   if (!canAccess) {
     return (
       <main className="min-h-screen bg-slate-50 p-6">
         <div className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-8">
-          <h1 className="text-2xl font-bold text-slate-950">Access unavailable</h1>
-          <p className="mt-3 text-slate-600">You are not enrolled in this course.</p>
+          <h1 className="text-2xl font-bold text-slate-950">Không thể truy cập khóa học</h1>
+          <p className="mt-3 text-slate-600">
+            {refundPending
+              ? "Quyền học đang tạm khóa trong khi yêu cầu hoàn tiền được xử lý. Nếu yêu cầu bị từ chối, bạn sẽ có thể tiếp tục từ tiến độ hiện tại."
+              : "Bạn chưa đăng ký khóa học này."}
+          </p>
           <Link href="/my-courses" className="mt-4 inline-block text-blue-600 hover:text-blue-700">Go to my courses</Link>
         </div>
       </main>

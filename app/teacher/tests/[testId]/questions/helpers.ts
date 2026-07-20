@@ -9,6 +9,8 @@ export const createDefaultForm = (): QuestionForm => ({
   score: "10",
   explanation: "",
   hint: "",
+  preparationTimeSeconds: "60",
+  answerTimeSeconds: "120",
   answers: [],
 });
 

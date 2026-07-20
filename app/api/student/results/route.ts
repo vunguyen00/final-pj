@@ -10,9 +10,11 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const results = await getStudentResults(user, searchParams.get("type"));
+    const page = Number.parseInt(searchParams.get("page") ?? "1", 10);
+    const pageSize = Number.parseInt(searchParams.get("pageSize") ?? "10", 10);
+    const results = await getStudentResults(user, searchParams.get("type"), page, pageSize);
 
-    return NextResponse.json({ results });
+    return NextResponse.json(results);
   } catch (error) {
     console.error("Error fetching result history:", error);
     return NextResponse.json({ error: "Không tải được lịch sử kết quả." }, { status: 500 });

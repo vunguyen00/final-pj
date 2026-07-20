@@ -19,6 +19,7 @@ const PRESETS: Array<{ key: AnalyticsPreset; label: string }> = [
 
 const MONEY = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 });
 const NUMBER = new Intl.NumberFormat("vi-VN");
+const LINE_CHART_COLORS = ["#2563eb", "#e11d48", "#059669", "#d97706", "#7c3aed", "#0891b2"];
 
 function formatNumber(value: number) {
   return NUMBER.format(value);
@@ -86,6 +87,39 @@ function BarList({ data, valueLabel, color = "bg-blue-600" }: { data: SeriesPoin
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function ColumnChart({ data, color = "bg-blue-600", valueLabel = formatNumber }: { data: SeriesPoint[]; color?: string; valueLabel?: (value: number) => string }) {
+  const rows = data.slice(-16);
+  const max = Math.max(1, ...rows.map((item) => item.value));
+  if (!rows.length) return <p className="rounded-lg border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">Chưa có dữ liệu.</p>;
+  return (
+    <div className="overflow-x-auto">
+      <div className="flex h-64 min-w-[560px] items-end gap-2 rounded-xl bg-slate-50 p-4" role="img" aria-label="Biểu đồ cột theo thời gian">
+        {rows.map((item) => <div key={item.label} className="flex h-full flex-1 flex-col items-center justify-end gap-2" title={`${item.label}: ${valueLabel(item.value)}`}><span className="text-[10px] font-bold text-slate-700">{valueLabel(item.value)}</span><div className={`w-full rounded-t ${color}`} style={{ height: `${Math.max(2, (item.value / max) * 100)}%` }} /><span className="max-w-16 truncate text-[10px] text-slate-500">{item.label}</span></div>)}
+      </div>
+    </div>
+  );
+}
+
+function LineChart({ series }: { series: Array<{ name: string; points: SeriesPoint[] }> }) {
+  const visible = series.slice(0, 6);
+  const pointCount = Math.max(0, ...visible.map((item) => item.points.length));
+  const max = Math.max(1, ...visible.flatMap((item) => item.points.map((point) => point.value)));
+  if (!visible.length || !pointCount) return <p className="rounded-lg border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">Chưa có dữ liệu ghi danh theo thời gian.</p>;
+  const coordinates = (points: SeriesPoint[]) => points.map((point, index) => `${50 + (index / Math.max(1, pointCount - 1)) * 710},${220 - (point.value / max) * 180}`).join(" ");
+  return (
+    <div>
+      <div className="flex flex-wrap gap-3 text-xs font-semibold">{visible.map((item, index) => <span key={item.name} className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: LINE_CHART_COLORS[index] }} />{item.name}</span>)}</div>
+      <div className="mt-3 overflow-x-auto rounded-xl bg-slate-50 p-2">
+        <svg viewBox="0 0 800 260" className="h-auto min-w-[620px]" role="img" aria-label="Biểu đồ đường lượt học theo ngôn ngữ">
+          {[0, 1, 2, 3, 4].map((step) => <line key={step} x1="50" x2="760" y1={40 + step * 45} y2={40 + step * 45} stroke="#e2e8f0" strokeWidth="1" />)}
+          {visible.map((item, index) => <polyline key={item.name} points={coordinates(item.points)} fill="none" stroke={LINE_CHART_COLORS[index]} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />)}
+          {visible[0]?.points.map((point, index) => index % Math.max(1, Math.ceil(pointCount / 8)) === 0 ? <text key={`${point.label}-${index}`} x={50 + (index / Math.max(1, pointCount - 1)) * 710} y="248" textAnchor="middle" fontSize="10" fill="#64748b">{point.label}</text> : null)}
+        </svg>
+      </div>
     </div>
   );
 }
@@ -230,7 +264,7 @@ export function CourseAndLanguageSection({ data }: { data: AnalyticsPayload }) {
       </Panel>
 
       <Panel title="Ngôn ngữ được học nhiều nhất" subtitle="Tính theo lượt ghi danh khóa học trong khoảng đã chọn">
-        <BarList data={data.languageAnalytics.enrollmentsByLanguage.map((item) => ({ label: item.name, value: item.value }))} color="bg-rose-600" />
+        <LineChart series={data.languageAnalytics.enrollmentTrend.map((item) => ({ name: item.name, points: item.points }))} />
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <KpiCard label="Khóa học mới" value={formatNumber(data.overview.courses.newCourses)} detail={`Tổng: ${formatNumber(data.overview.courses.totalCourses)}`} tone="blue" />
           <KpiCard label="Khóa đang mở" value={formatNumber(data.overview.courses.activeCourses)} detail={`Khóa bị khóa: ${formatNumber(data.overview.courses.lockedCourses)}`} tone="emerald" />
@@ -241,6 +275,13 @@ export function CourseAndLanguageSection({ data }: { data: AnalyticsPayload }) {
 }
 
 export function UserAndEnrollmentSection({ data }: { data: AnalyticsPayload }) {
+  const userSeries = data.range.bucketGranularity === "day"
+    ? data.userGrowth.byDay
+    : data.range.bucketGranularity === "week"
+      ? data.userGrowth.byWeek
+      : data.range.bucketGranularity === "month"
+        ? data.userGrowth.byMonth
+        : data.userGrowth.byYear;
   return (
     <section className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
       <Panel title="Người dùng" subtitle="Quy mô học sinh, giảng viên và tài khoản mới">
@@ -250,6 +291,7 @@ export function UserAndEnrollmentSection({ data }: { data: AnalyticsPayload }) {
           <KpiCard label="Giảng viên" value={formatNumber(data.overview.users.teachers)} tone="amber" />
           <KpiCard label="Tăng trưởng" value={percent(data.overview.users.growthRate)} />
         </div>
+        <div className="mt-5"><ColumnChart data={userSeries} color="bg-blue-600" /></div>
       </Panel>
 
       <Panel title="Ghi danh và khóa học phổ biến" subtitle="Theo lượt ghi danh thực tế">
@@ -265,6 +307,33 @@ export function UserAndEnrollmentSection({ data }: { data: AnalyticsPayload }) {
             ])}
           />
         </div>
+      </Panel>
+    </section>
+  );
+}
+
+export function ReportAndRefundSection({ data }: { data: AnalyticsPayload }) {
+  return (
+    <section className="grid gap-5 xl:grid-cols-2">
+      <Panel title="Báo cáo khóa học" subtitle="Số lượng báo cáo và xu hướng trong khoảng đã chọn">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <KpiCard label="Tổng báo cáo" value={formatNumber(data.reportAnalytics.total)} tone="rose" />
+          <KpiCard label="Đang chờ" value={formatNumber(data.reportAnalytics.pending + data.reportAnalytics.inReview)} tone="amber" />
+          <KpiCard label="Đã giải quyết" value={formatNumber(data.reportAnalytics.resolved)} tone="emerald" />
+          <KpiCard label="Bị từ chối" value={formatNumber(data.reportAnalytics.rejected)} />
+        </div>
+        <div className="mt-5"><ColumnChart data={data.reportAnalytics.byTime} color="bg-rose-500" /></div>
+        <div className="mt-5"><DataTable headers={["Khóa học", "Báo cáo"]} rows={data.reportAnalytics.topCourses.map((item) => [item.courseName, item.reports])} /></div>
+      </Panel>
+      <Panel title="Hoàn tiền" subtitle="Giá trị hoàn tiền và số yêu cầu theo trạng thái">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <KpiCard label="Tổng yêu cầu" value={formatNumber(data.refundAnalytics.total)} tone="amber" />
+          <KpiCard label="Đang chờ" value={formatNumber(data.refundAnalytics.pending)} />
+          <KpiCard label="Đã hoàn" value={formatCurrency(data.refundAnalytics.refundedAmount)} detail={`${percent(data.refundAnalytics.refundRate)} doanh thu`} tone="emerald" />
+          <KpiCard label="Đã từ chối" value={formatNumber(data.refundAnalytics.rejected)} tone="rose" />
+        </div>
+        <div className="mt-5"><ColumnChart data={data.refundAnalytics.amountByTime} color="bg-emerald-600" valueLabel={formatCurrency} /></div>
+        <div className="mt-5"><DataTable headers={["Trạng thái", "Số yêu cầu"]} rows={data.refundAnalytics.requestsByStatus.map((item) => [item.status, item.value])} /></div>
       </Panel>
     </section>
   );

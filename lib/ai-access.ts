@@ -17,8 +17,8 @@ export async function canUseAiForCourse(user: { id: string; role: string }, cour
 
   const enrollment = await prisma.enrollment.findUnique({
     where: { userId_courseId: { userId: user.id, courseId } },
-    select: { id: true },
+    select: { id: true, accessStatus: true },
   });
 
-  return Boolean(enrollment);
+  return enrollment?.accessStatus === "ACTIVE";
 }

@@ -223,6 +223,8 @@ export default function TeacherTestQuestionsPage() {
       score: String(question.score),
       explanation: question.explanation || "",
       hint: question.hint || "",
+      preparationTimeSeconds: String(question.preparationTimeSeconds ?? (question.type === "SPEAKING" ? 60 : 0)),
+      answerTimeSeconds: String(question.answerTimeSeconds ?? (question.type === "SPEAKING" ? 120 : 3600)),
       answers: existingAnswers,
     });
     setShowModal(true);
@@ -232,6 +234,16 @@ export default function TeacherTestQuestionsPage() {
     if (!form.kind) return questionLabels.kindOptions[0].label;
     if (!form.content.trim()) return questionLabels.contentLabel.replace(" *", "");
     if (!form.score || Number(form.score) <= 0) return questionLabels.score;
+    if (test?.kind === "TEACHER_ENTRANCE" && (form.kind === "ESSAY" || form.kind === "SPEAKING")) {
+      const answer = Number(form.answerTimeSeconds);
+      if (form.kind === "SPEAKING") {
+        const preparation = Number(form.preparationTimeSeconds);
+        if (!Number.isInteger(preparation) || preparation < 0 || preparation > 300) return questionLabels.preparationSeconds;
+        if (!Number.isInteger(answer) || answer < 30 || answer > 300) return questionLabels.answerSeconds;
+      } else if (!Number.isInteger(answer) || answer < 60 || answer > 10800 || answer % 60 !== 0) {
+        return questionLabels.answerMinutes;
+      }
+    }
     const audioUrl = form.audioUrl.trim();
     if (form.kind === "LISTENING" && !audioUrl) return questionLabels.audioRequired;
 
@@ -571,6 +583,7 @@ export default function TeacherTestQuestionsPage() {
         audioUploadMessage={audioUploadMessage}
         notice={notice}
         onAudioUpload={uploadQuestionAudio}
+        isTeacherEntrance={test?.kind === "TEACHER_ENTRANCE"}
       />
 
       {deleteTarget ? (

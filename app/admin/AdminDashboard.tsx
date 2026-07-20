@@ -27,6 +27,7 @@ function applicationStatusLabel(status: string) {
   if (status === "UNDER_REVIEW") return "Đang xem xét";
   if (status === "SUBMITTED") return "Đã nộp";
   if (status === "EXPIRED") return "Hết hạn";
+  if (status === "FAILED_CHEATING") return "Trượt do gian lận";
   return "Bản nháp";
 }
 
@@ -60,7 +61,7 @@ export default function AdminDashboard({
   );
 
   const pendingApplications = useMemo(
-    () => applications.filter((application) => !["APPROVED", "REJECTED", "EXPIRED"].includes(application.status)),
+    () => applications.filter((application) => !["APPROVED", "REJECTED", "EXPIRED", "FAILED_CHEATING"].includes(application.status)),
     [applications],
   );
 

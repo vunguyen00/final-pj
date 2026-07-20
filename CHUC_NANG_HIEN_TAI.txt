@@ -1,0 +1,767 @@
+DANH SACH CHUC NANG HIEN TAI CUA DU AN FINNCENTER
+=================================================
+
+Phạm vi rà soát:
+- Code hiện tại trong workspace, bao gồm cả thay đổi chưa commit.
+- Khoảng 40 trang, 83 API route và 39 model dữ liệu.
+
+
+1. KHU VỰC CÔNG KHAI
+--------------------
+
+1.1. Trang chủ
+- Hiển thị khóa học nổi bật.
+- Hiển thị giảng viên nổi bật.
+- Hiển thị số lượng học viên, khóa học, giảng viên và ngôn ngữ từ dữ liệu hệ thống.
+- Điều hướng đến marketplace khóa học và trung tâm bài test.
+
+1.2. Marketplace khóa học
+- Hiển thị các khóa học đang hoạt động.
+- Tìm kiếm theo tên khóa học, mô tả, category và giảng viên.
+- Lọc theo ngôn ngữ.
+- Lọc theo trình độ.
+- Lọc theo loại khóa học và kỹ năng.
+- Các nhóm phổ biến, combo, luyện kỹ năng và luyện chứng chỉ.
+- Sắp xếp theo giá tăng dần, giá giảm dần hoặc tên.
+- Đánh dấu khóa học người dùng đã đăng ký.
+
+1.3. Chi tiết khóa học
+- Hiển thị tên, mô tả, thumbnail, học phí, ngôn ngữ, trình độ và category.
+- Hiển thị thông tin giảng viên.
+- Hiển thị danh sách chương, bài học và bài test.
+- Hiển thị số học viên và thống kê đánh giá.
+- Hiển thị bình luận và đánh giá của học viên.
+- Cho phép mua khóa học hoặc vào học nếu đã đăng ký.
+- Cho phép giảng viên sở hữu khóa và admin xem trước khóa chưa công khai.
+- Cho phép học viên đã ghi danh gửi báo cáo khóa học hoặc bài học.
+
+1.4. Giảng viên công khai
+- Hiển thị danh sách giảng viên đang hoạt động.
+- Hiển thị ngôn ngữ giảng dạy, số khóa học và số học viên.
+- Trang hồ sơ riêng cho từng giảng viên.
+- Hiển thị tối đa các khóa học nổi bật của giảng viên.
+- Hiển thị số lượt đăng ký và đánh giá khóa học của giảng viên.
+
+1.5. Bảng xếp hạng học viên
+- Xếp hạng theo bài test đạt, khóa học đã tham gia, lượt dùng AI và hoạt động học.
+- Hiển thị top 3 và bảng xếp hạng chi tiết.
+
+1.6. Trang giới thiệu
+- Giới thiệu sứ mệnh, giá trị cốt lõi và cách FinnCenter vận hành.
+- Hiển thị số liệu thực tế của hệ thống.
+
+
+2. TÀI KHOẢN VÀ BẢO MẬT
+-----------------------
+
+2.1. Đăng ký
+- Đăng ký tài khoản học viên bằng tên hiển thị, email và mật khẩu.
+- Kiểm tra email trùng.
+- Kiểm tra độ mạnh mật khẩu.
+- Xác thực email bằng OTP 6 chữ số.
+- OTP đăng ký hết hạn sau 10 phút.
+- Cho phép gửi lại OTP sau thời gian chờ.
+- Giới hạn OTP theo email, IP và thiết bị.
+- Giới hạn số lần nhập sai OTP.
+
+2.2. Đăng nhập và đăng xuất
+- Đăng nhập bằng email và mật khẩu.
+- Chặn tài khoản chưa xác thực OTP.
+- Chặn tài khoản bị khóa.
+- Rate limit chống thử mật khẩu liên tục theo email và IP.
+- Cookie đăng nhập được ký và có thời hạn.
+- Hỗ trợ thu hồi phiên bằng authVersion.
+- Đăng xuất và xóa cookie xác thực.
+
+2.3. Quên mật khẩu
+- Gửi OTP đặt lại mật khẩu qua email.
+- Không tiết lộ email có tồn tại hay không.
+- Giới hạn yêu cầu OTP theo email và IP.
+- Giới hạn số lần nhập sai OTP.
+- Đặt mật khẩu mới và vô hiệu hóa các phiên cũ.
+
+2.4. Hồ sơ cá nhân
+- Xem tên, email, role và thông tin cá nhân.
+- Sửa tên hiển thị.
+- Sửa số điện thoại.
+- Xem các khóa học đã hoàn thành.
+- Đổi mật khẩu bằng mật khẩu hiện tại.
+- Email chỉ hiển thị, không sửa từ form hồ sơ hiện tại.
+
+2.5. Bảo mật nền
+- Hash mật khẩu bằng scrypt và salt ngẫu nhiên.
+- Kiểm tra mật khẩu bằng so sánh an toàn.
+- Cookie xác thực ký HMAC.
+- Thu hồi quyền truy cập khi role hoặc trạng thái tài khoản thay đổi.
+- Xóa session khi đổi/reset mật khẩu hoặc thay đổi bảo mật quan trọng.
+
+
+3. THÔNG BÁO
+-------------
+
+- Lưu thông báo theo từng người dùng.
+- Lấy danh sách thông báo chưa đọc.
+- Hiển thị thông báo dạng toast trên header.
+- Đánh dấu thông báo đã đọc.
+- Thông báo riêng cho doanh thu giảng viên.
+- Phân trang lịch sử thông báo doanh thu.
+- Gửi thông báo cho các sự kiện như duyệt hồ sơ, rút tiền, hoàn tiền và báo cáo.
+
+
+4. DASHBOARD HỌC VIÊN
+---------------------
+
+- Hiển thị tiến độ trung bình.
+- Hiển thị số khóa đang học.
+- Hiển thị số khóa đã hoàn thành.
+- Hiển thị bài test gần đây.
+- Hiển thị số điểm đậu hiện có và đã sử dụng.
+- Hiển thị danh sách tiếp tục học.
+- Hiển thị biểu đồ hoạt động học 7 ngày.
+- Hiển thị các khóa đã đăng ký.
+- Gợi ý khóa học mới chưa đăng ký.
+- Hỗ trợ giảng viên dùng chế độ học thử như học viên.
+
+
+5. KHÓA HỌC CỦA TÔI
+--------------------
+
+- Hiển thị toàn bộ khóa học đã ghi danh.
+- Phân loại khóa đang học và đã hoàn thành.
+- Hiển thị số bài hoàn thành và tổng số bài.
+- Hiển thị phần trăm tiến độ.
+- Điều hướng trực tiếp vào màn hình học.
+- Hiển thị trạng thái quyền học bị tạm khóa khi hoàn tiền đang chờ xử lý.
+- Hiển thị và gửi yêu cầu hoàn tiền đối với khóa đủ điều kiện.
+
+
+6. HỌC BÀI VÀ TIẾN ĐỘ
+---------------------
+
+6.1. Cấu trúc học tập
+- Khóa học gồm nhiều chương.
+- Mỗi chương gồm nhiều bài học.
+- Hiển thị danh sách chương và bài học theo thứ tự.
+- Theo dõi bài đang chọn, bài chưa học và bài đã hoàn thành.
+- Tính phần trăm tiến độ theo số bài hoàn thành.
+
+6.2. Quyền truy cập
+- Chỉ người đã ghi danh, giảng viên sở hữu khóa hoặc admin được truy cập nội dung.
+- Chặn truy cập nếu quyền học đang tạm khóa do yêu cầu hoàn tiền.
+
+6.3. Bài học không có video
+- Ghi nhận thời điểm bắt đầu học.
+- Hiển thị thời gian còn lại.
+- Yêu cầu học tối thiểu 3 phút trước khi đánh dấu hoàn thành.
+- Máy chủ xác minh thời gian bắt đầu và thời gian hoàn thành.
+
+6.4. Bài học có video
+- Ghi nhận thời điểm bắt đầu xem.
+- Gửi heartbeat định kỳ lên máy chủ.
+- Lưu vị trí hiện tại, thời lượng và số giây đã xem.
+- Ngăn tua vượt quá vị trí đã xem đối với bài chưa hoàn thành.
+- Ghi nhận vi phạm tua.
+- Chỉ hoàn thành khi heartbeat còn mới, không vi phạm tua, xem tối thiểu 90% và đến gần cuối video.
+
+6.5. Hoàn thành khóa học
+- Khi đạt 100% bài học, mở đường dẫn đến bài test của khóa.
+- Ghi nhận hoạt động học để phục vụ dashboard và analytics.
+
+
+7. MUA KHÓA HỌC VÀ THANH TOÁN
+-----------------------------
+
+- Khóa học miễn phí được ghi danh ngay.
+- Giảng viên sở hữu khóa học được ghi danh miễn phí để học thử.
+- Khóa trả phí được thanh toán trực tiếp qua VNPay.
+- Tạo Payment trạng thái chờ xử lý.
+- Tạo mã giao dịch duy nhất.
+- Ký tham số thanh toán VNPay.
+- Xử lý cả VNPay return URL và IPN.
+- Kiểm tra chữ ký, số tiền, mã giao dịch và trạng thái thanh toán.
+- Chống ghi nhận thanh toán nhiều lần.
+- Sau khi thanh toán thành công, tạo Order, OrderItem và Enrollment.
+- Chia doanh thu khóa của giảng viên: giảng viên 70%, admin 30%.
+- Khóa không thuộc giảng viên role TEACHER được tính toàn bộ doanh thu cho admin.
+
+Lưu ý hiện hành:
+- Hệ thống không còn sử dụng ví tiền nội bộ.
+- API /api/wallet và /api/wallet/top-up trả HTTP 410.
+- Mua khóa học và mua điểm AI đều thanh toán trực tiếp qua VNPay.
+
+
+8. HOÀN TIỀN KHÓA HỌC
+---------------------
+
+- Học viên gửi yêu cầu hoàn tiền từ trang Khóa học của tôi.
+- Chỉ áp dụng trong vòng 7 ngày kể từ khi mua.
+- Chỉ áp dụng khi tiến độ không vượt quá 50%.
+- Chỉ áp dụng cho khóa trả phí.
+- Mỗi giao dịch chỉ có một yêu cầu hoàn tiền.
+- Bắt buộc nhập lý do hoàn tiền.
+- Tạm khóa quyền học ngay khi gửi yêu cầu.
+- Gửi thông báo cho admin.
+- Admin xem danh sách yêu cầu chờ xử lý.
+- Admin duyệt hoặc từ chối, kèm ghi chú.
+- Khi duyệt, ghi nhận hoàn tiền ngoài hệ thống và hủy quyền truy cập.
+- Khi từ chối, mở lại quyền học.
+- Gửi thông báo kết quả cho học viên.
+
+
+9. BÀI TEST
+-----------
+
+9.1. Loại bài test
+- COURSE: bài test gắn với khóa học.
+- PUBLIC_PRACTICE: bài luyện tập công khai.
+- TEACHER_ENTRANCE: bài thi đầu vào giảng viên.
+
+9.2. Chế độ đánh giá
+- STANDARD: chấm tiêu chuẩn.
+- WRITING: chấm Writing bằng AI.
+- SPEAKING: chấm Speaking bằng AI.
+
+9.3. Dạng câu hỏi
+- Trắc nghiệm nhiều lựa chọn.
+- Đúng/sai.
+- Điền đáp án.
+- Tự luận.
+- Speaking.
+
+9.4. Nội dung đề
+- Câu hỏi có thể đính kèm audio.
+- Bài test có thể đính kèm tài liệu đề thi.
+- Có điểm cho từng câu.
+- Có đáp án đúng và phần giải thích.
+- Tổng điểm câu hỏi phải bằng 100 để bài test sẵn sàng.
+- Cấu hình điểm đạt và giới hạn thời gian.
+
+9.5. Điều kiện làm bài
+- Bài test khóa học yêu cầu đã ghi danh.
+- Quyền học không được ở trạng thái hoàn tiền chờ xử lý.
+- Phải hoàn thành 100% bài học của khóa.
+- Bài public practice không cần gắn với khóa học.
+
+9.6. Làm và nộp bài
+- Đếm ngược thời gian.
+- Tự động nộp khi hết giờ.
+- Dùng token lượt thi có chữ ký để chống giả mạo.
+- Chấm tự động câu khách quan.
+- Chấm AI câu tự luận và Speaking.
+- Cho phép nhận chỉ điểm hoặc mua nhận xét AI chi tiết.
+- Kiểm tra số điểm đậu trước khi mua nhận xét.
+- Lưu số lần làm, đáp án, điểm và trạng thái đạt.
+
+9.7. Kết quả bài test
+- Hiển thị tổng điểm và điểm đạt.
+- Hiển thị từng câu, đáp án đã chọn và đáp án đúng.
+- Hiển thị điểm từng câu.
+- Hiển thị nhận xét AI theo tiêu chí nếu đã mua.
+- Hiển thị lỗi, gợi ý, bài mẫu và mức tham chiếu chứng chỉ.
+- Cho phép làm lại bài test.
+
+
+10. LỊCH SỬ VÀ KẾT QUẢ HỌC TẬP
+------------------------------
+
+- Tổng hợp kết quả bài test, Writing AI và Speaking AI.
+- Lọc kết quả theo loại.
+- Hiển thị điểm đã chuẩn hóa theo phần trăm.
+- Biểu đồ xu hướng điểm theo thời gian.
+- Biểu đồ điểm trung bình theo tuần hoặc tháng.
+- Trang chi tiết kết quả.
+- Hiển thị bài làm đã lưu.
+- Hiển thị nhận xét, điểm mạnh, điểm yếu và đề xuất cải thiện.
+- Hiển thị bài mẫu nếu có.
+- Hiển thị mức tham chiếu IELTS, HSK, JLPT hoặc TOPIK.
+- Có lưu ý mức tham chiếu nội bộ không thay thế chứng chỉ chính thức.
+- Lịch sử bài test có thể lọc theo khóa học và đề test.
+
+
+11. HOÀN THÀNH KHÓA HỌC VÀ CHỨNG NHẬN
+-------------------------------------
+
+- Xác định đạt bài test dựa trên điểm đạt cấu hình.
+- Khi đạt bài test COURSE, ghi nhận hoàn thành khóa học.
+- Gửi email chứng nhận hoàn thành khóa học.
+- Hiển thị khóa đã hoàn thành trong hồ sơ và trang khóa học của tôi.
+- Mở quyền đánh giá khóa học sau khi đạt bài test.
+
+
+12. ĐÁNH GIÁ KHÓA HỌC
+---------------------
+
+- Chỉ người đã đạt bài test khóa học mới được đánh giá.
+- Rating từ 1 đến 5 sao.
+- Bình luận tối đa 1.000 ký tự.
+- Mỗi học viên có thể cập nhật đánh giá trước đó.
+- Hiển thị điểm trung bình và tổng số đánh giá.
+- Hiển thị danh sách đánh giá trên trang chi tiết khóa học.
+- Có thể mở form đánh giá ngay sau khi đạt bài test.
+
+
+13. WRITING AI
+--------------
+
+- Tạo đề Writing bằng AI.
+- Có đề mặc định/fallback khi không tạo được đề AI.
+- Hỗ trợ Writing Task 1 và Task 2.
+- Task 1 có thể tạo dữ liệu bảng hoặc biểu đồ.
+- Hỗ trợ tiếng Anh, Trung, Nhật và Hàn.
+- Tiếng Anh sử dụng rubric IELTS Writing.
+- Các ngôn ngữ khác sử dụng rubric ngôn ngữ/chứng chỉ tương ứng.
+- Chế độ chỉ chấm điểm.
+- Chế độ nhận xét AI chi tiết.
+- Nhận xét gồm điểm từng tiêu chí, tóm tắt, lỗi, điểm mạnh/yếu, gợi ý và bài mẫu.
+- Kiểm tra bài lạc đề và mức độ liên quan nhiệm vụ.
+- Lưu kết quả vào lịch sử học tập.
+- Student/Teacher trả 3 điểm đậu cho nhận xét chi tiết.
+- Admin sử dụng miễn phí.
+
+
+14. SPEAKING AI
+---------------
+
+- Tạo topic Speaking theo task, chủ đề và ngôn ngữ.
+- Ghi âm trực tiếp bằng microphone.
+- Nhận diện transcript phía trình duyệt bằng Web Worker.
+- Gửi transcript và audio lên máy chủ.
+- Lưu file ghi âm để xem lại.
+- Hỗ trợ tiếng Anh, Trung, Nhật và Hàn.
+- Hỗ trợ IELTS Speaking, HSK/HSKK và rubric Nhật/Hàn tương ứng.
+- Chấm phát âm, độ trôi chảy, ngữ pháp, từ vựng và mức độ đúng chủ đề.
+- Hiển thị lỗi phát âm, lỗi ngữ pháp, cách sửa và phương pháp luyện tập.
+- Chế độ chỉ chấm điểm.
+- Chế độ nhận xét AI chi tiết.
+- Student/Teacher trả 7 điểm đậu cho nhận xét chi tiết.
+- Admin sử dụng miễn phí.
+- Thời lượng Speaking được đọc từ cấu hình hệ thống.
+
+
+15. ĐIỂM ĐẬU DÙNG CHO AI
+------------------------
+
+- Hiển thị tổng điểm đã mua hoặc được cấp.
+- Hiển thị tổng điểm đã sử dụng.
+- Hiển thị số điểm còn lại.
+- Mua số lượng điểm tùy ý qua VNPay.
+- Giá mặc định 1.000 VND/điểm và có thể cấu hình.
+- Có các gói chọn nhanh trên giao diện.
+- Lưu lịch sử cộng/trừ điểm.
+- Lưu số dư sau từng giao dịch.
+- Dùng điểm cho Writing AI, Speaking AI và nhận xét AI trong bài test.
+- Admin không bị trừ điểm.
+- Trang Phần thưởng hiện là bảng giá nhận xét AI và liên kết mở nhanh tính năng.
+- Chưa có cơ chế thưởng streak/hoàn thành khóa đáng kể; giá trị thưởng hiện chủ yếu bằng 0.
+
+
+16. ĐĂNG KÝ GIẢNG VIÊN
+----------------------
+
+16.1. Nộp hồ sơ
+- Admin bật/tắt việc nhận hồ sơ giảng viên.
+- Người dùng chọn ngôn ngữ muốn giảng dạy.
+- Upload từ 1 đến 3 chứng chỉ.
+- Hỗ trợ JPG, PNG và PDF.
+- Giới hạn tối đa 10MB cho mỗi file.
+- Nhập ngày hết hạn cho từng chứng chỉ.
+- Lưu lịch sử từng lần đăng ký.
+
+16.2. Bài thi đầu vào
+- Tìm bài thi đầu vào theo ngôn ngữ.
+- Nếu không có bài thi, hồ sơ chuyển thẳng sang chờ admin review.
+- Nếu có bài thi, hồ sơ ở trạng thái draft cho đến khi nộp bài.
+- Hỗ trợ bài thi Writing hoặc Speaking AI.
+- Đếm ngược thời gian.
+- Tự động lưu đáp án.
+- Thứ tự câu hỏi ổn định theo từng hồ sơ.
+- Hiển thị điểm và nhận xét AI sau khi nộp.
+
+16.3. Anti-cheat
+- Yêu cầu người thi xác nhận quy định chống gian lận.
+- Yêu cầu cấp quyền camera trước, sau khi camera sẵn sàng mới cho vào toàn màn hình và bắt đầu bài thi.
+- Không mở hộp thoại cấp quyền camera sau khi đã vào toàn màn hình, tránh trình duyệt tự thoát fullscreen.
+- Chỉ bắt đầu tính thời gian làm bài sau khi camera, fullscreen và phiên anti-cheat đã được máy chủ xác nhận.
+- Che toàn bộ nội dung câu hỏi, khóa phần trả lời nếu người thi thoát toàn màn hình và yêu cầu vào lại fullscreen để tiếp tục.
+- Thử bật Keyboard Lock khi trình duyệt hỗ trợ để giữ Esc và các phím hệ thống trong fullscreen; chặn Tab và các phím tắt điều hướng trong phạm vi trang.
+- Alt+Tab/Esc không thể bị website vô hiệu hóa tuyệt đối trên mọi trình duyệt/hệ điều hành; nếu hệ điều hành vẫn cho thoát, hệ thống ghi nhận ngay qua fullscreen, visibility, focus và heartbeat.
+- Chặn menu chuột phải, copy, cut và paste trong thời gian làm bài.
+- Mỗi lần nhấn Esc hoặc rời bài bằng Alt+Tab/mất focus được gắn một mã sự cố riêng và tính đúng một vi phạm, không dùng thời gian chờ 10 giây.
+- Các tín hiệu fullscreen, visibility và blur phát sinh từ cùng một hành động được khử trùng theo mã sự cố, tránh cộng nhiều lỗi cho một lần rời bài.
+- Gửi heartbeat giám sát định kỳ lên máy chủ để xác minh camera, fullscreen, focus và tính toàn vẹn phiên; gián đoạn heartbeat chỉ cảnh báo, không tự cộng thêm lỗi rời bài.
+- Chặn nộp bài nếu heartbeat giám sát đã quá hạn.
+- Khi Screen API của trình duyệt hỗ trợ, chặn bắt đầu và ghi nhận vi phạm nếu phát hiện nhiều màn hình.
+- Phát hiện nhiều phiên làm bài đồng thời bằng mã phiên heartbeat.
+- Theo dõi rời tab hoặc tab bị ẩn.
+- Theo dõi cửa sổ mất focus.
+- Theo dõi thoát fullscreen.
+- Theo dõi copy và paste.
+- Theo dõi camera bị tắt hoặc không truy cập được.
+- Giám sát khuôn mặt cục bộ nếu trình duyệt hỗ trợ FaceDetector.
+- Ghi log anti-cheat và các sự kiện đáng ngờ.
+- Ngay sau khi máy chủ xác nhận nộp bài thành công, tự thoát toàn màn hình, mở khóa bàn phím, dừng camera/heartbeat và ngừng ghi log chống gian lận.
+- Có thể tự động đánh trượt hồ sơ khi vi phạm vượt ngưỡng.
+- Toàn bộ thông báo chống gian lận hiển thị theo ngôn ngữ người dùng đăng ký làm bài giảng viên: Việt, Anh, Trung, Nhật hoặc Hàn.
+- Riêng câu nói và câu viết của đề đầu vào giảng viên được che trước khi lấy câu hỏi.
+- Nút lấy câu hỏi hiển thị cảnh báo thời gian trước khi bắt đầu đồng hồ riêng của câu.
+- Câu nói mặc định có 60 giây chuẩn bị và 120 giây trả lời; người tạo đề có thể cấu hình trong giới hạn cho phép.
+- Câu viết dùng đơn vị phút trong giao diện tạo đề, mặc định 60 phút và có thể cấu hình từ 1 đến 180 phút.
+- Thời điểm lấy câu hỏi và hạn trả lời được lưu, kiểm tra phía máy chủ; tải lại trang không đặt lại đồng hồ.
+- Thời gian riêng câu nói/viết chỉ áp dụng cho đề TEACHER_ENTRANCE, không thay đổi các đề khóa học hoặc đề luyện tập.
+
+16.4. Trạng thái hồ sơ
+- DRAFT.
+- SUBMITTED. 
+- UNDER_REVIEW.
+- APPROVED.
+- REJECTED.
+- EXPIRED.
+- FAILED_CHEATING.
+
+
+17. DASHBOARD GIẢNG VIÊN
+------------------------
+
+- Hiển thị số dư doanh thu khả dụng.
+- Hiển thị doanh thu đang được giữ trong yêu cầu rút.
+- Hiển thị doanh thu tháng hiện tại.
+- Hiển thị tổng doanh số và doanh thu được hưởng.
+- Hiển thị số khóa học, học viên và lượt mua hợp lệ.
+- Hiển thị thống kê báo cáo khóa học.
+- Biểu đồ báo cáo theo tuần.
+- Hiển thị các khóa bị báo cáo nhiều.
+- Hiển thị báo cáo gần nhất.
+- Hiển thị khóa học gần đây và trạng thái.
+- Điều hướng nhanh đến quản lý khóa, doanh thu, test và báo cáo.
+
+
+18. QUẢN LÝ KHÓA HỌC CHO GIẢNG VIÊN
+-----------------------------------
+
+- Tạo khóa học mới.
+- Sửa khóa học.
+- Tìm kiếm khóa theo tên.
+- Thiết lập tên, mô tả, giá, ngôn ngữ, category, level và thời lượng.
+- Upload thumbnail khóa học.
+- Xem số chương, bài test và học viên.
+- Chỉ cho giảng viên gán ngôn ngữ đã được admin duyệt.
+- Admin có thể tạo khóa với các ngôn ngữ hệ thống.
+- Trạng thái ACTIVE, LOCKED, PENDING_APPROVAL, PENDING_DELETE và REJECTED.
+- Nếu auto-approval bật, khóa hợp lệ có thể hoạt động ngay.
+- Nếu auto-approval tắt, khóa mới/sửa chuyển sang chờ duyệt.
+- Admin có thể khóa hoặc mở khóa.
+- Khóa có học viên không bị xóa vật lý ngay; chuyển sang chờ admin duyệt xóa.
+- Kiểm tra khóa có ngôn ngữ, chương và bài học trước khi công khai.
+
+
+19. QUẢN LÝ CHƯƠNG VÀ BÀI HỌC
+-----------------------------
+
+- Tạo, sửa và xóa chương.
+- Sắp xếp thứ tự chương.
+- Tạo, sửa và xóa bài học.
+- Sắp xếp thứ tự bài học.
+- Thiết lập tiêu đề và nội dung bài học.
+- Upload video bài học.
+- Xem và quản lý toàn bộ nội dung trong trang chi tiết khóa.
+
+
+20. QUẢN LÝ BÀI TEST CHO GIẢNG VIÊN/ADMIN
+-----------------------------------------
+
+- Giảng viên tạo test cho khóa thuộc quyền sở hữu.
+- Mỗi khóa chỉ có một course test.
+- Khóa phải có ít nhất một chương trước khi tạo test.
+- Admin tạo PUBLIC_PRACTICE và TEACHER_ENTRANCE.
+- Teacher entrance yêu cầu chế độ Writing hoặc Speaking.
+- Tạo, sửa và xóa đề test.
+- Cấu hình tên đề, mô tả, điểm đạt và thời gian.
+- Quản lý câu hỏi và đáp án.
+- Upload audio câu hỏi.
+- Upload tài liệu đề.
+- Validate tổng điểm không vượt quá hoặc phải đạt 100 để sẵn sàng.
+
+
+21. QUẢN LÝ HỌC VIÊN
+---------------------
+
+Đối với giảng viên:
+- Xem học viên đã đăng ký các khóa mình phụ trách.
+- Tìm theo tên, email hoặc tên khóa học.
+- Xem danh sách khóa đã tham gia.
+- Xem ngày ghi danh.
+- Xem chứng chỉ giảng viên nếu người dùng liên quan có role TEACHER.
+
+Đối với admin tại cùng khu vực:
+- Xem toàn bộ người dùng.
+- Thống kê số học viên, giảng viên và admin.
+- Sửa email.
+- Thay đổi role.
+- Khóa hoặc mở tài khoản.
+- Không cho admin tự khóa chính mình.
+- Không cho khóa/hạ quyền admin hoạt động cuối cùng.
+- Khi khóa hoặc hạ quyền giảng viên, khóa các khóa học đang hoạt động của giảng viên đó.
+
+
+22. BÁO CÁO KHÓA HỌC
+--------------------
+
+22.1. Học viên gửi báo cáo
+- Chỉ học viên đã ghi danh được gửi báo cáo.
+- Chọn báo cáo toàn khóa hoặc một bài học cụ thể.
+- Nhập tiêu đề từ 5 đến 160 ký tự.
+- Nhập nội dung từ 20 đến 5.000 ký tự.
+- Xác nhận báo cáo là đúng sự thật.
+- Giới hạn tối đa 5 báo cáo trong khoảng chống spam.
+
+22.2. Nhóm báo cáo
+- Nội dung không chính xác.
+- Tài nguyên bị lỗi.
+- Vấn đề truy cập.
+- Nội dung không phù hợp.
+- Chất lượng không đúng mô tả.
+- Vấn đề liên quan giảng viên.
+- Khác.
+
+22.3. Xử lý báo cáo
+- Giảng viên xem các báo cáo thuộc khóa của mình.
+- Giảng viên chuyển báo cáo sang trạng thái đang xem xét.
+- Admin xem toàn bộ báo cáo.
+- Admin chuyển trạng thái PENDING, IN_REVIEW, RESOLVED hoặc REJECTED.
+- Lưu ghi chú xử lý.
+- Thống kê báo cáo trên dashboard giảng viên và admin analytics.
+
+
+23. DOANH THU VÀ RÚT TIỀN GIẢNG VIÊN
+------------------------------------
+
+- Tính doanh thu hợp lệ từ các khóa giảng viên phụ trách.
+- Trừ các đơn đã hoàn tiền khỏi doanh thu hợp lệ.
+- Trừ số tiền đang được giữ trong yêu cầu rút.
+- Hiển thị doanh thu khả dụng.
+- Lưu lịch sử tối đa các yêu cầu rút gần đây.
+
+23.1. Tài khoản nhận tiền
+- Lưu tên ngân hàng, chi nhánh, số tài khoản và tên chủ tài khoản.
+- Chuẩn hóa tên chủ tài khoản thành chữ hoa.
+- Kiểm tra số tài khoản từ 6 đến 30 chữ số.
+- Gửi OTP 6 số về email khi thêm hoặc thay đổi tài khoản.
+- OTP hết hạn sau 10 phút.
+- Giới hạn số lần thử OTP.
+- Giới hạn gửi lại OTP.
+- Lưu nhật ký tài khoản cũ và mới dạng che số.
+- Lưu IP và device fingerprint của yêu cầu thay đổi.
+
+23.2. Tạo yêu cầu rút
+- Chỉ giảng viên được tạo yêu cầu.
+- Bắt buộc có tài khoản ngân hàng đã xác minh.
+- Số tiền phải là số nguyên dương.
+- Không được vượt quá doanh thu khả dụng.
+- Sử dụng transaction Serializable để hạn chế rút vượt số dư.
+- Lưu snapshot tài khoản ngân hàng vào yêu cầu rút.
+
+23.3. Trạng thái rút tiền
+- PENDING.
+- APPROVED.
+- PAID.
+- COMPLETED.
+- REJECTED.
+
+
+24. KHIẾU NẠI RÚT DOANH THU
+---------------------------
+
+- Chỉ mở khi yêu cầu đã PAID hoặc COMPLETED.
+- Mỗi yêu cầu rút có tối đa một khiếu nại.
+- Lý do chưa nhận được tiền.
+- Lý do nhận sai số tiền.
+- Lý do khác.
+- Cho phép nhập số tiền thực nhận khi sai số tiền.
+- Cho phép nhập nội dung chi tiết.
+- Cho phép upload ảnh bằng chứng.
+- Hiển thị trạng thái OPEN, RESOLVED hoặc REJECTED.
+- Admin xem bằng chứng và ghi chú xử lý.
+- Admin đóng hoặc từ chối khiếu nại.
+- Gửi thông báo kết quả cho giảng viên.
+
+
+25. QUẢN TRỊ HỆ THỐNG
+---------------------
+
+25.1. Dashboard admin
+- Các tab Tổng quan, Quản lý bài kiểm tra, Thống kê, Rút doanh thu, Hoàn tiền và Báo cáo khóa học.
+- Hiển thị số hồ sơ giảng viên và khóa học đang chờ xử lý.
+
+25.2. Cấu hình nghiệp vụ
+- Bật/tắt đăng ký giảng viên.
+- Khi bật lại có thể gửi notification/email cho học viên.
+- Bật/tắt tự động duyệt khóa học.
+- Có API cấu hình Speaking AI gồm loại IELTS/HSK và thời lượng.
+- Có API thêm ngôn ngữ mới.
+- Cấu hình Speaking và thêm ngôn ngữ hiện chưa có giao diện admin rõ ràng.
+
+25.3. Duyệt hồ sơ giảng viên
+- Tìm hồ sơ theo tên hoặc email.
+- Xem ngôn ngữ, lần đăng ký và điểm đầu vào.
+- Xem chứng chỉ và trạng thái hết hạn.
+- Xem log anti-cheat và sự kiện đáng ngờ.
+- Duyệt hoặc từ chối kèm lý do.
+- Khi duyệt, chuyển người dùng sang role TEACHER.
+
+25.4. Duyệt khóa học
+- Xem khóa chờ duyệt và yêu cầu xóa.
+- Xem giảng viên, mô tả, số chương, bài test và học viên.
+- Xem trước nội dung khóa.
+- Duyệt hoặc từ chối khóa mới.
+- Duyệt hoặc từ chối yêu cầu xóa.
+
+25.5. Quản lý hoàn tiền
+- Xem danh sách yêu cầu theo trạng thái.
+- Xem học viên, khóa học, số tiền, tiến độ và lý do.
+- Duyệt hoàn tiền hoặc từ chối.
+- Nhập ghi chú xử lý.
+- Theo dõi tổng yêu cầu, số đã duyệt và số bị từ chối.
+
+25.6. Quản lý rút doanh thu
+- Xem giảng viên, số tiền và tài khoản nhận tiền.
+- Duyệt yêu cầu.
+- Xác nhận đã chuyển khoản.
+- Từ chối yêu cầu kèm lý do.
+- Kiểm tra doanh thu hợp lệ trước khi duyệt.
+- Xem và xử lý khiếu nại.
+
+
+26. ANALYTICS QUẢN TRỊ
+----------------------
+
+26.1. Khoảng thời gian
+- Hôm nay.
+- Hôm qua.
+- 7 ngày.
+- 30 ngày.
+- Tuần này.
+- Tháng này.
+- Quý này.
+- Năm này.
+- Khoảng ngày tùy chọn.
+
+26.2. Người dùng
+- Tổng người dùng.
+- Học viên, giảng viên và admin.
+- Người dùng mới.
+- Tốc độ tăng trưởng.
+- Biểu đồ tăng trưởng theo ngày, tuần, tháng hoặc năm.
+
+26.3. Khóa học và ghi danh
+- Tổng khóa học, khóa mới, khóa hoạt động và khóa bị khóa.
+- Khóa học phổ biến.
+- Khóa bán tốt.
+- Xu hướng ghi danh theo ngôn ngữ.
+- Tỷ lệ hoàn thành khóa học.
+
+26.4. Tài chính
+- Tổng doanh thu khóa học.
+- Hoa hồng admin.
+- Hoa hồng giảng viên.
+- Doanh thu mua điểm AI.
+- Giá trị đơn hàng trung bình.
+- Số giao dịch thành công.
+- Doanh thu theo thời gian.
+
+26.5. Rút tiền và hoàn tiền
+- Số và tổng giá trị yêu cầu rút.
+- Giá trị đang chờ, đã duyệt và đã chuyển.
+- Số yêu cầu hoàn tiền theo trạng thái.
+- Tổng giá trị hoàn tiền và tỷ lệ hoàn tiền trên doanh thu.
+
+26.6. Bài test và AI
+- Số lượt làm bài và tỷ lệ đạt.
+- Điểm trung bình.
+- Sử dụng Writing AI và Speaking AI.
+- Điểm đậu đã mua và đã sử dụng.
+- Hoạt động học và hoàn thành khóa.
+
+26.7. Báo cáo và bảo mật
+- Tổng báo cáo khóa học.
+- Báo cáo chờ xử lý, đã giải quyết và bị từ chối.
+- Khóa học bị báo cáo nhiều.
+- Tổng vi phạm anti-cheat.
+- Số bài thi và hồ sơ có gian lận.
+- Email gửi thành công/thất bại và tỷ lệ lỗi.
+
+26.8. Xếp hạng
+- Học viên học nhiều nhất.
+- Học viên có điểm cao nhất.
+- Học viên có nhiều điểm đậu nhất.
+- Giảng viên có nhiều học viên nhất.
+- Giảng viên có nhiều khóa học nhất.
+- Giảng viên có doanh thu cao nhất.
+- Khóa học theo doanh thu, học viên và đánh giá.
+
+26.9. Xuất báo cáo
+- Xuất CSV.
+- Xuất XLSX.
+- Xuất PDF.
+
+
+27. EMAIL VÀ NHẬT KÝ
+--------------------
+
+- Gửi OTP đăng ký.
+- Gửi OTP quên mật khẩu.
+- Gửi OTP thay đổi tài khoản ngân hàng.
+- Gửi email duyệt/từ chối hồ sơ giảng viên.
+- Gửi email chứng nhận hoàn thành khóa học.
+- Gửi email/notification khi thay đổi cấu hình đăng ký giảng viên.
+- Lưu EmailLog với trạng thái SENT hoặc FAILED.
+- Lưu nội dung lỗi khi gửi email thất bại.
+
+
+28. UPLOAD FILE
+---------------
+
+- Upload thumbnail khóa học.
+- Upload video bài học.
+- Upload audio câu hỏi.
+- Upload tài liệu bài test.
+- Upload chứng chỉ giảng viên.
+- Upload audio Speaking AI.
+- Upload ảnh bằng chứng khiếu nại rút doanh thu.
+- Validate loại file và dung lượng tùy chức năng.
+- File hiện được lưu trong thư mục public local của dự án.
+
+
+29. TÍCH HỢP HỆ THỐNG
+---------------------
+
+- Next.js App Router và React.
+- Prisma với PostgreSQL.
+- Ollama cho tạo đề và chấm AI.
+- VNPay cho mua khóa học và điểm AI.
+- Nodemailer/SMTP cho OTP, thông báo và chứng nhận.
+- Web Worker cho nhận diện/phân tích audio Speaking phía trình duyệt.
+- Health check ứng dụng và kết nối database tại /api/health.
+
+
+30. CÁC ROUTE CHUYỂN HƯỚNG CŨ
+----------------------------
+
+- /wallet chuyển đến /student/wallet.
+- /my-learning chuyển đến /my-courses.
+- /student/lam-bai chuyển đến /student/tests.
+- /forgot-password chuyển đến /auth/forgot-password.
+
+
+31. LƯU Ý VỀ TRẠNG THÁI HIỆN TẠI
+--------------------------------
+
+- Danh sách này phản ánh code trong workspace hiện tại, kể cả thay đổi chưa commit.
+- Ví tiền nội bộ không còn hoạt động dù một số model lịch sử vẫn còn trong schema.
+- Trang /student/wallet hiện là trang quản lý điểm đậu AI, không phải ví tiền VND.
+- Thanh toán khóa học và điểm AI thực hiện trực tiếp qua VNPay.
+- Hoàn tiền và chuyển doanh thu được xử lý ngoài hệ thống; chưa có chuyển khoản ngân hàng tự động.
+- Cấu hình Speaking AI và thêm ngôn ngữ có API nhưng chưa có giao diện admin hoàn chỉnh.
+- Điểm thưởng cho streak/hoàn thành khóa hiện chưa được kích hoạt đáng kể.
+- Upload đang lưu local nên cần object storage nếu triển khai nhiều instance hoặc serverless.
+- AI phụ thuộc Ollama; khi dịch vụ AI không hoạt động, một số chức năng chấm bài sẽ không khả dụng.
+- Một số chuỗi tiếng Việt trong source hiện có dấu hiệu lỗi mã hóa UTF-8/mojibake.

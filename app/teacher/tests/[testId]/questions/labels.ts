@@ -19,6 +19,11 @@ export type QuestionEditorLabels = {
   answerPlaceholder: (index: number) => string;
   correctAnswer: string;
   aiNotice: string;
+  timingTitle: string;
+  preparationSeconds: string;
+  answerSeconds: string;
+  answerMinutes: string;
+  timingHelp: string;
   explanation: string;
   hint: string;
   hintPlaceholder: string;
@@ -100,6 +105,11 @@ const editorLabels: Record<UiLanguage, QuestionEditorLabels> = {
     answerPlaceholder: (index) => `Đáp án ${index + 1}`,
     correctAnswer: "Đáp án đúng *",
     aiNotice: "Câu hỏi này được AI chấm điểm. Người làm bài sẽ nộp bài viết hoặc transcript giọng nói thay vì chọn đáp án cố định.",
+    timingTitle: "Thời gian riêng cho câu hỏi đầu vào giảng viên",
+    preparationSeconds: "Thời gian chuẩn bị (giây)",
+    answerSeconds: "Thời gian trả lời (giây)",
+    answerMinutes: "Thời gian làm bài (phút)",
+    timingHelp: "Bài nói dùng giây. Bài viết dùng phút, mặc định 60 phút và có thể cấu hình tối đa 180 phút.",
     explanation: "Giải thích",
     hint: "Gợi ý",
     hintPlaceholder: "Nhập mỗi ý trên một dòng, ví dụ:\n- Xác định từ khóa chính\n- Chú ý thì của động từ",
@@ -138,6 +148,11 @@ const editorLabels: Record<UiLanguage, QuestionEditorLabels> = {
     answerPlaceholder: (index) => `Answer ${index + 1}`,
     correctAnswer: "Correct answer *",
     aiNotice: "This question is scored by AI. Students submit writing or a speech transcript instead of choosing a fixed answer.",
+    timingTitle: "Teacher entrance question timing",
+    preparationSeconds: "Preparation time (seconds)",
+    answerSeconds: "Answer time (seconds)",
+    answerMinutes: "Answer time (minutes)",
+    timingHelp: "Speaking uses seconds. Writing uses minutes, defaults to 60 minutes, and can be configured up to 180 minutes.",
     explanation: "Explanation",
     hint: "Hint",
     hintPlaceholder: "Enter one hint per line, for example:\n- Identify the key word\n- Check the verb tense",

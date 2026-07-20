@@ -1,18 +1,15 @@
 import { PrismaPg } from "@prisma/adapter-pg";
-import type { PrismaClientOptions as RuntimePrismaClientOptions } from "@prisma/client/runtime/client";
-import { PrismaClient } from "@/.generated/prisma/client";
+import type { RuntimeDataModel } from "@prisma/client/runtime/client";
+import { Prisma, PrismaClient } from "@/.generated/prisma/client";
 import { getDatabaseAdapterConfig, getDatabaseUrlTarget } from "@/lib/database-url";
 
 declare global {
   var prisma: InstanceType<typeof PrismaClient> | undefined;
 }
 
-type RuntimeModel = { fields?: Array<{ name?: string }> };
 type RuntimePrismaClient = InstanceType<typeof PrismaClient> &
   Record<string, unknown> & {
-    _runtimeDataModel?: {
-      models?: Record<string, RuntimeModel>;
-    };
+    _runtimeDataModel?: RuntimeDataModel;
   };
 
 function hasRuntimeModelFields(
@@ -34,6 +31,15 @@ function getReusablePrismaClient() {
   const isStaleGeneratedClient =
     typeof cachedPrisma.teacherBankAccountChangeOtp === "undefined" ||
     typeof cachedPrisma.teacherBankAccountChangeLog === "undefined" ||
+    typeof cachedPrisma.courseReport === "undefined" ||
+    !hasRuntimeModelFields(cachedPrisma, "TeacherApplication", [
+      "questionRevealState",
+    ]) ||
+    !hasRuntimeModelFields(cachedPrisma, "Question", [
+      "preparationTimeSeconds",
+      "answerTimeSeconds",
+    ]) ||
+    !hasRuntimeModelFields(cachedPrisma, "AntiCheatLog", ["incidentId"]) ||
     !hasRuntimeModelFields(cachedPrisma, "TeacherRevenueWithdrawalComplaint", [
       "evidenceImageUrl",
       "evidenceImageName",
@@ -54,7 +60,7 @@ const adapter = new PrismaPg(
   { connectionString: databaseConfig.connectionString },
   databaseConfig.schema ? { schema: databaseConfig.schema } : undefined,
 );
-const prismaClientOptions: RuntimePrismaClientOptions = { adapter };
+const prismaClientOptions: Prisma.PrismaClientOptions = { adapter };
 
 if (!global.prisma) {
   console.info("[prisma] DATABASE_URL target:", getDatabaseUrlTarget());

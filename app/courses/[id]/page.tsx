@@ -5,6 +5,7 @@ import { normalizeCourseThumbnailUrl } from "@/lib/course-thumbnail";
 import { prisma } from "@/lib/prisma";
 import EnrollCourseCard from "./components/EnrollCourseCard";
 import CourseReviewForm from "./components/CourseReviewForm";
+import CourseReportButton from "./components/CourseReportButton";
 import { Badge, BadgeGroup } from "@/components/base/badge";
 import { Section } from "@/components/base/section";
 import { canReviewCourse, getCourseReviews, getUserCourseReview } from "@/lib/course-reviews";
@@ -181,13 +182,25 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
 
           <aside className="space-y-4">
             {user ? (
-              <EnrollCourseCard courseId={course.id} price={course.price} initiallyEnrolled={Boolean(enrollment)} canLearnDirectly={canLearnDirectly} />
+              <EnrollCourseCard
+                courseId={course.id}
+                price={course.price}
+                initiallyEnrolled={Boolean(enrollment)}
+                accessSuspended={enrollment?.accessStatus === "REFUND_PENDING"}
+                canLearnDirectly={canLearnDirectly}
+              />
             ) : (
               <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
                 {ui.course.loginPrompt}
                 <Link href="/auth/login" className="mt-4 block rounded-lg bg-primary px-4 py-2 text-center font-semibold text-primary-foreground">{ui.course.login}</Link>
               </div>
             )}
+            {user?.role === "STUDENT" && enrollment ? (
+              <CourseReportButton
+                courseId={course.id}
+                lessons={course.modules.flatMap((module) => module.lessons.map((lesson) => ({ id: lesson.id, title: lesson.title })))}
+              />
+            ) : null}
             <div className="rounded-xl border border-border bg-card p-5">
               <h3 className="font-semibold text-foreground">{ui.course.includes}</h3>
               <ul className="mt-3 space-y-2 text-sm text-muted-foreground">

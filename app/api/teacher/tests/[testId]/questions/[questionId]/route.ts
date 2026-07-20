@@ -22,6 +22,39 @@ function isValidAudioUrl(value: string) {
   }
 }
 
+function questionTiming(
+  testKind: string,
+  type: string,
+  preparationTimeSeconds: unknown,
+  answerTimeSeconds: unknown,
+  current: { preparationTimeSeconds: number | null; answerTimeSeconds: number | null },
+) {
+  if (testKind !== "TEACHER_ENTRANCE" || (type !== "ESSAY" && type !== "SPEAKING")) {
+    return { preparationTimeSeconds: null, answerTimeSeconds: null };
+  }
+
+  const defaultPreparation = type === "SPEAKING" ? 60 : 0;
+  const defaultAnswer = type === "SPEAKING" ? 120 : 3600;
+  const preparation = type === "ESSAY"
+    ? 0
+    : preparationTimeSeconds === undefined
+      ? current.preparationTimeSeconds ?? defaultPreparation
+      : Number(preparationTimeSeconds);
+  const answer = answerTimeSeconds === undefined
+    ? current.answerTimeSeconds ?? defaultAnswer
+    : Number(answerTimeSeconds);
+  const minAnswer = type === "SPEAKING" ? 30 : 60;
+  const maxAnswer = type === "SPEAKING" ? 300 : 10800;
+
+  if (!Number.isInteger(preparation) || preparation < 0 || preparation > 300) {
+    throw new Error("INVALID_PREPARATION_TIME");
+  }
+  if (!Number.isInteger(answer) || answer < minAnswer || answer > maxAnswer || (type === "ESSAY" && answer % 60 !== 0)) {
+    throw new Error("INVALID_ANSWER_TIME");
+  }
+  return { preparationTimeSeconds: preparation, answerTimeSeconds: answer };
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ testId: string; questionId: string }> }
@@ -116,7 +149,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { type, content, audioUrl, hasListening, order, score, explanation, hint, answers } = body;
+    const { type, content, audioUrl, hasListening, order, score, explanation, hint, answers, preparationTimeSeconds, answerTimeSeconds } = body;
 
     const nextType = type ?? existingQuestion.type;
     const nextHasListening = hasListening ?? Boolean(existingQuestion.audioUrl);
@@ -186,6 +219,22 @@ export async function PUT(
       }
     }
 
+    let timing;
+    try {
+      timing = questionTiming(
+        existingQuestion.test.kind,
+        nextType,
+        preparationTimeSeconds,
+        answerTimeSeconds,
+        existingQuestion,
+      );
+    } catch {
+      return NextResponse.json(
+        { error: "Thời gian câu hỏi không hợp lệ. Bài nói tối đa 5 phút, bài viết từ 1 đến 180 phút." },
+        { status: 400 },
+      );
+    }
+
     await prisma.question.update({
       where: { id: questionId },
       data: {
@@ -196,6 +245,7 @@ export async function PUT(
         ...(score !== undefined && { score: parsedScore }),
         ...(explanation !== undefined && { explanation }),
         ...(hint !== undefined && { hint }),
+        ...timing,
       },
     });
 

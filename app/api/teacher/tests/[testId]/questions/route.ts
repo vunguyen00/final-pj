@@ -21,6 +21,38 @@ function isValidAudioUrl(value: string) {
   }
 }
 
+function questionTiming(
+  testKind: string,
+  type: string,
+  preparationTimeSeconds: unknown,
+  answerTimeSeconds: unknown,
+) {
+  if (testKind !== "TEACHER_ENTRANCE" || (type !== "ESSAY" && type !== "SPEAKING")) {
+    return { preparationTimeSeconds: null, answerTimeSeconds: null };
+  }
+
+  const defaultPreparation = type === "SPEAKING" ? 60 : 0;
+  const defaultAnswer = type === "SPEAKING" ? 120 : 3600;
+  const preparation = type === "ESSAY"
+    ? 0
+    : preparationTimeSeconds === undefined || preparationTimeSeconds === ""
+      ? defaultPreparation
+      : Number(preparationTimeSeconds);
+  const answer = answerTimeSeconds === undefined || answerTimeSeconds === ""
+    ? defaultAnswer
+    : Number(answerTimeSeconds);
+  const minAnswer = type === "SPEAKING" ? 30 : 60;
+  const maxAnswer = type === "SPEAKING" ? 300 : 10800;
+
+  if (!Number.isInteger(preparation) || preparation < 0 || preparation > 300) {
+    throw new Error("INVALID_PREPARATION_TIME");
+  }
+  if (!Number.isInteger(answer) || answer < minAnswer || answer > maxAnswer || (type === "ESSAY" && answer % 60 !== 0)) {
+    throw new Error("INVALID_ANSWER_TIME");
+  }
+  return { preparationTimeSeconds: preparation, answerTimeSeconds: answer };
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ testId: string }> }
@@ -93,7 +125,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { type, content, audioUrl, hasListening, order, score, explanation, hint, answers } = body;
+    const { type, content, audioUrl, hasListening, order, score, explanation, hint, answers, preparationTimeSeconds, answerTimeSeconds } = body;
 
     if (!type || !content) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -150,6 +182,15 @@ export async function POST(
     });
 
     const newOrder = order ?? (maxOrderQuestion ? maxOrderQuestion.order + 1 : 1);
+    let timing;
+    try {
+      timing = questionTiming(test.kind, type, preparationTimeSeconds, answerTimeSeconds);
+    } catch {
+      return NextResponse.json(
+        { error: "Thời gian câu hỏi không hợp lệ. Bài nói tối đa 5 phút, bài viết từ 1 đến 180 phút." },
+        { status: 400 },
+      );
+    }
 
     const question = await prisma.question.create({
       data: {
@@ -161,6 +202,7 @@ export async function POST(
         score: parsedScore,
         explanation: explanation || null,
         hint: hint || null,
+        ...timing,
         ...(normalizedAnswers.length > 0 && type !== "SPEAKING" && {
           answers: {
             create: normalizedAnswers.map((answer, index) => ({

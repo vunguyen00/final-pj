@@ -11,14 +11,6 @@ import {
   getProductTypeLabel,
 } from "@/app/components/learningMarketplace";
 
-const tabs = [
-  { key: "popular", label: "Phổ biến" },
-  { key: "new", label: "Mới nhất" },
-  { key: "combo", label: "Combo" },
-  { key: "skill", label: "Theo kỹ năng" },
-  { key: "cert", label: "Luyện thi chứng chỉ" },
-];
-
 function buildHref(params: Record<string, string | undefined>) {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -52,25 +44,6 @@ export function CourseFilterPanel({
             {activeFilterCount ? ` · ${activeFilterCount} bộ lọc đang bật` : ""}
           </p>
         </div>
-
-        <nav aria-label="Nhóm khóa học" className="w-full overflow-x-auto pb-1 lg:w-auto">
-          <div className="flex min-w-max gap-2">
-            {tabs.map((tab) => (
-              <Link
-                key={tab.key}
-                href={buildHref({ ...params, tab: tab.key })}
-                aria-current={activeTab === tab.key ? "page" : undefined}
-                className={`rounded-full px-3.5 py-2 text-sm font-semibold transition ${
-                  activeTab === tab.key
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-secondary-foreground hover:opacity-90"
-                }`}
-              >
-                {tab.label}
-              </Link>
-            ))}
-          </div>
-        </nav>
       </div>
 
       <form

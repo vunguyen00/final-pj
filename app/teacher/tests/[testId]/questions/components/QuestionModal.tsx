@@ -16,6 +16,7 @@ type Props = {
   audioUploadMessage: string;
   notice: { tone: "success" | "error"; message: string } | null;
   onAudioUpload: (file: File | null) => void;
+  isTeacherEntrance: boolean;
 };
 
 const needsObjectiveAnswers = (kind: QuestionKind) => kind === "MULTIPLE_CHOICE" || kind === "TRUE_FALSE";
@@ -35,6 +36,7 @@ export function QuestionModal({
   audioUploadMessage,
   notice,
   onAudioUpload,
+  isTeacherEntrance,
 }: Props) {
   if (!show) return null;
   const labels = getQuestionEditorLabels(languageCode);
@@ -46,6 +48,8 @@ export function QuestionModal({
       kind,
       audioUrl: supportsAudio(kind) ? prev.audioUrl : "",
       hasListening: supportsAudio(kind) && Boolean(prev.audioUrl),
+      preparationTimeSeconds: kind === "SPEAKING" ? "60" : kind === "ESSAY" ? "0" : prev.preparationTimeSeconds,
+      answerTimeSeconds: kind === "SPEAKING" ? "120" : kind === "ESSAY" ? "3600" : prev.answerTimeSeconds,
       answers,
     }));
   };
@@ -223,6 +227,62 @@ export function QuestionModal({
               {labels.aiNotice}
             </div>
           )}
+
+          {isTeacherEntrance && (form.kind === "ESSAY" || form.kind === "SPEAKING") ? (
+            <fieldset className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+              <legend className="px-1 text-sm font-semibold text-blue-900">{labels.timingTitle}</legend>
+              {form.kind === "SPEAKING" ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label htmlFor="question-preparation-seconds" className="text-sm text-slate-700">
+                    {labels.preparationSeconds}
+                    <input
+                      id="question-preparation-seconds"
+                      type="number"
+                      min={0}
+                      max={300}
+                      value={form.preparationTimeSeconds}
+                      disabled={isSubmitting}
+                      onChange={(event) => setForm((prev) => ({ ...prev, preparationTimeSeconds: event.target.value }))}
+                      className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2"
+                    />
+                  </label>
+                  <label htmlFor="question-answer-seconds" className="text-sm text-slate-700">
+                    {labels.answerSeconds}
+                    <input
+                      id="question-answer-seconds"
+                      type="number"
+                      min={30}
+                      max={300}
+                      value={form.answerTimeSeconds}
+                      disabled={isSubmitting}
+                      onChange={(event) => setForm((prev) => ({ ...prev, answerTimeSeconds: event.target.value }))}
+                      className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2"
+                    />
+                  </label>
+                </div>
+              ) : (
+                <label htmlFor="question-answer-minutes" className="block text-sm text-slate-700">
+                  {labels.answerMinutes}
+                  <input
+                    id="question-answer-minutes"
+                    type="number"
+                    min={1}
+                    max={180}
+                    step={1}
+                    value={form.answerTimeSeconds === "" ? "" : Number(form.answerTimeSeconds) / 60}
+                    disabled={isSubmitting}
+                    onChange={(event) => setForm((prev) => ({
+                      ...prev,
+                      preparationTimeSeconds: "0",
+                      answerTimeSeconds: event.target.value === "" ? "" : String(Number(event.target.value) * 60),
+                    }))}
+                    className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2"
+                  />
+                </label>
+              )}
+              <p className="mt-2 text-xs text-blue-800">{labels.timingHelp}</p>
+            </fieldset>
+          ) : null}
 
           <div>
             <label htmlFor="question-explanation" className="block text-sm font-medium text-slate-700">

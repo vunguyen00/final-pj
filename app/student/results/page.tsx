@@ -4,7 +4,7 @@ import ResultsClient from "./ResultsClient";
 
 export default async function StudentResultsPage() {
   const user = await requireRole("STUDENT", "TEACHER", "ADMIN");
-  const results = await getStudentResults(user, "all");
+  const results = await getStudentResults(user, "all", 1, 10);
 
-  return <ResultsClient initialResults={results} />;
+  return <ResultsClient initialData={results} />;
 }

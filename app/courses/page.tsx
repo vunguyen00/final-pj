@@ -42,10 +42,17 @@ export default async function CoursesPage({
     lessons: modules.reduce((total, module) => total + module._count.lessons, 0),
   }));
   const enrolledIds = new Set<string>();
+  const suspendedIds = new Set<string>();
 
   if (user) {
-    const enrollments = await prisma.enrollment.findMany({ where: { userId: user.id }, select: { courseId: true } });
-    enrollments.forEach((item) => enrolledIds.add(item.courseId));
+    const enrollments = await prisma.enrollment.findMany({
+      where: { userId: user.id },
+      select: { courseId: true, accessStatus: true },
+    });
+    enrollments.forEach((item) => {
+      enrolledIds.add(item.courseId);
+      if (item.accessStatus === "REFUND_PENDING") suspendedIds.add(item.courseId);
+    });
   }
 
   const keyword = params.q?.trim().toLocaleLowerCase("vi") ?? "";
@@ -87,7 +94,12 @@ export default async function CoursesPage({
         <CourseFilterPanel params={params} resultCount={filteredCourses.length} />
         <CardGrid cols={3} gap="md" className="mt-6">
           {filteredCourses.map((course) => (
-            <CourseCard key={course.id} course={course} isEnrolled={enrolledIds.has(course.id)} />
+            <CourseCard
+              key={course.id}
+              course={course}
+              isEnrolled={enrolledIds.has(course.id)}
+              isAccessSuspended={suspendedIds.has(course.id)}
+            />
           ))}
         </CardGrid>
         {filteredCourses.length === 0 ? (

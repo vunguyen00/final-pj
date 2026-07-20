@@ -6,10 +6,11 @@ import AnalyticsDashboard from "./AnalyticsDashboard";
 import AdminTestsManagement from "./AdminTestsManagement";
 import AdminCourseRefunds from "./AdminCourseRefunds";
 import AdminRevenueWithdrawals, { type AdminWithdrawal } from "./AdminRevenueWithdrawals";
+import CourseReportsPanel from "@/app/components/CourseReportsPanel";
 import type { AnalyticsPayload } from "@/lib/admin-analytics";
 import type { AdminCourseRefund, AdminManagedTest, Application, Course, Language } from "./types";
 
-type AdminTab = "overview" | "tests" | "withdrawals" | "analytics" | "refunds";
+type AdminTab = "overview" | "tests" | "withdrawals" | "analytics" | "refunds" | "reports";
 
 const adminTabs: { id: AdminTab; label: string }[] = [
   { id: "overview", label: "Tổng quan" },
@@ -17,6 +18,7 @@ const adminTabs: { id: AdminTab; label: string }[] = [
   { id: "analytics", label: "Thống kê" },
   { id: "withdrawals", label: "Rút doanh thu" },
   { id: "refunds", label: "Hoàn tiền" },
+  { id: "reports", label: "Báo cáo khóa học" },
 ];
 
 function isAdminTab(value: string | null): value is AdminTab {
@@ -104,6 +106,8 @@ export default function AdminShell({
         <AdminRevenueWithdrawals initialWithdrawals={initialWithdrawals} />
       ) : currentTab === "refunds" ? (
         <AdminCourseRefunds initialRefunds={initialRefunds} />
+      ) : currentTab === "reports" ? (
+        <CourseReportsPanel role="ADMIN" />
       ) : (
         <AnalyticsDashboard initialData={analyticsInitialData} />
       )}

@@ -1,4 +1,5 @@
 import type { AppRole } from "@/lib/auth";
+import { Prisma } from "@/.generated/prisma/client";
 import { getCertificateRating, type CertificateRating } from "@/lib/certificate-rating";
 import { prisma } from "@/lib/prisma";
 
@@ -20,6 +21,24 @@ export type StudentResultItem = {
   summary: string;
   certificate: CertificateRating;
   scoreOnly?: boolean;
+};
+
+export type StudentResultsPayload = {
+  items: StudentResultItem[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+  overview: {
+    total: number;
+    average: number;
+    highest: number;
+    lowest: number;
+    passed: number;
+    failed: number;
+    passRate: number;
+  };
+  scoreTrend: Array<{ id: string; type: "TEST" | "SPEAKING" | "WRITING"; submittedAt: string; scorePercent: number }>;
 };
 
 export type ResultDetail = {
@@ -75,11 +94,24 @@ function normalizeFilter(value?: string | null): ResultFilter {
   return "all";
 }
 
-export async function getStudentResults(user: Viewer, filterInput?: string | null) {
+export async function getStudentResults(
+  user: Viewer,
+  filterInput?: string | null,
+  pageInput = 1,
+  pageSizeInput = 10,
+): Promise<StudentResultsPayload> {
   assertCanReadResults(user);
   const type = normalizeFilter(filterInput);
+  const page = Math.max(1, Math.trunc(pageInput) || 1);
+  const pageSize = Math.min(50, Math.max(1, Math.trunc(pageSizeInput) || 10));
+  const sourceTake = type === "all" ? page * pageSize : pageSize;
+  const sourceSkip = type === "all" ? 0 : (page - 1) * pageSize;
 
-  const [testAttempts, aiAssessments] = await Promise.all([
+  const [testCount, aiCount, testAttempts, aiAssessments] = await Promise.all([
+    type === "all" || type === "TEST" ? prisma.testAttempt.count({ where: { userId: user.id } }) : Promise.resolve(0),
+    type === "all" || type === "SPEAKING" || type === "WRITING"
+      ? prisma.aiAssessment.count({ where: { userId: user.id, ...(type === "SPEAKING" || type === "WRITING" ? { type } : {}) } })
+      : Promise.resolve(0),
     type === "all" || type === "TEST"
       ? prisma.testAttempt.findMany({
           where: { userId: user.id },
@@ -100,6 +132,8 @@ export async function getStudentResults(user: Viewer, filterInput?: string | nul
             },
           },
           orderBy: { submittedAt: "desc" },
+          skip: sourceSkip,
+          take: sourceTake,
         })
       : Promise.resolve([]),
     type === "all" || type === "SPEAKING" || type === "WRITING"
@@ -118,6 +152,8 @@ export async function getStudentResults(user: Viewer, filterInput?: string | nul
             },
           },
           orderBy: { submittedAt: "desc" },
+          skip: sourceSkip,
+          take: sourceTake,
         })
       : Promise.resolve([]),
   ]);
@@ -179,9 +215,74 @@ export async function getStudentResults(user: Viewer, filterInput?: string | nul
     };
   });
 
-  return [...testItems, ...aiItems].sort(
+  const combinedItems = [...testItems, ...aiItems].sort(
     (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
   );
+  const items = type === "all"
+    ? combinedItems.slice((page - 1) * pageSize, page * pageSize)
+    : combinedItems.slice(0, pageSize);
+  const totalItems = testCount + aiCount;
+
+  const typeClause = type === "all" ? Prisma.empty : Prisma.sql`WHERE "type" = ${type}`;
+  type AggregateRow = { total: number; average: number; highest: number; lowest: number; passed: number };
+  type TrendRow = { id: string; type: "TEST" | "SPEAKING" | "WRITING"; submittedAt: Date; scorePercent: number };
+  const [aggregateRows, trendRows] = await Promise.all([
+    prisma.$queryRaw<AggregateRow[]>(Prisma.sql`
+      WITH combined AS (
+        SELECT 'TEST'::text AS "type",
+               CASE WHEN "maxScore" > 0 THEN ("score" / "maxScore") * 100 ELSE 0 END AS percent,
+               "isPassed" AS passed
+        FROM "TestAttempt" WHERE "userId" = ${user.id}
+        UNION ALL
+        SELECT "type"::text AS "type",
+               CASE WHEN "maxScore" > 0 THEN ("score" / "maxScore") * 100 ELSE 0 END AS percent,
+               CASE WHEN "maxScore" > 0 THEN ("score" / "maxScore") * 100 >= 50 ELSE false END AS passed
+        FROM "AiAssessment" WHERE "userId" = ${user.id}
+      ), filtered AS (SELECT * FROM combined ${typeClause})
+      SELECT COUNT(*)::int AS total,
+             COALESCE(AVG(percent), 0)::float8 AS average,
+             COALESCE(MAX(percent), 0)::float8 AS highest,
+             COALESCE(MIN(percent), 0)::float8 AS lowest,
+             COALESCE(SUM(CASE WHEN passed THEN 1 ELSE 0 END), 0)::int AS passed
+      FROM filtered
+    `),
+    prisma.$queryRaw<TrendRow[]>(Prisma.sql`
+      WITH combined AS (
+        SELECT "id", 'TEST'::text AS "type", "submittedAt",
+               CASE WHEN "maxScore" > 0 THEN ("score" / "maxScore") * 100 ELSE 0 END AS "scorePercent"
+        FROM "TestAttempt" WHERE "userId" = ${user.id}
+        UNION ALL
+        SELECT "id", "type"::text AS "type", "submittedAt",
+               CASE WHEN "maxScore" > 0 THEN ("score" / "maxScore") * 100 ELSE 0 END AS "scorePercent"
+        FROM "AiAssessment" WHERE "userId" = ${user.id}
+      )
+      SELECT * FROM combined ${typeClause} ORDER BY "submittedAt" DESC LIMIT 120
+    `),
+  ]);
+  const aggregate = aggregateRows[0] ?? { total: 0, average: 0, highest: 0, lowest: 0, passed: 0 };
+
+  return {
+    items,
+    page,
+    pageSize,
+    totalItems,
+    totalPages: Math.max(1, Math.ceil(totalItems / pageSize)),
+    overview: {
+      total: aggregate.total,
+      average: Math.round(aggregate.average * 10) / 10,
+      highest: Math.round(aggregate.highest * 10) / 10,
+      lowest: Math.round(aggregate.lowest * 10) / 10,
+      passed: aggregate.passed,
+      failed: Math.max(0, aggregate.total - aggregate.passed),
+      passRate: aggregate.total ? Math.round((aggregate.passed / aggregate.total) * 1000) / 10 : 0,
+    },
+    scoreTrend: trendRows.reverse().map((row) => ({
+      id: row.id,
+      type: row.type,
+      submittedAt: row.submittedAt.toISOString(),
+      scorePercent: Math.round(row.scorePercent * 10) / 10,
+    })),
+  };
 }
 
 export async function getStudentResultDetail(user: Viewer, resultId: string): Promise<ResultDetail | null> {

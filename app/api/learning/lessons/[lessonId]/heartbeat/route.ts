@@ -31,10 +31,21 @@ export async function POST(
   const courseId = lesson.module.course.id;
   const enrollment = await prisma.enrollment.findUnique({
     where: { userId_courseId: { userId: user.id, courseId } },
-    select: { id: true },
+    select: { id: true, accessStatus: true },
   });
-  if (user.role !== "ADMIN" && lesson.module.course.instructorId !== user.id && !enrollment) {
-    return NextResponse.json({ error: "Bạn chưa đăng ký khóa học." }, { status: 403 });
+  if (
+    user.role !== "ADMIN" &&
+    lesson.module.course.instructorId !== user.id &&
+    enrollment?.accessStatus !== "ACTIVE"
+  ) {
+    return NextResponse.json(
+      {
+        error: enrollment?.accessStatus === "REFUND_PENDING"
+          ? "Quyền học đang tạm khóa do yêu cầu hoàn tiền đang chờ xử lý."
+          : "Bạn chưa đăng ký khóa học.",
+      },
+      { status: 403 },
+    );
   }
 
   const now = new Date();

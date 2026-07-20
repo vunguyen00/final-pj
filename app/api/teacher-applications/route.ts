@@ -42,6 +42,8 @@ function serializeEntranceTest(test: Awaited<ReturnType<typeof findEntranceTest>
       hint: question.hint,
       order: question.order,
       score: question.score,
+      preparationTimeSeconds: question.preparationTimeSeconds,
+      answerTimeSeconds: question.answerTimeSeconds,
       answers:
         question.type === "MULTIPLE_CHOICE" || question.type === "TRUE_FALSE"
           ? question.answers.map((answer) => ({
@@ -190,7 +192,8 @@ export async function POST(request: Request) {
         attemptNo,
         status,
         entranceTestId: entranceTest?.id ?? null,
-        startedAt: entranceTest ? new Date() : null,
+        // The countdown starts only after camera permission and fullscreen are ready.
+        startedAt: null,
         submittedAt: entranceTest ? null : new Date(),
         certificates: { create: savedFiles },
       },

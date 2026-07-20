@@ -73,7 +73,7 @@ export async function findEntranceTest(languageId: string) {
 
 export async function logTeacherApplication(params: {
   applicationId: string;
-  status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "APPROVED" | "REJECTED" | "EXPIRED";
+  status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "APPROVED" | "REJECTED" | "EXPIRED" | "FAILED_CHEATING";
   message: string;
   actorId?: string | null;
 }) {

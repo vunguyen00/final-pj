@@ -3,6 +3,7 @@ import {
   getActiveLanguages,
   getTeacherEntranceSetting,
 } from "@/lib/teacher-onboarding";
+import { parseTeacherQuestionRevealState } from "@/lib/teacher-question-timing";
 
 export async function getTeacherRegistrationData(userId?: string) {
   const [setting, languages, applications] = await Promise.all([
@@ -19,6 +20,9 @@ export async function getTeacherRegistrationData(userId?: string) {
             startedAt: true,
             createdAt: true,
             submittedAt: true,
+            violationCount: true,
+            failureReason: true,
+            questionRevealState: true,
             language: { select: { id: true, name: true, code: true } },
             entranceTest: {
               select: {
@@ -36,6 +40,8 @@ export async function getTeacherRegistrationData(userId?: string) {
                     audioUrl: true,
                     hint: true,
                     score: true,
+                    preparationTimeSeconds: true,
+                    answerTimeSeconds: true,
                     answers: {
                       select: { id: true, content: true, order: true },
                       orderBy: { order: "asc" },
@@ -71,6 +77,7 @@ export async function getTeacherRegistrationData(userId?: string) {
       startedAt: application.startedAt?.toISOString() ?? null,
       createdAt: application.createdAt.toISOString(),
       submittedAt: application.submittedAt?.toISOString() ?? null,
+      questionRevealState: parseTeacherQuestionRevealState(application.questionRevealState),
       entranceTest: application.entranceTest
         ? {
             ...application.entranceTest,

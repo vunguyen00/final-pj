@@ -19,11 +19,14 @@ export type Question = {
   score: number;
   explanation: string | null;
   hint: string | null;
+  preparationTimeSeconds: number | null;
+  answerTimeSeconds: number | null;
   answers: Answer[];
 };
 
 export type Test = {
   id: string;
+  kind: "COURSE" | "PUBLIC_PRACTICE" | "TEACHER_ENTRANCE";
   name: string;
   description: string | null;
   maxScore: number;
@@ -59,5 +62,7 @@ export type QuestionForm = {
   score: string;
   explanation: string;
   hint: string;
+  preparationTimeSeconds: string;
+  answerTimeSeconds: string;
   answers: Answer[];
 };

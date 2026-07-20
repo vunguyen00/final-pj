@@ -71,7 +71,7 @@ export default function AdminCourseRefunds({ initialRefunds }: { initialRefunds:
       }
 
       refundStore.setValue((current) => current.map((entry) => entry.id === item.id ? data.refund! : entry));
-      setMessage(action === "APPROVE" ? "Đã duyệt yêu cầu, hủy quyền truy cập khóa học và gửi thông báo xử lý hoàn tiền bên ngoài hệ thống." : "Đã từ chối yêu cầu hoàn tiền.");
+      setMessage(action === "APPROVE" ? "Đã duyệt yêu cầu, hủy hẳn quyền truy cập và gửi thông báo xử lý hoàn tiền bên ngoài hệ thống." : "Đã từ chối yêu cầu và mở lại quyền học từ tiến độ trước đó.");
       setActionTarget(null);
     } catch {
       setActionError("Lỗi mạng. Vui lòng thử lại.");
@@ -106,7 +106,7 @@ export default function AdminCourseRefunds({ initialRefunds }: { initialRefunds:
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-5 py-4">
           <h2 className="text-xl font-bold text-slate-950">Yêu cầu hoàn tiền khóa học</h2>
-          <p className="mt-1 text-sm text-slate-500">Duyệt để hủy quyền truy cập khóa học và thông báo khoản hoàn tiền sẽ được xử lý bên ngoài hệ thống.</p>
+          <p className="mt-1 text-sm text-slate-500">Quyền học được tạm khóa ngay khi gửi yêu cầu. Duyệt để hủy hẳn quyền truy cập; từ chối để mở lại khóa học.</p>
         </div>
 
         {refunds.length === 0 ? (
@@ -247,7 +247,7 @@ export default function AdminCourseRefunds({ initialRefunds }: { initialRefunds:
             </div>
             {actionTarget.action === "APPROVE" ? (
               <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-800">
-                Khi xác nhận, quyền truy cập khóa học của học viên sẽ bị hủy và yêu cầu được đánh dấu để hoàn tiền ngoài hệ thống.
+                Quyền học hiện đã tạm khóa. Khi xác nhận, quyền truy cập sẽ bị hủy hẳn và yêu cầu được đánh dấu để hoàn tiền ngoài hệ thống.
               </p>
             ) : null}
             <label className="mt-4 block text-sm font-semibold text-slate-700">

@@ -8,7 +8,21 @@ import {
   isTestAiAnswerCorrect,
 } from "@/lib/test-ai-evaluation";
 import { logTeacherApplication } from "@/lib/teacher-onboarding";
+import { ANTI_CHEAT_CONFIG } from "@/lib/teacher-anti-cheat";
 import { FIXED_TEST_MAX_SCORE, isTestReady } from "@/lib/test-rules";
+import {
+  getTeacherQuestionTiming,
+  parseTeacherQuestionRevealState,
+  teacherQuestionAnswerStartsAt,
+  teacherQuestionDeadline,
+} from "@/lib/teacher-question-timing";
+
+function answerRecord(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+  );
+}
 
 export async function POST(
   request: Request,
@@ -18,7 +32,7 @@ export async function POST(
     const user = await requireUser();
     const { applicationId } = await params;
     const body = await request.json();
-    const answers = (body.answers ?? {}) as Record<string, string>;
+    const submittedAnswers = answerRecord(body.answers);
 
     const application = await prisma.teacherApplication.findUnique({
       where: { id: applicationId },
@@ -46,6 +60,40 @@ export async function POST(
     const test = application.entranceTest;
     if (!test) {
       return NextResponse.json({ error: "Hồ sơ không có bài test đầu vào." }, { status: 400 });
+    }
+
+    const answers = { ...submittedAnswers };
+    const savedAnswers = answerRecord(application.answerState);
+    const revealState = parseTeacherQuestionRevealState(application.questionRevealState);
+    for (const question of test.questions) {
+      const timing = getTeacherQuestionTiming(question);
+      if (!timing) continue;
+      const revealedAt = revealState[question.id];
+      const now = Date.now();
+      if (
+        !revealedAt ||
+        now < teacherQuestionAnswerStartsAt(revealedAt, timing) ||
+        now > teacherQuestionDeadline(revealedAt, timing)
+      ) {
+        answers[question.id] = savedAnswers[question.id] ?? "";
+      }
+    }
+
+    if (!application.startedAt) {
+      return NextResponse.json(
+        { error: "Phiên thi chưa được bắt đầu bằng camera và chế độ toàn màn hình." },
+        { status: 409 },
+      );
+    }
+
+    const heartbeatAgeSeconds = application.proctorHeartbeatAt
+      ? Math.floor((Date.now() - application.proctorHeartbeatAt.getTime()) / 1000)
+      : Number.POSITIVE_INFINITY;
+    if (heartbeatAgeSeconds > ANTI_CHEAT_CONFIG.heartbeatGapSeconds) {
+      return NextResponse.json(
+        { error: "Phiên giám sát bị gián đoạn. Vui lòng trở lại toàn màn hình và chờ hệ thống xác nhận trước khi nộp bài." },
+        { status: 409 },
+      );
     }
 
     const totalQuestionScore = test.questions.reduce((sum, question) => sum + Number(question.score || 0), 0);

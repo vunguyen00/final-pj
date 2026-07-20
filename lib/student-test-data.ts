@@ -147,8 +147,14 @@ export async function getStudentTestPayload(
       },
     });
 
-    if (!enrollment) {
-      return { ok: false, status: 403, error: "Not enrolled in this course" };
+    if (enrollment?.accessStatus !== "ACTIVE") {
+      return {
+        ok: false,
+        status: 403,
+        error: enrollment?.accessStatus === "REFUND_PENDING"
+          ? "Quyền làm bài đang tạm khóa do yêu cầu hoàn tiền đang chờ xử lý."
+          : "Not enrolled in this course",
+      };
     }
 
     const progress = await getCourseProgressPercent(user.id, test.courseId);

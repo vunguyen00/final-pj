@@ -40,10 +40,17 @@ export async function POST(
 
     const isAdmin = user.role === "ADMIN";
     const isInstructor = lesson.module.course.instructorId === user.id;
-    const canAccess = isAdmin || isInstructor || Boolean(enrollment);
+    const canAccess = isAdmin || isInstructor || enrollment?.accessStatus === "ACTIVE";
 
     if (!canAccess) {
-      return NextResponse.json({ error: "Bạn chưa đăng ký khóa học." }, { status: 403 });
+      return NextResponse.json(
+        {
+          error: enrollment?.accessStatus === "REFUND_PENDING"
+            ? "Quyền học đang tạm khóa do yêu cầu hoàn tiền đang chờ xử lý."
+            : "Bạn chưa đăng ký khóa học.",
+        },
+        { status: 403 },
+      );
     }
 
     if (!lesson.videoUrl) {

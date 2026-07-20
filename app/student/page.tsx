@@ -100,12 +100,14 @@ export default async function StudentPage() {
   }
 
   const enrolledCourseIds = new Set(enrollments.map((item) => item.courseId));
-  const courseStats = enrollments.map(({ course, createdAt }) => {
+  const courseStats = [];
+  for (const { course, createdAt, accessStatus } of enrollments) {
+    if (accessStatus !== "ACTIVE") continue;
     const totalLessons = course.modules.reduce((sum, module) => sum + module.lessons.length, 0);
     const completed = completedByCourse.get(course.id)?.size ?? 0;
     const progress = totalLessons > 0 ? Math.min(100, Math.round((completed / totalLessons) * 100)) : 0;
-    return { course, enrolledAt: createdAt, totalLessons, completed, progress };
-  });
+    courseStats.push({ course, enrolledAt: createdAt, totalLessons, completed, progress });
+  }
   const activeCourses = courseStats.filter((item) => item.progress < 100);
   const completedCourses = courseStats.filter((item) => item.progress === 100);
   const recommendedCourses = recommended.filter((course) => !enrolledCourseIds.has(course.id)).slice(0, 4);

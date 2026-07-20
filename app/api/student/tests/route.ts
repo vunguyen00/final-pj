@@ -16,7 +16,9 @@ export async function GET(request: NextRequest) {
     const courseId = searchParams.get("courseId");
 
     const enrollments = await prisma.enrollment.findMany({
-      where: courseId ? { userId: user.id, courseId } : { userId: user.id },
+      where: courseId
+        ? { userId: user.id, courseId, accessStatus: "ACTIVE" }
+        : { userId: user.id, accessStatus: "ACTIVE" },
       include: {
         course: {
           select: {

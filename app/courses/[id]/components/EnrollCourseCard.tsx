@@ -7,6 +7,7 @@ type Props = {
   courseId: string;
   price: number;
   initiallyEnrolled: boolean;
+  accessSuspended?: boolean;
   canLearnDirectly?: boolean;
 };
 
@@ -14,6 +15,7 @@ export default function EnrollCourseCard({
   courseId,
   price,
   initiallyEnrolled,
+  accessSuspended = false,
   canLearnDirectly = false,
 }: Props) {
   const [enrolled, setEnrolled] = useState(initiallyEnrolled || canLearnDirectly);
@@ -74,13 +76,19 @@ export default function EnrollCourseCard({
         </p>
       )}
 
-      {enrolled ? (
+      {enrolled && !accessSuspended ? (
         <Link
           href={`/student/hoc-bai?courseId=${courseId}`}
           className="mt-3 block w-full rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 text-center text-sm font-medium text-emerald-700 hover:bg-emerald-100"
         >
           Vao hoc
         </Link>
+      ) : null}
+
+      {accessSuspended ? (
+        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+          Quyền học đang tạm khóa trong khi yêu cầu hoàn tiền được admin xử lý.
+        </p>
       ) : null}
 
       {error ? (
