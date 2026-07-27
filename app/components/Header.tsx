@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { readJsonResponse } from "@/lib/http-response";
 import AuthButtons from "./header/AuthButtons";
 import { useUser } from "./header/useUser";
 
@@ -50,7 +51,7 @@ const studentNavItems = [
 ] satisfies BasicNavItem[];
 
 const teacherNavItems = [
-  { href: "/teacher/courses", label: "Khóa học của tôi" },
+  { href: "/my-courses", label: "Khóa học của tôi" },
   { href: "/teacher/tests", label: "Bài test" },
   { href: "/teacher/students", label: "Học viên" },
 ] satisfies BasicNavItem[];
@@ -60,6 +61,7 @@ const teacherOverviewNavItem = { href: "/teacher", label: "Tổng quan" } satisf
 const adminNavItems = [
   { href: "/", label: "Khám phá" },
   { href: "/courses", label: "Khóa học" },
+  { href: "/my-courses", label: "Khóa học của tôi" },
   { href: "/student/tests", label: "Bài test" },
   { href: "/student/results", label: "Kết quả" },
   { href: "/student/wallet", label: "Điểm đậu" },
@@ -93,82 +95,77 @@ function isNavigationItemActive(item: BasicNavItem | MatchedNavItem, pathname: s
   return pathname === itemPath || (itemPath !== "/" && pathname.startsWith(`${itemPath}/`));
 }
 
-const SEEN_NOTIFICATION_IDS_KEY = "seen-notification-ids:v2";
-
-function getSeenNotificationIdsKey(userId: string) {
-  return `${SEEN_NOTIFICATION_IDS_KEY}:${userId}`;
-}
-
-function readSeenNotificationIds(userId: string) {
-  try {
-    return new Set(JSON.parse(localStorage.getItem(getSeenNotificationIdsKey(userId)) || "[]") as string[]);
-  } catch {
-    return new Set<string>();
-  }
-}
-
-function writeSeenNotificationIds(userId: string, ids: string[]) {
-  try {
-    localStorage.setItem(getSeenNotificationIdsKey(userId), JSON.stringify(ids.slice(-100)));
-  } catch {
-    // Local storage may be unavailable in private mode; server readAt still prevents repeats.
-  }
+function markNotificationAsRead(notificationId: string) {
+  return fetch("/api/notifications", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids: [notificationId] }),
+  }).catch(() => undefined);
 }
 
 function startNotificationPolling({
-  userId,
   onShow,
   onHide,
 }: {
-  userId: string;
   onShow: (notification: AppNotification) => void;
   onHide: (notificationId: string) => void;
 }) {
   let cancelled = false;
+  let loading = false;
+  let activeNotificationId: string | null = null;
   const controllers = new Set<AbortController>();
+  const timers = new Set<number>();
 
   async function loadNotifications() {
+    if (cancelled || loading || activeNotificationId) return;
+    loading = true;
     const controller = new AbortController();
     controllers.add(controller);
     try {
-      const response = await fetch("/api/notifications?unread=1&take=5", { cache: "no-store", signal: controller.signal });
-      const data = (await response.json().catch(() => ({}))) as { notifications?: AppNotification[] };
+      const response = await fetch("/api/notifications?unread=1&take=1", { cache: "no-store", signal: controller.signal });
+      const data = (await readJsonResponse(response).catch(() => ({}))) as { notifications?: AppNotification[] };
       if (!response.ok || !data.notifications?.length || cancelled) return;
 
-      const seen = readSeenNotificationIds(userId);
-      const nextToast = data.notifications.find((item) => !seen.has(item.id));
-      if (!nextToast) return;
-
-      seen.add(nextToast.id);
-      writeSeenNotificationIds(userId, [...seen]);
+      const nextToast = data.notifications[0];
+      activeNotificationId = nextToast.id;
       onShow(nextToast);
-      void fetch("/api/notifications", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: [nextToast.id] }),
-      }).catch(() => undefined);
-      window.setTimeout(() => {
-        if (!cancelled) onHide(nextToast.id);
-      }, 6500);
+      const timer = window.setTimeout(() => {
+        timers.delete(timer);
+        if (cancelled) return;
+        void markNotificationAsRead(nextToast.id);
+        onHide(nextToast.id);
+        activeNotificationId = null;
+        void loadNotifications();
+      }, 8000);
+      timers.add(timer);
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       // Notification toast is best-effort; normal navigation should not be interrupted.
     } finally {
       controllers.delete(controller);
+      loading = false;
     }
   }
 
   void loadNotifications();
-  const interval = window.setInterval(loadNotifications, 30000);
+  const interval = window.setInterval(loadNotifications, 5000);
+  const refreshWhenVisible = () => {
+    if (document.visibilityState === "visible") void loadNotifications();
+  };
+  window.addEventListener("focus", refreshWhenVisible);
+  document.addEventListener("visibilitychange", refreshWhenVisible);
 
   return () => {
     cancelled = true;
     controllers.forEach((controller) => controller.abort());
+    timers.forEach((timer) => window.clearTimeout(timer));
     window.clearInterval(interval);
+    window.removeEventListener("focus", refreshWhenVisible);
+    document.removeEventListener("visibilitychange", refreshWhenVisible);
   };
 }
 
-function createNotificationStore(userId: string): NotificationStore {
+function createNotificationStore(): NotificationStore {
   let notification: AppNotification | null = null;
   let stopPolling: (() => void) | null = null;
   const listeners = new Set<() => void>();
@@ -188,7 +185,6 @@ function createNotificationStore(userId: string): NotificationStore {
       listeners.add(listener);
       if (listeners.size === 1) {
         stopPolling = startNotificationPolling({
-          userId,
           onShow: (nextNotification) => {
             notification = nextNotification;
             emit();
@@ -210,6 +206,7 @@ function createNotificationStore(userId: string): NotificationStore {
     },
     dismiss() {
       if (!notification) return;
+      void markNotificationAsRead(notification.id);
       notification = null;
       emit();
     },
@@ -229,6 +226,7 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
   const pathname = usePathname() || "";
   const { user, loading } = useUser();
   const userId = user?.id;
+  const hideHeader = pathname.startsWith("/auth") || (pathname.startsWith("/admin") && !showOnAdmin);
   const [globalError, setGlobalError] = useState("");
   const [open, setOpen] = useState(false);
   const [aiMenuOpen, setAiMenuOpen] = useState(false);
@@ -237,7 +235,7 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
     getMountedSnapshot,
     getServerMountedSnapshot,
   );
-  const notificationStore = useMemo(() => (userId ? createNotificationStore(userId) : null), [userId]);
+  const notificationStore = useMemo(() => (userId && !hideHeader ? createNotificationStore() : null), [hideHeader, userId]);
   const toast = useSyncExternalStore(
     notificationStore?.subscribe ?? subscribeToEmptyNotificationStore,
     notificationStore?.getSnapshot ?? getEmptyNotificationSnapshot,
@@ -254,7 +252,6 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
     return () => window.removeEventListener("app-global-error", handleGlobalError);
   }, []);
 
-  const hideHeader = pathname.startsWith("/auth") || (pathname.startsWith("/admin") && !showOnAdmin);
   if (hideHeader) return null;
 
   const baseLinks = user?.role === "TEACHER" ? navItems.filter((item) => item.href !== "/teachers") : [];

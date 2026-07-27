@@ -1,28 +1,19 @@
 "use client";
 
 import { useReducer } from "react";
-
-const categories = [
-  ["INACCURATE_CONTENT", "Nội dung sai hoặc thiếu chính xác"],
-  ["BROKEN_RESOURCE", "Video hoặc tài liệu bị lỗi"],
-  ["ACCESS_PROBLEM", "Không truy cập được bài học"],
-  ["INAPPROPRIATE_CONTENT", "Nội dung không phù hợp"],
-  ["QUALITY_MISMATCH", "Chất lượng không đúng mô tả"],
-  ["INSTRUCTOR_PROBLEM", "Vấn đề với giảng viên"],
-  ["OTHER", "Vấn đề khác"],
-] as const;
-
-type ReportCategory = (typeof categories)[number][0];
+import { getCourseReportLabels, type CourseReportCategory } from "@/lib/course-report-labels";
+import { readJsonResponse } from "@/lib/http-response";
 
 type ReportFormState = {
   open: boolean;
-  category: ReportCategory;
+  category: CourseReportCategory;
   lessonId: string;
   title: string;
   description: string;
   truthfulConfirmed: boolean;
   submitting: boolean;
   message: string;
+  messageTone: "success" | "error" | null;
 };
 
 type ReportFormAction =
@@ -47,6 +38,7 @@ const initialReportFormState: ReportFormState = {
   truthfulConfirmed: false,
   submitting: false,
   message: "",
+  messageTone: null,
 };
 
 function reportFormReducer(
@@ -63,9 +55,9 @@ function reportFormReducer(
     case "truthfulConfirmedChanged":
       return { ...state, truthfulConfirmed: action.value };
     case "submitStarted":
-      return { ...state, submitting: true, message: "" };
+      return { ...state, submitting: true, message: "", messageTone: null };
     case "submitFailed":
-      return { ...state, submitting: false, message: action.message };
+      return { ...state, submitting: false, message: action.message, messageTone: "error" };
     case "submitSucceeded":
       return {
         ...state,
@@ -75,6 +67,7 @@ function reportFormReducer(
         truthfulConfirmed: false,
         submitting: false,
         message: action.message,
+        messageTone: "success",
       };
   }
 }
@@ -82,10 +75,14 @@ function reportFormReducer(
 export default function CourseReportButton({
   courseId,
   lessons,
+  languageCode,
 }: {
   courseId: string;
   lessons: Array<{ id: string; title: string }>;
+  languageCode?: string | null;
 }) {
+  const labels = getCourseReportLabels(languageCode);
+  const categories = Object.entries(labels.categories) as Array<[CourseReportCategory, string]>;
   const [state, dispatch] = useReducer(
     reportFormReducer,
     initialReportFormState,
@@ -99,6 +96,7 @@ export default function CourseReportButton({
     truthfulConfirmed,
     submitting,
     message,
+    messageTone,
   } = state;
 
   async function submit(event: React.FormEvent) {
@@ -116,18 +114,17 @@ export default function CourseReportButton({
         truthfulConfirmed,
       }),
     });
-    const data = await response.json().catch(() => ({}));
+    const data = await readJsonResponse(response).catch(() => ({}));
     if (!response.ok) {
       dispatch({
         type: "submitFailed",
-        message: data?.error || "Không thể gửi báo cáo.",
+        message: data?.error || labels.submitFailed,
       });
       return;
     }
     dispatch({
       type: "submitSucceeded",
-      message:
-        "Báo cáo đã được gửi. Admin và giảng viên phụ trách có thể xem báo cáo này.",
+      message: labels.submitSuccess,
     });
   }
 
@@ -138,7 +135,7 @@ export default function CourseReportButton({
         onClick={() => dispatch({ type: "opened" })}
         className="w-full rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100"
       >
-        Báo cáo khóa học
+        {labels.button}
       </button>
       {open ? (
         <dialog
@@ -153,16 +150,16 @@ export default function CourseReportButton({
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 id="course-report-title" className="text-xl font-bold text-slate-950">
-                  Báo cáo khóa học
+                  {labels.title}
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Mô tả rõ vấn đề để giảng viên và admin có thể kiểm tra.
+                  {labels.description}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => dispatch({ type: "closed" })}
-                aria-label="Đóng"
+                aria-label={labels.close}
                 className="rounded-lg px-3 py-1 text-xl text-slate-500 hover:bg-slate-100"
               >
                 ×
@@ -170,7 +167,7 @@ export default function CourseReportButton({
             </div>
             <div className="mt-5 grid gap-4">
               <label className="text-sm font-semibold text-slate-700">
-                Loại vấn đề
+                {labels.category}
                 <select
                   value={category}
                   onChange={(event) =>
@@ -191,7 +188,7 @@ export default function CourseReportButton({
               </label>
               {lessons.length ? (
                 <label className="text-sm font-semibold text-slate-700">
-                  Bài học liên quan (không bắt buộc)
+                  {labels.relatedLesson}
                   <select
                     value={lessonId}
                     onChange={(event) =>
@@ -203,7 +200,7 @@ export default function CourseReportButton({
                     }
                     className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
                   >
-                    <option value="">Toàn bộ khóa học</option>
+                    <option value="">{labels.wholeCourse}</option>
                     {lessons.map((lesson) => (
                       <option key={lesson.id} value={lesson.id}>
                         {lesson.title}
@@ -213,7 +210,7 @@ export default function CourseReportButton({
                 </label>
               ) : null}
               <label className="text-sm font-semibold text-slate-700">
-                Tiêu đề
+                {labels.reportTitle}
                 <input
                   required
                   minLength={5}
@@ -230,7 +227,7 @@ export default function CourseReportButton({
                 />
               </label>
               <label className="text-sm font-semibold text-slate-700">
-                Nội dung chi tiết
+                {labels.details}
                 <textarea
                   required
                   minLength={20}
@@ -259,13 +256,13 @@ export default function CourseReportButton({
                   }
                   className="mt-0.5"
                 />
-                Tôi xác nhận nội dung báo cáo là đúng sự thật.
+                {labels.truthfulConfirmation}
               </label>
             </div>
             {message ? (
               <p
                 className={`mt-4 rounded-lg p-3 text-sm ${
-                  message.startsWith("Báo cáo đã")
+                  messageTone === "success"
                     ? "bg-emerald-50 text-emerald-700"
                     : "bg-red-50 text-red-700"
                 }`}
@@ -280,14 +277,14 @@ export default function CourseReportButton({
                 onClick={() => dispatch({ type: "closed" })}
                 className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700"
               >
-                Đóng
+                {labels.close}
               </button>
               <button
                 type="submit"
                 disabled={submitting || !truthfulConfirmed}
                 className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
               >
-                {submitting ? "Đang gửi..." : "Gửi báo cáo"}
+                {submitting ? labels.submitting : labels.submit}
               </button>
             </div>
           </form>

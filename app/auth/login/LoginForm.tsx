@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { readJsonResponse } from "@/lib/http-response";
 
 const labelClass = "mb-1.5 block text-sm font-bold text-slate-700";
 const inputClass = "w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100";
@@ -25,7 +26,7 @@ export function LoginForm() {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
+      const data = await readJsonResponse(response);
       if (!response.ok) {
         setError(data.error ?? "Đăng nhập thất bại.");
         return;

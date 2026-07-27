@@ -128,6 +128,8 @@ export async function recordTeacherAntiCheatEvent(
         entranceTestId: true,
         answerState: true,
         startedAt: true,
+        proctorSessionId: true,
+        proctorHeartbeatAt: true,
         language: { select: { code: true } },
         entranceTest: { select: { id: true, maxScore: true } },
       },
@@ -195,11 +197,36 @@ export async function recordTeacherAntiCheatEvent(
     });
 
     if (input.eventType === "CONSENT_ACCEPTED") {
+      const metadata =
+        input.metadata &&
+        typeof input.metadata === "object" &&
+        !Array.isArray(input.metadata)
+          ? input.metadata as Record<string, unknown>
+          : {};
+      const sessionId =
+        typeof metadata.sessionId === "string" ? metadata.sessionId.trim() : "";
+      if (!/^[a-zA-Z0-9-]{16,100}$/.test(sessionId)) {
+        throw new Error("INVALID_PROCTOR_SESSION");
+      }
+      const previousHeartbeatAge = application.proctorHeartbeatAt
+        ? Math.floor(
+            (Date.now() - application.proctorHeartbeatAt.getTime()) / 1000,
+          )
+        : Number.POSITIVE_INFINITY;
+      if (
+        application.proctorSessionId &&
+        application.proctorSessionId !== sessionId &&
+        previousHeartbeatAge < ANTI_CHEAT_CONFIG.heartbeatGapSeconds
+      ) {
+        throw new Error("SESSION_CONNECTION_MISMATCH");
+      }
       await tx.teacherApplication.update({
         where: { id: applicationId },
         data: {
           antiCheatAcknowledgedAt: new Date(),
           startedAt: application.startedAt ?? new Date(),
+          proctorSessionId: sessionId,
+          proctorHeartbeatSequence: 0,
         },
       });
     }

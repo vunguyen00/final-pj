@@ -7,6 +7,7 @@ import {
   normalizeAiPointAmount,
 } from "@/lib/ai-points";
 import { getCurrentUser } from "@/lib/auth";
+import { isSafeLocalReturnPath } from "@/lib/ai-point-purchase-flow";
 import {
   buildVnpQuery,
   createTxnRef,
@@ -33,6 +34,8 @@ export async function POST(request: Request) {
     }
 
     const amount = getAiPointPurchaseCost(points);
+    const returnTo = isSafeLocalReturnPath(body?.returnTo) ? body.returnTo : "";
+    const isPopupPurchase = body?.purchaseFlow === "popup";
     const config = getVnpayConfig(request);
     let txnRef = "";
     let created = false;
@@ -58,7 +61,13 @@ export async function POST(request: Request) {
     }
 
     const now = new Date();
-    const returnUrl = new URL("/api/ai/points/vnpay-return", config.baseUrl).toString();
+    const returnUrl = new URL("/api/ai/points/vnpay-return", config.baseUrl);
+    if (returnTo) {
+      returnUrl.searchParams.set("returnTo", returnTo);
+    }
+    if (isPopupPurchase) {
+      returnUrl.searchParams.set("purchaseFlow", "popup");
+    }
     const vnpParams: Record<string, string | number> = {
       vnp_Version: "2.1.0",
       vnp_Command: "pay",
@@ -69,7 +78,7 @@ export async function POST(request: Request) {
       vnp_OrderInfo: `Mua ${points} hat dau ${txnRef}`,
       vnp_OrderType: "other",
       vnp_Amount: amount * 100,
-      vnp_ReturnUrl: returnUrl,
+      vnp_ReturnUrl: returnUrl.toString(),
       vnp_IpAddr: getRequestIpAddr(request),
       vnp_CreateDate: formatVnpDate(now),
       vnp_ExpireDate: formatVnpDate(new Date(now.getTime() + AI_POINT_PAYMENT_EXPIRE_MINUTES * 60 * 1000)),

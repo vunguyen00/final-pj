@@ -16,7 +16,7 @@ export default async function TeacherDetailPage({ params }: Props) {
   if (!teacher) notFound();
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-dvh bg-background">
       <Section padding="md">
         <div className="rounded-2xl border border-border bg-card p-6">
           <div className="flex flex-col gap-6 md:flex-row">

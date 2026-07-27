@@ -2,6 +2,7 @@
 
 import { Fragment, useMemo, useState, useSyncExternalStore, type ButtonHTMLAttributes } from "react";
 import { createPollingStore } from "@/lib/client-polling-store";
+import { readJsonResponse } from "@/lib/http-response";
 import { ModalDialog } from "@/app/components/ModalDialog";
 
 type WithdrawalComplaint = {
@@ -65,7 +66,7 @@ function useAdminRevenueWithdrawals(initialWithdrawals: AdminWithdrawal[]) {
     intervalMs: 8000,
     load: async () => {
       const response = await fetch("/api/admin/revenue-withdrawals", { cache: "no-store" });
-      const data = (await response.json().catch(() => ({}))) as { withdrawals?: AdminWithdrawal[] };
+      const data = (await readJsonResponse(response).catch(() => ({}))) as { withdrawals?: AdminWithdrawal[] };
       if (!response.ok || !data.withdrawals) return initialWithdrawals;
       return data.withdrawals;
     },
@@ -75,7 +76,7 @@ function useAdminRevenueWithdrawals(initialWithdrawals: AdminWithdrawal[]) {
   const [message, setMessage] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionDialog, setActionDialog] = useState<ActionDialog | null>(null);
-  const [actionForm, setActionForm] = useState({ note: "", systemBankName: "", transferTransactionCode: "" });
+  const [actionForm, setActionForm] = useState({ note: "", transferTransactionCode: "" });
   const [actionError, setActionError] = useState("");
   const pendingCount = useMemo(() => withdrawals.filter((item) => item.status === "PENDING").length, [withdrawals]);
   const approvedCount = useMemo(() => withdrawals.filter((item) => item.status === "APPROVED").length, [withdrawals]);
@@ -88,20 +89,20 @@ function useAdminRevenueWithdrawals(initialWithdrawals: AdminWithdrawal[]) {
 
   function openActionDialog(dialog: ActionDialog) {
     setActionDialog(dialog);
-    setActionForm({ note: "", systemBankName: "", transferTransactionCode: "" });
+    setActionForm({ note: "", transferTransactionCode: "" });
     setActionError("");
   }
 
-  async function processWithdrawal(item: AdminWithdrawal, action: "APPROVE" | "PAY" | "REJECT", note: string, systemBankName: string, transferTransactionCode: string) {
+  async function processWithdrawal(item: AdminWithdrawal, action: "APPROVE" | "PAY" | "REJECT", note: string, transferTransactionCode: string) {
     setProcessingId(`withdrawal:${item.id}`);
     setMessage("");
     try {
       const response = await fetch(`/api/admin/revenue-withdrawals/${item.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, note, systemBankName, transferTransactionCode }),
+        body: JSON.stringify({ action, note, transferTransactionCode }),
       });
-      const data = (await response.json()) as { error?: string; withdrawal?: AdminWithdrawal };
+      const data = (await readJsonResponse(response)) as { error?: string; withdrawal?: AdminWithdrawal };
       if (!response.ok || !data.withdrawal) {
         setActionError(data.error ?? "Không thể xử lý yêu cầu.");
         return;
@@ -127,7 +128,7 @@ function useAdminRevenueWithdrawals(initialWithdrawals: AdminWithdrawal[]) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, note }),
       });
-      const data = (await response.json()) as { error?: string; complaint?: WithdrawalComplaint };
+      const data = (await readJsonResponse(response)) as { error?: string; complaint?: WithdrawalComplaint };
       if (!response.ok || !data.complaint) {
         setActionError(data.error ?? "Không thể xử lý khiếu nại.");
         return;
@@ -146,19 +147,18 @@ function useAdminRevenueWithdrawals(initialWithdrawals: AdminWithdrawal[]) {
     event.preventDefault();
     if (!actionDialog) return;
     const note = actionForm.note.trim();
-    const systemBankName = actionForm.systemBankName.trim();
     const transferTransactionCode = actionForm.transferTransactionCode.trim();
     if (actionDialog.action === "REJECT" && !note) {
       setActionError("Vui lòng nhập lý do từ chối.");
       return;
     }
-    if (actionDialog.kind === "withdrawal" && actionDialog.action === "PAY" && (!systemBankName || !transferTransactionCode)) {
-      setActionError("Vui lòng nhập ngân hàng nguồn và mã giao dịch chuyển khoản.");
+    if (actionDialog.kind === "withdrawal" && actionDialog.action === "PAY" && !transferTransactionCode) {
+      setActionError("Vui lòng nhập mã giao dịch chuyển khoản.");
       return;
     }
     setActionError("");
     if (actionDialog.kind === "withdrawal") {
-      await processWithdrawal(actionDialog.item, actionDialog.action, note, systemBankName, transferTransactionCode);
+      await processWithdrawal(actionDialog.item, actionDialog.action, note, transferTransactionCode);
     } else {
       await processComplaint(actionDialog.item, actionDialog.action, note);
     }
@@ -442,9 +442,8 @@ export default function AdminRevenueWithdrawals({ initialWithdrawals }: { initia
               <p className="mt-1">Nhận tại: {actionDialog.item.bankName} · {actionDialog.item.accountNumber}</p>
             </div>
             {actionDialog.kind === "withdrawal" && actionDialog.action === "PAY" ? (
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <label className="text-sm font-semibold text-slate-700">Ngân hàng/tài khoản nguồn *<input autoFocus value={actionForm.systemBankName} onChange={(event) => setActionForm((current) => ({ ...current, systemBankName: event.target.value }))} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" /></label>
-                <label className="text-sm font-semibold text-slate-700">Mã giao dịch *<input value={actionForm.transferTransactionCode} onChange={(event) => setActionForm((current) => ({ ...current, transferTransactionCode: event.target.value }))} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" /></label>
+              <div className="mt-4">
+                <label className="text-sm font-semibold text-slate-700">Mã giao dịch *<input autoFocus value={actionForm.transferTransactionCode} onChange={(event) => setActionForm((current) => ({ ...current, transferTransactionCode: event.target.value }))} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" /></label>
               </div>
             ) : null}
             <label className="mt-4 block text-sm font-semibold text-slate-700">

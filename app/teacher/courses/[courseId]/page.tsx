@@ -19,7 +19,11 @@ export default async function CourseDetailPage({
   return (
     <CourseDetailClient
       courseId={courseId}
-      initialData={{ course: data.course, languages: data.languages }}
+      initialData={{
+        course: data.course,
+        languages: data.languages,
+        viewerRole: data.viewerRole,
+      }}
     />
   );
 }

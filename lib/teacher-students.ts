@@ -36,7 +36,7 @@ type Viewer = {
 
 async function getTeacherStudents(viewerId: string): Promise<ManagedUser[]> {
   const enrollments = await prisma.enrollment.findMany({
-    where: { course: { instructorId: viewerId }, user: { role: "STUDENT" } },
+    where: { course: { instructorId: viewerId } },
     select: {
       user: {
         select: {

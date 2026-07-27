@@ -1,6 +1,15 @@
 "use client";
 
-import { useReducer } from "react";
+import Link from "next/link";
+import { useEffect, useReducer } from "react";
+import {
+  AI_POINT_PURCHASE_CONTEXT_KEY,
+  AI_POINT_PURCHASE_EVENT_KEY,
+  createAiPointPurchaseContext,
+  isSafeLocalReturnPath,
+  type AiPointPurchaseContext,
+} from "@/lib/ai-point-purchase-flow";
+import { readJsonResponse } from "@/lib/http-response";
 
 type BeanPoints = {
   earned: number;
@@ -32,6 +41,9 @@ type Props = {
   initialData: WalletData;
   initialNotice: Notice;
   canBuy?: boolean;
+  returnTo?: string;
+  isPopupPurchase?: boolean;
+  payment?: string | null;
 };
 
 type WalletState = {
@@ -74,7 +86,25 @@ function amountClass(amount: number) {
   return "text-slate-700";
 }
 
-export default function WalletClient({ initialData, initialNotice, canBuy = true }: Props) {
+function readStoredPurchaseContext(): AiPointPurchaseContext | null {
+  try {
+    const stored = JSON.parse(sessionStorage.getItem(AI_POINT_PURCHASE_CONTEXT_KEY) || "null") as Partial<AiPointPurchaseContext> | null;
+    if (!stored || !isSafeLocalReturnPath(stored.returnTo)) return null;
+    return { returnTo: stored.returnTo, popup: stored.popup === true };
+  } catch {
+    sessionStorage.removeItem(AI_POINT_PURCHASE_CONTEXT_KEY);
+    return null;
+  }
+}
+
+export default function WalletClient({
+  initialData,
+  initialNotice,
+  canBuy = true,
+  returnTo = "",
+  isPopupPurchase = false,
+  payment = null,
+}: Props) {
   const [state, dispatch] = useReducer(walletReducer, {
     beanAmount: "100",
     buyingBeans: false,
@@ -85,6 +115,31 @@ export default function WalletClient({ initialData, initialNotice, canBuy = true
   const beanPrice = aiPoints.pointPriceVnd || 1000;
   const selectedBeans = Number(state.beanAmount) || 0;
   const beanCost = selectedBeans * beanPrice;
+  const effectiveReturnTo = returnTo;
+  const shouldCloseAfterSuccess = isPopupPurchase;
+
+  useEffect(() => {
+    if (payment !== "success") return;
+
+    const storedContext = readStoredPurchaseContext();
+    const successReturnTo = returnTo || storedContext?.returnTo || "";
+    const closePurchaseTab = isPopupPurchase || storedContext?.popup === true;
+
+    localStorage.setItem(
+      AI_POINT_PURCHASE_EVENT_KEY,
+      JSON.stringify({ completedAt: Date.now() }),
+    );
+    sessionStorage.removeItem(AI_POINT_PURCHASE_CONTEXT_KEY);
+
+    if (closePurchaseTab) {
+      window.close();
+      return;
+    }
+
+    if (successReturnTo) {
+      window.location.replace(successReturnTo);
+    }
+  }, [isPopupPurchase, payment, returnTo]);
 
   async function handleBuyBeans() {
     if (!canBuy) {
@@ -102,12 +157,21 @@ export default function WalletClient({ initialData, initialNotice, canBuy = true
     dispatch({ type: "SET_NOTICE", notice: { message: "", isError: false } });
 
     try {
+      sessionStorage.setItem(
+        AI_POINT_PURCHASE_CONTEXT_KEY,
+        JSON.stringify(createAiPointPurchaseContext(returnTo, isPopupPurchase)),
+      );
       const res = await fetch("/api/ai/points/buy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ points: beans, beans }),
+        body: JSON.stringify({
+          points: beans,
+          beans,
+          returnTo,
+          purchaseFlow: isPopupPurchase ? "popup" : undefined,
+        }),
       });
-      const data = await res.json().catch(() => ({}));
+      const data = await readJsonResponse(res).catch(() => ({}));
       if (!res.ok || !data?.paymentUrl) {
         dispatch({ type: "SET_NOTICE", notice: { message: data?.error || "Không tạo được giao dịch mua điểm đậu.", isError: true } });
         return;
@@ -122,7 +186,7 @@ export default function WalletClient({ initialData, initialNotice, canBuy = true
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 p-6">
+    <main className="min-h-dvh bg-slate-50 p-6">
       <div className="mx-auto max-w-5xl space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Điểm đậu</h1>
@@ -152,6 +216,22 @@ export default function WalletClient({ initialData, initialNotice, canBuy = true
           >
             {notice.message}
           </p>
+        ) : null}
+
+        {payment === "success" && effectiveReturnTo ? (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+            <p className="font-semibold">
+              {shouldCloseAfterSuccess
+                ? "Đã nạp hạt đậu. Nếu tab này không tự đóng, bạn có thể đóng tab và tiếp tục bài test."
+                : "Đã nạp hạt đậu. Bạn có thể quay lại nơi đang làm dở."}
+            </p>
+            <Link
+              href={effectiveReturnTo}
+              className="mt-3 inline-flex rounded-lg bg-emerald-700 px-4 py-2 font-semibold text-white hover:bg-emerald-800"
+            >
+              Quay lại bài đang làm
+            </Link>
+          </div>
         ) : null}
 
         <section className="rounded-lg border border-emerald-200 bg-white p-5 shadow-sm">

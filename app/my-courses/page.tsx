@@ -27,7 +27,7 @@ type CourseStat = {
 };
 
 export default async function MyCoursesPage() {
-  const user = await requireRole("STUDENT", "TEACHER");
+  const user = await requireRole("STUDENT", "TEACHER", "ADMIN");
 
   const [enrollments, feedbacks, refundRequests, orderItems] = await Promise.all([
     prisma.enrollment.findMany({
@@ -121,7 +121,7 @@ export default async function MyCoursesPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main className="min-h-dvh bg-slate-50">
       <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
         <header className="border-b border-slate-200 pb-6">
           <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">Học tập</p>

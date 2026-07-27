@@ -2,11 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { LanguageEvaluationResult } from "@/app/components/LanguageEvaluationResult";
 import StarRatingInput from "@/app/components/StarRatingInput";
+import type { TestAiCriterionFeedback } from "@/lib/test-ai-evaluation";
 import { getLearningUiLabels } from "@/lib/test-language-labels";
 
 type AiEvaluation = {
   scoreOnly?: boolean;
+  mode?: "WRITING" | "SPEAKING";
   language: string;
   overallScore: number;
   totalScore?: number;
@@ -15,7 +18,9 @@ type AiEvaluation = {
   offTopicReason?: string;
   detailedComment?: string;
   sampleAnswer?: string;
+  criteria?: Record<string, number>;
   criteriaScores?: Record<string, number>;
+  criteriaFeedback?: Record<string, TestAiCriterionFeedback>;
   majorErrors?: string[];
   improvementsNeeded?: string[];
   certificateFit?: string;
@@ -26,6 +31,11 @@ type AiEvaluation = {
   feedback?: string[];
   suggestions: string[];
   corrections?: Array<{ original: string; improved: string; reason: string }>;
+  pronunciationErrors?: string[];
+  grammarErrors?: string[];
+  vocabularyErrors?: string[];
+  fluencyIssues?: string[];
+  practiceMethods?: string[];
 };
 
 type QuestionResult = {
@@ -47,6 +57,12 @@ type ResultData = {
   maxScore: number;
   passingScore: number;
   isPassed: boolean;
+  courseComplete: boolean;
+  nextAction:
+    | { type: "LESSON"; lessonId: string }
+    | { type: "TEST"; testId: string }
+    | { type: "COMPLETE" }
+    | null;
   courseId?: string | null;
   courseName?: string;
   language?: { name: string; code: string } | null;
@@ -213,62 +229,7 @@ export default function StudentTestResultClient({
                     {question.correctAnswer ? <p className="mt-1"><span className="font-semibold">{ui.result.answer}</span> {question.correctAnswer}</p> : null}
                   </div>
                   {question.aiEvaluation ? (
-                    <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-                      <p className="font-semibold">
-                        {question.aiEvaluation.scoreOnly ? ui.result.aiScore : ui.result.aiFeedback} - {question.aiEvaluation.language} - {question.aiEvaluation.overallScore}/10
-                        {question.aiEvaluation.band ? ` - ${question.aiEvaluation.band.system} ${question.aiEvaluation.band.level}` : ""}
-                      </p>
-                      {typeof question.aiEvaluation.totalScore === "number" ? (
-                        <p className="mt-2 font-semibold">
-                          {ui.result.rubricTotal}: {question.aiEvaluation.totalScore}/100
-                        </p>
-                      ) : null}
-                      {question.aiEvaluation.certificateFit ? (
-                        <p className="mt-1 text-blue-800">
-                          {ui.result.certificateFit}: {question.aiEvaluation.certificateFit}
-                        </p>
-                      ) : null}
-                      {question.aiEvaluation.criteriaScores ? (
-                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                          {Object.entries(question.aiEvaluation.criteriaScores).map(([key, value]) => (
-                            <div key={key} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-slate-800">
-                              <p className="text-xs font-semibold uppercase text-slate-500">{key.replace(/_/g, " ")}</p>
-                              <p className="mt-1 font-bold">{Math.round(value)}/100</p>
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
-                      {question.aiEvaluation.scoreOnly ? (
-                        <p className="mt-2 text-blue-800">
-                          {ui.result.scoreOnlyNote}
-                        </p>
-                      ) : (
-                        <>
-                          <p className="mt-2">{question.aiEvaluation.summary}</p>
-                          <p className="mt-2 font-semibold">
-                            {ui.result.taskRelevance}: {Math.round(question.aiEvaluation.taskRelevance ?? 0)}/100
-                          </p>
-                        </>
-                      )}
-                      {!question.aiEvaluation.scoreOnly && question.aiEvaluation.onTopic === false ? (
-                        <p className="mt-2 rounded-lg bg-red-100 p-3 font-semibold text-red-800">
-                          {ui.result.offTopic}: {question.aiEvaluation.offTopicReason || ui.result.offTopicFallback}
-                        </p>
-                      ) : null}
-                      {!question.aiEvaluation.scoreOnly && question.aiEvaluation.detailedComment ? (
-                        <p className="mt-2 leading-6">{question.aiEvaluation.detailedComment}</p>
-                      ) : null}
-                      {!question.aiEvaluation.scoreOnly && question.aiEvaluation.weaknesses.length ? <p className="mt-2">{ui.result.needsImprovement}: {question.aiEvaluation.weaknesses.join(", ")}</p> : null}
-                      {!question.aiEvaluation.scoreOnly && question.aiEvaluation.majorErrors?.length ? <p className="mt-2">{ui.result.majorErrors}: {question.aiEvaluation.majorErrors.join(", ")}</p> : null}
-                      {!question.aiEvaluation.scoreOnly && question.aiEvaluation.improvementsNeeded?.length ? <p className="mt-2">{ui.result.shouldFix}: {question.aiEvaluation.improvementsNeeded.join(", ")}</p> : null}
-                      {!question.aiEvaluation.scoreOnly && question.aiEvaluation.suggestions.length ? <p className="mt-2">{ui.result.suggestions}: {question.aiEvaluation.suggestions.slice(0, 3).join("; ")}</p> : null}
-                      {!question.aiEvaluation.scoreOnly && question.aiEvaluation.sampleAnswer ? (
-                        <div className="mt-3 rounded-lg border border-blue-200 bg-white p-3 text-slate-800">
-                          <p className="font-semibold">{ui.result.sampleAnswer}</p>
-                          <p className="mt-2 whitespace-pre-line leading-6">{question.aiEvaluation.sampleAnswer}</p>
-                        </div>
-                      ) : null}
-                    </div>
+                    <AiQuestionEvaluation question={question} />
                   ) : null}
                 </article>
               );
@@ -278,7 +239,15 @@ export default function StudentTestResultClient({
 
         <div className="flex flex-wrap gap-3">
           <Link href="/student/tests" className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">{ui.result.backToTests}</Link>
-          {result.isPassed && result.courseId ? (
+          {result.isPassed && result.courseId && result.nextAction?.type === "TEST" ? (
+            <Link href={`/student/tests/${result.nextAction.testId}`} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+              {ui.test.start}
+            </Link>
+          ) : result.isPassed && result.courseId && result.nextAction?.type === "LESSON" ? (
+            <Link href={`/student/hoc-bai?courseId=${result.courseId}&lessonId=${result.nextAction.lessonId}`} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+              {ui.course.continueLearning}
+            </Link>
+          ) : result.isPassed && result.courseId ? (
             <Link href={`/courses/${result.courseId}`} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
               {ui.result.viewCourse}
             </Link>
@@ -286,7 +255,7 @@ export default function StudentTestResultClient({
           {!result.isPassed ? <Link href={`/student/tests/${testId}`} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">{ui.result.retake}</Link> : null}
         </div>
       </div>
-      {result.isPassed && result.courseId ? (
+      {result.isPassed && result.courseId && result.courseComplete ? (
         <CourseReviewPopup
           courseId={result.courseId}
           courseName={result.courseName || "course"}
@@ -295,6 +264,77 @@ export default function StudentTestResultClient({
         />
       ) : null}
     </main>
+  );
+}
+
+function AiQuestionEvaluation({ question }: { question: QuestionResult }) {
+  const aiEvaluation = question.aiEvaluation;
+  if (!aiEvaluation) return null;
+
+  const fallbackCriteria = Object.fromEntries(
+    Object.entries(aiEvaluation.criteriaScores || {}).map(([key, value]) => [
+      key,
+      value > 10 ? value / 10 : value,
+    ]),
+  );
+  const scores =
+    aiEvaluation.criteria && Object.keys(aiEvaluation.criteria).length > 0
+      ? aiEvaluation.criteria
+      : Object.keys(fallbackCriteria).length > 0
+        ? fallbackCriteria
+        : { overall: aiEvaluation.overallScore };
+
+  return (
+    <div className="mt-5 border-t border-slate-100 pt-5">
+      <LanguageEvaluationResult
+        skill={question.questionType === "SPEAKING" ? "speaking" : "writing"}
+        evaluation={{
+          scores,
+          overall: aiEvaluation.overallScore,
+          normalizedOverall: aiEvaluation.overallScore,
+          taskRelevance: aiEvaluation.taskRelevance,
+          language: aiEvaluation.language,
+          exam: aiEvaluation.band?.system,
+          maxScore: 10,
+          band:
+            aiEvaluation.band || {
+              system: "AI",
+              level: "",
+              score: aiEvaluation.overallScore,
+              rationale: "",
+            },
+          summary: aiEvaluation.summary,
+          onTopic: aiEvaluation.onTopic,
+          offTopicReason: aiEvaluation.offTopicReason,
+          detailedComment: aiEvaluation.detailedComment,
+          criteriaFeedback: aiEvaluation.criteriaFeedback,
+        }}
+        analysis={{
+          strengths: aiEvaluation.strengths,
+          weaknesses: aiEvaluation.weaknesses,
+          feedback: aiEvaluation.feedback || [],
+          suggestions: aiEvaluation.suggestions,
+          majorErrors: aiEvaluation.majorErrors,
+          improvementsNeeded: aiEvaluation.improvementsNeeded,
+        }}
+        mistakes={{
+          majorErrors: aiEvaluation.majorErrors || [],
+          corrections: aiEvaluation.corrections || [],
+          pronunciation: aiEvaluation.pronunciationErrors || [],
+          grammar: aiEvaluation.grammarErrors || [],
+          vocabulary: aiEvaluation.vocabularyErrors || [],
+          fluency: aiEvaluation.fluencyIssues || [],
+        }}
+        improvements={{
+          improvementsNeeded: aiEvaluation.improvementsNeeded || [],
+          suggestions: aiEvaluation.suggestions,
+          practiceMethods: aiEvaluation.practiceMethods || [],
+          sampleAnswer: aiEvaluation.sampleAnswer || "",
+        }}
+        sampleAnswer={aiEvaluation.sampleAnswer}
+        scoreOnly={Boolean(aiEvaluation.scoreOnly)}
+      />
+    </div>
   );
 }
 

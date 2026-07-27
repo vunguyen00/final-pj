@@ -17,7 +17,7 @@ export default async function RewardCenterPage() {
   const summary = await getAiPointsSummary(user.id);
 
   return (
-    <main className="min-h-screen bg-slate-50 py-8">
+    <main className="min-h-dvh bg-slate-50 py-8">
       <div className="mx-auto max-w-7xl space-y-6 px-4">
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">

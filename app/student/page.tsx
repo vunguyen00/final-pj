@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { ReactNode } from "react";
-import { getCourseDuration, getCourseLanguage, getCourseLevel, getCourseType, priceLabel } from "@/app/components/learningMarketplace";
+import { getCourseDuration, getCourseLanguage, getCourseLevel, priceLabel } from "@/app/components/learningMarketplace";
 import { getAiPointsSummary } from "@/lib/ai-points";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -55,10 +55,8 @@ export default async function StudentPage() {
       include: {
         course: {
           include: {
-            instructor: { select: { username: true } },
             language: { select: { name: true, code: true } },
             modules: { include: { lessons: { select: { id: true } } }, orderBy: { order: "asc" } },
-            _count: { select: { enrollments: true, tests: true } },
           },
         },
       },
@@ -79,7 +77,7 @@ export default async function StudentPage() {
       select: { courseId: true, content: true },
     }),
     prisma.testAttempt.findMany({
-      where: { userId: user.id },
+      where: { userId: user.id, test: { kind: { not: "TEACHER_ENTRANCE" } } },
       include: { test: { select: { name: true, courseId: true } } },
       orderBy: { submittedAt: "desc" },
       take: 5,
@@ -118,7 +116,7 @@ export default async function StudentPage() {
   const maxActivity = Math.max(1, ...activitySeries.map((item) => item.value));
 
   return (
-    <main className="min-h-screen bg-slate-50 py-8">
+    <main className="min-h-dvh bg-slate-50 py-8">
       <div className="mx-auto max-w-7xl space-y-6 px-4">
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
@@ -199,37 +197,19 @@ export default async function StudentPage() {
           </Panel>
         </section>
 
-        <section className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-          <Panel title="Hoạt động học 7 ngày">
-            <div className="grid grid-cols-7 gap-2">
-              {activitySeries.map((item) => (
-                <div key={item.label} className="rounded-lg bg-slate-100 p-2">
-                  <div className="flex h-28 items-end">
-                    <div className="w-full rounded bg-blue-600" style={{ height: `${Math.max(6, (item.value / maxActivity) * 100)}%` }} />
-                  </div>
-                  <p className="mt-2 text-center text-xs font-semibold text-slate-500">{item.label}</p>
-                  <p className="text-center text-xs font-bold text-slate-900">{item.value}</p>
+        <Panel title="Hoạt động học 7 ngày">
+          <div className="grid grid-cols-7 gap-2">
+            {activitySeries.map((item) => (
+              <div key={item.label} className="rounded-lg bg-slate-100 p-2">
+                <div className="flex h-28 items-end">
+                  <div className="w-full rounded bg-blue-600" style={{ height: `${Math.max(6, (item.value / maxActivity) * 100)}%` }} />
                 </div>
-              ))}
-            </div>
-          </Panel>
-
-          <Panel title="Khóa học đã đăng ký">
-            <div className="grid gap-3 md:grid-cols-2">
-              {courseStats.slice(0, 4).map(({ course, progress, completed, totalLessons }) => (
-                <Link key={course.id} href={`/student/hoc-bai?courseId=${course.id}`} className="rounded-lg border border-slate-200 p-4 hover:border-blue-300">
-                  <p className="text-xs font-bold uppercase text-blue-700">{getCourseLanguage(course)} · {getCourseType(course)}</p>
-                  <h3 className="mt-2 line-clamp-2 font-bold text-slate-950">{course.name}</h3>
-                  <p className="mt-1 text-sm text-slate-500">{course.instructor?.username ?? "Giảng viên"} · {completed}/{totalLessons} bài</p>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                    <div className="h-full rounded-full bg-emerald-500" style={{ width: `${progress}%` }} />
-                  </div>
-                </Link>
-              ))}
-              {courseStats.length === 0 ? <EmptyState message="Khóa học bạn đăng ký sẽ hiển thị ở đây." /> : null}
-            </div>
-          </Panel>
-        </section>
+                <p className="mt-2 text-center text-xs font-semibold text-slate-500">{item.label}</p>
+                <p className="text-center text-xs font-bold text-slate-900">{item.value}</p>
+              </div>
+            ))}
+          </div>
+        </Panel>
 
         <Panel title="Gợi ý khóa học mới" action={<Link href="/courses" className="text-sm font-bold text-blue-700">Tìm khóa học</Link>}>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

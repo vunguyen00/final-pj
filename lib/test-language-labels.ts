@@ -42,6 +42,7 @@ type LearningUiLabels = {
     start: string;
     unavailable: string;
     lockedUntilCourseComplete: string;
+    lockedUntilModuleReady: string;
     invalidScore: string;
     exit: string;
     instructions: string;
@@ -49,6 +50,10 @@ type LearningUiLabels = {
     stopRecordingAlert: string;
     unansweredConfirm: (count: number) => string;
     paymentFailed: string;
+    beanPurchaseComplete: string;
+    beanPurchaseBlocked: string;
+    beanPurchaseOpened: string;
+    openBeanPurchase: string;
     submitFailed: string;
     connectionFailed: string;
     unsupportedAudio: string;
@@ -165,6 +170,15 @@ type LearningUiLabels = {
     studentUnit: (count: number) => string;
     continueLearning: string;
     viewCourse: string;
+    enrolled: string;
+    creatingPayment: string;
+    buyWithVnpay: string;
+    enterCourse: string;
+    teacherCanLearn: string;
+    enrollmentSuccess: string;
+    paymentError: string;
+    networkError: string;
+    accessSuspended: string;
   };
   teacherEntrance: {
     aiFeedbackAfterScore: string;
@@ -182,6 +196,7 @@ type LearningUiLabels = {
     applicationAttempt: (attemptNo: number) => string;
     stopRecordingMessage: string;
     submitSuccess: string;
+    submitRejected: string;
     submitFailed: string;
   };
 };
@@ -228,6 +243,7 @@ const labels: Record<UiLanguage, LearningUiLabels> = {
       start: "Làm bài",
       unavailable: "Chưa khả dụng",
       lockedUntilCourseComplete: "Chưa hoàn thành khóa học",
+      lockedUntilModuleReady: "Hoàn thành module trước và đạt bài test để mở khóa",
       invalidScore: "Đề chưa đủ 100 điểm",
       exit: "Thoát",
       instructions: "Hướng dẫn làm bài",
@@ -235,6 +251,10 @@ const labels: Record<UiLanguage, LearningUiLabels> = {
       stopRecordingAlert: "Hãy dừng ghi âm và đợi hệ thống phân tích âm thanh xong trước khi chấm điểm.",
       unansweredConfirm: (count) => `Còn ${count} câu chưa trả lời. Bạn có chắc muốn nộp bài?`,
       paymentFailed: "Không tạo được giao dịch thanh toán.",
+      beanPurchaseComplete: "Hạt đậu đã được cộng. Đáp án vẫn được giữ nguyên; bạn có thể bấm nhận xét AI lần nữa.",
+      beanPurchaseBlocked: "Trình duyệt đã chặn tab mua hạt đậu. Hãy bấm nút bên dưới để mở tab.",
+      beanPurchaseOpened: "Trang mua hạt đậu đã được mở ở tab riêng. Bài test và đáp án vẫn được giữ tại đây.",
+      openBeanPurchase: "Mở tab mua hạt đậu",
       submitFailed: "Không thể nộp bài. Vui lòng thử lại.",
       connectionFailed: "Không thể nộp bài. Vui lòng kiểm tra kết nối và thử lại.",
       unsupportedAudio: "Trình duyệt của bạn không hỗ trợ phát âm thanh.",
@@ -340,6 +360,15 @@ const labels: Record<UiLanguage, LearningUiLabels> = {
       studentUnit: (count) => `${count} học viên`,
       continueLearning: "Tiếp tục học",
       viewCourse: "Xem khóa học",
+      enrolled: "Đã đăng ký",
+      creatingPayment: "Đang tạo đơn thanh toán...",
+      buyWithVnpay: "Mua khóa học qua VNPay",
+      enterCourse: "Vào học",
+      teacherCanLearn: "Bạn là giảng viên của khóa học này. Có thể vào học ngay.",
+      enrollmentSuccess: "Đăng ký khóa học thành công. Bạn có thể vào học ngay.",
+      paymentError: "Không tạo được đường dẫn thanh toán VNPay.",
+      networkError: "Lỗi mạng. Vui lòng thử lại.",
+      accessSuspended: "Quyền học đang tạm khóa trong khi yêu cầu hoàn tiền được admin xử lý.",
     },
     teacherEntrance: {
       aiFeedbackAfterScore: "Nhận xét AI sau khi chấm",
@@ -357,6 +386,7 @@ const labels: Record<UiLanguage, LearningUiLabels> = {
       applicationAttempt: (attemptNo) => `Lần #${attemptNo}`,
       stopRecordingMessage: "Hãy dừng ghi âm và đợi hệ thống phân tích âm thanh xong trước khi nộp bài.",
       submitSuccess: "Đã nộp bài test. Hồ sơ đang chờ admin review.",
+      submitRejected: "Bạn chưa đạt bài test đầu vào. Hồ sơ đã được hệ thống tự động từ chối.",
       submitFailed: "Không thể nộp bài test.",
     },
   },
@@ -393,6 +423,7 @@ const labels: Record<UiLanguage, LearningUiLabels> = {
       start: "Start test",
       unavailable: "Unavailable",
       lockedUntilCourseComplete: "Complete the course first",
+      lockedUntilModuleReady: "Complete the previous module and pass its test first",
       invalidScore: "Test score is not 100 yet",
       exit: "Exit",
       instructions: "Instructions",
@@ -400,6 +431,10 @@ const labels: Record<UiLanguage, LearningUiLabels> = {
       stopRecordingAlert: "Stop recording and wait for audio analysis before scoring.",
       unansweredConfirm: (count) => `${count} questions are unanswered. Submit anyway?`,
       paymentFailed: "Could not create payment.",
+      beanPurchaseComplete: "Beans have been added. Your answers are unchanged; you can request AI feedback again.",
+      beanPurchaseBlocked: "Your browser blocked the bean-purchase tab. Use the button below to open it.",
+      beanPurchaseOpened: "The bean-purchase page opened in a separate tab. This test and your answers remain here.",
+      openBeanPurchase: "Open bean-purchase tab",
       submitFailed: "Could not submit. Please try again.",
       connectionFailed: "Could not submit. Check your connection and try again.",
       unsupportedAudio: "Your browser does not support audio playback.",
@@ -505,6 +540,15 @@ const labels: Record<UiLanguage, LearningUiLabels> = {
       studentUnit: (count) => `${count} students`,
       continueLearning: "Continue",
       viewCourse: "View course",
+      enrolled: "Enrolled",
+      creatingPayment: "Creating payment...",
+      buyWithVnpay: "Buy course with VNPay",
+      enterCourse: "Start learning",
+      teacherCanLearn: "You teach this course and can open it immediately.",
+      enrollmentSuccess: "Enrollment successful. You can start learning now.",
+      paymentError: "Could not create the VNPay payment link.",
+      networkError: "Network error. Please try again.",
+      accessSuspended: "Course access is temporarily suspended while the refund request is reviewed.",
     },
     teacherEntrance: {
       aiFeedbackAfterScore: "AI feedback after scoring",
@@ -522,6 +566,7 @@ const labels: Record<UiLanguage, LearningUiLabels> = {
       applicationAttempt: (attemptNo) => `Attempt #${attemptNo}`,
       stopRecordingMessage: "Stop recording and wait for audio analysis before submitting.",
       submitSuccess: "Test submitted. Your application is awaiting admin review.",
+      submitRejected: "You did not pass the entrance test. Your application was automatically rejected.",
       submitFailed: "Could not submit the test.",
     },
   },
@@ -558,6 +603,7 @@ const labels: Record<UiLanguage, LearningUiLabels> = {
       start: "受験する",
       unavailable: "利用不可",
       lockedUntilCourseComplete: "コース完了後に受験できます",
+      lockedUntilModuleReady: "前の章を完了し、テストに合格すると開放されます",
       invalidScore: "合計点が100点に達していません",
       exit: "退出",
       instructions: "受験案内",
@@ -565,6 +611,10 @@ const labels: Record<UiLanguage, LearningUiLabels> = {
       stopRecordingAlert: "採点前に録音を停止し、音声解析が完了するまでお待ちください。",
       unansweredConfirm: (count) => `未回答の問題が${count}問あります。このまま提出しますか？`,
       paymentFailed: "決済を作成できませんでした。",
+      beanPurchaseComplete: "豆が追加されました。回答はそのまま保存されています。もう一度AIフィードバックを押してください。",
+      beanPurchaseBlocked: "ブラウザが豆購入タブをブロックしました。下のボタンから開いてください。",
+      beanPurchaseOpened: "豆購入ページを別のタブで開きました。テストと回答はこのまま保持されます。",
+      openBeanPurchase: "豆購入タブを開く",
       submitFailed: "提出できませんでした。もう一度お試しください。",
       connectionFailed: "提出できませんでした。接続を確認してもう一度お試しください。",
       unsupportedAudio: "お使いのブラウザは音声再生に対応していません。",
@@ -670,6 +720,15 @@ const labels: Record<UiLanguage, LearningUiLabels> = {
       studentUnit: (count) => `${count}人の受講者`,
       continueLearning: "学習を続ける",
       viewCourse: "コースを見る",
+      enrolled: "登録済み",
+      creatingPayment: "決済を作成中...",
+      buyWithVnpay: "VNPayでコースを購入",
+      enterCourse: "学習を開始",
+      teacherCanLearn: "このコースの講師として、すぐに学習画面を開けます。",
+      enrollmentSuccess: "コースへの登録が完了しました。すぐに学習を開始できます。",
+      paymentError: "VNPay決済リンクを作成できませんでした。",
+      networkError: "ネットワークエラーです。もう一度お試しください。",
+      accessSuspended: "返金申請の審査中はコースへのアクセスが一時停止されます。",
     },
     teacherEntrance: {
       aiFeedbackAfterScore: "採点後のAIフィードバック",
@@ -687,6 +746,7 @@ const labels: Record<UiLanguage, LearningUiLabels> = {
       applicationAttempt: (attemptNo) => `申請 #${attemptNo}`,
       stopRecordingMessage: "提出前に録音を停止し、音声解析が完了するまでお待ちください。",
       submitSuccess: "テストを提出しました。申請は管理者の確認待ちです。",
+      submitRejected: "入学試験に合格しなかったため、申請は自動的に却下されました。",
       submitFailed: "テストを提出できませんでした。",
     },
   },
@@ -729,6 +789,7 @@ labels.zh = {
     start: "开始答题",
     unavailable: "不可用",
     lockedUntilCourseComplete: "完成课程后开放",
+    lockedUntilModuleReady: "完成上一章并通过测试后开放",
     invalidScore: "试题总分尚未达到100分",
     exit: "退出",
     instructions: "答题说明",
@@ -736,6 +797,10 @@ labels.zh = {
     stopRecordingAlert: "评分前请停止录音，并等待音频分析完成。",
     unansweredConfirm: (count) => `还有${count}题未回答。确定提交吗？`,
     paymentFailed: "无法创建支付。",
+    beanPurchaseComplete: "豆已到账。答案保持不变；你可以再次点击 AI 反馈。",
+    beanPurchaseBlocked: "浏览器阻止了购买豆子的标签页。请点击下方按钮打开。",
+    beanPurchaseOpened: "购买豆子的页面已在新标签页打开。当前测试和答案会保留在这里。",
+    openBeanPurchase: "打开购买豆子的标签页",
     submitFailed: "无法提交，请重试。",
     connectionFailed: "无法提交。请检查网络后重试。",
     unsupportedAudio: "您的浏览器不支持音频播放。",
@@ -841,6 +906,15 @@ labels.zh = {
     studentUnit: (count) => `${count}名学员`,
     continueLearning: "继续学习",
     viewCourse: "查看课程",
+    enrolled: "已报名",
+    creatingPayment: "正在创建支付订单...",
+    buyWithVnpay: "通过VNPay购买课程",
+    enterCourse: "开始学习",
+    teacherCanLearn: "您是本课程的讲师，可以立即进入学习。",
+    enrollmentSuccess: "课程报名成功，现在可以开始学习。",
+    paymentError: "无法创建VNPay支付链接。",
+    networkError: "网络错误，请重试。",
+    accessSuspended: "退款申请审核期间，课程访问权限暂时停用。",
   },
   teacherEntrance: {
     aiFeedbackAfterScore: "评分后的AI反馈",
@@ -858,6 +932,7 @@ labels.zh = {
     applicationAttempt: (attemptNo) => `第 ${attemptNo} 次`,
     stopRecordingMessage: "提交前请停止录音，并等待音频分析完成。",
     submitSuccess: "测试已提交。申请正在等待管理员审核。",
+    submitRejected: "您未通过入职测试，申请已被系统自动拒绝。",
     submitFailed: "无法提交测试。",
   },
 };
@@ -897,6 +972,7 @@ labels.ko = {
     start: "응시하기",
     unavailable: "이용 불가",
     lockedUntilCourseComplete: "코스 완료 후 응시 가능",
+    lockedUntilModuleReady: "이전 모듈을 완료하고 테스트에 합격하면 열립니다",
     invalidScore: "문항 총점이 아직 100점이 아닙니다",
     exit: "나가기",
     instructions: "응시 안내",
@@ -904,6 +980,10 @@ labels.ko = {
     stopRecordingAlert: "채점 전에 녹음을 중지하고 음성 분석이 끝날 때까지 기다려 주세요.",
     unansweredConfirm: (count) => `아직 ${count}문항에 답하지 않았습니다. 제출하시겠습니까?`,
     paymentFailed: "결제를 생성할 수 없습니다.",
+    beanPurchaseComplete: "콩이 충전되었습니다. 답안은 그대로 유지되며 AI 피드백을 다시 요청할 수 있습니다.",
+    beanPurchaseBlocked: "브라우저가 콩 구매 탭을 차단했습니다. 아래 버튼을 눌러 열어 주세요.",
+    beanPurchaseOpened: "콩 구매 페이지를 새 탭에서 열었습니다. 현재 시험과 답안은 그대로 유지됩니다.",
+    openBeanPurchase: "콩 구매 탭 열기",
     submitFailed: "제출할 수 없습니다. 다시 시도해 주세요.",
     connectionFailed: "제출할 수 없습니다. 연결을 확인한 뒤 다시 시도해 주세요.",
     unsupportedAudio: "브라우저가 오디오 재생을 지원하지 않습니다.",
@@ -1009,6 +1089,15 @@ labels.ko = {
     studentUnit: (count) => `${count}명 수강생`,
     continueLearning: "계속 학습",
     viewCourse: "코스 보기",
+    enrolled: "등록 완료",
+    creatingPayment: "결제 생성 중...",
+    buyWithVnpay: "VNPay로 코스 구매",
+    enterCourse: "학습 시작",
+    teacherCanLearn: "이 코스의 강사이므로 바로 학습 화면을 열 수 있습니다.",
+    enrollmentSuccess: "코스 등록이 완료되었습니다. 지금 학습을 시작할 수 있습니다.",
+    paymentError: "VNPay 결제 링크를 만들 수 없습니다.",
+    networkError: "네트워크 오류입니다. 다시 시도해 주세요.",
+    accessSuspended: "환불 요청 검토 중에는 코스 접근이 일시 중지됩니다.",
   },
   teacherEntrance: {
     aiFeedbackAfterScore: "채점 후 AI 피드백",
@@ -1026,6 +1115,7 @@ labels.ko = {
     applicationAttempt: (attemptNo) => `신청 #${attemptNo}`,
     stopRecordingMessage: "제출 전에 녹음을 중지하고 음성 분석이 끝날 때까지 기다려 주세요.",
     submitSuccess: "테스트가 제출되었습니다. 신청은 관리자 검토 대기 중입니다.",
+    submitRejected: "입문 시험에 합격하지 못해 지원서가 자동으로 거절되었습니다.",
     submitFailed: "테스트를 제출할 수 없습니다.",
   },
 };

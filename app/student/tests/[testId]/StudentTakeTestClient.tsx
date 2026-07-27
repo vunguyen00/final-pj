@@ -10,6 +10,10 @@ import {
 } from "@/app/components/SpeakingAnswerInput";
 import { TestMaterialPanel } from "@/app/components/TestMaterialPanel";
 import { getLearningUiLabels } from "@/lib/test-language-labels";
+import {
+  AI_POINT_PURCHASE_EVENT_KEY,
+} from "@/lib/ai-point-purchase-flow";
+import { readJsonResponse } from "@/lib/http-response";
 import type { ChartMaterialData } from "@/lib/test-material";
 import { getSpeechRecognitionLocale } from "@/lib/test-rules";
 
@@ -45,6 +49,7 @@ type TestInfo = {
   attemptExpiresAt: string | null;
   aiFeedbackCost: number;
   chargeAiFeedback: boolean;
+  availableAiPoints: number;
 };
 
 type AttemptHistoryItem = {
@@ -118,6 +123,10 @@ export default function StudentTakeTestClient({
   });
   const [submitting, setSubmitting] = useState(false);
   const [submitAction, setSubmitAction] = useState<"score" | "feedback" | null>(null);
+  const [availableAiPoints, setAvailableAiPoints] = useState(
+    initialData?.test.availableAiPoints ?? 0,
+  );
+  const [purchaseNotice, setPurchaseNotice] = useState<"needed" | "complete" | "blocked" | null>(null);
   const [timeLeft, setTimeLeft] = useState<number | null>(
     () =>
       initialData?.test.timeLimit
@@ -138,6 +147,47 @@ export default function StudentTakeTestClient({
   const loading = false;
   const isExpired = timeLeft === 0;
   const isInteractionLocked = submitting || isExpired;
+
+  const openBeanPurchase = useCallback(() => {
+    const currentAnswers = answersRef.current;
+    sessionStorage.setItem(answersStorageKey, JSON.stringify(currentAnswers));
+    const returnTo = `${window.location.pathname}${window.location.search}`;
+    const walletUrl = `/student/wallet?returnTo=${encodeURIComponent(returnTo)}&purchaseFlow=popup`;
+    const popup = window.open("about:blank", "_blank");
+
+    if (!popup) {
+      setPurchaseNotice("blocked");
+      return;
+    }
+
+    popup.opener = null;
+    popup.location.replace(walletUrl);
+    setPurchaseNotice("needed");
+  }, [answersStorageKey]);
+
+  const refreshAiPointBalance = useCallback(async () => {
+    try {
+      const response = await fetch("/api/ai/points");
+      const data: { available?: number } = await readJsonResponse<{ available?: number }>(response).catch(() => ({}));
+      if (!response.ok || typeof data.available !== "number") return;
+      setAvailableAiPoints(data.available);
+      setPurchaseNotice("complete");
+    } catch {
+      // The server still verifies the balance when the student submits again.
+    }
+  }, []);
+
+  useEffect(() => {
+
+    function handlePurchaseComplete(event: StorageEvent) {
+      if (event.key === AI_POINT_PURCHASE_EVENT_KEY && event.newValue) {
+        void refreshAiPointBalance();
+      }
+    }
+
+    window.addEventListener("storage", handlePurchaseComplete);
+    return () => window.removeEventListener("storage", handlePurchaseComplete);
+  }, [refreshAiPointBalance]);
 
   const answeredCount = useMemo(
     () =>
@@ -181,34 +231,26 @@ export default function StudentTakeTestClient({
         return;
       }
 
+      if (
+        includeAiFeedback &&
+        test?.chargeAiFeedback &&
+        questions.some(
+          (question) =>
+            (question.type === "SPEAKING" ||
+              (question.type === "ESSAY" && !question.audioUrl)) &&
+            String(currentAnswers[question.id] || "").trim(),
+        ) &&
+        availableAiPoints < test.aiFeedbackCost
+      ) {
+        openBeanPurchase();
+        return;
+      }
+
       submittingRef.current = true;
       setSubmitting(true);
       setSubmitAction(includeAiFeedback ? "feedback" : "score");
 
       try {
-        const paymentTxnRef = "";
-        if (false && includeAiFeedback && test?.chargeAiFeedback && !paymentTxnRef) {
-          sessionStorage.setItem(answersStorageKey, JSON.stringify(currentAnswers));
-          const paymentResponse = await fetch("/api/ai/points/buy", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              feature: "TEST_AI_FEEDBACK",
-              returnTo: `${window.location.pathname}${window.location.search}`,
-            }),
-          });
-          const payment = (await paymentResponse.json().catch(() => ({}))) as { paymentUrl?: string; error?: string };
-          if (!paymentResponse.ok || !payment.paymentUrl) {
-            window.alert(payment.error || ui.test.paymentFailed);
-            submittingRef.current = false;
-            setSubmitting(false);
-            setSubmitAction(null);
-            return;
-          }
-          window.location.href = String(payment.paymentUrl);
-          return;
-        }
-
         const response = await fetch(`/api/student/tests/${testId}/submit`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -222,8 +264,10 @@ export default function StudentTakeTestClient({
 
         if (!response.ok) {
           if (data.requiresPointPurchase) {
-            sessionStorage.setItem(answersStorageKey, JSON.stringify(currentAnswers));
-            window.location.href = "/student/wallet";
+            submittingRef.current = false;
+            setSubmitting(false);
+            setSubmitAction(null);
+            openBeanPurchase();
             return;
           }
           window.alert(data.error || ui.test.submitFailed);
@@ -248,7 +292,7 @@ export default function StudentTakeTestClient({
         setSubmitAction(null);
       }
     },
-    [answersStorageKey, deadlineStorageKey, questions, router, test, testId, ui],
+    [availableAiPoints, answersStorageKey, deadlineStorageKey, openBeanPurchase, questions, router, test, testId, ui],
   );
 
   useEffect(() => {
@@ -689,6 +733,26 @@ export default function StudentTakeTestClient({
             </button>
           ) : null}
         </div>
+        {purchaseNotice ? (
+          <div className="mx-auto mt-4 max-w-2xl rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-900">
+            <p className="font-semibold">
+              {purchaseNotice === "complete"
+                ? ui.test.beanPurchaseComplete
+                : purchaseNotice === "blocked"
+                  ? ui.test.beanPurchaseBlocked
+                  : ui.test.beanPurchaseOpened}
+            </p>
+            {purchaseNotice === "blocked" ? (
+              <button
+                type="button"
+                onClick={openBeanPurchase}
+                className="mt-3 rounded-lg bg-violet-700 px-4 py-2 font-semibold text-white hover:bg-violet-800"
+              >
+                {ui.test.openBeanPurchase}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </main>
   );

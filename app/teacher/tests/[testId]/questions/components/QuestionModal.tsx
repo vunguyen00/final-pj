@@ -2,6 +2,7 @@ import { buildAnswersForKind } from "../helpers";
 import { getQuestionEditorLabels } from "../labels";
 import { Answer, QuestionForm, QuestionKind } from "../types";
 import { ModalDialog } from "@/app/components/ModalDialog";
+import { getLearningUiLabels } from "@/lib/test-language-labels";
 
 type Props = {
   show: boolean;
@@ -40,9 +41,10 @@ export function QuestionModal({
 }: Props) {
   if (!show) return null;
   const labels = getQuestionEditorLabels(languageCode);
+  const trueFalseLabels = getLearningUiLabels(languageCode).trueFalse;
 
   const handleTypeSelect = (kind: QuestionKind) => {
-    const answers = buildAnswersForKind(kind);
+    const answers = buildAnswersForKind(kind, trueFalseLabels);
     setForm((prev) => ({
       ...prev,
       kind,

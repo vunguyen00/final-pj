@@ -12,6 +12,7 @@ type Test = {
   name: string;
   description: string | null;
   courseId: string | null;
+  moduleId: string | null;
   courseName: string;
   kind: TestKind;
   assessmentMode: "STANDARD" | "WRITING" | "SPEAKING";
@@ -135,7 +136,7 @@ export default function StudentTestsClient({
   return (
     <main className="min-h-screen bg-slate-50 py-8">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 p-6 text-white shadow-lg sm:p-8">
+        <section className="overflow-hidden rounded-3xl bg-linear-to-br from-blue-700 via-blue-600 to-indigo-700 p-6 text-white shadow-lg sm:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-sm font-bold uppercase tracking-[0.2em] text-blue-100">
@@ -298,7 +299,9 @@ export default function StudentTestsClient({
                   ) : (
                     <span className="shrink-0 rounded-xl bg-slate-100 px-4 py-2.5 text-center text-sm font-semibold text-slate-500">
                       {!test.isUnlocked
-                        ? ui.test.lockedUntilCourseComplete
+                        ? test.moduleId
+                          ? ui.test.lockedUntilModuleReady
+                          : ui.test.lockedUntilCourseComplete
                         : !test.isReady
                           ? ui.test.invalidScore
                           : ui.test.unavailable}

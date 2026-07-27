@@ -53,7 +53,7 @@ export default async function HomePage() {
   const featuredTeachers = teachers.slice(0, 4);
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-dvh bg-background">
       <Hero
         subtitle="Nền tảng học ngoại ngữ đa ngôn ngữ"
         title="Xây dựng lộ trình ngoại ngữ cùng FinnCenter"

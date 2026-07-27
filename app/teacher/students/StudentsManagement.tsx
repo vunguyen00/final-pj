@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useReducer, type ReactNode } from "react";
+import { readJsonResponse } from "@/lib/http-response";
 import type { CertificateSummary, ManagedUser, StudentsManagementData } from "@/lib/teacher-students";
 import { ModalDialog } from "@/app/components/ModalDialog";
 
@@ -122,7 +123,7 @@ export default function StudentsManagement({ initialData }: { initialData: Stude
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(changes),
     });
-    const data = await response.json().catch(() => ({}));
+    const data = await readJsonResponse(response).catch(() => ({}));
 
     if (!response.ok) {
       dispatch({ type: "SET_MESSAGE", message: data?.error || "Không thể cập nhật người dùng." });
@@ -153,7 +154,7 @@ export default function StudentsManagement({ initialData }: { initialData: Stude
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 py-8">
+    <main className="min-h-dvh bg-slate-50 py-8">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <StudentsHeader
           isAdmin={isAdmin}
@@ -212,12 +213,12 @@ function StudentsHeader({
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
         <h1 className="text-2xl font-bold text-slate-950">
-          {isAdmin ? "Quản lý người dùng và học viên" : "Học viên của tôi"}
+          {isAdmin ? "Quản lý người dùng và học viên" : "Người học trong khóa của tôi"}
         </h1>
         <p className="mt-1 text-sm text-slate-500">
           {isAdmin
             ? "Xem tài khoản, khóa học và chỉnh sửa quyền."
-            : "Chỉ hiển thị học viên tham gia các khóa học do bạn phụ trách."}
+            : "Hiển thị tất cả người dùng đã tham gia các khóa học do bạn phụ trách."}
         </p>
       </div>
       <input

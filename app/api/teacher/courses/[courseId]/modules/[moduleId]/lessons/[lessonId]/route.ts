@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { unlink } from "fs/promises";
 import { join } from "path";
+import { normalizeLessonVideoUrl } from "@/lib/lesson-video";
 
 function getLocalVideoPath(videoUrl: string | null | undefined) {
   if (!videoUrl || !videoUrl.startsWith("/videos/")) return null;
@@ -117,7 +118,10 @@ export async function PUT(
 
     const body = await request.json();
     const { title, content, videoUrl } = body;
-    const nextVideoUrl = videoUrl !== undefined ? (videoUrl ? String(videoUrl) : null) : undefined;
+    const nextVideoUrl = videoUrl !== undefined ? normalizeLessonVideoUrl(videoUrl) : undefined;
+    if (videoUrl && !nextVideoUrl) {
+      return NextResponse.json({ error: "Invalid video URL" }, { status: 400 });
+    }
 
     if (nextVideoUrl !== undefined && existingLesson.videoUrl && nextVideoUrl !== existingLesson.videoUrl) {
       await cleanupVideoIfUnused(existingLesson.videoUrl, lessonId);

@@ -208,22 +208,55 @@ export function AnalyticsHeader({
 }
 
 export function OverviewKpis({ data }: { data: AnalyticsPayload }) {
+  const platformSales = data.revenueAnalytics.totalRevenue + data.revenueAnalytics.walletTopUpRevenue;
+  const topContributor = data.rankings.teachers.highestGrossRevenue[0];
+
   return (
-    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <KpiCard label="Doanh thu khóa học" value={formatCurrency(data.overview.revenue.totalRevenue)} detail={`${formatNumber(data.overview.revenue.totalOrders)} đơn hàng`} tone="emerald" />
-      <KpiCard label="Hoa hồng admin" value={formatCurrency(data.overview.revenue.adminRevenue)} detail={`Giảng viên: ${formatCurrency(data.overview.revenue.teacherRevenue)}`} tone="blue" />
-      <KpiCard label="Yêu cầu rút tiền" value={formatNumber(data.overview.revenue.withdrawalCount)} detail={`Chờ xử lý: ${formatCurrency(data.overview.revenue.pendingWithdrawalAmount)}`} tone="amber" />
-      <KpiCard label="Ngôn ngữ học nhiều nhất" value={data.languageAnalytics.mostPopularLanguage?.name ?? "-"} detail={`${formatNumber(data.languageAnalytics.mostPopularLanguage?.value ?? 0)} lượt ghi danh`} tone="rose" />
+    <section className="space-y-3">
+      <div className="grid gap-3 lg:grid-cols-[1.4fr_0.6fr]">
+        <article className="overflow-hidden rounded-xl bg-gradient-to-br from-slate-950 via-blue-950 to-blue-700 p-6 text-white shadow-lg">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-200">Tổng doanh số nền tảng</p>
+          <p className="mt-3 break-words text-4xl font-black tracking-tight sm:text-5xl">{formatCurrency(platformSales)}</p>
+          <div className="mt-6 grid gap-3 border-t border-white/20 pt-4 sm:grid-cols-2">
+            <div>
+              <p className="text-xs text-blue-200">Khóa học</p>
+              <p className="mt-1 text-lg font-bold">{formatCurrency(data.revenueAnalytics.totalRevenue)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-blue-200">Điểm AI</p>
+              <p className="mt-1 text-lg font-bold">{formatCurrency(data.revenueAnalytics.walletTopUpRevenue)}</p>
+            </div>
+          </div>
+        </article>
+
+        <article className="rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-100 p-6 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-amber-800">Đóng góp doanh số cao nhất</p>
+          <p className="mt-3 break-words text-2xl font-black text-slate-950">{topContributor?.username ?? "Chưa có dữ liệu"}</p>
+          <p className="mt-2 text-3xl font-black text-amber-700">{formatCurrency(topContributor?.value ?? 0)}</p>
+          <p className="mt-2 text-sm text-amber-900/75">
+            {topContributor
+              ? `${percent((topContributor.value / Math.max(1, data.revenueAnalytics.totalRevenue)) * 100)} doanh số khóa học`
+              : "Chưa phát sinh đơn hàng trong khoảng này"}
+          </p>
+        </article>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard label="Hoa hồng admin" value={formatCurrency(data.overview.revenue.adminRevenue)} tone="blue" />
+        <KpiCard label="Doanh thu giảng viên" value={formatCurrency(data.overview.revenue.teacherRevenue)} tone="emerald" />
+        <KpiCard label="Giá trị đơn trung bình" value={formatCurrency(data.revenueAnalytics.averageOrderValue)} detail={`${formatNumber(data.overview.revenue.totalOrders)} đơn hàng`} tone="amber" />
+        <KpiCard label="Giao dịch khóa học" value={formatNumber(data.overview.revenue.successfulTransactions)} detail={`${formatNumber(data.overview.users.newUsers)} người dùng mới`} tone="rose" />
+      </div>
     </section>
   );
 }
 
 export function FinanceSection({ data }: { data: AnalyticsPayload }) {
   return (
-    <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+    <section className="grid gap-5">
       <Panel title="Tài chính" subtitle="Doanh thu khóa học, hoa hồng và nạp điểm AI">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          <KpiCard label="Tổng doanh thu" value={formatCurrency(data.revenueAnalytics.totalRevenue)} tone="emerald" />
+          <KpiCard label="Doanh số khóa học" value={formatCurrency(data.revenueAnalytics.totalRevenue)} tone="emerald" />
           <KpiCard label="Hoa hồng admin" value={formatCurrency(data.revenueAnalytics.adminRevenue)} tone="blue" />
           <KpiCard label="Hoa hồng giảng viên" value={formatCurrency(data.revenueAnalytics.teacherRevenue)} tone="amber" />
           <KpiCard label="Doanh thu điểm AI" value={formatCurrency(data.revenueAnalytics.walletTopUpRevenue)} />
@@ -253,9 +286,33 @@ export function FinanceSection({ data }: { data: AnalyticsPayload }) {
   );
 }
 
+export function RevenueContributorsSection({ data }: { data: AnalyticsPayload }) {
+  const teacherRevenue = new Map(
+    data.rankings.teachers.highestRevenue.map((item) => [item.userId, item.value]),
+  );
+
+  return (
+    <Panel
+      title="Người đóng góp doanh thu cao nhất"
+      subtitle="Xếp hạng theo tổng doanh số khóa học mà mỗi giảng viên hoặc người tạo khóa học mang về"
+    >
+      <DataTable
+        headers={["Hạng", "Giảng viên / người tạo", "Doanh số mang về", "Tỷ trọng", "Doanh thu được chia"]}
+        rows={data.rankings.teachers.highestGrossRevenue.map((item, index) => [
+          `#${index + 1}`,
+          item.username,
+          formatCurrency(item.value),
+          percent((item.value / Math.max(1, data.revenueAnalytics.totalRevenue)) * 100),
+          formatCurrency(teacherRevenue.get(item.userId) ?? 0),
+        ])}
+      />
+    </Panel>
+  );
+}
+
 export function CourseAndLanguageSection({ data }: { data: AnalyticsPayload }) {
   return (
-    <section className="grid gap-5 xl:grid-cols-2">
+    <section className="grid gap-5">
       <Panel title="Khóa học bán tốt" subtitle="Ưu tiên số lượt bán và doanh thu">
         <DataTable
           headers={["Khóa học", "Lượt bán", "Doanh thu"]}
@@ -282,8 +339,20 @@ export function UserAndEnrollmentSection({ data }: { data: AnalyticsPayload }) {
       : data.range.bucketGranularity === "month"
         ? data.userGrowth.byMonth
         : data.userGrowth.byYear;
+  const enrollmentByCourse = new Map(
+    data.enrollmentAnalytics.topCourses.map((item) => [item.courseId, item]),
+  );
+  const popularByCourse = new Map(
+    data.courseAnalytics.topPopularCourses.map((item) => [item.courseId, item]),
+  );
+  const courseIds = [
+    ...new Set([
+      ...data.enrollmentAnalytics.topCourses.map((item) => item.courseId),
+      ...data.courseAnalytics.topPopularCourses.map((item) => item.courseId),
+    ]),
+  ].slice(0, 10);
   return (
-    <section className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+    <section className="grid gap-5">
       <Panel title="Người dùng" subtitle="Quy mô học sinh, giảng viên và tài khoản mới">
         <div className="grid gap-3 sm:grid-cols-2">
           <KpiCard label="Tổng người dùng" value={formatNumber(data.overview.users.totalUsers)} detail={`Mới: ${formatNumber(data.overview.users.newUsers)}`} tone="blue" />
@@ -295,18 +364,20 @@ export function UserAndEnrollmentSection({ data }: { data: AnalyticsPayload }) {
       </Panel>
 
       <Panel title="Ghi danh và khóa học phổ biến" subtitle="Theo lượt ghi danh thực tế">
-        <div className="grid gap-5 lg:grid-cols-2">
-          <BarList data={data.enrollmentAnalytics.topCourses.map((item) => ({ label: item.courseName, value: item.enrollments }))} color="bg-blue-600" />
-          <DataTable
-            headers={["Khóa học", "Học viên", "Doanh thu", "Hoàn thành"]}
-            rows={data.courseAnalytics.topPopularCourses.slice(0, 6).map((item) => [
-              item.courseName,
-              formatNumber(item.learners),
-              formatCurrency(item.revenue),
-              percent(item.completionRate),
-            ])}
-          />
-        </div>
+        <DataTable
+          headers={["Khóa học", "Lượt ghi danh", "Học viên", "Doanh thu", "Hoàn thành"]}
+          rows={courseIds.map((courseId) => {
+            const enrollment = enrollmentByCourse.get(courseId);
+            const popular = popularByCourse.get(courseId);
+            return [
+              enrollment?.courseName ?? popular?.courseName ?? courseId,
+              formatNumber(enrollment?.enrollments ?? 0),
+              formatNumber(popular?.learners ?? 0),
+              formatCurrency(popular?.revenue ?? 0),
+              percent(popular?.completionRate ?? 0),
+            ];
+          })}
+        />
       </Panel>
     </section>
   );
@@ -314,7 +385,7 @@ export function UserAndEnrollmentSection({ data }: { data: AnalyticsPayload }) {
 
 export function ReportAndRefundSection({ data }: { data: AnalyticsPayload }) {
   return (
-    <section className="grid gap-5 xl:grid-cols-2">
+    <section className="grid gap-5">
       <Panel title="Báo cáo khóa học" subtitle="Số lượng báo cáo và xu hướng trong khoảng đã chọn">
         <div className="grid gap-3 sm:grid-cols-2">
           <KpiCard label="Tổng báo cáo" value={formatNumber(data.reportAnalytics.total)} tone="rose" />

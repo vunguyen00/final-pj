@@ -1,19 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import {
-  getTeacherQuestionTiming,
-  parseTeacherQuestionRevealState,
-  teacherQuestionAnswerStartsAt,
-  teacherQuestionDeadline,
-} from "@/lib/teacher-question-timing";
-
-function answerRecord(value: unknown) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-  return Object.fromEntries(
-    Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
-  );
-}
+import { verifyTeacherTransitionToken } from "@/lib/teacher-sequential-exam";
 
 export async function PATCH(
   request: Request,
@@ -22,62 +10,101 @@ export async function PATCH(
   try {
     const user = await requireUser();
     const { applicationId } = await params;
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
+    const sessionId = request.headers.get("x-proctor-session-id")?.trim() ?? "";
+    const questionInstanceId =
+      typeof body.questionInstanceId === "string" ? body.questionInstanceId : "";
+    const transitionToken =
+      typeof body.transitionToken === "string" ? body.transitionToken : "";
+    const answer = typeof body.answer === "string" ? body.answer.slice(0, 100_000) : "";
+    const revision = Number(body.revision);
 
-    const application = await prisma.teacherApplication.findUnique({
-      where: { id: applicationId },
-      select: {
-        userId: true,
-        status: true,
-        answerState: true,
-        questionRevealState: true,
-        entranceTest: {
-          select: {
-            kind: true,
-            questions: {
-              select: { id: true, type: true, preparationTimeSeconds: true, answerTimeSeconds: true },
-            },
-          },
+    if (
+      !/^[a-zA-Z0-9-]{16,100}$/.test(sessionId) ||
+      !questionInstanceId ||
+      !transitionToken ||
+      !Number.isSafeInteger(revision) ||
+      revision < 1
+    ) {
+      return NextResponse.json({ error: "INVALID_AUTOSAVE_REQUEST" }, { status: 400 });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "TeacherApplication" WHERE "id" = ${applicationId} FOR UPDATE`;
+      const application = await tx.teacherApplication.findUnique({
+        where: { id: applicationId },
+        select: {
+          userId: true,
+          status: true,
+          proctorSessionId: true,
+          currentQuestionInstanceId: true,
         },
-      },
-    });
-
-    if (!application || application.userId !== user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    if (application.status !== "DRAFT") {
-      return NextResponse.json({ ok: true, ignored: true });
-    }
-
-    const incoming = answerRecord(body.answers);
-    const saved = answerRecord(application.answerState);
-    const reveals = parseTeacherQuestionRevealState(application.questionRevealState);
-    const lockedQuestionIds: string[] = [];
-    for (const question of application.entranceTest?.questions ?? []) {
-      const timing = application.entranceTest?.kind === "TEACHER_ENTRANCE"
-        ? getTeacherQuestionTiming(question)
-        : null;
-      if (!timing) continue;
-      const revealedAt = reveals[question.id];
+      });
+      if (!application || application.userId !== user.id) throw new Error("FORBIDDEN");
       if (
-        !revealedAt ||
-        Date.now() < teacherQuestionAnswerStartsAt(revealedAt, timing) ||
-        Date.now() > teacherQuestionDeadline(revealedAt, timing)
+        application.status !== "DRAFT" ||
+        application.proctorSessionId !== sessionId
       ) {
-        lockedQuestionIds.push(question.id);
-        if (saved[question.id] === undefined) delete incoming[question.id];
-        else incoming[question.id] = saved[question.id];
+        throw new Error("SESSION_NOT_ACTIVE");
       }
-    }
+      if (application.currentQuestionInstanceId !== questionInstanceId) {
+        throw new Error("QUESTION_NO_LONGER_AVAILABLE");
+      }
 
-    await prisma.teacherApplication.update({
-      where: { id: applicationId },
-      data: { answerState: incoming },
+      await tx.$queryRaw`SELECT "id" FROM "TeacherEntranceQuestionInstance" WHERE "id" = ${questionInstanceId} FOR UPDATE`;
+      const instance = await tx.teacherEntranceQuestionInstance.findFirst({
+        where: { id: questionInstanceId, applicationId },
+      });
+      if (!instance) throw new Error("QUESTION_NO_LONGER_AVAILABLE");
+      if (!["REVEALED", "ANSWERING"].includes(instance.status)) {
+        throw new Error("QUESTION_ALREADY_FINALIZED");
+      }
+      if (
+        !instance.transitionTokenHash ||
+        !verifyTeacherTransitionToken(
+          transitionToken,
+          instance.transitionTokenHash,
+        )
+      ) {
+        throw new Error("INVALID_TRANSITION_TOKEN");
+      }
+      if (instance.answerStartsAt && instance.answerStartsAt.getTime() > Date.now()) {
+        throw new Error("QUESTION_NOT_ANSWERABLE_YET");
+      }
+      if (instance.deadlineAt && instance.deadlineAt.getTime() <= Date.now()) {
+        throw new Error("QUESTION_EXPIRED");
+      }
+      if (revision <= instance.answerRevision) {
+        return { savedAt: new Date().toISOString(), revision: instance.answerRevision };
+      }
+
+      const updated = await tx.teacherEntranceQuestionInstance.update({
+        where: { id: instance.id },
+        data: {
+          status: "ANSWERING",
+          answerState: answer,
+          answerRevision: revision,
+        },
+      });
+      return { savedAt: new Date().toISOString(), revision: updated.answerRevision };
     });
 
-    return NextResponse.json({ ok: true, savedAt: new Date().toISOString(), lockedQuestionIds });
-  } catch {
+    return NextResponse.json({ ok: true, ...result });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    const statuses: Record<string, number> = {
+      FORBIDDEN: 403,
+      SESSION_NOT_ACTIVE: 409,
+      QUESTION_NO_LONGER_AVAILABLE: 403,
+      QUESTION_ALREADY_FINALIZED: 409,
+      INVALID_TRANSITION_TOKEN: 409,
+      QUESTION_NOT_ANSWERABLE_YET: 409,
+      QUESTION_EXPIRED: 409,
+    };
+    if (statuses[message]) {
+      return NextResponse.json({ error: message }, { status: statuses[message] });
+    }
+    console.error("Unable to autosave teacher entrance answer", { error });
     return NextResponse.json({ error: "Lỗi hệ thống." }, { status: 500 });
   }
 }

@@ -65,9 +65,9 @@ function fallbackTaskOne(topic: string, language: WritingLanguage) {
     unit: localized.unit,
     categories: ["2000", "2005", "2010", "2015", "2020"],
     series: [
-      { name: localized.series[0], values: [35, 48, 63, 76, 88] },
-      { name: localized.series[1], values: [22, 37, 55, 68, 79] },
-      { name: localized.series[2], values: [12, 25, 41, 59, 73] },
+      { name: localized.series[0], values: [35, 62, 41, 86, 58] },
+      { name: localized.series[1], values: [72, 48, 76, 39, 81] },
+      { name: localized.series[2], values: [18, 27, 24, 43, 38] },
     ],
     source: localized.source,
   };
@@ -117,6 +117,33 @@ function hasAtLeastTwoYearCategories(chart: ChartMaterialData) {
     }),
   );
   return years.size >= 2;
+}
+
+function getTrendDirections(values: Array<number | string>) {
+  const directions: number[] = [];
+  for (let index = 1; index < values.length; index += 1) {
+    const direction = Math.sign(Number(values[index]) - Number(values[index - 1]));
+    if (direction !== 0) directions.push(direction);
+  }
+  return directions;
+}
+
+function hasMeaningfulTrendVariation(chart: ChartMaterialData) {
+  const values = chart.series.flatMap((series) => series.values.map(Number));
+  const overallRange = Math.max(...values) - Math.min(...values);
+  if (!Number.isFinite(overallRange) || overallRange <= 0) return false;
+
+  const directionPatterns = chart.series.map((series) => getTrendDirections(series.values).join(","));
+  const hasDirectionChange = chart.series.some((series) => {
+    const directions = getTrendDirections(series.values);
+    return directions.some((direction, index) => index > 0 && direction !== directions[index - 1]);
+  });
+  const hasLargeSeriesRange = chart.series.some((series) => {
+    const seriesValues = series.values.map(Number);
+    return Math.max(...seriesValues) - Math.min(...seriesValues) >= overallRange * 0.45;
+  });
+
+  return hasLargeSeriesRange && (hasDirectionChange || new Set(directionPatterns).size > 1);
 }
 
 export async function POST(request: NextRequest) {
@@ -174,6 +201,7 @@ Return a chart object using:
 - 2-3 distinct comparable series, each with exactly one finite numeric value per category
 - source identifying the values as AI-generated practice data, translated into the output language
 The chart must compare the same series across at least two different years. Never return a single-year or single-series chart.
+Make the trends visually and analytically varied: include at least one substantial rise or fall, or a clear fluctuation/direction change. Do not generate series that all rise smoothly, remain evenly spaced, or move in parallel.
 The prompt must accurately describe the generated chart without revealing an analysis or answer. Use plausible values and make comparisons meaningful.`
           : `Create one realistic Writing Task 2 question. It must require a clear position, discussion, causes/solutions, or advantages/disadvantages. Return chart as null.`;
       const topicInstruction = randomTopic
@@ -209,7 +237,8 @@ Do not include markdown. Keep the prompt under 130 words.`,
         taskType === "task_1" &&
         (!isChartMaterialData(parsed.chart) ||
           parsed.chart.series.length < 2 ||
-          !hasAtLeastTwoYearCategories(parsed.chart))
+          !hasAtLeastTwoYearCategories(parsed.chart) ||
+          !hasMeaningfulTrendVariation(parsed.chart))
       ) {
         throw new Error("AI returned invalid chart data.");
       }

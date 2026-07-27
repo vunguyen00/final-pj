@@ -32,6 +32,8 @@ export async function getTeacherCourseData(
           maxScore: true,
           passingScore: true,
           timeLimit: true,
+          module: { select: { id: true, name: true } },
+          lesson: { select: { id: true, title: true } },
           _count: { select: { questions: true, attempts: true } },
         },
       },
@@ -51,6 +53,16 @@ export async function getTeacherCourseData(
     return { kind: "forbidden" as const };
   }
 
+  const fixedTeacherLanguage =
+    user.role === "TEACHER" && !course.language
+      ? await prisma.teacherApplication.findFirst({
+          where: { userId: user.id, status: "APPROVED" },
+          select: {
+            language: { select: { id: true, name: true, code: true } },
+          },
+          orderBy: { reviewedAt: "desc" },
+        })
+      : null;
   const languages =
     user.role === "ADMIN"
       ? await prisma.learningLanguage.findMany({
@@ -58,24 +70,9 @@ export async function getTeacherCourseData(
           select: { id: true, name: true, code: true },
           orderBy: { name: "asc" },
         })
-      : await prisma.teacherApplication
-          .findMany({
-            where: { userId: user.id, status: "APPROVED" },
-            select: {
-              language: { select: { id: true, name: true, code: true } },
-            },
-            orderBy: { reviewedAt: "desc" },
-          })
-          .then((applications) => {
-            const seen = new Set<string>();
-            return applications.flatMap((application) => {
-              if (!application.language || seen.has(application.language.id)) {
-                return [];
-              }
-              seen.add(application.language.id);
-              return [application.language];
-            });
-          });
+      : course.language || fixedTeacherLanguage?.language
+        ? [course.language ?? fixedTeacherLanguage!.language]
+        : [];
 
   return {
     kind: "success" as const,
@@ -85,5 +82,6 @@ export async function getTeacherCourseData(
       createdAt: course.createdAt.toISOString(),
     },
     languages,
+    viewerRole: user.role,
   };
 }

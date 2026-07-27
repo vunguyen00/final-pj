@@ -5,13 +5,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { isLikelyImageSearchUrl, normalizeCourseThumbnailUrl } from "@/lib/course-thumbnail";
+import { readJsonResponse } from "@/lib/http-response";
 import {
   COURSE_CATEGORIES,
   getCourseCategoryLabel,
   getCourseInfoLabels,
   getCourseLevelLabel,
   getCourseManagementLabels,
-  getLanguageDisplayLabel,
+  getLanguageNativeLabel,
+  type CourseInfoLabels,
 } from "@/lib/language-display";
 
 type CourseStatus = "ACTIVE" | "LOCKED" | "PENDING_APPROVAL" | "PENDING_DELETE" | "REJECTED";
@@ -163,10 +165,10 @@ function useTeacherCoursesPage() {
         method: "POST",
         body: uploadData,
       });
-      const data = await res.json().catch(() => ({}));
+      const data = await readJsonResponse(res).catch(() => ({}));
 
       if (!res.ok || !data?.url) {
-        setThumbnailUploadError(data?.error || "Không thể tải ảnh lên.");
+        setThumbnailUploadError(data?.error || formLabels.uploadError);
         return;
       }
 
@@ -174,7 +176,7 @@ function useTeacherCoursesPage() {
       setThumbnailPreviewError("");
     } catch (error) {
       console.error("Error uploading thumbnail:", error);
-      setThumbnailUploadError("Lỗi khi tải ảnh lên.");
+      setThumbnailUploadError(formLabels.uploadError);
     } finally {
       setUploadingThumbnail(false);
     }
@@ -190,12 +192,16 @@ function useTeacherCoursesPage() {
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, thumbnail: normalizedThumbnail }),
+        body: JSON.stringify({
+          ...formData,
+          languageId: user?.role === "ADMIN" ? formData.languageId : undefined,
+          thumbnail: normalizedThumbnail,
+        }),
       });
-      const data = await res.json().catch(() => ({}));
+      const data = await readJsonResponse(res).catch(() => ({}));
 
       if (!res.ok) {
-        setMessage(data?.error || "Không thể lưu khóa học.");
+        setMessage(data?.error || formLabels.saveError);
         return;
       }
 
@@ -204,17 +210,17 @@ function useTeacherCoursesPage() {
       resetForm();
 
       if (data?.requiresApproval) {
-        setMessage("Khóa học đã được gửi chờ admin duyệt.");
+        setMessage(formLabels.createdPending);
       } else if (data?.autoApproved) {
-        setMessage("Khóa học đã được tự động duyệt.");
+        setMessage(formLabels.autoApproved);
       } else {
-        setMessage("Đã lưu khóa học.");
+        setMessage(editingCourse ? formLabels.saved : formLabels.created);
       }
 
       await fetchCourses();
     } catch (error) {
       console.error("Error saving course:", error);
-      setMessage("Lỗi khi lưu khóa học.");
+      setMessage(formLabels.saveError);
     }
   };
 
@@ -240,7 +246,7 @@ function useTeacherCoursesPage() {
     if (!confirm("Bạn có chắc chắn muốn xóa khóa học này?")) return;
     try {
       const res = await fetch(`/api/teacher/courses/${courseId}`, { method: "DELETE" });
-      const data = await res.json().catch(() => ({}));
+      const data = await readJsonResponse(res).catch(() => ({}));
       if (res.ok) {
         setMessage(data?.requiresApproval ? "Yêu cầu xóa khóa học đã được gửi tới admin duyệt." : "Xóa khóa học thành công.");
         await fetchCourses();
@@ -262,7 +268,7 @@ function useTeacherCoursesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "toggleLock" }),
       });
-      const data = await res.json().catch(() => ({}));
+      const data = await readJsonResponse(res).catch(() => ({}));
       if (res.ok) {
         setMessage("Đã cập nhật trạng thái khóa học.");
         await fetchCourses();
@@ -278,7 +284,7 @@ function useTeacherCoursesPage() {
   const resetForm = () => {
     setFormData({
       ...defaultForm,
-      languageId: user?.role === "TEACHER" ? teacherLanguage?.id || languages[0]?.id || "" : "",
+      languageId: user?.role === "TEACHER" ? teacherLanguage?.id || "" : "",
     });
     setThumbnailUploadError("");
     setThumbnailPreviewError("");
@@ -290,10 +296,17 @@ function useTeacherCoursesPage() {
     setShowModal(true);
   };
 
-  const formLanguageOptions =
+  const adminLanguageOptions =
     editingCourse?.language && !languages.some((language) => language.id === editingCourse.language?.id)
       ? [editingCourse.language, ...languages]
       : languages;
+  const fixedTeacherLanguage = editingCourse?.language ?? teacherLanguage;
+  const formLanguageOptions =
+    user?.role === "ADMIN"
+      ? adminLanguageOptions
+      : fixedTeacherLanguage
+        ? [fixedTeacherLanguage]
+        : [];
   const selectedFormLanguage =
     formLanguageOptions.find((language) => language.id === formData.languageId) || teacherLanguage;
   const formLanguageKey =
@@ -385,7 +398,7 @@ export default function TeacherCoursesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-dvh flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900"></div>
       </div>
     );
@@ -393,7 +406,7 @@ export default function TeacherCoursesPage() {
 
   return (
     <>
-    <div className="min-h-screen bg-slate-50 py-8">
+    <div className="min-h-dvh bg-slate-50 py-8">
       <div className="mx-auto max-w-7xl px-4">
         {message ? <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">{message}</div> : null}
 
@@ -463,7 +476,7 @@ export default function TeacherCoursesPage() {
                     <tr key={course.id} className="hover:bg-slate-50">
                       <td className="px-4 py-4">
                         <div className="flex items-center">
-                          <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-slate-100">
+                          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-slate-100">
                             {courseThumbnailUrl ? (
                               <Image src={courseThumbnailUrl} alt={course.name} fill sizes="48px" className="object-cover" unoptimized />
                             ) : (
@@ -477,7 +490,7 @@ export default function TeacherCoursesPage() {
                         </div>
                       </td>
                       <td className="whitespace-nowrap px-4 py-4">
-                        <span className="inline-flex rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">{course.language ? getLanguageDisplayLabel(courseLanguageKey) : "Chưa gán"}</span>
+                        <span className="inline-flex rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">{course.language ? getLanguageNativeLabel(courseLanguageKey) : "Chưa gán"}</span>
                       </td>
                       <td className="whitespace-nowrap px-4 py-4">
                         <span className="inline-flex rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">{getCourseCategoryLabel(course.category, "vi") || "Chưa phân loại"}</span>
@@ -586,26 +599,7 @@ type CourseEditorController = {
   thumbnailPreviewError: string;
   formLanguageOptions: LearningLanguage[];
   formLanguageKey: string;
-  formLabels: {
-    heading: string;
-    createHeading: string;
-    name: string;
-    courseDescription: string;
-    price: string;
-    category: string;
-    categoryPlaceholder: string;
-    level: string;
-    duration: string;
-    durationPlaceholder: string;
-    status: string;
-    thumbnail: string;
-    thumbnailPlaceholder: string;
-    uploadingImage: string;
-    uploadImage: string;
-    imageHint: string;
-    save: string;
-    create: string;
-  };
+  formLabels: CourseInfoLabels;
   formManagementLabels: { status: Record<string, string> };
   thumbnailPreviewUrl: string;
   setShowModal: Dispatch<SetStateAction<boolean>>;
@@ -652,26 +646,43 @@ function CourseEditorDialog({ controller }: { controller: CourseEditorController
                 <label htmlFor="course-description" className="block text-sm font-medium text-slate-900">{formLabels.courseDescription} *</label>
                 <textarea id="course-description" required rows={3} value={formData.description} onChange={(event) => setFormData({ ...formData, description: event.target.value })} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
               </div>
-              {user?.role === "ADMIN" || formLanguageOptions.length > 0 ? (
+              {user?.role === "ADMIN" ? (
                 <div>
-                  <label htmlFor="course-language" className="block text-sm font-medium text-slate-900">Ngôn ngữ khóa học</label>
+                  <label htmlFor="course-language" className="block text-sm font-medium text-slate-900">{formLabels.language}</label>
                   <select
                     id="course-language"
                     value={formData.languageId}
                     onChange={(event) => setFormData({ ...formData, languageId: event.target.value, category: "" })}
                     className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                   >
-                    <option value="">Chọn ngôn ngữ</option>
+                    <option value="">{formLabels.languagePlaceholder}</option>
                     {formLanguageOptions.map((language) => (
                       <option key={language.id} value={language.id}>
-                        {getLanguageDisplayLabel(language.code || language.name)}
+                        {getLanguageNativeLabel(language.code || language.name)}
                       </option>
                     ))}
                   </select>
                 </div>
+              ) : formLanguageOptions.length > 0 ? (
+                <div>
+                  <label htmlFor="course-language" className="block text-sm font-medium text-slate-900">
+                    {formLabels.language}
+                  </label>
+                  <input
+                    id="course-language"
+                    readOnly
+                    value={getLanguageNativeLabel(
+                      formLanguageOptions[0].code || formLanguageOptions[0].name,
+                    )}
+                    className="mt-1 block w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700"
+                  />
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    {formLabels.languageLockedHint}
+                  </p>
+                </div>
               ) : (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
-                  Tài khoản giáo viên chưa có ngôn ngữ giảng dạy được duyệt.
+                  {formLabels.noApprovedLanguage}
                 </div>
               )}
               <div className="grid grid-cols-2 gap-4">
@@ -716,7 +727,7 @@ function CourseEditorDialog({ controller }: { controller: CourseEditorController
                   </div>
                 ) : (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-                    Khóa học sẽ cần admin duyệt trước khi hiển thị công khai nếu đang tắt tự động duyệt.
+                    {formLabels.approvalNotice}
                   </div>
                 )}
               </div>
@@ -742,7 +753,7 @@ function CourseEditorDialog({ controller }: { controller: CourseEditorController
                 />
                 {isLikelyImageSearchUrl(formData.thumbnail) && normalizeCourseThumbnailUrl(formData.thumbnail) === formData.thumbnail.trim() ? (
                   <p className="mt-2 text-xs text-amber-700">
-                    Link này là trang tìm kiếm, không phải ảnh trực tiếp. Hãy mở ảnh rồi sao chép địa chỉ ảnh hoặc tải ảnh từ máy.
+                    {formLabels.directImageWarning}
                   </p>
                 ) : null}
                 <div className="mt-2 flex items-center gap-3">
@@ -764,13 +775,13 @@ function CourseEditorDialog({ controller }: { controller: CourseEditorController
                   <div className="relative mt-3 h-32 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
                     <Image
                       src={thumbnailPreviewUrl}
-                      alt="Xem trước thumbnail"
+                      alt={formLabels.previewAlt}
                       fill
                       sizes="(min-width: 768px) 32rem, 100vw"
                       className="object-cover"
                       unoptimized
                       onLoad={() => setThumbnailPreviewError("")}
-                      onError={() => setThumbnailPreviewError("Không thể hiển thị ảnh từ link này. Vui lòng dùng link ảnh trực tiếp hoặc tải ảnh từ máy.")}
+                      onError={() => setThumbnailPreviewError(formLabels.invalidImageError)}
                     />
                   </div>
                 ) : null}
@@ -784,11 +795,14 @@ function CourseEditorDialog({ controller }: { controller: CourseEditorController
                   }}
                   className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 >
-                  Hủy
+                  {formLabels.cancel}
                 </button>
                 <button
                   type="submit"
-                  disabled={uploadingThumbnail}
+                  disabled={
+                    uploadingThumbnail ||
+                    (user?.role === "TEACHER" && formLanguageOptions.length === 0)
+                  }
                   className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {uploadingThumbnail ? formLabels.uploadingImage : editingCourse ? formLabels.save : formLabels.create}

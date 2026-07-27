@@ -330,7 +330,7 @@ export default async function ResultDetailPage({ params }: { params: Promise<{ r
 
 function ResultError({ title, message, retryHref }: { title: string; message: string; retryHref?: string }) {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50">
+    <main className="flex min-h-dvh items-center justify-center bg-slate-50">
       <div className="rounded-xl border border-red-200 bg-white p-8 text-center">
         <h1 className="text-lg font-bold text-slate-950">{title}</h1>
         <p className="mt-2 text-slate-600">{message}</p>
@@ -363,7 +363,7 @@ function ResultDetailView({ detail }: { detail: ResultDetail }) {
   const scoreOnly = detail.scoreOnly === true || detail.feedback?.scoreOnly === true;
 
   return (
-    <main className="min-h-screen bg-slate-50 py-8">
+    <main className="min-h-dvh bg-slate-50 py-8">
       <div className="mx-auto max-w-6xl space-y-6 px-4">
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">

@@ -71,6 +71,9 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { name, description, courseId, languageId, passingScore, timeLimit, shuffleQuestions } = body;
+    const targetType = body.targetType === "MODULE" || body.targetType === "LESSON" ? body.targetType : "COURSE";
+    const moduleId = targetType === "MODULE" || targetType === "LESSON" ? String(body.moduleId || "").trim() : "";
+    const lessonId = targetType === "LESSON" ? String(body.lessonId || "").trim() : "";
     const kind: TestKind = body.kind === "PUBLIC_PRACTICE" || body.kind === "TEACHER_ENTRANCE" ? body.kind : "COURSE";
     const assessmentMode = normalizeTestAssessmentMode(body.assessmentMode);
 
@@ -110,22 +113,30 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
 
-      const existingTestCount = await prisma.test.count({
-        where: { courseId },
-      });
-
-      if (existingTestCount > 0) {
-        return NextResponse.json(
-          { error: "Course already has a test. Each course can only have one test." },
-          { status: 400 }
-        );
-      }
-
       if (course._count.modules === 0) {
         return NextResponse.json(
           { error: "Course must have at least one module before creating a test" },
           { status: 400 }
         );
+      }
+
+      if (targetType !== "COURSE") {
+        const targetModule = await prisma.module.findFirst({
+          where: { id: moduleId, courseId },
+          select: { id: true },
+        });
+        if (!targetModule) {
+          return NextResponse.json({ error: "Invalid test chapter" }, { status: 400 });
+        }
+      }
+      if (targetType === "LESSON") {
+        const targetLesson = await prisma.lesson.findFirst({
+          where: { id: lessonId, moduleId },
+          select: { id: true },
+        });
+        if (!targetLesson) {
+          return NextResponse.json({ error: "Invalid test lesson" }, { status: 400 });
+        }
       }
     }
 
@@ -155,6 +166,8 @@ export async function POST(request: NextRequest) {
         name,
         description: description || null,
         courseId: kind === "COURSE" ? courseId : null,
+        moduleId: kind === "COURSE" && targetType !== "COURSE" ? moduleId : null,
+        lessonId: kind === "COURSE" && targetType === "LESSON" ? lessonId : null,
         languageId: languageId || null,
         assessmentMode,
         maxScore: FIXED_TEST_MAX_SCORE,

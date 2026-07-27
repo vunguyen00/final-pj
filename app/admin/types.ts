@@ -10,11 +10,13 @@ export type Application = {
   status: string;
   attemptNo: number;
   rejectionReason: string | null;
+  failureReason?: string | null;
+  submittedAt?: string | null;
   user: { username: string; email: string; phoneNumber: string | null; role: string };
   language: { name: string };
   certificates: { id: string; fileName: string; fileUrl: string; expiryDate: string | null }[];
   suspiciousEvents: { eventType: string; count: number; totalDurationSeconds: number; severity: number }[];
-  antiCheatLogs: { id: string; eventType: string; detail: string | null; serverTimestamp: string | null }[];
+  antiCheatLogs: { id: string; eventType: string; detail: string | null; severity?: number; serverTimestamp: string | null }[];
   entranceAttempt: { score: number; maxScore: number; isPassed: boolean } | null;
 };
 

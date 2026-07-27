@@ -5,6 +5,7 @@ import Link from "next/link";
 import { IeltsEvaluationResult } from "@/app/components/IeltsEvaluationResult";
 import { LanguageEvaluationResult } from "@/app/components/LanguageEvaluationResult";
 import { ModalDialog } from "@/app/components/ModalDialog";
+import { readJsonResponse } from "@/lib/http-response";
 import type { IeltsSpeakingEvaluation } from "@/lib/ielts-rubric";
 import { getSpeakingRecordingLabels } from "@/lib/speaking-recording-labels";
 import {
@@ -21,6 +22,7 @@ import {
 
 type InitialSpeakingConfig = {
   userRole: string;
+  aiPointBalance: number;
   speakingLanguage: SpeakingLanguage;
   durationSeconds: number;
 };
@@ -247,6 +249,11 @@ async function decodeAudioToMono16Khz(blob: Blob) {
   }
 }
 
+function redirectToAiPointWallet() {
+  const returnTo = `${window.location.pathname}${window.location.search}`;
+  window.location.href = `/student/wallet?returnTo=${encodeURIComponent(returnTo)}`;
+}
+
 export default function SpeakingAiClient({ initialConfig }: { initialConfig: InitialSpeakingConfig }) {
   const controller = useSpeakingAiController(initialConfig);
   return <SpeakingAiView controller={controller} />;
@@ -275,29 +282,6 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
     () => getSpeakingRecordingLabels(state.speakingLanguage),
     [state.speakingLanguage],
   );
-
-  async function startAiFeedbackPayment() {
-    dispatch({ type: "PATCH", patch: { error: "" } });
-    try {
-      const returnTo = `${window.location.pathname}${window.location.search}`;
-      const response = await fetch("/api/ai/points/buy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ points: 7, returnTo }),
-      });
-      const data = (await response.json().catch(() => ({}))) as {
-        paymentUrl?: string;
-        error?: string;
-      };
-      if (!response.ok || !data.paymentUrl) {
-        dispatch({ type: "PATCH", patch: { error: data.error || text.paymentFailed } });
-        return;
-      }
-      window.location.href = data.paymentUrl;
-    } catch {
-      dispatch({ type: "PATCH", patch: { error: text.paymentFailed } });
-    }
-  }
 
   useEffect(() => {
     if (!state.sessionRunning) return;
@@ -485,7 +469,7 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
           randomTopic: state.topicMode === "random",
         }),
       });
-      const data = (await response.json().catch(() => ({}))) as {
+      const data = (await readJsonResponse(response).catch(() => ({}))) as {
         topic?: string;
         prompt?: string;
         error?: string;
@@ -531,6 +515,10 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
 
   async function finishAndSubmit(autoSubmit: boolean, includeAiFeedback = false) {
     if (!state.sessionRunning || submittingRef.current) return;
+    if (includeAiFeedback && initialConfig.userRole !== "ADMIN" && initialConfig.aiPointBalance < 7) {
+      redirectToAiPointWallet();
+      return;
+    }
     const paymentTxnRef = "";
     if (false && includeAiFeedback && initialConfig.userRole !== "ADMIN" && !paymentTxnRef) {
       dispatch({
@@ -580,11 +568,11 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
         method: "POST",
         body: form,
       });
-      const data = (await response.json().catch(() => ({}))) as SpeakingResult & { error?: string };
+      const data = (await readJsonResponse(response).catch(() => ({}))) as SpeakingResult & { error?: string };
 
       if (!response.ok) {
         if ((data as { requiresPointPurchase?: boolean }).requiresPointPurchase) {
-          dispatch({ type: "PATCH", patch: { error: data.error || text.invalidPayment } });
+          redirectToAiPointWallet();
           return;
         }
         dispatch({ type: "PATCH", patch: { error: data.error || text.scoreFailed } });
@@ -625,7 +613,7 @@ function useSpeakingAiController(initialConfig: InitialSpeakingConfig) {
     startSession,
     finishAndSubmit,
     generateSpeakingTopic,
-    startAiFeedbackPayment,
+    redirectToAiPointWallet,
   };
 }
 
@@ -634,7 +622,7 @@ function SpeakingAiView({ controller }: { controller: SpeakingController }) {
   const scoreOnly = Boolean(state.result?.scoreOnly || state.result?.data.scoreOnly);
 
   return (
-    <main className="min-h-screen bg-slate-50 py-8">
+    <main className="min-h-dvh bg-slate-50 py-8">
       <div className="mx-auto max-w-6xl space-y-6 px-4">
         <SpeakingHeader userRole={userRole} text={controller.text} />
         <SpeakingSessionPanel controller={controller} />
@@ -715,9 +703,9 @@ function SpeakingSessionPanel({ controller }: { controller: SpeakingController }
         id="speaking-prompt"
         value={state.prompt}
         onChange={(event) => dispatch({ type: "PATCH", patch: { prompt: event.target.value } })}
-        rows={3}
+        rows={1}
         disabled={state.sessionRunning || state.preparingSession || state.loading}
-        className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100"
+        className="mt-2 min-h-20 w-full resize-none overflow-hidden rounded-lg border border-slate-300 px-4 py-3 text-sm leading-6 [field-sizing:content] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100"
       />
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{text.taskBadge(state.speakingPart)}</span>
@@ -752,7 +740,7 @@ function SpeakingSessionPanel({ controller }: { controller: SpeakingController }
                   : text.startSession}
           </button>
           {userRole !== "ADMIN" ? (
-            <button type="button" onClick={() => void controller.startAiFeedbackPayment()} disabled={state.loading || state.preparingSession} className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300">
+            <button type="button" onClick={controller.redirectToAiPointWallet} disabled={state.loading || state.preparingSession} className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300">
               {text.payAiFeedback}
             </button>
           ) : null}

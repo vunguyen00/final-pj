@@ -11,6 +11,8 @@ export type Test = {
   maxScore: number;
   passingScore: number;
   timeLimit: number | null;
+  module: { id: string; name: string } | null;
+  lesson: { id: string; title: string } | null;
   _count: {
     questions: number;
     attempts: number;
@@ -65,6 +67,9 @@ export type TestForm = {
   passingScore: string;
   timeLimit: string;
   shuffleQuestions: boolean;
+  targetType: "COURSE" | "MODULE" | "LESSON";
+  moduleId: string;
+  lessonId: string;
 };
 
 export const initialTestForm: TestForm = {
@@ -73,4 +78,7 @@ export const initialTestForm: TestForm = {
   passingScore: "50",
   timeLimit: "",
   shuffleQuestions: false,
+  targetType: "COURSE",
+  moduleId: "",
+  lessonId: "",
 };

@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import {
-  getCourseProgressPercent,
   hasCertificateSent,
   markCertificateSent,
   markCourseCompleted,
 } from "@/lib/learning-progress";
+import {
+  getCourseLearningGateState,
+  getNextCourseLearningAction,
+  isCourseTestUnlocked,
+} from "@/lib/course-learning-gates";
 import { sendCourseCertificateEmail } from "@/lib/mailer";
 import {
   AI_POINT_PRICE_VND,
@@ -123,10 +127,14 @@ export async function POST(
         );
       }
 
-      const progress = await getCourseProgressPercent(user.id, test.courseId);
-      if (progress < 100) {
+      const gateState = await getCourseLearningGateState(user.id, test.courseId);
+      if (!gateState || !isCourseTestUnlocked(gateState, test)) {
         return NextResponse.json(
-          { error: "Ban can hoan thanh 100% bai hoc truoc khi lam test.", progress },
+          {
+            error: test.moduleId
+              ? "Bạn cần hoàn thành các bài học của module và vượt qua module trước đó trước khi làm test."
+              : "Bạn cần hoàn thành toàn bộ module và bài kiểm tra tương ứng trước khi làm test cuối khóa.",
+          },
           { status: 403 },
         );
       }
@@ -371,16 +379,23 @@ export async function POST(
 
     let courseCompleted = false;
     let certificateSent = false;
+    let nextAction: ReturnType<typeof getNextCourseLearningAction> | null = null;
 
     if (isPassed && test.kind === "COURSE" && test.courseId && test.course) {
-      await markCourseCompleted(user.id, test.courseId);
-      courseCompleted = true;
+      const gateState = await getCourseLearningGateState(user.id, test.courseId);
+      if (gateState) {
+        nextAction = getNextCourseLearningAction(gateState);
+        courseCompleted = gateState.courseComplete;
+      }
 
-      const alreadySent = await hasCertificateSent(user.id, test.courseId);
-      if (!alreadySent) {
-        await sendCourseCertificateEmail(user.email, user.username, test.course.name);
-        await markCertificateSent(user.id, test.courseId);
-        certificateSent = true;
+      if (courseCompleted) {
+        await markCourseCompleted(user.id, test.courseId);
+        const alreadySent = await hasCertificateSent(user.id, test.courseId);
+        if (!alreadySent) {
+          await sendCourseCertificateEmail(user.email, user.username, test.course.name);
+          await markCertificateSent(user.id, test.courseId);
+          certificateSent = true;
+        }
       }
     }
 
@@ -396,6 +411,7 @@ export async function POST(
       language: test.language ?? test.course?.language ?? null,
       courseCompleted,
       certificateSent,
+      nextAction,
       totalQuestions: test.questions.length,
       correctAnswers: questionResults.filter((q) => q.isCorrect === true).length,
       questionResults,

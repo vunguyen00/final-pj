@@ -59,7 +59,7 @@ export default async function ProfilePage() {
   });
 
   return (
-    <main className="min-h-screen bg-slate-50 p-6">
+    <main className="min-h-dvh bg-slate-50 p-6">
       <div className="mx-auto max-w-5xl space-y-6">
         <section className="rounded-xl border border-slate-200 bg-white p-6">
           <h1 className="text-3xl font-bold text-slate-900">Hồ sơ của tôi</h1>

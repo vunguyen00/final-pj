@@ -23,6 +23,7 @@ export async function getTeacherRegistrationData(userId?: string) {
             violationCount: true,
             failureReason: true,
             questionRevealState: true,
+            entranceTimeLimit: true,
             language: { select: { id: true, name: true, code: true } },
             entranceTest: {
               select: {
@@ -32,23 +33,6 @@ export async function getTeacherRegistrationData(userId?: string) {
                 assessmentMode: true,
                 timeLimit: true,
                 shuffleQuestions: true,
-                questions: {
-                  select: {
-                    id: true,
-                    type: true,
-                    content: true,
-                    audioUrl: true,
-                    hint: true,
-                    score: true,
-                    preparationTimeSeconds: true,
-                    answerTimeSeconds: true,
-                    answers: {
-                      select: { id: true, content: true, order: true },
-                      orderBy: { order: "asc" },
-                    },
-                  },
-                  orderBy: { order: "asc" },
-                },
               },
             },
           },
@@ -81,14 +65,11 @@ export async function getTeacherRegistrationData(userId?: string) {
       entranceTest: application.entranceTest
         ? {
             ...application.entranceTest,
-            questions: application.entranceTest.questions.map((question) => ({
-              ...question,
-              answers:
-                question.type === "MULTIPLE_CHOICE" ||
-                question.type === "TRUE_FALSE"
-                  ? question.answers
-                  : null,
-            })),
+            timeLimit:
+              application.entranceTimeLimit ??
+              application.entranceTest.timeLimit,
+            // Never preload prompts for a sequential entrance exam.
+            questions: [],
           }
         : null,
     })),

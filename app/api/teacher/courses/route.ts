@@ -14,7 +14,7 @@ export async function GET() {
       );
     }
 
-    const [courses, languages, teacherLanguage] = await Promise.all([
+    const [courses, adminLanguages, teacherLanguage] = await Promise.all([
       prisma.course.findMany({
       where: user.role === "ADMIN" 
         ? {} 
@@ -52,20 +52,7 @@ export async function GET() {
             select: { id: true, name: true, code: true },
             orderBy: { name: "asc" },
           })
-        : prisma.teacherApplication
-            .findMany({
-              where: { userId: user.id, status: "APPROVED" },
-              select: { language: { select: { id: true, name: true, code: true } } },
-              orderBy: { reviewedAt: "desc" },
-            })
-            .then((applications) => {
-              const seen = new Set<string>();
-              return applications.flatMap((application) => {
-                if (!application.language || seen.has(application.language.id)) return [];
-                seen.add(application.language.id);
-                return [application.language];
-              });
-            }),
+        : Promise.resolve([]),
       user.role === "TEACHER"
         ? prisma.teacherApplication.findFirst({
             where: { userId: user.id, status: "APPROVED" },
@@ -75,7 +62,17 @@ export async function GET() {
         : Promise.resolve(null),
     ]);
 
-    return NextResponse.json({ courses, languages, teacherLanguage: teacherLanguage?.language ?? null });
+    const fixedTeacherLanguage = teacherLanguage?.language ?? null;
+    return NextResponse.json({
+      courses,
+      languages:
+        user.role === "ADMIN"
+          ? adminLanguages
+          : fixedTeacherLanguage
+            ? [fixedTeacherLanguage]
+            : [],
+      teacherLanguage: fixedTeacherLanguage,
+    });
   } catch (error) {
     console.error("Error fetching courses:", error);
     return NextResponse.json(
@@ -98,6 +95,7 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const { name, description, price, category, level, duration, thumbnail, languageId } = body;
+    const normalizedLanguageId = typeof languageId === "string" ? languageId.trim() : "";
 
     if (!name || !description || price === undefined) {
       return NextResponse.json(
@@ -119,17 +117,29 @@ export async function POST(request: Request) {
             where: {
               userId: user.id,
               status: "APPROVED",
-              ...(typeof languageId === "string" && languageId ? { languageId } : {}),
             },
             select: { languageId: true },
             orderBy: { reviewedAt: "desc" },
           })
       : null;
+    const adminLanguage =
+      user.role === "ADMIN" && normalizedLanguageId
+        ? await prisma.learningLanguage.findFirst({
+            where: { id: normalizedLanguageId, isActive: true },
+            select: { id: true },
+          })
+        : null;
 
-    if (user.role === "TEACHER" && typeof languageId === "string" && languageId && !approvedApplication) {
+    if (user.role === "TEACHER" && !approvedApplication) {
       return NextResponse.json(
-        { error: "You can only assign an approved teaching language to this course" },
+        { error: "Tài khoản giáo viên chưa có ngôn ngữ giảng dạy được duyệt." },
         { status: 403 },
+      );
+    }
+    if (user.role === "ADMIN" && normalizedLanguageId && !adminLanguage) {
+      return NextResponse.json(
+        { error: "Ngôn ngữ khóa học không hợp lệ." },
+        { status: 400 },
       );
     }
     // Khóa học mới chưa thể công khai trước khi có chương, bài học và bài kiểm tra.
@@ -148,9 +158,9 @@ export async function POST(request: Request) {
         instructorId: user.id,
         languageId:
           user.role === "TEACHER"
-            ? approvedApplication?.languageId ?? null
-            : typeof languageId === "string" && languageId
-              ? languageId
+            ? approvedApplication!.languageId
+            : adminLanguage
+              ? adminLanguage.id
               : null,
       },
       include: {

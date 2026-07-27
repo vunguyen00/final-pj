@@ -10,7 +10,7 @@ export default function TeacherRegistrationPageState(
 ) {
   if (props.type === "loading") {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+      <main className="flex min-h-dvh items-center justify-center bg-slate-50 px-4">
         <div className="text-center" role="status" aria-live="polite">
           <div className="mx-auto h-11 w-11 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600" />
           <p className="mt-4 text-sm font-semibold text-slate-600">
@@ -23,7 +23,7 @@ export default function TeacherRegistrationPageState(
 
   if (props.type === "error") {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+      <main className="flex min-h-dvh items-center justify-center bg-slate-50 px-4">
         <div className="w-full max-w-lg rounded-xl border border-red-200 bg-white p-6 text-center shadow-sm">
           <h1 className="text-xl font-bold text-slate-950">
             Không thể tải trang đăng ký
@@ -42,7 +42,7 @@ export default function TeacherRegistrationPageState(
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 p-6">
+    <main className="min-h-dvh bg-slate-50 p-6">
       <div className="mx-auto max-w-3xl rounded-xl border border-slate-200 bg-white p-6">
         <h1 className="text-2xl font-bold text-slate-900">Đăng ký giảng viên</h1>
         <p className="mt-3 text-slate-600">

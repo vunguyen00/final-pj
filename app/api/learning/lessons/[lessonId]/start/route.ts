@@ -2,6 +2,7 @@
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ensureLessonStart } from "@/lib/learning-progress";
+import { getCourseLearningGateState, isModuleUnlocked } from "@/lib/course-learning-gates";
 
 export async function POST(
   _request: Request,
@@ -18,6 +19,7 @@ export async function POST(
         videoUrl: true,
         module: {
           select: {
+            id: true,
             course: {
               select: { id: true, instructorId: true },
             },
@@ -48,6 +50,16 @@ export async function POST(
         },
         { status: 403 },
       );
+    }
+
+    if (!isAdmin && !isInstructor) {
+      const gateState = await getCourseLearningGateState(user.id, courseId);
+      if (!gateState || !isModuleUnlocked(gateState, lesson.module.id)) {
+        return NextResponse.json(
+          { error: "Bạn cần hoàn thành bài kiểm tra của module trước để mở bài học này." },
+          { status: 403 },
+        );
+      }
     }
 
     const start = await ensureLessonStart(user.id, courseId, lessonId);

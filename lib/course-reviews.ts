@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getCourseLearningGateState } from "@/lib/course-learning-gates";
 
 const REVIEW_PREFIX = "COURSE_REVIEW:";
 
@@ -86,16 +87,8 @@ export async function getUserCourseReview(userId: string, courseId: string) {
 }
 
 export async function canReviewCourse(userId: string, courseId: string) {
-  const passedAttempt = await prisma.testAttempt.findFirst({
-    where: {
-      userId,
-      isPassed: true,
-      test: { courseId },
-    },
-    select: { id: true },
-  });
-
-  return Boolean(passedAttempt);
+  const gateState = await getCourseLearningGateState(userId, courseId);
+  return Boolean(gateState?.courseComplete);
 }
 
 export async function upsertCourseReview({

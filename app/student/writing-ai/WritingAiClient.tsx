@@ -6,6 +6,7 @@ import { IeltsEvaluationResult } from "@/app/components/IeltsEvaluationResult";
 import { LanguageEvaluationResult } from "@/app/components/LanguageEvaluationResult";
 import { ModalDialog } from "@/app/components/ModalDialog";
 import { TestMaterialPanel } from "@/app/components/TestMaterialPanel";
+import { readJsonResponse } from "@/lib/http-response";
 import { describeChartData, type ChartMaterialData } from "@/lib/test-material";
 import type { IeltsWritingEvaluation, IeltsWritingTaskType } from "@/lib/ielts-rubric";
 import { getWritingLanguageLabel, WRITING_LANGUAGES, type WritingLanguage } from "@/lib/writing-languages";
@@ -231,8 +232,8 @@ const WRITING_UI_LABELS: Record<WritingLanguage, WritingUiLabels> = {
     targetPrefix: "reference target",
     scoringStatus: "The system is scoring your response. The result will appear below the form.",
     emptyResultNotice: "Scores and AI feedback will appear here after you submit.",
-    freeScoring: "Free scoring",
-    aiFeedback: (isAdmin) => (isAdmin ? "Score with AI" : "AI feedback (3 beans)"),
+    freeScoring: "Score",
+    aiFeedback: (isAdmin) => (isAdmin ? "Score with AI" : "AI feedback (-2 beans)"),
     scoring: "Scoring...",
     reviewing: "AI is reviewing...",
     paidAi: "AI feedback - Paid",
@@ -290,8 +291,8 @@ const WRITING_UI_LABELS: Record<WritingLanguage, WritingUiLabels> = {
     targetPrefix: "参考目标",
     scoringStatus: "系统正在评分，结果会显示在表单下方。",
     emptyResultNotice: "提交后，评分和AI反馈会显示在这里。",
-    freeScoring: "免费评分",
-    aiFeedback: (isAdmin) => (isAdmin ? "AI评分" : "AI反馈（3颗豆）"),
+    freeScoring: "评分",
+    aiFeedback: (isAdmin) => (isAdmin ? "AI评分" : "AI反馈（-2颗豆）"),
     scoring: "评分中...",
     reviewing: "AI正在反馈...",
     paidAi: "AI反馈 - 已付费",
@@ -348,8 +349,8 @@ const WRITING_UI_LABELS: Record<WritingLanguage, WritingUiLabels> = {
     targetPrefix: "参考目標",
     scoringStatus: "採点中です。結果はフォームの下に表示されます。",
     emptyResultNotice: "提出後、採点結果とAIフィードバックがここに表示されます。",
-    freeScoring: "無料採点",
-    aiFeedback: (isAdmin) => (isAdmin ? "AIで採点" : "AIフィードバック（3豆）"),
+    freeScoring: "採点",
+    aiFeedback: (isAdmin) => (isAdmin ? "AIで採点" : "AIフィードバック（-2豆）"),
     scoring: "採点中...",
     reviewing: "AIがフィードバック中...",
     paidAi: "AIフィードバック - 支払い済み",
@@ -406,8 +407,8 @@ const WRITING_UI_LABELS: Record<WritingLanguage, WritingUiLabels> = {
     targetPrefix: "참고 목표",
     scoringStatus: "시스템이 채점 중입니다. 결과는 양식 아래에 표시됩니다.",
     emptyResultNotice: "제출 후 점수와 AI 피드백이 여기에 표시됩니다.",
-    freeScoring: "무료 채점",
-    aiFeedback: (isAdmin) => (isAdmin ? "AI 채점" : "AI 피드백 (3콩)"),
+    freeScoring: "채점",
+    aiFeedback: (isAdmin) => (isAdmin ? "AI 채점" : "AI 피드백 (-2콩)"),
     scoring: "채점 중...",
     reviewing: "AI가 피드백 중...",
     paidAi: "AI 피드백 - 결제 완료",
@@ -562,12 +563,8 @@ export default function WritingAiClient({ userRole }: { userRole: string }) {
       }),
     );
 
-    const response = { ok: true };
-    const data = {} as { paymentUrl?: string; error?: string };
-    if (false && (!response.ok || !data.paymentUrl)) {
-      throw new Error(data.error || labels.paymentFailed);
-    }
-    window.location.href = "/student/wallet";
+    const returnTo = `${window.location.pathname}${window.location.search}`;
+    window.location.href = `/student/wallet?returnTo=${encodeURIComponent(returnTo)}`;
   }
 
   async function generateWritingPrompt() {
@@ -589,7 +586,7 @@ export default function WritingAiClient({ userRole }: { userRole: string }) {
           randomTopic: state.topicMode === "random",
         }),
       });
-      const data = (await response.json().catch(() => ({}))) as {
+      const data = (await readJsonResponse(response).catch(() => ({}))) as {
         topic?: string;
         prompt?: string;
         chart?: ChartMaterialData | null;
@@ -638,7 +635,7 @@ export default function WritingAiClient({ userRole }: { userRole: string }) {
           title: "Writing AI - " + (state.taskType === "task_1" ? "Task 1" : "Task 2"),
         }),
       });
-      const data = await response.json().catch(() => ({}));
+      const data = await readJsonResponse(response).catch(() => ({}));
       if (!response.ok) {
         if (data.requiresPointPurchase) {
           redirectToBeanPurchase();
@@ -657,7 +654,7 @@ export default function WritingAiClient({ userRole }: { userRole: string }) {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 py-6 md:py-8">
+    <main className="min-h-dvh bg-slate-50 py-6 md:py-8">
       <div className={"mx-auto space-y-6 px-4 sm:px-6 lg:px-8 " + (hasChart ? "max-w-[1440px]" : "max-w-6xl")}>
         <WritingHero role={userRole} loading={state.loading} labels={labels} onOpenSetup={() => dispatch({ type: "SET_SETUP_OPEN", setupOpen: true })} />
         <div className={hasChart ? "grid items-start gap-6 lg:grid-cols-12" : ""}>
@@ -731,11 +728,11 @@ function WritingHero({
           <h1 className="mt-2 text-3xl font-bold text-slate-950">{labels.heroTitle}</h1>
           <p className="mt-2 max-w-3xl text-slate-600">{labels.heroDescription}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={onOpenSetup} disabled={loading} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+        <div className="grid w-full shrink-0 gap-2 sm:w-52">
+          <button type="button" onClick={onOpenSetup} disabled={loading} className="w-full rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">
             {labels.createWithAi}
           </button>
-          <Link href="/student/results" className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">
+          <Link href="/student/results" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-center text-sm font-semibold text-slate-700">
             {labels.resultHistory}
           </Link>
         </div>
@@ -801,8 +798,8 @@ function WritingForm({
         id="writing-task-prompt"
         value={state.taskPrompt}
         onChange={(event) => onPromptChange(event.target.value)}
-        rows={4}
-        className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+        rows={1}
+        className="mt-2 min-h-24 w-full resize-none overflow-hidden rounded-lg border border-slate-300 px-4 py-3 text-sm leading-6 [field-sizing:content] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
       />
 
       {state.taskType === "task_1" && !state.chartData ? (

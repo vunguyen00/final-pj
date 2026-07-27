@@ -23,7 +23,7 @@ export const inferKindFromQuestion = (question: Question): QuestionKind => {
   return "ESSAY";
 };
 
-export const buildAnswersForKind = (kind: QuestionKind): Answer[] => {
+export const buildAnswersForKind = (kind: QuestionKind, trueFalseLabels: [string, string] = ["True", "False"]): Answer[] => {
   switch (kind) {
     case "MULTIPLE_CHOICE":
       return [1, 2, 3, 4].map((order) => ({
@@ -35,8 +35,8 @@ export const buildAnswersForKind = (kind: QuestionKind): Answer[] => {
       }));
     case "TRUE_FALSE":
       return [
-        { id: "1", content: "Đúng", isCorrect: false, order: 1, feedback: "" },
-        { id: "2", content: "Sai", isCorrect: false, order: 2, feedback: "" },
+        { id: "1", content: trueFalseLabels[0], isCorrect: false, order: 1, feedback: "" },
+        { id: "2", content: trueFalseLabels[1], isCorrect: false, order: 2, feedback: "" },
       ];
     case "FILL_IN_BLANK":
     case "LISTENING":

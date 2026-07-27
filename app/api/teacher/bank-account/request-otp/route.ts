@@ -32,6 +32,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: validationError }, { status: 400 });
   }
 
+  const currentAccount = await prisma.teacherBankAccount.findUnique({ where: { teacherId: user.id } });
+  if (currentAccount &&
+    currentAccount.bankName === payload.bankName &&
+    currentAccount.accountNumber === payload.accountNumber &&
+    currentAccount.accountName === payload.accountName &&
+    (currentAccount.branch ?? "") === payload.bankBranch) {
+    return NextResponse.json({ error: "Tài khoản nhận tiền chưa có thay đổi." }, { status: 400 });
+  }
+
   const { requestIp, deviceFingerprint } = getRequestSecurityContext(request);
   const now = new Date();
   const latestOtp = await prisma.teacherBankAccountChangeOtp.findFirst({

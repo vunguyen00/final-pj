@@ -108,13 +108,15 @@ export async function getStudentResults(
   const sourceSkip = type === "all" ? 0 : (page - 1) * pageSize;
 
   const [testCount, aiCount, testAttempts, aiAssessments] = await Promise.all([
-    type === "all" || type === "TEST" ? prisma.testAttempt.count({ where: { userId: user.id } }) : Promise.resolve(0),
+    type === "all" || type === "TEST"
+      ? prisma.testAttempt.count({ where: { userId: user.id, test: { kind: { not: "TEACHER_ENTRANCE" } } } })
+      : Promise.resolve(0),
     type === "all" || type === "SPEAKING" || type === "WRITING"
       ? prisma.aiAssessment.count({ where: { userId: user.id, ...(type === "SPEAKING" || type === "WRITING" ? { type } : {}) } })
       : Promise.resolve(0),
     type === "all" || type === "TEST"
       ? prisma.testAttempt.findMany({
-          where: { userId: user.id },
+          where: { userId: user.id, test: { kind: { not: "TEACHER_ENTRANCE" } } },
           include: {
             test: {
               select: {
@@ -230,9 +232,11 @@ export async function getStudentResults(
     prisma.$queryRaw<AggregateRow[]>(Prisma.sql`
       WITH combined AS (
         SELECT 'TEST'::text AS "type",
-               CASE WHEN "maxScore" > 0 THEN ("score" / "maxScore") * 100 ELSE 0 END AS percent,
-               "isPassed" AS passed
-        FROM "TestAttempt" WHERE "userId" = ${user.id}
+               CASE WHEN attempt."maxScore" > 0 THEN (attempt."score" / attempt."maxScore") * 100 ELSE 0 END AS percent,
+               attempt."isPassed" AS passed
+        FROM "TestAttempt" attempt
+        INNER JOIN "Test" test ON test."id" = attempt."testId"
+        WHERE attempt."userId" = ${user.id} AND test."kind" <> 'TEACHER_ENTRANCE'
         UNION ALL
         SELECT "type"::text AS "type",
                CASE WHEN "maxScore" > 0 THEN ("score" / "maxScore") * 100 ELSE 0 END AS percent,
@@ -248,9 +252,11 @@ export async function getStudentResults(
     `),
     prisma.$queryRaw<TrendRow[]>(Prisma.sql`
       WITH combined AS (
-        SELECT "id", 'TEST'::text AS "type", "submittedAt",
-               CASE WHEN "maxScore" > 0 THEN ("score" / "maxScore") * 100 ELSE 0 END AS "scorePercent"
-        FROM "TestAttempt" WHERE "userId" = ${user.id}
+        SELECT attempt."id", 'TEST'::text AS "type", attempt."submittedAt",
+               CASE WHEN attempt."maxScore" > 0 THEN (attempt."score" / attempt."maxScore") * 100 ELSE 0 END AS "scorePercent"
+        FROM "TestAttempt" attempt
+        INNER JOIN "Test" test ON test."id" = attempt."testId"
+        WHERE attempt."userId" = ${user.id} AND test."kind" <> 'TEACHER_ENTRANCE'
         UNION ALL
         SELECT "id", "type"::text AS "type", "submittedAt",
                CASE WHEN "maxScore" > 0 THEN ("score" / "maxScore") * 100 ELSE 0 END AS "scorePercent"

@@ -9,6 +9,7 @@ import { TestsTab } from "./_components/TestsTab";
 import { ModuleModal } from "./_components/ModuleModal";
 import { TestModal } from "./_components/TestModal";
 import { Course, LearningLanguage, Module, Test, TestForm, initialTestForm } from "./types";
+import { readJsonResponse } from "@/lib/http-response";
 import { getCourseManagementLabels } from "@/lib/language-display";
 
 type CourseDetailClientProps = {
@@ -16,6 +17,7 @@ type CourseDetailClientProps = {
   initialData: {
     course: Course & { modules: Module[]; tests: Test[] };
     languages: LearningLanguage[];
+    viewerRole: string;
   };
 };
 
@@ -78,7 +80,7 @@ export default function CourseDetailClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: trimmedName }),
       });
-      const data = await res.json().catch(() => ({}));
+      const data = await readJsonResponse(res).catch(() => ({}));
       if (res.ok) {
         setShowModuleModal(false);
         setEditingModule(null);
@@ -103,7 +105,7 @@ export default function CourseDetailClient({
     if (!confirm("Bạn có chắc chắn muốn xóa chương này?")) return;
     try {
       const res = await fetch(`/api/teacher/courses/${courseId}/modules/${moduleId}`, { method: "DELETE" });
-      const data = await res.json().catch(() => ({}));
+      const data = await readJsonResponse(res).catch(() => ({}));
       if (res.ok) {
         await fetchCourseData();
       } else {
@@ -134,7 +136,7 @@ export default function CourseDetailClient({
         }),
       });
 
-      const data = await res.json().catch(() => ({}));
+      const data = await readJsonResponse(res).catch(() => ({}));
       if (res.ok) {
         setShowTestModal(false);
         setTestForm(initialTestForm);
@@ -158,7 +160,7 @@ export default function CourseDetailClient({
     setDeletingTestId(testId);
     try {
       const res = await fetch(`/api/teacher/tests/${testId}`, { method: "DELETE" });
-      const data = await res.json().catch(() => ({}));
+      const data = await readJsonResponse(res).catch(() => ({}));
       if (res.ok) {
         await fetchCourseData();
       } else {
@@ -206,7 +208,7 @@ export default function CourseDetailClient({
   const labels = getCourseManagementLabels(courseLanguageKey);
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8">
+    <div className="min-h-dvh bg-slate-50 py-8">
       <div className="mx-auto max-w-7xl px-4">
         <CourseHeader course={course} />
         <CourseTabs activeTab={activeTab} moduleCount={modules.length} testCount={tests.length} labels={labels.tabs} onTabChange={setActiveTab} />
@@ -215,6 +217,7 @@ export default function CourseDetailClient({
           <CourseInfoTab
             course={course}
             languages={languages}
+            viewerRole={initialData.viewerRole}
             onUpdated={(updatedCourse) =>
               setCourse((current) => (current ? { ...current, ...updatedCourse } : current))
             }
@@ -253,6 +256,7 @@ export default function CourseDetailClient({
         form={testForm}
         isSubmitting={isCreatingTest}
         labels={labels.testModal}
+        modules={modules}
         onChangeForm={setTestForm}
         onClose={() => {
           if (!creatingTestRef.current) setShowTestModal(false);

@@ -2,6 +2,7 @@
 
 import { Fragment, useMemo, useState, useSyncExternalStore, type ButtonHTMLAttributes } from "react";
 import { createPollingStore } from "@/lib/client-polling-store";
+import { readJsonResponse } from "@/lib/http-response";
 import { ModalDialog } from "@/app/components/ModalDialog";
 import type { AdminCourseRefund } from "./types";
 
@@ -23,7 +24,7 @@ export default function AdminCourseRefunds({ initialRefunds }: { initialRefunds:
     intervalMs: 8000,
     load: async () => {
       const response = await fetch("/api/admin/course-refunds", { cache: "no-store" });
-      const data = (await response.json().catch(() => ({}))) as { refunds?: AdminCourseRefund[] };
+      const data = (await readJsonResponse(response).catch(() => ({}))) as { refunds?: AdminCourseRefund[] };
       if (!response.ok || !data.refunds) return initialRefunds;
       return data.refunds;
     },
@@ -63,7 +64,7 @@ export default function AdminCourseRefunds({ initialRefunds }: { initialRefunds:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, note }),
       });
-      const data = (await response.json().catch(() => ({}))) as { error?: string; refund?: AdminCourseRefund };
+      const data = (await readJsonResponse(response).catch(() => ({}))) as { error?: string; refund?: AdminCourseRefund };
 
       if (!response.ok || !data.refund) {
         setActionError(data.error ?? "Không thể xử lý yêu cầu hoàn tiền.");

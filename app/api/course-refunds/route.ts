@@ -8,7 +8,7 @@ const REFUND_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_REFUND_PROGRESS = 50;
 
 export async function POST(request: Request) {
-  const user = await requireRole("STUDENT", "TEACHER");
+  const user = await requireRole("STUDENT", "TEACHER", "ADMIN");
   const body = (await request.json().catch(() => null)) as { courseId?: unknown; reason?: unknown } | null;
   const courseId = typeof body?.courseId === "string" ? body.courseId.trim() : "";
   const reason = typeof body?.reason === "string" ? body.reason.trim().slice(0, MAX_REASON_LENGTH) : "";

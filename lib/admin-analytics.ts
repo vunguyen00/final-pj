@@ -740,6 +740,7 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
   const orderByCourseRevenue = new Map<string, number>();
   const orderByCourseCount = new Map<string, number>();
   const orderByTeacherRevenue = new Map<string, number>();
+  const orderByTeacherGrossRevenue = new Map<string, number>();
   const orderCourseNameMap = new Map<string, string>();
 
   for (const item of orderItemsInRange) {
@@ -749,6 +750,7 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
     const instructorId = item.course.instructorId;
     if (instructorId) {
       accumulateCounter(orderByTeacherRevenue, instructorId, item.teacherRevenue);
+      accumulateCounter(orderByTeacherGrossRevenue, instructorId, item.price);
       const teacherName = item.course.instructor?.username ?? userNameMap.get(instructorId) ?? instructorId;
       instructorNameMap.set(instructorId, teacherName);
     }
@@ -1042,6 +1044,11 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
     username: instructorNameMap.get(item.name) ?? item.name,
     value: item.value,
   }));
+  const rankingTeachersGrossRevenue = topFromMap(orderByTeacherGrossRevenue, 10, 2).map((item) => ({
+    userId: item.name,
+    username: instructorNameMap.get(item.name) ?? item.name,
+    value: item.value,
+  }));
 
   const rankingCoursesRevenue = topFromMap(orderByCourseRevenue, 10, 2).map((item) => ({
     courseId: item.name,
@@ -1323,6 +1330,7 @@ export async function getDashboardAnalytics(input: RangeInput = {}) {
         mostStudents: rankingTeachersMostStudents,
         mostCourses: rankingTeachersMostCourses,
         highestRevenue: rankingTeachersRevenue,
+        highestGrossRevenue: rankingTeachersGrossRevenue,
       },
       courses: {
         byRevenue: rankingCoursesRevenue,

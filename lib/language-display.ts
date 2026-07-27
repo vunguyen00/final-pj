@@ -58,6 +58,15 @@ export function getLanguageDisplayLabel(value?: string | null) {
   return "Ti\u1ebfng Vi\u1ec7t";
 }
 
+export function getLanguageNativeLabel(value?: string | null) {
+  const language = getContentUiLanguage(value);
+  if (language === "en") return "English";
+  if (language === "zh") return "\u4e2d\u6587";
+  if (language === "ja") return "\u65e5\u672c\u8a9e";
+  if (language === "ko") return "\ud55c\uad6d\uc5b4";
+  return "Ti\u1ebfng Vi\u1ec7t";
+}
+
 const categoryLabels: Record<UiLanguage, Record<CanonicalCourseCategory, string>> = {
   en: {
     Speaking: "Speaking",
@@ -206,6 +215,12 @@ export type CourseManagementLabels = {
     namePlaceholder: string;
     instructions: string;
     instructionsPlaceholder: string;
+    target: string;
+    targetCourse: string;
+    targetModule: string;
+    targetLesson: string;
+    chooseModule: string;
+    chooseLesson: string;
     fixedScore: (score: number) => string;
     passingScore: string;
     timeLimit: string;
@@ -235,6 +250,9 @@ export type CourseManagementLabels = {
     removeVideo: string;
     uploadVideo: string;
     videoHint: string;
+    videoLink: string;
+    videoLinkPlaceholder: string;
+    orUploadVideo: string;
     uploadingVideo: string;
     cancel: string;
     saving: string;
@@ -299,6 +317,12 @@ const courseManagementLabels: Record<UiLanguage, CourseManagementLabels> = {
       namePlaceholder: "Ví dụ: Bài kiểm tra cuối khóa",
       instructions: "Mô tả hoặc hướng dẫn làm bài",
       instructionsPlaceholder: "Nêu yêu cầu và những lưu ý dành cho học viên...",
+      target: "Phạm vi bài test",
+      targetCourse: "Toàn khóa học",
+      targetModule: "Theo chương",
+      targetLesson: "Theo bài học",
+      chooseModule: "Chọn chương",
+      chooseLesson: "Chọn bài học",
       fixedScore: (score) => `Điểm tối đa được cố định là ${score} điểm. Tổng điểm của tất cả câu hỏi phải bằng ${score}.`,
       passingScore: "Điểm đạt",
       timeLimit: "Giới hạn thời gian làm bài",
@@ -328,6 +352,9 @@ const courseManagementLabels: Record<UiLanguage, CourseManagementLabels> = {
       removeVideo: "Xóa video",
       uploadVideo: "Tải lên video",
       videoHint: "MP4, WebM, MOV (tối đa 500MB)",
+      videoLink: "Hoặc gán liên kết video",
+      videoLinkPlaceholder: "https://...",
+      orUploadVideo: "Tải tệp video lên",
       uploadingVideo: "Đang tải video...",
       cancel: "Hủy",
       saving: "Đang lưu...",
@@ -390,6 +417,12 @@ const courseManagementLabels: Record<UiLanguage, CourseManagementLabels> = {
       namePlaceholder: "Example: Final course test",
       instructions: "Description or instructions",
       instructionsPlaceholder: "Add requirements and notes for students...",
+      target: "Test scope",
+      targetCourse: "Whole course",
+      targetModule: "A chapter",
+      targetLesson: "A lesson",
+      chooseModule: "Choose a chapter",
+      chooseLesson: "Choose a lesson",
       fixedScore: (score) => `The maximum score is fixed at ${score} points. The total score of all questions must equal ${score}.`,
       passingScore: "Passing score",
       timeLimit: "Time limit",
@@ -419,6 +452,9 @@ const courseManagementLabels: Record<UiLanguage, CourseManagementLabels> = {
       removeVideo: "Remove video",
       uploadVideo: "Upload video",
       videoHint: "MP4, WebM, MOV (max 500MB)",
+      videoLink: "Or assign a video link",
+      videoLinkPlaceholder: "https://...",
+      orUploadVideo: "Upload a video file",
       uploadingVideo: "Uploading video...",
       cancel: "Cancel",
       saving: "Saving...",
@@ -531,6 +567,9 @@ export type CourseLearningLabels = {
   remaining: (time: string) => string;
   allDone: string;
   takeTest: string;
+  locked: string;
+  moduleTestRequired: string;
+  courseComplete: string;
 };
 
 const courseLearningLabels: Record<UiLanguage, CourseLearningLabels> = {
@@ -552,6 +591,9 @@ const courseLearningLabels: Record<UiLanguage, CourseLearningLabels> = {
     remaining: (time) => `Còn lại: ${time}`,
     allDone: "Bạn đã hoàn thành 100% nội dung. Tiếp theo: làm bài test.",
     takeTest: "Làm bài test",
+    locked: "Chưa mở khóa",
+    moduleTestRequired: "Bạn đã học xong module này. Hãy đạt bài kiểm tra để mở module tiếp theo.",
+    courseComplete: "Bạn đã hoàn thành toàn bộ lộ trình khóa học.",
   },
   en: {
     player: "Course player",
@@ -571,6 +613,9 @@ const courseLearningLabels: Record<UiLanguage, CourseLearningLabels> = {
     remaining: (time) => `Remaining: ${time}`,
     allDone: "You have completed 100% of the content. Next: take the test.",
     takeTest: "Take test",
+    locked: "Locked",
+    moduleTestRequired: "You finished this module. Pass its test to unlock the next module.",
+    courseComplete: "You have completed the full course path.",
   },
   zh: {
     player: "\u8bfe\u7a0b\u64ad\u653e\u5668",
@@ -590,6 +635,9 @@ const courseLearningLabels: Record<UiLanguage, CourseLearningLabels> = {
     remaining: (time) => `\u5269\u4f59\uff1a${time}`,
     allDone: "\u4f60\u5df2\u5b8c\u6210100%\u7684\u5185\u5bb9\u3002\u4e0b\u4e00\u6b65\uff1a\u53c2\u52a0\u6d4b\u8bd5\u3002",
     takeTest: "\u53c2\u52a0\u6d4b\u8bd5",
+    locked: "\u5c1a\u672a\u89e3\u9501",
+    moduleTestRequired: "\u4f60\u5df2\u5b8c\u6210\u672c\u7ae0\u3002\u901a\u8fc7\u6d4b\u8bd5\u540e\u5373\u53ef\u89e3\u9501\u4e0b\u4e00\u7ae0\u3002",
+    courseComplete: "\u4f60\u5df2\u5b8c\u6210\u6574\u4e2a\u8bfe\u7a0b\u8def\u5f84\u3002",
   },
   ja: {
     player: "\u30b3\u30fc\u30b9\u30d7\u30ec\u30fc\u30e4\u30fc",
@@ -609,6 +657,9 @@ const courseLearningLabels: Record<UiLanguage, CourseLearningLabels> = {
     remaining: (time) => `\u6b8b\u308a\uff1a${time}`,
     allDone: "\u5185\u5bb9\u3092100%\u5b8c\u4e86\u3057\u307e\u3057\u305f\u3002\u6b21\u306f\u30c6\u30b9\u30c8\u3067\u3059\u3002",
     takeTest: "\u30c6\u30b9\u30c8\u3092\u53d7\u3051\u308b",
+    locked: "\u672a\u89e3\u653e",
+    moduleTestRequired: "\u3053\u306e\u7ae0\u306e\u5b66\u7fd2\u304c\u7d42\u4e86\u3057\u307e\u3057\u305f\u3002\u30c6\u30b9\u30c8\u306b\u5408\u683c\u3059\u308b\u3068\u6b21\u306e\u7ae0\u304c\u958b\u653e\u3055\u308c\u307e\u3059\u3002",
+    courseComplete: "\u30b3\u30fc\u30b9\u5168\u4f53\u306e\u5b66\u7fd2\u30d1\u30b9\u3092\u5b8c\u4e86\u3057\u307e\u3057\u305f\u3002",
   },
   ko: {
     player: "\ucf54\uc2a4 \ud50c\ub808\uc774\uc5b4",
@@ -628,6 +679,9 @@ const courseLearningLabels: Record<UiLanguage, CourseLearningLabels> = {
     remaining: (time) => `\ub0a8\uc740 \uc2dc\uac04: ${time}`,
     allDone: "\ub0b4\uc6a9\uc744 100% \uc644\ub8cc\ud588\uc2b5\ub2c8\ub2e4. \ub2e4\uc74c: \ud14c\uc2a4\ud2b8 \uc751\uc2dc.",
     takeTest: "\ud14c\uc2a4\ud2b8 \uc751\uc2dc",
+    locked: "\uc7a0\uae40",
+    moduleTestRequired: "\uc774 \ubaa8\ub4c8\uc744 \uc644\ub8cc\ud588\uc2b5\ub2c8\ub2e4. \ud14c\uc2a4\ud2b8\uc5d0 \ud569\uaca9\ud558\uba74 \ub2e4\uc74c \ubaa8\ub4c8\uc774 \uc5f4\ub9bd\ub2c8\ub2e4.",
+    courseComplete: "\uc804\uccb4 \ucf54\uc2a4 \ud559\uc2b5 \uacbd\ub85c\ub97c \uc644\ub8cc\ud588\uc2b5\ub2c8\ub2e4.",
   },
 };
 
@@ -641,6 +695,11 @@ export type CourseInfoLabels = {
   description: string;
   name: string;
   courseDescription: string;
+  language: string;
+  languagePlaceholder: string;
+  languageLockedHint: string;
+  noApprovedLanguage: string;
+  approvalNotice: string;
   price: string;
   category: string;
   categoryPlaceholder: string;
@@ -653,6 +712,17 @@ export type CourseInfoLabels = {
   uploadImage: string;
   uploadingImage: string;
   imageHint: string;
+  directImageWarning: string;
+  previewAlt: string;
+  uploadError: string;
+  invalidImageError: string;
+  saveError: string;
+  saved: string;
+  savedPending: string;
+  created: string;
+  createdPending: string;
+  autoApproved: string;
+  cancel: string;
   save: string;
   create: string;
   saving: string;
@@ -665,6 +735,11 @@ const courseInfoLabels: Record<UiLanguage, CourseInfoLabels> = {
     description: "Cập nhật nội dung giới thiệu, học phí, danh mục và ảnh đại diện của khóa học.",
     name: "Tên khóa học",
     courseDescription: "Mô tả khóa học",
+    language: "Ngôn ngữ khóa học",
+    languagePlaceholder: "Chọn ngôn ngữ",
+    languageLockedHint: "Ngôn ngữ được khóa theo hồ sơ giảng viên đã được duyệt.",
+    noApprovedLanguage: "Tài khoản giáo viên chưa có ngôn ngữ giảng dạy được duyệt.",
+    approvalNotice: "Khóa học cần quản trị viên duyệt trước khi hiển thị công khai nếu chế độ tự động duyệt đang tắt.",
     price: "Học phí (VNĐ)",
     category: "Danh mục",
     categoryPlaceholder: "Chọn danh mục",
@@ -677,6 +752,17 @@ const courseInfoLabels: Record<UiLanguage, CourseInfoLabels> = {
     uploadImage: "Chọn ảnh từ máy",
     uploadingImage: "Đang tải ảnh...",
     imageHint: "JPEG, PNG, WebP hoặc GIF, tối đa 5 MB",
+    directImageWarning: "Liên kết này là trang tìm kiếm, không phải ảnh trực tiếp. Hãy mở ảnh rồi sao chép địa chỉ ảnh hoặc tải ảnh từ máy.",
+    previewAlt: "Xem trước ảnh khóa học",
+    uploadError: "Không thể tải ảnh khóa học lên.",
+    invalidImageError: "Không thể hiển thị ảnh này. Vui lòng dùng liên kết ảnh trực tiếp hoặc tải ảnh từ máy.",
+    saveError: "Không thể lưu khóa học.",
+    saved: "Đã cập nhật thông tin khóa học.",
+    savedPending: "Đã lưu thay đổi và gửi khóa học chờ quản trị viên duyệt.",
+    created: "Đã lưu khóa học.",
+    createdPending: "Khóa học đã được gửi chờ quản trị viên duyệt.",
+    autoApproved: "Khóa học đã được tự động duyệt.",
+    cancel: "Hủy",
     save: "Lưu thay đổi",
     create: "Tạo khóa học",
     saving: "Đang lưu...",
@@ -687,6 +773,11 @@ const courseInfoLabels: Record<UiLanguage, CourseInfoLabels> = {
     description: "Update the introduction, tuition, category, and cover image for this course.",
     name: "Course name",
     courseDescription: "Course description",
+    language: "Course language",
+    languagePlaceholder: "Choose a language",
+    languageLockedHint: "The language is locked to your approved teacher profile.",
+    noApprovedLanguage: "This teacher account does not have an approved teaching language.",
+    approvalNotice: "The course requires admin approval before it becomes public when automatic approval is disabled.",
     price: "Tuition (VND)",
     category: "Category",
     categoryPlaceholder: "Choose category",
@@ -699,6 +790,17 @@ const courseInfoLabels: Record<UiLanguage, CourseInfoLabels> = {
     uploadImage: "Choose image from device",
     uploadingImage: "Uploading image...",
     imageHint: "JPEG, PNG, WebP, or GIF, max 5 MB",
+    directImageWarning: "This link is a search page, not a direct image. Open the image and copy its address, or upload it from your device.",
+    previewAlt: "Course image preview",
+    uploadError: "Unable to upload the course image.",
+    invalidImageError: "Unable to display this image. Use a direct image link or upload it from your device.",
+    saveError: "Unable to save the course.",
+    saved: "Course information updated.",
+    savedPending: "Changes saved and sent for admin approval.",
+    created: "Course saved.",
+    createdPending: "The course was sent for admin approval.",
+    autoApproved: "The course was approved automatically.",
+    cancel: "Cancel",
     save: "Save changes",
     create: "Create course",
     saving: "Saving...",
@@ -709,6 +811,11 @@ const courseInfoLabels: Record<UiLanguage, CourseInfoLabels> = {
     description: "\u66f4\u65b0\u8bfe\u7a0b\u4ecb\u7ecd\u3001\u5b66\u8d39\u3001\u5206\u7c7b\u548c\u5c01\u9762\u56fe\u3002",
     name: "\u8bfe\u7a0b\u540d\u79f0",
     courseDescription: "\u8bfe\u7a0b\u63cf\u8ff0",
+    language: "\u8bfe\u7a0b\u8bed\u8a00",
+    languagePlaceholder: "\u9009\u62e9\u8bed\u8a00",
+    languageLockedHint: "\u8bed\u8a00\u5df2\u9501\u5b9a\u4e3a\u6559\u5e08\u8d44\u6599\u4e2d\u5df2\u901a\u8fc7\u5ba1\u6838\u7684\u8bed\u8a00\u3002",
+    noApprovedLanguage: "\u6b64\u6559\u5e08\u8d26\u6237\u5c1a\u65e0\u5df2\u901a\u8fc7\u5ba1\u6838\u7684\u6388\u8bfe\u8bed\u8a00\u3002",
+    approvalNotice: "\u5982\u679c\u5df2\u5173\u95ed\u81ea\u52a8\u5ba1\u6838\uff0c\u8bfe\u7a0b\u5728\u516c\u5f00\u663e\u793a\u524d\u9700\u8981\u7ba1\u7406\u5458\u5ba1\u6838\u3002",
     price: "\u5b66\u8d39\uff08VND\uff09",
     category: "\u5206\u7c7b",
     categoryPlaceholder: "\u9009\u62e9\u5206\u7c7b",
@@ -721,6 +828,17 @@ const courseInfoLabels: Record<UiLanguage, CourseInfoLabels> = {
     uploadImage: "\u4ece\u8bbe\u5907\u9009\u62e9\u56fe\u7247",
     uploadingImage: "\u56fe\u7247\u4e0a\u4f20\u4e2d...",
     imageHint: "JPEG\u3001PNG\u3001WebP\u6216GIF\uff0c\u6700\u591a5 MB",
+    directImageWarning: "\u6b64\u94fe\u63a5\u662f\u641c\u7d22\u9875\u9762\uff0c\u4e0d\u662f\u76f4\u63a5\u56fe\u7247\u3002\u8bf7\u6253\u5f00\u56fe\u7247\u540e\u590d\u5236\u56fe\u7247\u5730\u5740\uff0c\u6216\u4ece\u8bbe\u5907\u4e0a\u4f20\u3002",
+    previewAlt: "\u8bfe\u7a0b\u56fe\u7247\u9884\u89c8",
+    uploadError: "\u65e0\u6cd5\u4e0a\u4f20\u8bfe\u7a0b\u56fe\u7247\u3002",
+    invalidImageError: "\u65e0\u6cd5\u663e\u793a\u6b64\u56fe\u7247\u3002\u8bf7\u4f7f\u7528\u76f4\u63a5\u56fe\u7247\u94fe\u63a5\u6216\u4ece\u8bbe\u5907\u4e0a\u4f20\u3002",
+    saveError: "\u65e0\u6cd5\u4fdd\u5b58\u8bfe\u7a0b\u3002",
+    saved: "\u8bfe\u7a0b\u4fe1\u606f\u5df2\u66f4\u65b0\u3002",
+    savedPending: "\u66f4\u6539\u5df2\u4fdd\u5b58\u5e76\u63d0\u4ea4\u7ba1\u7406\u5458\u5ba1\u6838\u3002",
+    created: "\u8bfe\u7a0b\u5df2\u4fdd\u5b58\u3002",
+    createdPending: "\u8bfe\u7a0b\u5df2\u63d0\u4ea4\u7ba1\u7406\u5458\u5ba1\u6838\u3002",
+    autoApproved: "\u8bfe\u7a0b\u5df2\u81ea\u52a8\u901a\u8fc7\u5ba1\u6838\u3002",
+    cancel: "\u53d6\u6d88",
     save: "\u4fdd\u5b58\u66f4\u6539",
     create: "\u521b\u5efa\u8bfe\u7a0b",
     saving: "\u4fdd\u5b58\u4e2d...",
@@ -731,6 +849,11 @@ const courseInfoLabels: Record<UiLanguage, CourseInfoLabels> = {
     description: "\u30b3\u30fc\u30b9\u306e\u7d39\u4ecb\u3001\u53d7\u8b1b\u6599\u3001\u30ab\u30c6\u30b4\u30ea\u3001\u30ab\u30d0\u30fc\u753b\u50cf\u3092\u66f4\u65b0\u3057\u307e\u3059\u3002",
     name: "\u30b3\u30fc\u30b9\u540d",
     courseDescription: "\u30b3\u30fc\u30b9\u8aac\u660e",
+    language: "\u30b3\u30fc\u30b9\u306e\u8a00\u8a9e",
+    languagePlaceholder: "\u8a00\u8a9e\u3092\u9078\u629e",
+    languageLockedHint: "\u8a00\u8a9e\u306f\u627f\u8a8d\u6e08\u307f\u306e\u8b1b\u5e2b\u30d7\u30ed\u30d5\u30a3\u30fc\u30eb\u306b\u56fa\u5b9a\u3055\u308c\u3066\u3044\u307e\u3059\u3002",
+    noApprovedLanguage: "\u3053\u306e\u8b1b\u5e2b\u30a2\u30ab\u30a6\u30f3\u30c8\u306b\u306f\u627f\u8a8d\u6e08\u307f\u306e\u6307\u5c0e\u8a00\u8a9e\u304c\u3042\u308a\u307e\u305b\u3093\u3002",
+    approvalNotice: "\u81ea\u52d5\u627f\u8a8d\u304c\u7121\u52b9\u306e\u5834\u5408\u3001\u30b3\u30fc\u30b9\u3092\u516c\u958b\u3059\u308b\u524d\u306b\u7ba1\u7406\u8005\u306e\u627f\u8a8d\u304c\u5fc5\u8981\u3067\u3059\u3002",
     price: "\u53d7\u8b1b\u6599\uff08VND\uff09",
     category: "\u30ab\u30c6\u30b4\u30ea",
     categoryPlaceholder: "\u30ab\u30c6\u30b4\u30ea\u3092\u9078\u629e",
@@ -743,6 +866,17 @@ const courseInfoLabels: Record<UiLanguage, CourseInfoLabels> = {
     uploadImage: "\u30c7\u30d0\u30a4\u30b9\u304b\u3089\u753b\u50cf\u3092\u9078\u629e",
     uploadingImage: "\u753b\u50cf\u3092\u30a2\u30c3\u30d7\u30ed\u30fc\u30c9\u4e2d...",
     imageHint: "JPEG\u3001PNG\u3001WebP\u307e\u305f\u306fGIF\u3001\u6700\u59275 MB",
+    directImageWarning: "\u3053\u306e\u30ea\u30f3\u30af\u306f\u753b\u50cf\u305d\u306e\u3082\u306e\u3067\u306f\u306a\u304f\u691c\u7d22\u30da\u30fc\u30b8\u3067\u3059\u3002\u753b\u50cf\u3092\u958b\u3044\u3066\u30a2\u30c9\u30ec\u30b9\u3092\u30b3\u30d4\u30fc\u3059\u308b\u304b\u3001\u30c7\u30d0\u30a4\u30b9\u304b\u3089\u30a2\u30c3\u30d7\u30ed\u30fc\u30c9\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+    previewAlt: "\u30b3\u30fc\u30b9\u753b\u50cf\u306e\u30d7\u30ec\u30d3\u30e5\u30fc",
+    uploadError: "\u30b3\u30fc\u30b9\u753b\u50cf\u3092\u30a2\u30c3\u30d7\u30ed\u30fc\u30c9\u3067\u304d\u307e\u305b\u3093\u3002",
+    invalidImageError: "\u3053\u306e\u753b\u50cf\u3092\u8868\u793a\u3067\u304d\u307e\u305b\u3093\u3002\u753b\u50cf\u306e\u76f4\u63a5\u30ea\u30f3\u30af\u3092\u4f7f\u7528\u3059\u308b\u304b\u3001\u30c7\u30d0\u30a4\u30b9\u304b\u3089\u30a2\u30c3\u30d7\u30ed\u30fc\u30c9\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+    saveError: "\u30b3\u30fc\u30b9\u3092\u4fdd\u5b58\u3067\u304d\u307e\u305b\u3093\u3002",
+    saved: "\u30b3\u30fc\u30b9\u60c5\u5831\u3092\u66f4\u65b0\u3057\u307e\u3057\u305f\u3002",
+    savedPending: "\u5909\u66f4\u3092\u4fdd\u5b58\u3057\u3001\u7ba1\u7406\u8005\u306e\u627f\u8a8d\u5f85\u3061\u3068\u3057\u3066\u9001\u4fe1\u3057\u307e\u3057\u305f\u3002",
+    created: "\u30b3\u30fc\u30b9\u3092\u4fdd\u5b58\u3057\u307e\u3057\u305f\u3002",
+    createdPending: "\u30b3\u30fc\u30b9\u3092\u7ba1\u7406\u8005\u306e\u627f\u8a8d\u5f85\u3061\u3068\u3057\u3066\u9001\u4fe1\u3057\u307e\u3057\u305f\u3002",
+    autoApproved: "\u30b3\u30fc\u30b9\u306f\u81ea\u52d5\u627f\u8a8d\u3055\u308c\u307e\u3057\u305f\u3002",
+    cancel: "\u30ad\u30e3\u30f3\u30bb\u30eb",
     save: "\u5909\u66f4\u3092\u4fdd\u5b58",
     create: "\u30b3\u30fc\u30b9\u3092\u4f5c\u6210",
     saving: "\u4fdd\u5b58\u4e2d...",
@@ -753,6 +887,11 @@ const courseInfoLabels: Record<UiLanguage, CourseInfoLabels> = {
     description: "\ucf54\uc2a4 \uc18c\uac1c, \uc218\uac15\ub8cc, \uce74\ud14c\uace0\ub9ac, \ud45c\uc9c0 \uc774\ubbf8\uc9c0\ub97c \uc5c5\ub370\uc774\ud2b8\ud558\uc138\uc694.",
     name: "\ucf54\uc2a4 \uc774\ub984",
     courseDescription: "\ucf54\uc2a4 \uc124\uba85",
+    language: "\ucf54\uc2a4 \uc5b8\uc5b4",
+    languagePlaceholder: "\uc5b8\uc5b4 \uc120\ud0dd",
+    languageLockedHint: "\uc5b8\uc5b4\ub294 \uc2b9\uc778\ub41c \uac15\uc0ac \ud504\ub85c\ud544\uc5d0 \uace0\uc815\ub429\ub2c8\ub2e4.",
+    noApprovedLanguage: "\uc774 \uac15\uc0ac \uacc4\uc815\uc5d0\ub294 \uc2b9\uc778\ub41c \uac15\uc758 \uc5b8\uc5b4\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.",
+    approvalNotice: "\uc790\ub3d9 \uc2b9\uc778\uc774 \ube44\ud65c\uc131\ud654\ub41c \uacbd\uc6b0 \ucf54\uc2a4\ub97c \uacf5\uac1c\ud558\uae30 \uc804\uc5d0 \uad00\ub9ac\uc790 \uc2b9\uc778\uc774 \ud544\uc694\ud569\ub2c8\ub2e4.",
     price: "\uc218\uac15\ub8cc (VND)",
     category: "\uce74\ud14c\uace0\ub9ac",
     categoryPlaceholder: "\uce74\ud14c\uace0\ub9ac \uc120\ud0dd",
@@ -765,6 +904,17 @@ const courseInfoLabels: Record<UiLanguage, CourseInfoLabels> = {
     uploadImage: "\uae30\uae30\uc5d0\uc11c \uc774\ubbf8\uc9c0 \uc120\ud0dd",
     uploadingImage: "\uc774\ubbf8\uc9c0 \uc5c5\ub85c\ub4dc \uc911...",
     imageHint: "JPEG, PNG, WebP \ub610\ub294 GIF, \ucd5c\ub300 5 MB",
+    directImageWarning: "\uc774 \ub9c1\ud06c\ub294 \uc9c1\uc811 \uc774\ubbf8\uc9c0\uac00 \uc544\ub2cc \uac80\uc0c9 \ud398\uc774\uc9c0\uc785\ub2c8\ub2e4. \uc774\ubbf8\uc9c0\ub97c \uc5f4\uc5b4 \uc8fc\uc18c\ub97c \ubcf5\uc0ac\ud558\uac70\ub098 \uae30\uae30\uc5d0\uc11c \uc5c5\ub85c\ub4dc\ud558\uc138\uc694.",
+    previewAlt: "\ucf54\uc2a4 \uc774\ubbf8\uc9c0 \ubbf8\ub9ac\ubcf4\uae30",
+    uploadError: "\ucf54\uc2a4 \uc774\ubbf8\uc9c0\ub97c \uc5c5\ub85c\ub4dc\ud560 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4.",
+    invalidImageError: "\uc774 \uc774\ubbf8\uc9c0\ub97c \ud45c\uc2dc\ud560 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4. \uc9c1\uc811 \uc774\ubbf8\uc9c0 \ub9c1\ud06c\ub97c \uc0ac\uc6a9\ud558\uac70\ub098 \uae30\uae30\uc5d0\uc11c \uc5c5\ub85c\ub4dc\ud558\uc138\uc694.",
+    saveError: "\ucf54\uc2a4\ub97c \uc800\uc7a5\ud560 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4.",
+    saved: "\ucf54\uc2a4 \uc815\ubcf4\uac00 \uc5c5\ub370\uc774\ud2b8\ub418\uc5c8\uc2b5\ub2c8\ub2e4.",
+    savedPending: "\ubcc0\uacbd \uc0ac\ud56d\uc744 \uc800\uc7a5\ud558\uace0 \uad00\ub9ac\uc790 \uc2b9\uc778\uc744 \uc694\uccad\ud588\uc2b5\ub2c8\ub2e4.",
+    created: "\ucf54\uc2a4\uac00 \uc800\uc7a5\ub418\uc5c8\uc2b5\ub2c8\ub2e4.",
+    createdPending: "\ucf54\uc2a4\uac00 \uad00\ub9ac\uc790 \uc2b9\uc778\uc744 \uc704\ud574 \uc81c\ucd9c\ub418\uc5c8\uc2b5\ub2c8\ub2e4.",
+    autoApproved: "\ucf54\uc2a4\uac00 \uc790\ub3d9\uc73c\ub85c \uc2b9\uc778\ub418\uc5c8\uc2b5\ub2c8\ub2e4.",
+    cancel: "\ucde8\uc18c",
     save: "\ubcc0\uacbd\uc0ac\ud56d \uc800\uc7a5",
     create: "\ucf54\uc2a4 \uc0dd\uc131",
     saving: "\uc800\uc7a5 \uc911...",

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { readJsonResponse } from "@/lib/http-response";
 import type { ResultFilter, StudentResultItem, StudentResultsPayload } from "@/lib/student-results";
 
 const filters = ["all", "TEST", "SPEAKING", "WRITING"] as const;
@@ -20,38 +21,11 @@ function truncateSummary(value: string, limit = 20) {
   return units.length <= limit ? summary : `${units.slice(0, limit).join(usesUnspacedCjkText ? "" : " ")}...`;
 }
 
-function buildPeriodData(data: StudentResultsPayload["scoreTrend"], mode: "week" | "month") {
-  const buckets = new Map<string, { label: string; sum: number; count: number }>();
-  for (const item of data) {
-    const date = new Date(item.submittedAt);
-    let key: string;
-    let label: string;
-    if (mode === "month") {
-      key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-      label = `${date.getMonth() + 1}/${date.getFullYear()}`;
-    } else {
-      const monday = new Date(date);
-      const day = monday.getDay() || 7;
-      monday.setDate(monday.getDate() - day + 1);
-      monday.setHours(0, 0, 0, 0);
-      key = monday.toISOString().slice(0, 10);
-      label = `${monday.getDate()}/${monday.getMonth() + 1}`;
-    }
-    const current = buckets.get(key) ?? { label, sum: 0, count: 0 };
-    current.sum += item.scorePercent;
-    current.count += 1;
-    buckets.set(key, current);
-  }
-  return [...buckets.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([, value]) => ({ ...value, average: value.sum / value.count }));
-}
-
 export default function ResultsClient({ initialData }: { initialData: StudentResultsPayload }) {
   const [data, setData] = useState(initialData);
   const [filter, setFilter] = useState<ResultFilter>("all");
-  const [periodMode, setPeriodMode] = useState<"week" | "month">("week");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const periodData = useMemo(() => buildPeriodData(data.scoreTrend, periodMode), [data.scoreTrend, periodMode]);
   const visiblePages = useMemo(() => {
     const pages: number[] = [];
     for (let page = 1; page <= data.totalPages; page += 1) {
@@ -65,7 +39,7 @@ export default function ResultsClient({ initialData }: { initialData: StudentRes
     setError("");
     try {
       const response = await fetch(`/api/student/results?type=${nextFilter}&page=${page}&pageSize=10`, { cache: "no-store" });
-      const payload = await response.json().catch(() => ({}));
+      const payload = await readJsonResponse(response).catch(() => ({}));
       if (!response.ok) throw new Error(payload?.error || "Không thể tải kết quả.");
       setData(payload);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -82,7 +56,7 @@ export default function ResultsClient({ initialData }: { initialData: StudentRes
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 py-8">
+    <main className="min-h-dvh bg-slate-50 py-8">
       <div className="mx-auto max-w-7xl space-y-6 px-4">
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -101,10 +75,7 @@ export default function ResultsClient({ initialData }: { initialData: StudentRes
         </section>
 
         {data.scoreTrend.length ? (
-          <section className="grid gap-5 xl:grid-cols-2">
-            <div className="rounded-xl border border-slate-200 bg-white p-5"><h2 className="text-lg font-bold text-slate-950">Xu hướng điểm số</h2><p className="mt-1 text-sm text-slate-500">Điểm đã chuẩn hóa theo phần trăm và sắp xếp theo ngày làm bài.</p><ScoreLineChart data={data.scoreTrend} /></div>
-            <div className="rounded-xl border border-slate-200 bg-white p-5"><div className="flex items-start justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-950">Điểm trung bình theo kỳ</h2><p className="mt-1 text-sm text-slate-500">Mỗi cột hiển thị điểm trung bình và số bài trong kỳ.</p></div><select aria-label="Khoảng tổng hợp điểm" value={periodMode} onChange={(event) => setPeriodMode(event.target.value as "week" | "month")} className="rounded-lg border border-slate-300 px-3 py-2 text-sm"><option value="week">Theo tuần</option><option value="month">Theo tháng</option></select></div><PeriodBarChart data={periodData} /></div>
-          </section>
+          <section className="rounded-xl border border-slate-200 bg-white p-5"><h2 className="text-lg font-bold text-slate-950">Xu hướng điểm số</h2><p className="mt-1 text-sm text-slate-500">Điểm đã chuẩn hóa theo phần trăm và sắp xếp theo ngày làm bài.</p><ScoreLineChart data={data.scoreTrend} /></section>
         ) : null}
 
         <section className="rounded-xl border border-slate-200 bg-white p-4"><div className="flex flex-wrap gap-2">{filters.map((item) => <button key={item} type="button" disabled={loading} onClick={() => changeFilter(item)} className={`rounded-full px-4 py-2 text-sm font-semibold ${filter === item ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700"}`}>{getResultTypeLabel(item)}</button>)}</div></section>
@@ -127,10 +98,6 @@ function ScoreLineChart({ data }: { data: StudentResultsPayload["scoreTrend"] })
   const width = 720;
   const points = data.map((item, index) => `${30 + (index / Math.max(1, data.length - 1)) * (width - 60)},${210 - (item.scorePercent / 100) * 170}`).join(" ");
   return <div className="mt-4 overflow-x-auto rounded-xl bg-slate-50 p-2"><svg viewBox={`0 0 ${width} 240`} className="min-w-[620px]" role="img" aria-label="Biểu đồ đường điểm số theo thời gian">{[0, 25, 50, 75, 100].map((value) => <g key={value}><line x1="30" x2={width - 30} y1={210 - (value / 100) * 170} y2={210 - (value / 100) * 170} stroke="#e2e8f0" /><text x="2" y={214 - (value / 100) * 170} fontSize="10" fill="#64748b">{value}</text></g>)}<polyline points={points} fill="none" stroke="#2563eb" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />{data.map((item, index) => <circle key={item.id} cx={30 + (index / Math.max(1, data.length - 1)) * (width - 60)} cy={210 - (item.scorePercent / 100) * 170} r="3" fill="#2563eb"><title>{new Date(item.submittedAt).toLocaleDateString("vi-VN", { timeZone: "Asia/Bangkok" })}: {item.scorePercent}%</title></circle>)}</svg></div>;
-}
-
-function PeriodBarChart({ data }: { data: Array<{ label: string; average: number; count: number }> }) {
-  return <div className="mt-4 overflow-x-auto"><div className="flex h-56 min-w-[520px] items-end gap-2 rounded-xl bg-slate-50 p-4" role="img" aria-label="Biểu đồ cột điểm trung bình theo kỳ">{data.slice(-12).map((item) => <div key={item.label} className="flex h-full flex-1 flex-col items-center justify-end gap-2" title={`${item.label}: ${item.average.toFixed(1)}%, ${item.count} bài`}><span className="text-[10px] font-bold text-slate-700">{item.average.toFixed(0)}%</span><div className="w-full rounded-t bg-emerald-500" style={{ height: `${Math.max(2, item.average)}%` }} /><span className="text-[10px] text-slate-500">{item.label}</span><span className="text-[9px] text-slate-400">{item.count} bài</span></div>)}</div></div>;
 }
 
 function ResultCard({ item }: { item: StudentResultItem }) {

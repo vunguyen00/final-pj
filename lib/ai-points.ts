@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { VNPAY_PROVIDER } from "@/lib/wallet";
 
 export const SPEAKING_AI_COST = 7;
-export const WRITING_AI_COST = 3;
+export const WRITING_AI_COST = 2;
 export const AI_POINT_PRICE_VND = Math.max(1, Number(process.env.AI_POINT_PRICE_VND ?? 1000));
 export const AI_POINT_PAYMENT_PURPOSE = "AI_POINTS_PURCHASE";
 export const AI_POINT_PAYMENT_EXPIRE_MINUTES = 15;
@@ -86,6 +86,10 @@ async function getCurrentBalance(userId: string, client: PointClient = prisma) {
   return rows
     .filter(isUsablePointTransaction)
     .reduce((sum, row) => sum + row.amount, 0);
+}
+
+export async function getAvailableAiPoints(userId: string) {
+  return Math.max(0, await getCurrentBalance(userId));
 }
 
 async function recordPointTransactionWithClient(client: PointClient, input: PointTransactionInput) {

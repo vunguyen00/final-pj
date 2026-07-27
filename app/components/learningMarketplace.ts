@@ -2,19 +2,9 @@ import { getLanguageDisplayLabel } from "@/lib/language-display";
 
 export const LANGUAGES = ["English", "Chinese", "Japanese", "Korean"] as const;
 
-export const PRODUCT_TYPES = [
-  "Single course",
-  "Combo course",
-  "Skill training",
-  "Certification prep",
-  "Vocabulary pack",
-  "Mock tests",
-] as const;
-
 export const LEVELS = ["Beginner", "Elementary", "Intermediate", "Upper Intermediate", "Advanced"] as const;
 
 export type LanguageName = (typeof LANGUAGES)[number];
-export type ProductType = (typeof PRODUCT_TYPES)[number];
 export type CourseLevel = (typeof LEVELS)[number];
 export type CourseLike = {
   name: string;
@@ -37,14 +27,6 @@ const languageHints: Array<[LanguageName, string[]]> = [
   ["Korean", ["korean", "topik", "hangul", "hanja", "han quoc", "tieng han"]],
 ];
 
-const typeHints: Array<[ProductType, string[]]> = [
-  ["Combo course", ["combo", "bundle", "pathway", "tron goi", "lo trinh"]],
-  ["Certification prep", ["ielts", "toeic", "toefl", "jlpt", "hsk", "topik", "certificate", "certification", "exam"]],
-  ["Vocabulary pack", ["vocabulary", "tu vung", "flashcard", "word bank"]],
-  ["Mock tests", ["mock", "test", "practice test", "de thi", "thi thu"]],
-  ["Skill training", ["speaking", "writing", "reading", "listening", "grammar", "pronunciation", "kanji", "hanzi"]],
-];
-
 export function courseText(course: CourseLike) {
   return `${course.name} ${course.description ?? ""} ${course.category ?? ""}`.toLowerCase();
 }
@@ -55,11 +37,6 @@ export function getCourseLanguage(course: CourseLike): LanguageName {
 
   const text = courseText(course);
   return languageHints.find(([, hints]) => hints.some((hint) => text.includes(hint)))?.[0] ?? "English";
-}
-
-export function getCourseType(course: CourseLike): ProductType {
-  const text = courseText(course);
-  return typeHints.find(([, hints]) => hints.some((hint) => text.includes(hint)))?.[0] ?? "Single course";
 }
 
 export function getCourseLevel(course: CourseLike) {
@@ -95,15 +72,6 @@ function normalizeLevel(value?: string | null): CourseLevel | null {
   return null;
 }
 
-const productTypeLabels: Record<ProductType, string> = {
-  "Single course": "Khóa học đơn",
-  "Combo course": "Combo khóa học",
-  "Skill training": "Luyện kỹ năng",
-  "Certification prep": "Luyện thi chứng chỉ",
-  "Vocabulary pack": "Gói từ vựng",
-  "Mock tests": "Đề thi thử",
-};
-
 const levelLabels: Record<CourseLevel, string> = {
   Beginner: "Mới bắt đầu",
   Elementary: "Sơ cấp",
@@ -114,10 +82,6 @@ const levelLabels: Record<CourseLevel, string> = {
 
 export function getLanguageLabel(language: LanguageName | string) {
   return getLanguageDisplayLabel(language);
-}
-
-export function getProductTypeLabel(type: ProductType | string) {
-  return productTypeLabels[type as ProductType] || type;
 }
 
 export function getLevelLabel(level: CourseLevel | string) {

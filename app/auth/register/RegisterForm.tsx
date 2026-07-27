@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { readJsonResponse } from "@/lib/http-response";
 
 const labelClass = "mb-1.5 block text-sm font-bold text-slate-700";
 const inputClass = "w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100";
@@ -43,7 +44,7 @@ export function RegisterForm() {
         body: JSON.stringify({ username, email, password, confirmPassword }),
       });
 
-      const data = await response.json();
+      const data = await readJsonResponse(response);
       if (!response.ok) {
         updateForm({ error: data.error ?? "Đăng ký thất bại." });
         return;
@@ -80,7 +81,7 @@ export function RegisterForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: otpEmail, code: otpCode }),
       });
-      const data = await response.json();
+      const data = await readJsonResponse(response);
 
       if (!response.ok) {
         updateForm({ error: data.error ?? "Xác thực OTP thất bại." });
@@ -107,7 +108,7 @@ export function RegisterForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: otpEmail }),
       });
-      const data = await response.json();
+      const data = await readJsonResponse(response);
 
       if (!response.ok) {
         updateForm({ error: data.error ?? "Không gửi lại được OTP." });

@@ -3,12 +3,14 @@
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import Image from "next/image";
 import { isLikelyImageSearchUrl, normalizeCourseThumbnailUrl } from "@/lib/course-thumbnail";
-import { COURSE_CATEGORIES, getCourseCategoryLabel, getCourseInfoLabels, getCourseLevelLabel, getLanguageDisplayLabel } from "@/lib/language-display";
+import { readJsonResponse } from "@/lib/http-response";
+import { COURSE_CATEGORIES, getCourseCategoryLabel, getCourseInfoLabels, getCourseLevelLabel, getLanguageNativeLabel } from "@/lib/language-display";
 import type { Course, LearningLanguage } from "../types";
 
 type CourseInfoTabProps = {
   course: Course;
   languages: LearningLanguage[];
+  viewerRole: string;
   onUpdated: (course: Partial<Course>) => void;
 };
 
@@ -31,7 +33,7 @@ const levelOptions = [
   { value: "Advanced", label: "Nâng cao" },
 ];
 
-export function CourseInfoTab({ course, languages, onUpdated }: CourseInfoTabProps) {
+export function CourseInfoTab({ course, languages, viewerRole, onUpdated }: CourseInfoTabProps) {
   const [form, setForm] = useState<CourseInfoForm>({
     name: course.name,
     description: course.description,
@@ -40,7 +42,9 @@ export function CourseInfoTab({ course, languages, onUpdated }: CourseInfoTabPro
     level: course.level || "Beginner",
     duration: course.duration || "",
     thumbnail: course.thumbnail || "",
-    languageId: course.language?.id || "",
+    languageId:
+      course.language?.id ||
+      (viewerRole === "TEACHER" ? languages[0]?.id || "" : ""),
   });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -74,17 +78,17 @@ export function CourseInfoTab({ course, languages, onUpdated }: CourseInfoTabPro
         method: "POST",
         body: uploadData,
       });
-      const data = await response.json().catch(() => ({}));
+      const data = await readJsonResponse(response).catch(() => ({}));
 
       if (!response.ok || !data?.url) {
-        setError(data?.error || "Không thể tải ảnh khóa học lên.");
+        setError(data?.error || labels.uploadError);
         return;
       }
 
       setForm((current) => ({ ...current, thumbnail: data.url }));
     } catch (uploadError) {
       console.error("Error uploading course thumbnail:", uploadError);
-      setError("Không thể tải ảnh khóa học lên.");
+      setError(labels.uploadError);
     } finally {
       setUploading(false);
     }
@@ -108,25 +112,25 @@ export function CourseInfoTab({ course, languages, onUpdated }: CourseInfoTabPro
           level: form.level,
           duration: form.duration.trim(),
           thumbnail: normalizeCourseThumbnailUrl(form.thumbnail),
-          languageId: form.languageId,
+          ...(viewerRole === "ADMIN" && { languageId: form.languageId }),
         }),
       });
-      const data = await response.json().catch(() => ({}));
+      const data = await readJsonResponse(response).catch(() => ({}));
 
       if (!response.ok) {
-        setError(data?.error || "Không thể cập nhật thông tin khóa học.");
+        setError(data?.error || labels.saveError);
         return;
       }
 
       onUpdated(data.course);
       setMessage(
         data?.requiresApproval
-          ? "Đã lưu thay đổi và gửi khóa học chờ quản trị viên duyệt."
-          : "Đã cập nhật thông tin khóa học.",
+          ? labels.savedPending
+          : labels.saved,
       );
     } catch (saveError) {
       console.error("Error updating course:", saveError);
-      setError("Không thể cập nhật thông tin khóa học.");
+      setError(labels.saveError);
     } finally {
       setSaving(false);
     }
@@ -174,26 +178,42 @@ export function CourseInfoTab({ course, languages, onUpdated }: CourseInfoTabPro
           />
         </label>
 
-        <label className="block text-sm font-semibold text-slate-700">
-          Ngôn ngữ khóa học
-          <select
-            value={form.languageId}
-            onChange={(event) => setForm({ ...form, languageId: event.target.value, category: "" })}
-            className={inputClass}
-          >
-            <option value="">Chọn ngôn ngữ</option>
-            {languageOptions.map((language) => (
-              <option key={language.id} value={language.id}>
-                {getLanguageDisplayLabel(language.code || language.name)}
-              </option>
-            ))}
-          </select>
-          {languages.length === 0 ? (
-            <span className="mt-2 block text-xs font-normal text-amber-700">
-              Tài khoản giáo viên chưa có ngôn ngữ giảng dạy được duyệt nên chưa thể đổi ngôn ngữ khóa học.
-            </span>
-          ) : null}
-        </label>
+        {viewerRole === "ADMIN" ? (
+          <label className="block text-sm font-semibold text-slate-700">
+            {labels.language}
+            <select
+              value={form.languageId}
+              onChange={(event) => setForm({ ...form, languageId: event.target.value, category: "" })}
+              className={inputClass}
+            >
+              <option value="">{labels.languagePlaceholder}</option>
+              {languageOptions.map((language) => (
+                <option key={language.id} value={language.id}>
+                  {getLanguageNativeLabel(language.code || language.name)}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : selectedLanguage ? (
+          <div>
+            <label htmlFor="locked-course-language" className="text-sm font-semibold text-slate-700">
+              {labels.language}
+            </label>
+            <input
+              id="locked-course-language"
+              readOnly
+              value={getLanguageNativeLabel(selectedLanguage.code || selectedLanguage.name)}
+              className={`${inputClass} bg-slate-100 font-semibold`}
+            />
+            <p className="mt-1.5 text-xs text-slate-500">
+              {labels.languageLockedHint}
+            </p>
+          </div>
+        ) : (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
+            {labels.noApprovedLanguage}
+          </p>
+        )}
 
         <div className="grid gap-5 md:grid-cols-4">
           <label className="block text-sm font-semibold text-slate-700">
@@ -266,7 +286,7 @@ export function CourseInfoTab({ course, languages, onUpdated }: CourseInfoTabPro
           </label>
           {isLikelyImageSearchUrl(form.thumbnail) && normalizeCourseThumbnailUrl(form.thumbnail) === form.thumbnail.trim() ? (
             <p className="mt-2 text-xs text-amber-700">
-              Link này là trang tìm kiếm, không phải ảnh trực tiếp. Hãy mở ảnh rồi sao chép địa chỉ ảnh hoặc tải ảnh từ máy.
+              {labels.directImageWarning}
             </p>
           ) : null}
 
@@ -290,7 +310,7 @@ export function CourseInfoTab({ course, languages, onUpdated }: CourseInfoTabPro
 
           {thumbnailPreviewUrl ? (
             <div className="relative mt-4 h-48 max-w-xl overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-              <Image src={thumbnailPreviewUrl} alt="Xem trước ảnh khóa học" fill sizes="(min-width: 768px) 36rem, 100vw" className="object-cover" unoptimized />
+              <Image src={thumbnailPreviewUrl} alt={labels.previewAlt} fill sizes="(min-width: 768px) 36rem, 100vw" className="object-cover" unoptimized />
             </div>
           ) : null}
         </div>

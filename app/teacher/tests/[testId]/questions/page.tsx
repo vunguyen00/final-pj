@@ -12,6 +12,7 @@ import { getQuestionEditorLabels, getQuestionPageLabels } from "./labels";
 import { Question, QuestionForm, QuestionKind, Test } from "./types";
 import { FIXED_TEST_MAX_SCORE, getRemainingQuestionScore, isTestReady } from "@/lib/test-rules";
 import { ModalDialog } from "@/app/components/ModalDialog";
+import { getLearningUiLabels } from "@/lib/test-language-labels";
 
 export default function TeacherTestQuestionsPage() {
   const params = useParams();
@@ -47,6 +48,7 @@ export default function TeacherTestQuestionsPage() {
   const questionLanguageCode = test?.language?.code || test?.course?.language?.code || "vi";
   const questionLabels = useMemo(() => getQuestionEditorLabels(questionLanguageCode), [questionLanguageCode]);
   const pageLabels = useMemo(() => getQuestionPageLabels(questionLanguageCode), [questionLanguageCode]);
+  const trueFalseLabels = useMemo(() => getLearningUiLabels(questionLanguageCode).trueFalse, [questionLanguageCode]);
   const fetchTestAndQuestions = useCallback(async () => {
     try {
       const [testRes, questionsRes] = await Promise.all([
@@ -209,7 +211,10 @@ export default function TeacherTestQuestionsPage() {
   const openEditModal = (question: Question) => {
     setNotice(null);
     const kind = inferKindFromQuestion(question);
-    const existingAnswers = question.answers?.length ? question.answers : buildAnswersForKind(kind);
+    const existingAnswers = question.answers?.length ? question.answers : buildAnswersForKind(kind, trueFalseLabels);
+    const localizedAnswers = kind === "TRUE_FALSE"
+      ? existingAnswers.map((answer, index) => ({ ...answer, content: trueFalseLabels[index] ?? answer.content }))
+      : existingAnswers;
     setEditingQuestion(question);
     setAudioUploadMessage("");
     setIsSavingQuestion(false);
@@ -225,7 +230,7 @@ export default function TeacherTestQuestionsPage() {
       hint: question.hint || "",
       preparationTimeSeconds: String(question.preparationTimeSeconds ?? (question.type === "SPEAKING" ? 60 : 0)),
       answerTimeSeconds: String(question.answerTimeSeconds ?? (question.type === "SPEAKING" ? 120 : 3600)),
-      answers: existingAnswers,
+      answers: localizedAnswers,
     });
     setShowModal(true);
   };

@@ -5,21 +5,9 @@ import type { ReactNode } from "react";
 import {
   LANGUAGES,
   LEVELS,
-  PRODUCT_TYPES,
   getLanguageLabel,
   getLevelLabel,
-  getProductTypeLabel,
 } from "@/app/components/learningMarketplace";
-
-function buildHref(params: Record<string, string | undefined>) {
-  const query = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    const nextValue = value?.trim();
-    if (nextValue && nextValue !== "all") query.set(key, nextValue);
-  });
-  const queryString = query.toString();
-  return queryString ? `/courses?${queryString}` : "/courses";
-}
 
 export function CourseFilterPanel({
   params,
@@ -28,8 +16,7 @@ export function CourseFilterPanel({
   params: Record<string, string | undefined>;
   resultCount: number;
 }) {
-  const activeTab = params.tab || "popular";
-  const activeFilterCount = ["q", "language", "level", "type", "sort"].filter((key) => {
+  const activeFilterCount = ["q", "language", "level", "sort"].filter((key) => {
     const value = params[key]?.trim();
     return value && value !== "all";
   }).length;
@@ -48,9 +35,8 @@ export function CourseFilterPanel({
 
       <form
         action="/courses"
-        className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1.3fr)_1fr_1fr_1fr_1fr_auto_auto]"
+        className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1.3fr)_1fr_1fr_1fr_auto_auto]"
       >
-        {activeTab !== "popular" ? <input type="hidden" name="tab" value={activeTab} /> : null}
         {params.skill ? <input type="hidden" name="skill" value={params.skill} /> : null}
 
         <label className="block">
@@ -81,16 +67,6 @@ export function CourseFilterPanel({
             </option>
           ))}
         </FilterSelect>
-
-        <FilterSelect label="Loại khóa" name="type" value={params.type ?? "all"}>
-          <option value="all">Tất cả</option>
-          {PRODUCT_TYPES.map((type) => (
-            <option key={type} value={type}>
-              {getProductTypeLabel(type)}
-            </option>
-          ))}
-        </FilterSelect>
-
         <FilterSelect label="Sắp xếp" name="sort" value={params.sort ?? ""}>
           <option value="">Mặc định</option>
           <option value="price-asc">Giá tăng dần</option>

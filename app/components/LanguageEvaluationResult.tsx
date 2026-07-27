@@ -100,7 +100,7 @@ export function LanguageEvaluationResult({
 
   return (
     <div className="space-y-6">
-      <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-blue-700 to-indigo-800 p-6 text-white shadow-lg">
+      <section className="overflow-hidden rounded-2xl bg-linear-to-br from-blue-700 to-indigo-800 p-6 text-white shadow-lg">
         <p className="text-sm font-semibold uppercase tracking-wide text-blue-100">
           {evaluation.exam || evaluation.band.system} {skill === "writing" ? labels.writing : labels.speaking}
           {taskLabel ? ` - ${taskLabel}` : ""}

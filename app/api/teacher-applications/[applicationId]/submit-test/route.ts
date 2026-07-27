@@ -1,27 +1,13 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
-import { sendBasicEmail } from "@/lib/mailer";
 import { prisma } from "@/lib/prisma";
-import {
-  evaluateTestAiAnswers,
-  getTestAiScoreRatio,
-  isTestAiAnswerCorrect,
-} from "@/lib/test-ai-evaluation";
-import { logTeacherApplication } from "@/lib/teacher-onboarding";
 import { ANTI_CHEAT_CONFIG } from "@/lib/teacher-anti-cheat";
+import { processTeacherEntranceSubmission } from "@/lib/teacher-entrance-grading";
 import { FIXED_TEST_MAX_SCORE, isTestReady } from "@/lib/test-rules";
-import {
-  getTeacherQuestionTiming,
-  parseTeacherQuestionRevealState,
-  teacherQuestionAnswerStartsAt,
-  teacherQuestionDeadline,
-} from "@/lib/teacher-question-timing";
 
-function answerRecord(value: unknown) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-  return Object.fromEntries(
-    Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
-  );
+function validSessionId(request: Request) {
+  const value = request.headers.get("x-proctor-session-id")?.trim() ?? "";
+  return /^[a-zA-Z0-9-]{16,100}$/.test(value) ? value : "";
 }
 
 export async function POST(
@@ -31,58 +17,41 @@ export async function POST(
   try {
     const user = await requireUser();
     const { applicationId } = await params;
-    const body = await request.json();
-    const submittedAnswers = answerRecord(body.answers);
+    const sessionId = validSessionId(request);
+    if (!sessionId) {
+      return NextResponse.json({ error: "Phiên giám sát không hợp lệ." }, { status: 400 });
+    }
 
     const application = await prisma.teacherApplication.findUnique({
       where: { id: applicationId },
       include: {
         language: true,
-        entranceTest: {
-          include: {
-            questions: {
-              include: { answers: true },
-              orderBy: { order: "asc" },
-            },
-          },
-        },
+        entranceTest: { select: { id: true } },
+        questionInstances: { orderBy: { sequence: "asc" } },
       },
     });
-
     if (!application || application.userId !== user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-
     if (application.status !== "DRAFT") {
-      return NextResponse.json({ error: "Bài test đã được nộp hoặc hồ sơ không còn ở trạng thái draft." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Bài test đã được nộp hoặc hồ sơ không còn ở trạng thái draft." },
+        { status: 409 },
+      );
     }
-
-    const test = application.entranceTest;
-    if (!test) {
+    if (!application.entranceTest) {
       return NextResponse.json({ error: "Hồ sơ không có bài test đầu vào." }, { status: 400 });
     }
-
-    const answers = { ...submittedAnswers };
-    const savedAnswers = answerRecord(application.answerState);
-    const revealState = parseTeacherQuestionRevealState(application.questionRevealState);
-    for (const question of test.questions) {
-      const timing = getTeacherQuestionTiming(question);
-      if (!timing) continue;
-      const revealedAt = revealState[question.id];
-      const now = Date.now();
-      if (
-        !revealedAt ||
-        now < teacherQuestionAnswerStartsAt(revealedAt, timing) ||
-        now > teacherQuestionDeadline(revealedAt, timing)
-      ) {
-        answers[question.id] = savedAnswers[question.id] ?? "";
-      }
-    }
-
     if (!application.startedAt) {
       return NextResponse.json(
         { error: "Phiên thi chưa được bắt đầu bằng camera và chế độ toàn màn hình." },
         { status: 409 },
+      );
+    }
+    if (application.proctorSessionId !== sessionId) {
+      return NextResponse.json(
+        { error: "Phiên thi đang hoạt động ở tab hoặc thiết bị khác." },
+        { status: 423 },
       );
     }
 
@@ -91,186 +60,115 @@ export async function POST(
       : Number.POSITIVE_INFINITY;
     if (heartbeatAgeSeconds > ANTI_CHEAT_CONFIG.heartbeatGapSeconds) {
       return NextResponse.json(
-        { error: "Phiên giám sát bị gián đoạn. Vui lòng trở lại toàn màn hình và chờ hệ thống xác nhận trước khi nộp bài." },
+        { error: "Phiên giám sát bị gián đoạn. Vui lòng chờ hệ thống xác nhận trước khi nộp bài." },
+        { status: 409 },
+      );
+    }
+    if (
+      !application.sequentialCompletedAt ||
+      application.currentQuestionInstanceId ||
+      application.questionInstances.length === 0 ||
+      application.questionInstances.some(
+        (item) => !["FINALIZED", "SKIPPED", "EXPIRED"].includes(item.status),
+      )
+    ) {
+      return NextResponse.json(
+        { error: "Bạn cần chốt tất cả câu hỏi trước khi nộp toàn bài." },
+        { status: 409 },
+      );
+    }
+    const unfinishedSpeaking = application.questionInstances.filter(
+      (item) =>
+        item.type === "SPEAKING" &&
+        item.status !== "SKIPPED" &&
+        Boolean(item.speakingAudioUrl) &&
+        item.speakingMediaStatus !== "READY",
+    );
+    if (unfinishedSpeaking.length > 0) {
+      return NextResponse.json(
+        {
+          error: "Audio Speaking vẫn đang được xử lý.",
+          mediaPending: unfinishedSpeaking.filter(
+            (item) => item.speakingMediaStatus !== "FAILED",
+          ).length,
+          mediaFailed: unfinishedSpeaking.filter(
+            (item) => item.speakingMediaStatus === "FAILED",
+          ).length,
+        },
         { status: 409 },
       );
     }
 
-    const totalQuestionScore = test.questions.reduce((sum, question) => sum + Number(question.score || 0), 0);
-    if (!isTestReady(totalQuestionScore)) {
-      return NextResponse.json({ error: `Bài test đầu vào chưa hợp lệ. Tổng điểm câu hỏi phải bằng ${FIXED_TEST_MAX_SCORE}.` }, { status: 400 });
-    }
-
-    let earned = 0;
-    let rawMax = 0;
-    const questionResults = [];
-    const aiInputs = test.questions.flatMap((question) => {
-      if (question.type !== "ESSAY" && question.type !== "SPEAKING") {
-        return [];
-      }
-
-      const answer = String(answers[question.id] || "").trim();
-      if (!answer) return [];
-
-      return [
-        {
-          questionId: question.id,
-          mode: question.type === "SPEAKING" ? ("SPEAKING" as const) : ("WRITING" as const),
-          answer,
-          prompt: question.content,
-          languageCode: application.language.code,
-        },
-      ];
-    });
-    const aiResults = await evaluateTestAiAnswers(aiInputs);
-    const failedAiResult = aiInputs
-      .map((input) => aiResults.get(input.questionId))
-      .find((result) => result?.failed);
-    if (failedAiResult) {
-      const invalidResponse = failedAiResult.failureReason === "invalid_response";
+    const rawMax = application.questionInstances.reduce(
+      (sum, question) => sum + Number(question.score || 0),
+      0,
+    );
+    if (!isTestReady(rawMax)) {
       return NextResponse.json(
-        { error: "AI đang tạm thời quá tải. Bài thi chưa được nộp, vui lòng thử lại." },
-        { status: invalidResponse ? 502 : 503 },
+        { error: `Bài test đầu vào chưa hợp lệ. Tổng điểm câu hỏi phải bằng ${FIXED_TEST_MAX_SCORE}.` },
+        { status: 400 },
       );
     }
-    const deadline = application.startedAt && test.timeLimit
-      ? application.startedAt.getTime() + (test.timeLimit * 60 + 15) * 1000
+
+    const deadline = application.entranceTimeLimit
+      ? application.startedAt.getTime() +
+        (application.entranceTimeLimit * 60 + 15) * 1000
       : null;
     if (deadline && Date.now() > deadline) {
-      await prisma.teacherApplication.update({
-        where: { id: application.id },
+      await prisma.teacherApplication.updateMany({
+        where: { id: application.id, status: "DRAFT" },
         data: { status: "EXPIRED" },
       });
       return NextResponse.json({ error: "Bài test đã quá thời gian cho phép." }, { status: 408 });
     }
 
-    const previousAttempts = await prisma.testAttempt.count({
-      where: { testId: test.id, userId: user.id },
-    });
-    for (const question of test.questions) {
-      rawMax += question.score;
-      const rawAnswer = answers[question.id] ?? "";
-      let isCorrect = false;
-      let earnedScore = 0;
-      let correctAnswer: string | null = null;
-      let studentAnswer = String(rawAnswer);
-      let aiEvaluation: Record<string, unknown> | null = null;
-
-      if (question.type === "MULTIPLE_CHOICE" || question.type === "TRUE_FALSE") {
-        const selected = question.answers.find((answer) => answer.id === rawAnswer);
-        const correct = question.answers.find((answer) => answer.isCorrect);
-        studentAnswer = selected?.content ?? "";
-        correctAnswer = correct?.content ?? null;
-        isCorrect = Boolean(selected && correct && selected.id === correct.id);
-      }
-
-      if (question.type === "FILL_IN_BLANK") {
-        const correct = question.answers.find((answer) => answer.isCorrect);
-        correctAnswer = correct?.content ?? null;
-        isCorrect = Boolean(correct && studentAnswer.trim().toLowerCase() === correct.content.trim().toLowerCase());
-      }
-
-      if (question.type === "ESSAY" && studentAnswer.trim()) {
-        const aiResult = aiResults.get(question.id);
-        if (aiResult) {
-          earnedScore = Math.round(question.score * getTestAiScoreRatio(aiResult) * 10) / 10;
-          isCorrect = isTestAiAnswerCorrect(aiResult);
-          earned += earnedScore;
-          aiEvaluation = aiResult.aiEvaluation;
-        }
-      }
-
-      if (question.type === "SPEAKING" && studentAnswer.trim()) {
-        const aiResult = aiResults.get(question.id);
-        if (aiResult) {
-          earnedScore = Math.round(question.score * getTestAiScoreRatio(aiResult) * 10) / 10;
-          isCorrect = isTestAiAnswerCorrect(aiResult);
-          earned += earnedScore;
-          aiEvaluation = aiResult.aiEvaluation;
-        }
-      }
-
-      if (isCorrect && question.type !== "ESSAY" && question.type !== "SPEAKING") {
-        earnedScore = question.score;
-        earned += question.score;
-      }
-
-      questionResults.push({
-        questionId: question.id,
-        questionType: question.type,
-        content: question.content,
-        rawAnswer,
-        studentAnswer,
-        correctAnswer,
-        isCorrect,
-        score: question.score,
-        earnedScore,
-        ...(aiEvaluation && { aiEvaluation }),
-      });
-    }
-
-    const finalScore = rawMax > 0 ? (earned / rawMax) * FIXED_TEST_MAX_SCORE : 0;
-    const isPassed = finalScore >= test.passingScore;
-    const attemptNo = previousAttempts + 1;
-
-    const attempt = await prisma.testAttempt.create({
-      data: {
-        testId: test.id,
-        userId: user.id,
-        attemptNo,
-        score: finalScore,
-        maxScore: FIXED_TEST_MAX_SCORE,
-        answers,
-        results: {
-          totalQuestions: test.questions.length,
-          correctAnswers: questionResults.filter((item) => item.isCorrect).length,
-          questionResults,
-          teacherApplicationId: application.id,
+    const claimed = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "TeacherApplication" WHERE "id" = ${application.id} FOR UPDATE`;
+      const current = await tx.teacherApplication.findUnique({
+        where: { id: application.id },
+        select: {
+          status: true,
+          currentQuestionInstanceId: true,
+          sequentialCompletedAt: true,
+          proctorSessionId: true,
         },
-        startedAt: application.startedAt ?? new Date(),
-        submittedAt: new Date(),
-        isPassed,
-      } as never,
+      });
+      if (
+        current?.status !== "DRAFT" ||
+        current.currentQuestionInstanceId ||
+        !current.sequentialCompletedAt ||
+        current.proctorSessionId !== sessionId
+      ) {
+        return false;
+      }
+      await tx.teacherApplication.update({
+        where: { id: application.id },
+        data: {
+          status: "SUBMITTED",
+          submittedAt: new Date(),
+          failureReason: null,
+        },
+      });
+      return true;
     });
-
-    await prisma.teacherApplication.update({
-      where: { id: application.id },
-      data: {
-        status: "UNDER_REVIEW",
-        entranceAttemptId: attempt.id,
-        submittedAt: new Date(),
-        answerState: answers,
-      },
-    });
-
-    await logTeacherApplication({
-      applicationId: application.id,
-      status: "UNDER_REVIEW",
-      message: "Da nop bai test dau vao, cho admin review.",
-      actorId: user.id,
-    });
-
-    try {
-      await sendBasicEmail(
-        user.email,
-        "Hồ sơ đăng ký giảng viên đang chờ review",
-        "Ban da nop bai test dau vao. Admin se review ho so cua ban.",
+    if (!claimed) {
+      return NextResponse.json(
+        { error: "Bài test đang được xử lý hoặc đã được nộp." },
+        { status: 409 },
       );
-    } catch {
-      // Do not fail submission when SMTP is not configured.
     }
-
-    return NextResponse.json({
-      attemptId: attempt.id,
-      score: finalScore,
-      maxScore: FIXED_TEST_MAX_SCORE,
-      passingScore: test.passingScore,
-      isPassed,
-      underReview: true,
-      questionResults,
-    });
+    after(() => processTeacherEntranceSubmission(application.id, user.id));
+    return NextResponse.json(
+      {
+        accepted: true,
+        applicationStatus: "SUBMITTED",
+        message: "Đã nhận bài. Hệ thống đang chấm bài trong nền.",
+      },
+      { status: 202 },
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Lỗi hệ thống.";
+    console.error("Unable to submit sequential teacher entrance test", { error });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

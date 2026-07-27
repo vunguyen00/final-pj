@@ -1,29 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import TeacherAntiCheatOverlays from "./components/TeacherAntiCheatOverlays";
 import TeacherRegistrationPageState from "./components/TeacherRegistrationPageState";
-import {
-  SpeakingAnswerInput,
-  type SpeakingActivity,
-} from "@/app/components/SpeakingAnswerInput";
-import { FormattedHint } from "@/app/components/FormattedHint";
+import TeacherSequentialExam from "./components/TeacherSequentialExam";
+import type { SpeakingActivity } from "@/app/components/SpeakingAnswerInput";
+import { readJsonResponse } from "@/lib/http-response";
 import { getLearningUiLabels } from "@/lib/test-language-labels";
-import { getSpeechRecognitionLocale } from "@/lib/test-rules";
 import { getTeacherEntranceSecurityLabels } from "@/lib/teacher-entrance-labels";
 
 type Language = { id: string; name: string; code: string };
-type Question = {
-  id: string;
-  type: string;
-  content: string;
-  audioUrl: string | null;
-  hint: string | null;
-  score: number;
-  preparationTimeSeconds: number | null;
-  answerTimeSeconds: number | null;
-  answers: { id: string; content: string; order: number }[] | null;
-};
 type EntranceTest = {
   id: string;
   name: string;
@@ -31,7 +18,6 @@ type EntranceTest = {
   assessmentMode: "STANDARD" | "WRITING" | "SPEAKING";
   timeLimit: number | null;
   shuffleQuestions: boolean;
-  questions: Question[];
 };
 type Application = {
   id: string;
@@ -39,13 +25,11 @@ type Application = {
   attemptNo: number;
   language: Language;
   entranceTest: EntranceTest | null;
-  answerState?: Record<string, string> | null;
   startedAt: string | null;
   createdAt: string;
   submittedAt: string | null;
   violationCount?: number;
   failureReason?: string | null;
-  questionRevealState?: Record<string, string> | null;
 };
 export type AntiCheatSeverity = "INFO" | "WARNING" | "VIOLATION";
 export type TeacherCameraStatus = "idle" | "requesting" | "active" | "unavailable";
@@ -70,37 +54,10 @@ type ExtendedScreen = Screen & { isExtended?: boolean };
 type ExamKeyboard = { lock: (keyCodes?: string[]) => Promise<void>; unlock: () => void };
 type ExamNavigator = Navigator & { keyboard?: ExamKeyboard };
 type ExamFullscreenOptions = FullscreenOptions & { keyboardLock?: "none" | "browser" };
-type QuestionRevealInfo = {
-  revealedAt: string;
-  preparationTimeSeconds: number;
-  answerTimeSeconds: number;
-};
-type SubmittedAiEvaluation = {
-  language: string;
-  overallScore: number;
-  taskRelevance?: number;
-  onTopic?: boolean;
-  offTopicReason?: string;
-  detailedComment?: string;
-  sampleAnswer?: string;
-  summary: string;
-  strengths: string[];
-  weaknesses: string[];
-  suggestions: string[];
-};
-type SubmittedQuestionResult = {
-  questionId: string;
-  questionType: string;
-  content: string;
-  studentAnswer: string;
-  earnedScore: number;
-  score: number;
-  aiEvaluation?: SubmittedAiEvaluation;
-};
 
 const applicationStatusLabels: Record<string, string> = {
   DRAFT: "Đang hoàn thiện",
-  SUBMITTED: "Đã nộp",
+  SUBMITTED: "Đã nộp, đang chấm bài",
   UNDER_REVIEW: "Đang được xét duyệt",
   APPROVED: "Đã được duyệt",
   REJECTED: "Bị từ chối",
@@ -114,28 +71,6 @@ type TeacherRegistrationData = {
   languages: Language[];
   applications: Application[];
 };
-
-function autosaveAnswers(
-  applicationId: string,
-  answers: Record<string, string>,
-) {
-  const request = new XMLHttpRequest();
-  request.open(
-    "PATCH",
-    `/api/teacher-applications/${applicationId}/autosave`,
-  );
-  request.setRequestHeader("Content-Type", "application/json");
-  request.addEventListener("load", () => {
-    if (request.status >= 400) {
-      console.error("Teacher application autosave failed:", request.status);
-    }
-  });
-  request.addEventListener("error", () => {
-    console.error("Teacher application autosave failed: network error");
-  });
-  request.send(JSON.stringify({ answers }));
-  return request;
-}
 
 async function logAntiCheatEvent(
   applicationId: string,
@@ -161,7 +96,7 @@ async function logAntiCheatEvent(
       }),
     },
   );
-  const data = await response.json().catch(() => ({}));
+    const data = await readJsonResponse(response).catch(() => ({}));
   if (!response.ok) {
     throw new Error(data?.error || "Không thể ghi nhận sự kiện chống gian lận.");
   }
@@ -171,15 +106,6 @@ async function logAntiCheatEvent(
 function formatCountdown(seconds: number) {
   const minutes = Math.floor(seconds / 60);
   return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
-}
-
-function stableQuestionRank(applicationId: string, questionId: string) {
-  let hash = 2166136261;
-  for (const character of `${applicationId}:${questionId}`) {
-    hash ^= character.charCodeAt(0);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
 }
 
 function getEntranceTestDisplayName(
@@ -209,35 +135,8 @@ function unlockExamKeyboard() {
   }
 }
 
-function initialQuestionRevealInfo(application: Application | null) {
-  const rawState = application?.questionRevealState;
-  const state = rawState && typeof rawState === "object" && !Array.isArray(rawState) ? rawState : {};
-  return Object.fromEntries(
-    (application?.entranceTest?.questions ?? []).flatMap((question) => {
-      const revealedAt = state[question.id];
-      if (!revealedAt || (question.type !== "ESSAY" && question.type !== "SPEAKING")) return [];
-      return [[question.id, {
-        revealedAt,
-        preparationTimeSeconds: question.preparationTimeSeconds ?? (question.type === "SPEAKING" ? 60 : 0),
-        answerTimeSeconds: question.answerTimeSeconds ?? (question.type === "SPEAKING" ? 120 : 3600),
-      }]];
-    }),
-  ) as Record<string, QuestionRevealInfo>;
-}
-
-function questionTimer(info: QuestionRevealInfo | undefined, now: number) {
-  if (!info) return { preparationRemaining: 0, answerRemaining: 0, expired: false };
-  const revealedAt = new Date(info.revealedAt).getTime();
-  const preparationEndsAt = revealedAt + info.preparationTimeSeconds * 1000;
-  const answerEndsAt = preparationEndsAt + info.answerTimeSeconds * 1000;
-  return {
-    preparationRemaining: Math.max(0, Math.ceil((preparationEndsAt - now) / 1000)),
-    answerRemaining: Math.max(0, Math.ceil((answerEndsAt - Math.max(now, preparationEndsAt)) / 1000)),
-    expired: now >= answerEndsAt,
-  };
-}
-
 function useTeacherRegistrationPage(initialData: TeacherRegistrationData) {
+  const router = useRouter();
   const initialApplication = initialData.applications.find(
     (item) => item.status === "DRAFT" && item.entranceTest,
   ) ?? null;
@@ -273,13 +172,8 @@ function useTeacherRegistrationPage(initialData: TeacherRegistrationData) {
   const [expiryDates, setExpiryDates] = useState<string[]>([]);
   const [activeApplication, setActiveApplication] =
     useState<Application | null>(initialApplication);
-  const [answers, setAnswers] = useState<Record<string, string>>(
-    (initialApplication?.answerState as Record<string, string>) || {},
-  );
   const [timeLeft, setTimeLeft] = useState<number | null>(initialTimeLeft);
   const [message, setMessage] = useState("");
-  const [submittedQuestionResults, setSubmittedQuestionResults] = useState<SubmittedQuestionResult[]>([]);
-  const [submittedLanguageCode, setSubmittedLanguageCode] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [speakingActivityByQuestion, setSpeakingActivityByQuestion] = useState<
     Record<string, SpeakingActivity>
@@ -296,16 +190,10 @@ function useTeacherRegistrationPage(initialData: TeacherRegistrationData) {
   const [antiCheatFailed, setAntiCheatFailed] = useState(false);
   const [cameraStatus, setCameraStatus] = useState<TeacherCameraStatus>("idle");
   const [fullscreenActive, setFullscreenActive] = useState(false);
+  const [proctorSessionId, setProctorSessionId] = useState("");
   const [antiCheatSetupError, setAntiCheatSetupError] = useState("");
-  const [questionRevealInfo, setQuestionRevealInfo] = useState<Record<string, QuestionRevealInfo>>(
-    () => initialQuestionRevealInfo(initialApplication),
-  );
-  const [questionRevealNoticeId, setQuestionRevealNoticeId] = useState<string | null>(null);
-  const [revealingQuestionId, setRevealingQuestionId] = useState<string | null>(null);
-  const [questionClock, setQuestionClock] = useState(() => initialNow.getTime());
   const securityLanguageCode =
     activeApplication?.language.code ||
-    submittedLanguageCode ||
     languages.find((language) => language.id === languageId)?.code ||
     null;
   const securityLabels = getTeacherEntranceSecurityLabels(securityLanguageCode);
@@ -322,40 +210,17 @@ function useTeacherRegistrationPage(initialData: TeacherRegistrationData) {
   const proctorSessionIdRef = useRef("");
   const proctorHeartbeatSequenceRef = useRef(0);
   const proctorHeartbeatInFlightRef = useRef(false);
-  const answersRef = useRef(answers);
-  const autosaveTimerRef = useRef<number | null>(null);
-  const autosaveRequestRef = useRef<XMLHttpRequest | null>(null);
   const speakingActivityRef = useRef<Record<string, SpeakingActivity>>({});
-  const submitTestRef = useRef<() => Promise<void>>(async () => {});
-  const hasSpeakingBusy = useMemo(
-    () => Object.values(speakingActivityByQuestion).some((activity) => activity !== "idle"),
-    [speakingActivityByQuestion],
-  );
-
-  useEffect(() => {
-    if (Object.keys(questionRevealInfo).length === 0) return;
-    const timer = window.setInterval(() => setQuestionClock(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, [questionRevealInfo]);
 
   useEffect(() => {
     if (timeLeft === null || !activeApplication || !antiCheatAccepted) return;
-    if (timeLeft <= 0) {
-      if (!hasSpeakingBusy) {
-        void submitTestRef.current();
-      }
-      return;
-    }
+    if (timeLeft <= 0) return;
     const timer = window.setTimeout(() => setTimeLeft((value) => (value === null ? null : value - 1)), 1000);
     return () => window.clearTimeout(timer);
-  }, [timeLeft, activeApplication, hasSpeakingBusy, antiCheatAccepted]);
+  }, [timeLeft, activeApplication, antiCheatAccepted]);
 
   useEffect(
     () => () => {
-      if (autosaveTimerRef.current !== null) {
-        window.clearTimeout(autosaveTimerRef.current);
-      }
-      autosaveRequestRef.current?.abort();
       if (monitorTimerRef.current !== null) {
         window.clearInterval(monitorTimerRef.current);
       }
@@ -398,7 +263,6 @@ function useTeacherRegistrationPage(initialData: TeacherRegistrationData) {
   ) => {
     if (!activeApplication || !proctoringActiveRef.current || antiCheatFailedRef.current) return;
     try {
-      autosaveAnswers(activeApplication.id, answersRef.current);
       const result = await logAntiCheatEvent(activeApplication.id, eventType, detail, durationSeconds, confidence, metadata);
       applyAntiCheatResult(result);
     } catch (error) {
@@ -439,7 +303,7 @@ function useTeacherRegistrationPage(initialData: TeacherRegistrationData) {
           }),
         },
       );
-      const data = (await response.json().catch(() => ({}))) as ProctorHeartbeatResponse;
+      const data = (await readJsonResponse(response).catch(() => ({}))) as ProctorHeartbeatResponse;
       if (response.ok && data.violation) applyAntiCheatResult(data.violation);
     } catch {
       // The next successful heartbeat lets the server measure and classify the gap.
@@ -669,82 +533,19 @@ function useTeacherRegistrationPage(initialData: TeacherRegistrationData) {
     };
   }, [activeApplication, antiCheatAccepted, cameraStatus, recordAntiCheat, sendProctorHeartbeat]);
 
-  const questions = useMemo(() => {
-    const list = activeApplication?.entranceTest?.questions ?? [];
-    if (!activeApplication?.entranceTest?.shuffleQuestions) return list;
-    return [...list].sort(
-      (left, right) =>
-        stableQuestionRank(activeApplication.id, left.id) -
-        stableQuestionRank(activeApplication.id, right.id),
-    );
-  }, [activeApplication]);
-
   const latestApplications = applications.slice(0, 5);
   const selectedLanguageCode =
     activeApplication?.language.code ||
-    submittedLanguageCode ||
     languages.find((language) => language.id === languageId)?.code ||
     null;
   const ui = getLearningUiLabels(selectedLanguageCode);
-  const speechLocale = getSpeechRecognitionLocale(activeApplication?.language.code);
-  const testLocked = submitting || timeLeft === 0 || !antiCheatAccepted || !fullscreenActive || cameraStatus !== "active" || antiCheatFailed;
-  const submittedAiQuestionResults = useMemo(
-    () => submittedQuestionResults.filter((item) => item.aiEvaluation),
-    [submittedQuestionResults],
-  );
-
-  function setAnswer(questionId: string, value: string) {
-    const nextAnswers = { ...answersRef.current, [questionId]: value };
-    answersRef.current = nextAnswers;
-    setAnswers(nextAnswers);
-
-    if (!activeApplication || activeApplication.status !== "DRAFT") return;
-    if (autosaveTimerRef.current !== null) {
-      window.clearTimeout(autosaveTimerRef.current);
-    }
-    autosaveRequestRef.current?.abort();
-    autosaveTimerRef.current = window.setTimeout(() => {
-      autosaveRequestRef.current = autosaveAnswers(
-        activeApplication.id,
-        nextAnswers,
-      );
-      autosaveTimerRef.current = null;
-    }, 800);
-  }
-
-  async function revealQuestion(question: Question) {
-    if (!activeApplication || testLocked || revealingQuestionId) return;
-    setRevealingQuestionId(question.id);
-    setMessage("");
-    try {
-      const response = await fetch(
-        `/api/teacher-applications/${activeApplication.id}/questions/${question.id}/reveal`,
-        { method: "POST", cache: "no-store" },
-      );
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(securityLabels.revealFailed);
-      setQuestionRevealInfo((current) => ({
-        ...current,
-        [question.id]: {
-          revealedAt: data.revealedAt,
-          preparationTimeSeconds: data.preparationTimeSeconds,
-          answerTimeSeconds: data.answerTimeSeconds,
-        },
-      }));
-      setQuestionClock(Date.now());
-      setQuestionRevealNoticeId(null);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : securityLabels.revealFailed);
-    } finally {
-      setRevealingQuestionId(null);
-    }
-  }
+  const testLocked = submitting || !antiCheatAccepted || !fullscreenActive || cameraStatus !== "active" || antiCheatFailed;
 
   async function loadData() {
     setLoadError("");
     try {
       const response = await fetch("/api/teacher-applications", { cache: "no-store" });
-      const data = await response.json().catch(() => ({}));
+    const data = await readJsonResponse(response).catch(() => ({}));
       if (!response.ok) {
         throw new Error(data?.error || "Không thể tải thông tin đăng ký giảng viên.");
       }
@@ -759,10 +560,6 @@ function useTeacherRegistrationPage(initialData: TeacherRegistrationData) {
       const draft = (data.applications || []).find((item: Application) => item.status === "DRAFT" && item.entranceTest);
       if (draft) {
         setActiveApplication(draft);
-        setQuestionRevealInfo(initialQuestionRevealInfo(draft));
-        const draftAnswers = (draft.answerState as Record<string, string>) || {};
-        answersRef.current = draftAnswers;
-        setAnswers(draftAnswers);
         if (draft.entranceTest?.timeLimit) {
           const elapsedSeconds = draft.startedAt
             ? Math.floor(
@@ -777,7 +574,6 @@ function useTeacherRegistrationPage(initialData: TeacherRegistrationData) {
         }
       } else {
         setActiveApplication(null);
-        setQuestionRevealInfo({});
         setTimeLeft(null);
       }
     } catch (error) {
@@ -852,12 +648,22 @@ function useTeacherRegistrationPage(initialData: TeacherRegistrationData) {
       setFullscreenActive(true);
       awayIncidentIdRef.current = "";
       awayReportedRef.current = false;
-      proctorSessionIdRef.current = crypto.randomUUID();
+      const sessionStorageKey = `teacher-entrance-session:${activeApplication.id}`;
+      const storedSessionId = window.sessionStorage.getItem(sessionStorageKey) ?? "";
+      const nextSessionId = /^[a-zA-Z0-9-]{16,100}$/.test(storedSessionId)
+        ? storedSessionId
+        : crypto.randomUUID();
+      window.sessionStorage.setItem(sessionStorageKey, nextSessionId);
+      proctorSessionIdRef.current = nextSessionId;
+      setProctorSessionId(nextSessionId);
       proctorHeartbeatSequenceRef.current = 0;
       await logAntiCheatEvent(
         activeApplication.id,
         "CONSENT_ACCEPTED",
         "Người dùng đã cấp camera, vào toàn màn hình và xác nhận quy định chống gian lận",
+        0,
+        undefined,
+        { sessionId: nextSessionId },
       );
       proctoringActiveRef.current = true;
       setAntiCheatAccepted(true);
@@ -897,7 +703,6 @@ function useTeacherRegistrationPage(initialData: TeacherRegistrationData) {
     event.preventDefault();
     setMessage("");
     setSubmitting(true);
-    setSubmittedQuestionResults([]);
     const formData = new FormData();
     formData.set("languageId", languageId);
     formData.set("expiryDates", JSON.stringify(expiryDates));
@@ -907,7 +712,7 @@ function useTeacherRegistrationPage(initialData: TeacherRegistrationData) {
       method: "POST",
       body: formData,
     });
-    const data = await response.json().catch(() => ({}));
+    const data = await readJsonResponse(response).catch(() => ({}));
     setSubmitting(false);
 
     if (!response.ok) {
@@ -916,7 +721,6 @@ function useTeacherRegistrationPage(initialData: TeacherRegistrationData) {
     }
 
     setActiveApplication(data.application);
-    setQuestionRevealInfo(initialQuestionRevealInfo(data.application));
     setAntiCheatAccepted(false);
     setAntiCheatConfirmed(false);
     setViolationCount(data.application.violationCount ?? 0);
@@ -925,8 +729,6 @@ function useTeacherRegistrationPage(initialData: TeacherRegistrationData) {
         ? data.application.entranceTest.timeLimit * 60
         : null,
     );
-    answersRef.current = {};
-    setAnswers({});
     setFiles([]);
     setExpiryDates([]);
     setMessage(data.application.entranceTest ? "Đã lưu chứng chỉ. Bắt đầu bài test." : "Đã nộp hồ sơ, chờ admin review.");
@@ -944,18 +746,18 @@ function useTeacherRegistrationPage(initialData: TeacherRegistrationData) {
     setSubmitting(true);
     const response = await fetch(`/api/teacher-applications/${activeApplication.id}/submit-test`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ answers }),
+      headers: {
+        "Content-Type": "application/json",
+        "x-proctor-session-id": proctorSessionIdRef.current,
+      },
+      body: JSON.stringify({}),
     });
-    const data = await response.json().catch(() => ({}));
+    const data = await readJsonResponse(response).catch(() => ({}));
     setSubmitting(false);
     if (!response.ok) {
       setMessage(data?.error || ui.teacherEntrance.submitFailed);
       return;
     }
-    setSubmittedLanguageCode(activeApplication.language.code);
-    setMessage(ui.teacherEntrance.submitSuccess);
-    setSubmittedQuestionResults(data.questionResults || []);
     proctoringActiveRef.current = false;
     fullscreenRequiredRef.current = false;
     setAntiCheatAccepted(false);
@@ -965,12 +767,6 @@ function useTeacherRegistrationPage(initialData: TeacherRegistrationData) {
     const exitFullscreenPromise = document.fullscreenElement
       ? document.exitFullscreen().catch(() => undefined)
       : Promise.resolve();
-    if (autosaveTimerRef.current !== null) {
-      window.clearTimeout(autosaveTimerRef.current);
-      autosaveTimerRef.current = null;
-    }
-    autosaveRequestRef.current?.abort();
-    autosaveRequestRef.current = null;
     if (monitorTimerRef.current !== null) {
       window.clearInterval(monitorTimerRef.current);
       monitorTimerRef.current = null;
@@ -978,6 +774,10 @@ function useTeacherRegistrationPage(initialData: TeacherRegistrationData) {
     cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
     cameraStreamRef.current = null;
     proctorSessionIdRef.current = "";
+    setProctorSessionId("");
+    window.sessionStorage.removeItem(
+      `teacher-entrance-session:${activeApplication.id}`,
+    );
     proctorHeartbeatSequenceRef.current = 0;
     awaySinceRef.current = null;
     awayWasHiddenRef.current = false;
@@ -985,15 +785,10 @@ function useTeacherRegistrationPage(initialData: TeacherRegistrationData) {
     awayIncidentIdRef.current = "";
     setCameraStatus("idle");
     setActiveApplication(null);
-    setQuestionRevealInfo({});
     setTimeLeft(null);
     await exitFullscreenPromise;
-    await loadData();
+    router.replace("/");
   }
-
-  useEffect(() => {
-    submitTestRef.current = submitTest;
-  });
 
   function setSpeakingActivity(questionId: string, activity: SpeakingActivity) {
     if (speakingActivityRef.current[questionId] === activity) return;
@@ -1015,27 +810,16 @@ function useTeacherRegistrationPage(initialData: TeacherRegistrationData) {
     files,
     expiryDates,
     activeApplication,
-    answers,
     timeLeft,
     message,
     submitting,
     speakingActivityByQuestion,
-    questions,
     latestApplications,
     ui,
     securityLabels,
-    speechLocale,
     testLocked,
-    questionRevealInfo,
-    questionRevealNoticeId,
-    revealingQuestionId,
-    questionClock,
-    submittedAiQuestionResults,
     setLanguageId,
     setExpiryDates,
-    setAnswer,
-    revealQuestion,
-    setQuestionRevealNoticeId,
     onFilesSelected,
     submitCertificates,
     submitTest,
@@ -1053,51 +837,10 @@ function useTeacherRegistrationPage(initialData: TeacherRegistrationData) {
     antiCheatFailed,
     cameraStatus,
     fullscreenActive,
+    proctorSessionId,
     antiCheatSetupError,
     videoRef,
   };
-}
-
-function SubmittedAiFeedback({
-  results,
-  ui,
-}: {
-  results: SubmittedQuestionResult[];
-  ui: ReturnType<typeof getLearningUiLabels>;
-}) {
-  if (results.length === 0) return null;
-  return (
-    <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
-      <h2 className="text-xl font-bold text-slate-950">{ui.teacherEntrance.aiFeedbackAfterScore}</h2>
-      <div className="mt-4 space-y-4">
-        {results.map((item) => {
-          const evaluation = item.aiEvaluation!;
-          return (
-            <article key={item.questionId} className="rounded-lg border border-slate-200 p-4">
-              <p className="font-semibold text-slate-900">{item.content}</p>
-              <p className="mt-2 text-sm font-semibold text-blue-700">
-                {item.earnedScore}/{item.score} {ui.test.points} - AI {evaluation.overallScore}/10 - {ui.teacherEntrance.relevance} {Math.round(evaluation.taskRelevance ?? 0)}/100
-              </p>
-              {evaluation.onTopic === false ? (
-                <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">
-                  {ui.teacherEntrance.offTopic}: {evaluation.offTopicReason || ui.teacherEntrance.offTopicFallback}
-                </p>
-              ) : null}
-              <p className="mt-3 text-sm leading-6 text-slate-700">{evaluation.detailedComment || evaluation.summary}</p>
-              {evaluation.weaknesses.length ? <p className="mt-2 text-sm text-slate-700">{ui.teacherEntrance.needsImprovement}: {evaluation.weaknesses.join("; ")}</p> : null}
-              {evaluation.suggestions.length ? <p className="mt-2 text-sm text-slate-700">{ui.teacherEntrance.suggestions}: {evaluation.suggestions.join("; ")}</p> : null}
-              {evaluation.sampleAnswer ? (
-                <div className="mt-4 rounded-lg bg-slate-50 p-4">
-                  <p className="text-sm font-semibold text-slate-900">{ui.teacherEntrance.sampleAnswer}</p>
-                  <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-700">{evaluation.sampleAnswer}</p>
-                </div>
-              ) : null}
-            </article>
-          );
-        })}
-      </div>
-    </section>
-  );
 }
 
 function ApplicationHistory({
@@ -1141,27 +884,16 @@ export default function TeacherRegistrationClient({
     files,
     expiryDates,
     activeApplication,
-    answers,
     timeLeft,
     message,
     submitting,
     speakingActivityByQuestion,
-    questions,
     latestApplications,
     ui,
     securityLabels,
-    speechLocale,
     testLocked,
-    questionRevealInfo,
-    questionRevealNoticeId,
-    revealingQuestionId,
-    questionClock,
-    submittedAiQuestionResults,
     setLanguageId,
     setExpiryDates,
-    setAnswer,
-    revealQuestion,
-    setQuestionRevealNoticeId,
     onFilesSelected,
     submitCertificates,
     submitTest,
@@ -1179,6 +911,7 @@ export default function TeacherRegistrationClient({
     antiCheatFailed,
     cameraStatus,
     fullscreenActive,
+    proctorSessionId,
     antiCheatSetupError,
     videoRef,
   } = useTeacherRegistrationPage(initialData);
@@ -1204,7 +937,7 @@ export default function TeacherRegistrationClient({
     return <TeacherRegistrationPageState type="disabled" />;
   }
   return (
-    <main className="min-h-screen bg-slate-50 py-8">
+    <main className="min-h-dvh bg-slate-50 py-8">
       <TeacherAntiCheatOverlays
         showRules={Boolean(activeApplication?.entranceTest && !antiCheatAccepted)}
         antiCheatConfirmed={antiCheatConfirmed}
@@ -1236,8 +969,6 @@ export default function TeacherRegistrationClient({
 
         {message ? <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">{message}</div> : null}
 
-        <SubmittedAiFeedback results={submittedAiQuestionResults} ui={ui} />
-
         {activeApplication?.entranceTest ? (
           <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -1250,116 +981,27 @@ export default function TeacherRegistrationClient({
                 <video ref={videoRef} muted playsInline aria-label="Hình ảnh camera giám sát cục bộ" className="aspect-video w-40 rounded-lg border border-slate-200 bg-slate-950 object-cover" />
               ) : null}
             </div>
-            <div className="mt-5 space-y-5">
-              {questions.map((question, index) => {
-                const timedQuestion = question.type === "ESSAY" || question.type === "SPEAKING";
-                const revealInfo = questionRevealInfo[question.id];
-                const timer = questionTimer(revealInfo, questionClock);
-                const questionLocked = testLocked || timer.preparationRemaining > 0 || timer.expired;
-                const revealNotice = question.type === "SPEAKING"
-                  ? securityLabels.speakingRevealNotice(
-                      question.preparationTimeSeconds ?? 60,
-                      question.answerTimeSeconds ?? 120,
-                    )
-                  : securityLabels.writingRevealNotice(question.answerTimeSeconds ?? 3600);
-                return (
-                <article key={question.id} className={`rounded-lg border border-slate-200 p-4 ${!fullscreenActive ? "select-none blur-xl" : ""}`}>
-                  <div className="flex items-center gap-2 text-sm text-slate-500">
-                    <span className="font-semibold text-slate-900">{ui.teacherEntrance.question(index + 1)}</span>
-                    <span>{question.score} {ui.test.points}</span>
-                  </div>
-                  {timedQuestion && !revealInfo ? (
-                    <div className="mt-4 rounded-xl border border-dashed border-blue-300 bg-blue-50 p-5 text-center">
-                      {questionRevealNoticeId === question.id ? (
-                        <>
-                          <p className="text-sm font-semibold leading-6 text-blue-900">{revealNotice}</p>
-                          <button type="button" disabled={testLocked || revealingQuestionId === question.id} onClick={() => void revealQuestion(question)} className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
-                            {securityLabels.startQuestion}
-                          </button>
-                        </>
-                      ) : (
-                        <button type="button" disabled={testLocked} onClick={() => setQuestionRevealNoticeId(question.id)} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
-                          {securityLabels.getQuestion}
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                  <>
-                    {revealInfo ? (
-                      <p className={`mt-3 rounded-lg px-3 py-2 text-sm font-bold ${timer.expired ? "bg-slate-100 text-slate-600" : timer.preparationRemaining > 0 ? "bg-amber-100 text-amber-800" : "bg-blue-100 text-blue-800"}`} role="timer">
-                        {timer.expired
-                          ? securityLabels.questionExpired
-                          : timer.preparationRemaining > 0
-                            ? securityLabels.preparationRemaining(timer.preparationRemaining)
-                            : securityLabels.answerRemaining(timer.answerRemaining)}
-                      </p>
-                    ) : null}
-                    {question.audioUrl ? <audio controls={!questionLocked} className="mt-3 w-full max-w-md" src={question.audioUrl} /> : null}
-                    <p className="mt-3 font-medium text-slate-900">{question.content}</p>
-                    <FormattedHint hint={question.hint} />
-                    <div className="mt-3 space-y-2">
-                    {(question.type === "MULTIPLE_CHOICE" || question.type === "TRUE_FALSE") && question.answers
-                      ? question.answers.map((answer) => (
-                          <label key={answer.id} className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 p-3 hover:bg-slate-50">
-                            <input
-                              type="radio"
-                              name={question.id}
-                              checked={answers[question.id] === answer.id}
-                              disabled={questionLocked}
-                              onChange={() => setAnswer(question.id, answer.id)}
-                            />
-                            <span>{answer.content}</span>
-                          </label>
-                        ))
-                      : null}
-                    {question.type === "FILL_IN_BLANK" ? (
-                      <input
-                        aria-label={ui.test.fillPlaceholder}
-                        value={answers[question.id] || ""}
-                        disabled={questionLocked}
-                        onChange={(event) => setAnswer(question.id, event.target.value)}
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2"
-                      />
-                    ) : null}
-                    {question.type === "ESSAY" ? (
-                      <textarea
-                        aria-label={ui.test.essayPlaceholder}
-                        rows={6}
-                        value={answers[question.id] || ""}
-                        disabled={questionLocked}
-                        onChange={(event) => setAnswer(question.id, event.target.value)}
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2"
-                      />
-                    ) : null}
-                    {question.type === "SPEAKING" ? (
-                      <SpeakingAnswerInput
-                        value={answers[question.id] || ""}
-                        onChange={(value) => setAnswer(question.id, value)}
-                        languageLocale={speechLocale}
-                        languageCode={activeApplication.language.code}
-                        disabled={questionLocked}
-                        forceStop={timeLeft === 0 || timer.expired}
-                        activity={speakingActivityByQuestion[question.id] ?? "idle"}
-                        setActivity={(activity) =>
-                          setSpeakingActivity(question.id, activity)
-                        }
-                      />
-                    ) : null}
-                    </div>
-                  </>
-                  )}
-                </article>
-                );
-              })}
-            </div>
-            <button
-              type="button"
-              onClick={() => void submitTest()}
-              disabled={testLocked}
-              className="mt-6 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {submitting ? ui.teacherEntrance.submitting : ui.teacherEntrance.submitTest}
-            </button>
+            <TeacherSequentialExam
+              applicationId={activeApplication.id}
+              languageCode={activeApplication.language.code}
+              sessionId={proctorSessionId}
+              enabled={
+                antiCheatAccepted &&
+                fullscreenActive &&
+                cameraStatus === "active" &&
+                !antiCheatFailed
+              }
+              locked={testLocked}
+              globalTimeLeft={timeLeft}
+              submitting={submitting}
+              speakingActivity={
+                speakingActivityByQuestion.__sequential ?? "idle"
+              }
+              onSpeakingActivityChange={(activity) =>
+                setSpeakingActivity("__sequential", activity)
+              }
+              onSubmitTest={submitTest}
+            />
           </section>
         ) : (
           <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">

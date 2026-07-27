@@ -8,7 +8,7 @@ export default async function TeachersPage() {
   const teachers = await getPublicTeachers();
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-dvh bg-background">
       <Section background="muted" padding="md">
         <SectionHeader
           title="Đội ngũ giảng viên"

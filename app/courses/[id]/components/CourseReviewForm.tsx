@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import StarRatingInput from "@/app/components/StarRatingInput";
 import type { CourseReview } from "@/lib/course-reviews";
+import { readJsonResponse } from "@/lib/http-response";
 import { getLearningUiLabels } from "@/lib/test-language-labels";
 
 export default function CourseReviewForm({
@@ -36,7 +37,7 @@ export default function CourseReviewForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rating, comment }),
       });
-      const data = await response.json().catch(() => ({}));
+      const data = await readJsonResponse(response).catch(() => ({}));
 
       if (!response.ok) {
         setMessage(data.error || ui.test.submitFailed);

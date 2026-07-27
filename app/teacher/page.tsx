@@ -77,7 +77,7 @@ export default async function TeacherPage() {
   const reportTrend = buildWeeklyReportTrend(reportDates.map((item) => item.createdAt));
 
   return (
-    <main className="min-h-screen bg-slate-50 py-8">
+    <main className="min-h-dvh bg-slate-50 py-8">
       <div className="mx-auto max-w-7xl space-y-6 px-4 sm:px-6">
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">

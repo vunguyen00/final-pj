@@ -3,6 +3,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ModalDialog } from "@/app/components/ModalDialog";
+import { readJsonResponse } from "@/lib/http-response";
 
 type RefundStatus = "PENDING" | "APPROVED" | "REJECTED";
 
@@ -70,7 +71,7 @@ export default function RefundRequestButton({ courses }: { courses: RefundableCo
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ courseId: selectedCourse.courseId, reason: trimmedReason }),
       });
-      const data = (await response.json().catch(() => ({}))) as { error?: string; refund?: { status: RefundStatus } };
+      const data = (await readJsonResponse(response).catch(() => ({}))) as { error?: string; refund?: { status: RefundStatus } };
 
       if (!response.ok || !data.refund) {
         setMessage(data.error ?? "Không thể gửi yêu cầu hoàn tiền.");

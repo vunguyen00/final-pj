@@ -3,7 +3,117 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ModalDialog } from "@/app/components/ModalDialog";
+import { readJsonResponse } from "@/lib/http-response";
 import type { Application, Course } from "./types";
+
+type TeacherEntranceQuestionResult = {
+  questionId: string;
+  questionInstanceId?: string;
+  sequence?: number;
+  questionType: string;
+  content: string;
+  studentAnswer: string;
+  correctAnswer: string | null;
+  isCorrect: boolean;
+  score: number;
+  earnedScore: number;
+  audioUrl?: string | null;
+  aiEvaluation?: {
+    overallScore?: number;
+    summary?: string;
+    detailedComment?: string;
+    strengths?: string[];
+    weaknesses?: string[];
+    suggestions?: string[];
+  };
+};
+
+type TeacherEntranceApplicationSummary = {
+  id: string;
+  status: string;
+  user: { username: string; email: string };
+  language: { name: string };
+};
+
+type TeacherEntranceAttemptDetail = {
+  application: TeacherEntranceApplicationSummary;
+  manualGradingRequired: false;
+  submission?: never;
+  attempt: {
+    id: string;
+    attemptNo: number;
+    score: number;
+    maxScore: number;
+    isPassed: boolean;
+    startedAt: string;
+    submittedAt: string;
+    questionResults: TeacherEntranceQuestionResult[];
+  };
+} | {
+  application: TeacherEntranceApplicationSummary;
+  manualGradingRequired: true;
+  attempt?: never;
+  submission: {
+    submittedAt: string;
+    passingScore: number;
+    maxScore: number;
+    questionResults: TeacherEntranceQuestionResult[];
+  };
+};
+
+type ManualGradingResult = {
+  status: string;
+  attempt: {
+    score: number;
+    maxScore: number;
+    isPassed: boolean;
+  };
+};
+
+const USER_BEHAVIOR_LABELS: Record<string, string> = {
+  CONSENT_ACCEPTED: "Đã đồng ý quy định giám sát",
+  TAB_HIDDEN: "Rời khỏi tab bài thi",
+  WINDOW_BLUR: "Chuyển sang cửa sổ khác",
+  FULLSCREEN_EXIT: "Thoát chế độ toàn màn hình",
+  COPY_ATTEMPT: "Thực hiện thao tác sao chép",
+  PASTE_ATTEMPT: "Dán nội dung vào bài làm",
+  CONTEXT_MENU: "Mở menu chuột phải",
+  DEVTOOLS_SHORTCUT: "Dùng phím tắt mở công cụ trình duyệt",
+  NO_FACE: "Không phát hiện khuôn mặt",
+  MULTIPLE_FACES: "Phát hiện nhiều khuôn mặt",
+  FACE_MISMATCH: "Khuôn mặt không khớp với lúc bắt đầu",
+  LOOKING_AWAY: "Nhìn ra khỏi màn hình quá lâu",
+  PHONE_DETECTED: "Phát hiện vật thể giống điện thoại",
+  CAMERA_DISABLED: "Camera bị tắt hoặc mất kết nối",
+  PAGE_RELOAD_OR_CLOSE: "Tải lại hoặc đóng trang thi",
+  PROCTOR_HEARTBEAT_GAP: "Kết nối giám sát bị gián đoạn",
+  MULTIPLE_DISPLAYS: "Sử dụng nhiều màn hình",
+  MULTIPLE_EXAM_SESSIONS: "Mở bài thi ở nhiều phiên cùng lúc",
+};
+
+const APPLICATIONS_PER_PAGE = 5;
+const COLLAPSED_BEHAVIOR_COUNT = 5;
+
+function userBehaviorLabel(eventType: string) {
+  return USER_BEHAVIOR_LABELS[eventType] ?? "Hành vi bất thường khác";
+}
+
+function behaviorSummary(count: number, totalDurationSeconds: number) {
+  const occurrence = `${count} lần`;
+  if (totalDurationSeconds <= 0) return occurrence;
+  return `${occurrence}, tổng thời gian ${totalDurationSeconds} giây`;
+}
+
+function questionTypeLabel(questionType: string) {
+  const labels: Record<string, string> = {
+    MULTIPLE_CHOICE: "Trắc nghiệm",
+    TRUE_FALSE: "Đúng / Sai",
+    FILL_IN_BLANK: "Điền vào chỗ trống",
+    ESSAY: "Tự luận",
+    SPEAKING: "Nói",
+  };
+  return labels[questionType] ?? "Câu hỏi";
+}
 
 function statusLabel(status: Course["status"]) {
   if (status === "ACTIVE") return "Đang hoạt động";
@@ -25,10 +135,14 @@ function applicationStatusLabel(status: string) {
   if (status === "APPROVED") return "Đã duyệt";
   if (status === "REJECTED") return "Từ chối";
   if (status === "UNDER_REVIEW") return "Đang xem xét";
-  if (status === "SUBMITTED") return "Đã nộp";
+  if (status === "SUBMITTED") return "Đang chấm bài";
   if (status === "EXPIRED") return "Hết hạn";
   if (status === "FAILED_CHEATING") return "Trượt do gian lận";
   return "Bản nháp";
+}
+
+function canReviewTeacherApplication(status: string) {
+  return status === "UNDER_REVIEW";
 }
 
 export default function AdminDashboard({
@@ -54,6 +168,9 @@ export default function AdminDashboard({
   const [updatingCourseAutoApproval, setUpdatingCourseAutoApproval] = useState(false);
   const [reviewingApplicationId, setReviewingApplicationId] = useState<string | null>(null);
   const [reviewingCourseId, setReviewingCourseId] = useState<string | null>(null);
+  const [loadingAttemptApplicationId, setLoadingAttemptApplicationId] = useState<string | null>(null);
+  const [attemptDetail, setAttemptDetail] = useState<TeacherEntranceAttemptDetail | null>(null);
+  const [refreshingApplications, setRefreshingApplications] = useState(false);
 
   const pendingCourses = useMemo(
     () => courses.filter((course) => course.status === "PENDING_APPROVAL" || course.status === "PENDING_DELETE"),
@@ -61,7 +178,7 @@ export default function AdminDashboard({
   );
 
   const pendingApplications = useMemo(
-    () => applications.filter((application) => !["APPROVED", "REJECTED", "EXPIRED", "FAILED_CHEATING"].includes(application.status)),
+    () => applications.filter((application) => canReviewTeacherApplication(application.status)),
     [applications],
   );
 
@@ -76,6 +193,29 @@ export default function AdminDashboard({
     );
   }, [applicationSearch, applications]);
 
+  async function refreshApplications() {
+    if (refreshingApplications) return;
+    setRefreshingApplications(true);
+    try {
+      const response = await fetch("/api/admin/teacher-applications", {
+        cache: "no-store",
+      });
+      const data = await readJsonResponse(response).catch(() => ({}));
+      if (response.ok && Array.isArray(data?.applications)) {
+        setApplications(data.applications as Application[]);
+      }
+    } catch {
+      // The admin can retry from the applications dialog.
+    } finally {
+      setRefreshingApplications(false);
+    }
+  }
+
+  function openTeacherApplications() {
+    setShowApplications(true);
+    void refreshApplications();
+  }
+
   async function toggleTeacherEntrance(nextEnabled: boolean) {
     if (updatingTeacherEntrance) return;
     setUpdatingTeacherEntrance(true);
@@ -86,7 +226,7 @@ export default function AdminDashboard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled: nextEnabled }),
       });
-      const data = await response.json().catch(() => ({}));
+      const data = await readJsonResponse(response).catch(() => ({}));
 
       if (response.ok) {
         setEnabled(nextEnabled);
@@ -113,7 +253,7 @@ export default function AdminDashboard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled: nextEnabled }),
       });
-      const data = await response.json().catch(() => ({}));
+      const data = await readJsonResponse(response).catch(() => ({}));
 
       if (response.ok) {
         setCourseAutoApproval(nextEnabled);
@@ -135,8 +275,23 @@ export default function AdminDashboard({
     action: "APPROVE" | "REJECT",
   ) {
     if (reviewingApplicationId) return;
-    const rejectionReason =
-      action === "REJECT" ? window.prompt("Lý do từ chối?") || "" : "";
+    if (!canReviewTeacherApplication(application.status)) {
+      setMessage("Chỉ hồ sơ đã hoàn tất bài kiểm tra và đang chờ duyệt mới có thể xử lý.");
+      return;
+    }
+
+    let rejectionReason = "";
+    if (action === "REJECT") {
+      const promptedReason = window.prompt("Lý do từ chối?");
+      if (promptedReason === null) return;
+
+      rejectionReason = promptedReason.trim();
+      if (!rejectionReason) {
+        setMessage("Vui lòng nhập lý do từ chối.");
+        return;
+      }
+    }
+
     setReviewingApplicationId(application.id);
     setMessage("");
     try {
@@ -148,7 +303,7 @@ export default function AdminDashboard({
           body: JSON.stringify({ action, rejectionReason }),
         },
       );
-      const data = await response.json().catch(() => ({}));
+      const data = await readJsonResponse(response).catch(() => ({}));
 
       if (response.ok) {
         setApplications((previous) =>
@@ -171,6 +326,52 @@ export default function AdminDashboard({
     }
   }
 
+  async function viewTeacherEntranceAttempt(application: Application) {
+    const canOpen =
+      Boolean(application.entranceAttempt) ||
+      application.failureReason === "AI_GRADING_FAILED";
+    if (!canOpen || loadingAttemptApplicationId) return;
+    setLoadingAttemptApplicationId(application.id);
+    setMessage("");
+    try {
+      const response = await fetch(
+        `/api/admin/teacher-applications/${application.id}/attempt`,
+        { cache: "no-store" },
+      );
+      const data = await readJsonResponse(response).catch(() => ({}));
+      if (!response.ok) {
+        setMessage(data?.error || "Không thể tải chi tiết bài làm.");
+        return;
+      }
+      setAttemptDetail(data as TeacherEntranceAttemptDetail);
+    } finally {
+      setLoadingAttemptApplicationId(null);
+    }
+  }
+
+  function handleManualGradingCompleted(result: ManualGradingResult) {
+    if (!attemptDetail) return;
+    const applicationId = attemptDetail.application.id;
+    setApplications((previous) =>
+      previous.map((application) =>
+        application.id === applicationId
+          ? {
+              ...application,
+              status: result.status,
+              failureReason: null,
+              entranceAttempt: result.attempt,
+            }
+          : application,
+      ),
+    );
+    setAttemptDetail(null);
+    setMessage(
+      result.attempt.isPassed
+        ? "Đã lưu điểm thủ công. Hồ sơ đã chuyển sang chờ admin xét duyệt."
+        : "Đã lưu điểm thủ công. Bài thi không đạt mức điểm yêu cầu.",
+    );
+  }
+
   async function reviewCourse(course: Course, decision: "APPROVE" | "REJECT") {
     if (reviewingCourseId) return;
     const isDeleteRequest = course.status === "PENDING_DELETE";
@@ -186,7 +387,7 @@ export default function AdminDashboard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "reviewCourse", decision, rejectionReason }),
       });
-      const data = await response.json().catch(() => ({}));
+      const data = await readJsonResponse(response).catch(() => ({}));
 
       if (response.ok) {
         if (data?.deleted) {
@@ -236,7 +437,7 @@ export default function AdminDashboard({
           updatingCourseAutoApproval,
           reviewingCourseId,
           setMessage,
-          setShowApplications,
+          openTeacherApplications,
           toggleTeacherEntrance,
           toggleCourseAutoApproval,
           reviewCourse,
@@ -249,10 +450,21 @@ export default function AdminDashboard({
             applicationSearch,
             currentTs,
             reviewingApplicationId,
+            loadingAttemptApplicationId,
+            refreshingApplications,
             setApplicationSearch,
             setShowApplications,
             reviewTeacherApplication,
+            viewTeacherEntranceAttempt,
+            refreshApplications,
           }}
+        />
+      ) : null}
+      {attemptDetail ? (
+        <TeacherEntranceAttemptDialog
+          detail={attemptDetail}
+          onClose={() => setAttemptDetail(null)}
+          onManualGradingCompleted={handleManualGradingCompleted}
         />
       ) : null}
     </>
@@ -270,7 +482,7 @@ function AdminDashboardContent({
   updatingCourseAutoApproval,
   reviewingCourseId,
   setMessage,
-  setShowApplications,
+  openTeacherApplications,
   toggleTeacherEntrance,
   toggleCourseAutoApproval,
   reviewCourse,
@@ -285,7 +497,7 @@ function AdminDashboardContent({
   updatingCourseAutoApproval: boolean;
   reviewingCourseId: string | null;
   setMessage: (message: string) => void;
-  setShowApplications: (show: boolean) => void;
+  openTeacherApplications: () => void;
   toggleTeacherEntrance: (enabled: boolean) => Promise<void>;
   toggleCourseAutoApproval: (enabled: boolean) => Promise<void>;
   reviewCourse: (course: Course, decision: "APPROVE" | "REJECT") => Promise<void>;
@@ -314,7 +526,7 @@ function AdminDashboardContent({
           <div className="mt-2 flex items-center justify-between gap-3">
             <div>
               <p className="text-lg font-bold text-slate-950">
-                {enabled ? "Đang bật" : "Đang tắt"}
+                {enabled ? "Đã bật" : "Đã tắt"}
               </p>
               <p className="text-xs text-slate-500">Cho phép học viên nộp hồ sơ</p>
             </div>
@@ -338,7 +550,7 @@ function AdminDashboardContent({
           <div className="mt-2 flex items-center justify-between gap-3">
             <div>
               <p className="text-lg font-bold text-slate-950">
-                {courseAutoApproval ? "Đang bật" : "Đang tắt"}
+                {courseAutoApproval ? "Đã bật" : "Đã tắt"}
               </p>
               <p className="text-xs text-slate-500">Khóa mới chuyển thẳng sang hoạt động</p>
             </div>
@@ -368,7 +580,7 @@ function AdminDashboardContent({
             </div>
             <button
               type="button"
-              onClick={() => setShowApplications(true)}
+              onClick={openTeacherApplications}
               className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
             >
               Xem hồ sơ
@@ -553,20 +765,44 @@ function TeacherApplicationsDialog({
   applicationSearch,
   currentTs,
   reviewingApplicationId,
+  loadingAttemptApplicationId,
+  refreshingApplications,
   setApplicationSearch,
   setShowApplications,
   reviewTeacherApplication,
+  viewTeacherEntranceAttempt,
+  refreshApplications,
 }: {
   filteredApplications: Application[];
   applicationSearch: string;
   currentTs: number;
   reviewingApplicationId: string | null;
+  loadingAttemptApplicationId: string | null;
+  refreshingApplications: boolean;
   setApplicationSearch: (search: string) => void;
   setShowApplications: (show: boolean) => void;
   reviewTeacherApplication: (application: Application, action: "APPROVE" | "REJECT") => Promise<void>;
+  viewTeacherEntranceAttempt: (application: Application) => Promise<void>;
+  refreshApplications: () => Promise<void>;
 }) {
+  const [applicationPage, setApplicationPage] = useState(1);
+  const [behaviorDetailApplication, setBehaviorDetailApplication] =
+    useState<Application | null>(null);
+  const applicationPageCount = Math.max(
+    1,
+    Math.ceil(filteredApplications.length / APPLICATIONS_PER_PAGE),
+  );
+  const currentApplicationPage = Math.min(applicationPage, applicationPageCount);
+  const applicationPageStart =
+    (currentApplicationPage - 1) * APPLICATIONS_PER_PAGE;
+  const visibleApplications = filteredApplications.slice(
+    applicationPageStart,
+    applicationPageStart + APPLICATIONS_PER_PAGE,
+  );
+
   return (
-    <ModalDialog labelledBy="teacher-applications-title" onClose={() => setShowApplications(false)} className="z-[70] p-3 md:p-6">
+    <>
+      <ModalDialog labelledBy="teacher-applications-title" onClose={() => setShowApplications(false)} className="z-[70] p-3 md:p-6">
           <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
             <div className="border-b border-slate-200 p-4 md:p-5">
               <div className="flex items-start justify-between gap-4">
@@ -575,22 +811,38 @@ function TeacherApplicationsDialog({
                     Hồ sơ đăng ký giảng viên
                   </h2>
                   <p className="mt-1 text-sm text-slate-500">
-                    Tìm kiếm, kiểm tra chứng chỉ và Cheat logs trước khi duyệt.
+                    Tìm kiếm, kiểm tra chứng chỉ và hành vi người dùng trước khi duyệt.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowApplications(false)}
-                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  Đóng
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setApplicationPage(1);
+                      void refreshApplications();
+                    }}
+                    disabled={refreshingApplications}
+                    className="rounded-lg border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {refreshingApplications ? "Đang làm mới..." : "Làm mới"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowApplications(false)}
+                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    Đóng
+                  </button>
+                </div>
               </div>
               <input
                 type="search"
                 aria-label="Tìm hồ sơ đăng ký giảng viên"
                 value={applicationSearch}
-                onChange={(event) => setApplicationSearch(event.target.value)}
+                onChange={(event) => {
+                  setApplicationSearch(event.target.value);
+                  setApplicationPage(1);
+                }}
                 placeholder="Tìm theo tên người dùng hoặc email..."
                 className="mt-4 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
@@ -602,10 +854,10 @@ function TeacherApplicationsDialog({
                   Không tìm thấy hồ sơ phù hợp.
                 </p>
               ) : (
-                filteredApplications.map((application) => {
+                visibleApplications.map((application) => {
                   const suspicious =
-                    application.suspiciousEvents.length > 0 ||
-                    application.antiCheatLogs.length > 0;
+                    application.suspiciousEvents.some((event) => event.severity >= 2) ||
+                    application.antiCheatLogs.some((log) => (log.severity ?? 1) >= 2);
 
                   return (
                     <article
@@ -632,14 +884,45 @@ function TeacherApplicationsDialog({
                             {application.attemptNo}
                           </p>
                           {application.entranceAttempt ? (
-                            <p className="mt-2 text-sm font-semibold text-slate-700">
-                              Điểm thi: {application.entranceAttempt.score.toFixed(1)} /{" "}
-                              {application.entranceAttempt.maxScore}
-                            </p>
+                            <div className="mt-2 flex flex-wrap items-center gap-3">
+                              <p className="text-sm font-semibold text-slate-700">
+                                Điểm thi: {application.entranceAttempt.score.toFixed(1)} /{" "}
+                                {application.entranceAttempt.maxScore}
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => void viewTeacherEntranceAttempt(application)}
+                                disabled={Boolean(loadingAttemptApplicationId)}
+                                className="rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {loadingAttemptApplicationId === application.id
+                                  ? "Đang tải bài..."
+                                  : "Xem bài làm"}
+                              </button>
+                            </div>
+                          ) : application.failureReason === "AI_GRADING_FAILED" ? (
+                            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                              <p className="text-sm font-semibold text-amber-900">
+                                AI không thể hoàn tất việc chấm bài.
+                              </p>
+                              <p className="mt-1 text-xs leading-5 text-amber-800">
+                                Bài làm đã được lưu. Admin có thể mở bài và nhập điểm cho từng câu.
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => void viewTeacherEntranceAttempt(application)}
+                                disabled={Boolean(loadingAttemptApplicationId)}
+                                className="mt-2 rounded-lg bg-amber-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {loadingAttemptApplicationId === application.id
+                                  ? "Đang tải bài..."
+                                  : "Mở và chấm thủ công"}
+                              </button>
+                            </div>
                           ) : null}
                         </div>
                         <div className="flex gap-2">
-                          {!["APPROVED", "REJECTED"].includes(application.status) ? (
+                          {canReviewTeacherApplication(application.status) ? (
                             <>
                               <button
                                 type="button"
@@ -695,39 +978,598 @@ function TeacherApplicationsDialog({
                           )}
                         </div>
 
-                        <div className="rounded-xl bg-slate-50 p-3">
-                          <p className="text-sm font-semibold text-slate-700">
-                            Cheat logs
-                          </p>
-                          {application.suspiciousEvents.length === 0 &&
-                          application.antiCheatLogs.length === 0 ? (
-                            <p className="mt-2 text-sm text-slate-500">
-                              Không có sự kiện đáng ngờ.
-                            </p>
-                          ) : null}
-                          {application.suspiciousEvents.map((event) => (
-                            <p
-                              key={event.eventType}
-                              className="mt-2 text-sm text-slate-700"
-                            >
-                              {event.eventType}: {event.count} lần,{" "}
-                              {event.totalDurationSeconds}s
-                            </p>
-                          ))}
-                          {application.antiCheatLogs.slice(0, 5).map((log) => (
-                            <p key={log.id} className="mt-2 text-xs text-slate-500">
-                              {log.eventType}
-                              {log.detail ? ` - ${log.detail}` : ""}
-                            </p>
-                          ))}
-                        </div>
+                        <UserBehaviorPanel
+                          application={application}
+                          onShowDetails={() => setBehaviorDetailApplication(application)}
+                        />
                       </div>
                     </article>
                   );
                 })
               )}
             </div>
+            {filteredApplications.length > 0 ? (
+              <div className="flex flex-col gap-3 border-t border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between md:px-5">
+                <p className="text-sm text-slate-500">
+                  Hiển thị {applicationPageStart + 1}–
+                  {Math.min(
+                    applicationPageStart + APPLICATIONS_PER_PAGE,
+                    filteredApplications.length,
+                  )}{" "}
+                  trong {filteredApplications.length} hồ sơ
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setApplicationPage(Math.max(1, currentApplicationPage - 1))
+                    }
+                    disabled={currentApplicationPage === 1}
+                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Trước
+                  </button>
+                  <span className="min-w-20 text-center text-sm font-semibold text-slate-700">
+                    Trang {currentApplicationPage}/{applicationPageCount}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setApplicationPage(
+                        Math.min(applicationPageCount, currentApplicationPage + 1),
+                      )
+                    }
+                    disabled={currentApplicationPage === applicationPageCount}
+                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Sau
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
+      </ModalDialog>
+      {behaviorDetailApplication ? (
+        <UserBehaviorDetailDialog
+          application={behaviorDetailApplication}
+          onClose={() => setBehaviorDetailApplication(null)}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function sortedUserBehaviorEvents(application: Application) {
+  return [...application.suspiciousEvents].sort(
+    (left, right) =>
+      right.severity - left.severity ||
+      right.count - left.count ||
+      left.eventType.localeCompare(right.eventType),
+  );
+}
+
+function UserBehaviorPanel({
+  application,
+  onShowDetails,
+}: {
+  application: Application;
+  onShowDetails: () => void;
+}) {
+  const sortedEvents = sortedUserBehaviorEvents(application);
+  const visibleEvents = sortedEvents.slice(0, COLLAPSED_BEHAVIOR_COUNT);
+  const hasBehavior = sortedEvents.length > 0 || application.antiCheatLogs.length > 0;
+  const canShowDetails =
+    sortedEvents.length > COLLAPSED_BEHAVIOR_COUNT ||
+    application.antiCheatLogs.length > 0;
+
+  return (
+    <div className="rounded-xl bg-slate-50 p-3">
+      <p className="text-sm font-semibold text-slate-700">
+        Hành vi người dùng
+      </p>
+      {!hasBehavior ? (
+        <p className="mt-2 text-sm text-slate-500">
+          Không có sự kiện đáng ngờ.
+        </p>
+      ) : null}
+
+      {visibleEvents.length > 0 ? (
+        <p className="mt-3 text-xs font-bold uppercase tracking-wide text-slate-400">
+          Tổng hợp sự kiện
+        </p>
+      ) : null}
+      {visibleEvents.map((event) => (
+        <div
+          key={event.eventType}
+          className="mt-2 border-l-2 border-amber-300 pl-2.5"
+        >
+          <p className="text-sm font-semibold text-slate-800">
+            {userBehaviorLabel(event.eventType)}
+          </p>
+          <p className="mt-0.5 text-xs text-slate-500">
+            {behaviorSummary(event.count, event.totalDurationSeconds)}
+          </p>
+        </div>
+      ))}
+
+      {canShowDetails ? (
+        <button
+          type="button"
+          onClick={onShowDetails}
+          className="mt-3 text-xs font-bold text-blue-700 hover:text-blue-800 hover:underline"
+        >
+          Xem chi tiết
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function UserBehaviorDetailDialog({
+  application,
+  onClose,
+}: {
+  application: Application;
+  onClose: () => void;
+}) {
+  const sortedEvents = sortedUserBehaviorEvents(application);
+
+  return (
+    <ModalDialog
+      labelledBy="user-behavior-detail-title"
+      onClose={onClose}
+      className="z-[80] p-3 md:p-6"
+    >
+      <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-4 md:p-5">
+          <div>
+            <h2 id="user-behavior-detail-title" className="text-xl font-bold text-slate-950">
+              Chi tiết hành vi người dùng
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {application.user.username} · {application.user.email}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Đóng
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto bg-slate-50 p-4 md:p-5">
+          {sortedEvents.length > 0 ? (
+            <section>
+              <h3 className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                Tổng hợp sự kiện
+              </h3>
+              <div className="mt-3 space-y-3">
+                {sortedEvents.map((event) => (
+                  <div
+                    key={event.eventType}
+                    className="border-l-2 border-amber-300 pl-3"
+                  >
+                    <p className="text-sm font-semibold text-slate-800">
+                      {userBehaviorLabel(event.eventType)}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {behaviorSummary(event.count, event.totalDurationSeconds)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {application.antiCheatLogs.length > 0 ? (
+            <section className={sortedEvents.length > 0 ? "mt-6" : ""}>
+              <h3 className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                Ghi nhận gần nhất
+              </h3>
+              <div className="mt-3 space-y-3">
+                {application.antiCheatLogs.map((log) => (
+                  <div key={log.id} className="border-l-2 border-amber-300 pl-3">
+                    <p className="text-sm font-semibold text-slate-700">
+                      {userBehaviorLabel(log.eventType)}
+                    </p>
+                    {log.serverTimestamp ? (
+                      <p className="mt-0.5 text-xs text-slate-400">
+                        Ghi nhận lúc{" "}
+                        {new Date(log.serverTimestamp).toLocaleString("vi-VN", {
+                          timeZone: "Asia/Bangkok",
+                        })}
+                      </p>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+        </div>
+      </div>
     </ModalDialog>
+  );
+}
+
+function TeacherEntranceAttemptDialog({
+  detail,
+  onClose,
+  onManualGradingCompleted,
+}: {
+  detail: TeacherEntranceAttemptDetail;
+  onClose: () => void;
+  onManualGradingCompleted: (result: ManualGradingResult) => void;
+}) {
+  if (detail.manualGradingRequired) {
+    return (
+      <TeacherEntranceManualGradingDialog
+        detail={detail}
+        onClose={onClose}
+        onCompleted={onManualGradingCompleted}
+      />
+    );
+  }
+
+  const { application, attempt } = detail;
+  return (
+    <ModalDialog
+      labelledBy="teacher-attempt-detail-title"
+      onClose={onClose}
+      className="z-[80] p-3 md:p-6"
+    >
+      <div className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="border-b border-slate-200 p-4 md:p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 id="teacher-attempt-detail-title" className="text-xl font-bold text-slate-950">
+                Bài làm đầu vào của {application.user.username}
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                {application.user.email} · {application.language.name} · Nộp lúc{" "}
+                {new Date(attempt.submittedAt).toLocaleString("vi-VN", {
+                  timeZone: "Asia/Bangkok",
+                })}
+              </p>
+              <p className={`mt-2 text-sm font-bold ${attempt.isPassed ? "text-emerald-700" : "text-red-700"}`}>
+                Tổng điểm: {attempt.score.toFixed(1)} / {attempt.maxScore} ·{" "}
+                {attempt.isPassed ? "Đạt" : "Không đạt"}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Đóng
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50 p-4 md:p-5">
+          {attempt.questionResults.length === 0 ? (
+            <p className="rounded-xl bg-white p-6 text-center text-sm text-slate-500">
+              Bài làm này chưa có dữ liệu chi tiết theo từng câu.
+            </p>
+          ) : (
+            attempt.questionResults.map((question, index) => (
+              <article
+                key={question.questionId}
+                className="rounded-xl border border-slate-200 bg-white p-4"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
+                      Câu {question.sequence ?? index + 1} ·{" "}
+                      {questionTypeLabel(question.questionType)}
+                    </p>
+                    <h3 className="mt-2 font-semibold leading-6 text-slate-950">
+                      {question.content}
+                    </h3>
+                  </div>
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${question.isCorrect ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                    {question.earnedScore.toFixed(1)} / {question.score} điểm
+                  </span>
+                </div>
+
+                {question.audioUrl ? (
+                  <div className="mt-4">
+                    <a
+                      href={question.audioUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex rounded-lg border border-blue-200 px-3 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50"
+                    >
+                      Mở audio Speaking đã nộp
+                    </a>
+                  </div>
+                ) : null}
+
+                <div className="mt-4 rounded-lg bg-slate-50 p-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Câu trả lời của ứng viên
+                  </p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-800">
+                    {question.studentAnswer || "(Bỏ trống)"}
+                  </p>
+                </div>
+
+                {question.correctAnswer ? (
+                  <div className="mt-3 rounded-lg bg-emerald-50 p-3">
+                    <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+                      Đáp án đúng
+                    </p>
+                    <p className="mt-2 text-sm text-emerald-900">{question.correctAnswer}</p>
+                  </div>
+                ) : null}
+
+                {question.aiEvaluation ? (
+                  <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 p-3">
+                    <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
+                      Nhận xét chấm AI
+                      {typeof question.aiEvaluation.overallScore === "number"
+                        ? ` · ${question.aiEvaluation.overallScore}/10`
+                        : ""}
+                    </p>
+                    {question.aiEvaluation.detailedComment || question.aiEvaluation.summary ? (
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-blue-950">
+                        {question.aiEvaluation.detailedComment || question.aiEvaluation.summary}
+                      </p>
+                    ) : null}
+                    <AttemptFeedbackList
+                      label="Điểm mạnh"
+                      items={question.aiEvaluation.strengths}
+                    />
+                    <AttemptFeedbackList
+                      label="Điểm cần cải thiện"
+                      items={question.aiEvaluation.weaknesses}
+                    />
+                    <AttemptFeedbackList
+                      label="Gợi ý"
+                      items={question.aiEvaluation.suggestions}
+                    />
+                  </div>
+                ) : null}
+              </article>
+            ))
+          )}
+        </div>
+      </div>
+    </ModalDialog>
+  );
+}
+
+function TeacherEntranceManualGradingDialog({
+  detail,
+  onClose,
+  onCompleted,
+}: {
+  detail: Extract<TeacherEntranceAttemptDetail, { manualGradingRequired: true }>;
+  onClose: () => void;
+  onCompleted: (result: ManualGradingResult) => void;
+}) {
+  const { application, submission } = detail;
+  const [scores, setScores] = useState<Record<string, number>>(() =>
+    Object.fromEntries(
+      submission.questionResults.flatMap((question) =>
+        question.questionInstanceId
+          ? [[question.questionInstanceId, question.earnedScore]]
+          : [],
+      ),
+    ),
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const totalScore = submission.questionResults.reduce(
+    (total, question) =>
+      total + (question.questionInstanceId ? scores[question.questionInstanceId] ?? 0 : 0),
+    0,
+  );
+
+  async function saveManualGrades() {
+    if (saving) return;
+    const missingQuestion = submission.questionResults.some(
+      (question) => !question.questionInstanceId,
+    );
+    if (missingQuestion) {
+      setError("Bài làm thiếu mã câu hỏi. Vui lòng làm mới và thử lại.");
+      return;
+    }
+    if (
+      !window.confirm(
+        `Xác nhận lưu kết quả chấm thủ công ${totalScore.toFixed(1)}/${submission.maxScore}?`,
+      )
+    ) {
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch(
+        `/api/admin/teacher-applications/${application.id}/attempt`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scores: submission.questionResults.map((question) => ({
+              questionInstanceId: question.questionInstanceId,
+              earnedScore: question.questionInstanceId
+                ? scores[question.questionInstanceId] ?? 0
+                : 0,
+            })),
+          }),
+        },
+      );
+      const data = await readJsonResponse(response).catch(() => ({}));
+      if (!response.ok) {
+        setError(data?.error || "Không thể lưu kết quả chấm thủ công.");
+        return;
+      }
+      onCompleted(data as ManualGradingResult);
+    } catch {
+      setError("Không thể kết nối máy chủ. Vui lòng thử lại.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <ModalDialog
+      labelledBy="teacher-manual-grading-title"
+      onClose={saving ? () => undefined : onClose}
+      className="z-[80] p-3 md:p-6"
+    >
+      <div className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="border-b border-amber-200 bg-amber-50 p-4 md:p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 id="teacher-manual-grading-title" className="text-xl font-bold text-slate-950">
+                Chấm thủ công bài của {application.user.username}
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                {application.user.email} · {application.language.name} · Nộp lúc{" "}
+                {new Date(submission.submittedAt).toLocaleString("vi-VN", {
+                  timeZone: "Asia/Bangkok",
+                })}
+              </p>
+              <p className="mt-2 text-sm font-semibold text-amber-900">
+                AI chấm bài không thành công. Hãy kiểm tra câu trả lời và nhập điểm cho từng câu.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+            >
+              Đóng
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50 p-4 md:p-5">
+          {submission.questionResults.map((question, index) => {
+            const questionInstanceId = question.questionInstanceId ?? "";
+            return (
+              <article
+                key={questionInstanceId || question.questionId}
+                className="rounded-xl border border-slate-200 bg-white p-4"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
+                      Câu {question.sequence ?? index + 1} ·{" "}
+                      {questionTypeLabel(question.questionType)}
+                    </p>
+                    <h3 className="mt-2 font-semibold leading-6 text-slate-950">
+                      {question.content}
+                    </h3>
+                  </div>
+                  <label className="flex shrink-0 items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-sm font-bold text-blue-900">
+                    Điểm
+                    <input
+                      type="number"
+                      min={0}
+                      max={question.score}
+                      step="0.1"
+                      value={questionInstanceId ? scores[questionInstanceId] ?? 0 : 0}
+                      onChange={(event) => {
+                        const nextScore = Math.min(
+                          question.score,
+                          Math.max(0, Number(event.target.value) || 0),
+                        );
+                        setScores((previous) => ({
+                          ...previous,
+                          [questionInstanceId]: nextScore,
+                        }));
+                      }}
+                      disabled={!questionInstanceId || saving}
+                      aria-label={`Điểm câu ${question.sequence ?? index + 1}`}
+                      className="w-20 rounded-md border border-blue-200 bg-white px-2 py-1 text-right outline-none focus:border-blue-500"
+                    />
+                    / {question.score}
+                  </label>
+                </div>
+
+                {question.audioUrl ? (
+                  <a
+                    href={question.audioUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-4 inline-flex rounded-lg border border-blue-200 px-3 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50"
+                  >
+                    Mở audio Speaking đã nộp
+                  </a>
+                ) : null}
+
+                <div className="mt-4 rounded-lg bg-slate-50 p-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Câu trả lời của ứng viên
+                  </p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-800">
+                    {question.studentAnswer || "(Bỏ trống)"}
+                  </p>
+                </div>
+
+                {question.correctAnswer ? (
+                  <div className="mt-3 rounded-lg bg-emerald-50 p-3">
+                    <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+                      Đáp án đúng
+                    </p>
+                    <p className="mt-2 text-sm text-emerald-900">{question.correctAnswer}</p>
+                  </div>
+                ) : null}
+              </article>
+            );
+          })}
+        </div>
+
+        <div className="border-t border-slate-200 bg-white p-4 md:p-5">
+          {error ? (
+            <p role="alert" className="mb-3 rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">
+              {error}
+            </p>
+          ) : null}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-lg font-bold text-slate-950">
+                Tổng điểm: {totalScore.toFixed(1)} / {submission.maxScore}
+              </p>
+              <p className="text-xs text-slate-500">
+                Mức đạt: {submission.passingScore} điểm
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void saveManualGrades()}
+              disabled={saving || submission.questionResults.length === 0}
+              className="rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? "Đang lưu kết quả..." : "Lưu kết quả chấm"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </ModalDialog>
+  );
+}
+
+function AttemptFeedbackList({
+  label,
+  items,
+}: {
+  label: string;
+  items: string[] | undefined;
+}) {
+  if (!items?.length) return null;
+  return (
+    <div className="mt-3">
+      <p className="text-xs font-bold text-blue-800">{label}</p>
+      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-blue-950">
+        {items.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}
+      </ul>
+    </div>
   );
 }

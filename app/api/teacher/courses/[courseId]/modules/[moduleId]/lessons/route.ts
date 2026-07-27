@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { normalizeLessonVideoUrl } from "@/lib/lesson-video";
 
 export async function GET(
   request: NextRequest,
@@ -93,6 +94,7 @@ export async function POST(
 
     const body = await request.json();
     const { title, content, videoUrl } = body;
+    const normalizedVideoUrl = normalizeLessonVideoUrl(videoUrl);
 
     if (!title || !content) {
       return NextResponse.json(
@@ -100,13 +102,16 @@ export async function POST(
         { status: 400 }
       );
     }
+    if (videoUrl && !normalizedVideoUrl) {
+      return NextResponse.json({ error: "Invalid video URL" }, { status: 400 });
+    }
 
     const lesson = await prisma.lesson.create({
       data: {
         moduleId,
         title,
         content,
-        videoUrl: videoUrl || null,
+        videoUrl: normalizedVideoUrl,
       },
     });
 

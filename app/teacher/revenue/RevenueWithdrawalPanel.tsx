@@ -155,10 +155,15 @@ function useRevenueWithdrawalPanel({
   const [reportedAmount, setReportedAmount] = useState("");
   const [complaintMessage, setComplaintMessage] = useState("");
   const [complaintEvidenceFile, setComplaintEvidenceFile] = useState<File | null>(null);
+  const hasBankAccountChanges = !bankAccountState ||
+    bankName.trim() !== bankAccountState.bankName ||
+    bankBranch.trim() !== (bankAccountState.branch ?? "") ||
+    accountNumber.trim() !== bankAccountState.accountNumber ||
+    accountName.trim() !== bankAccountState.accountName;
 
   async function submitWithdrawal(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!bankAccountState) {
+    if (!bankAccountState || hasBankAccountChanges) {
       setError("Vui lòng lưu và xác nhận OTP tài khoản nhận tiền trước khi rút doanh thu.");
       setBankAccountOpen(true);
       return;
@@ -201,6 +206,12 @@ function useRevenueWithdrawalPanel({
   }
 
   function openWithdrawal() {
+    if (!bankAccountState || hasBankAccountChanges) {
+      setError("Vui lòng xác nhận OTP và lưu tài khoản nhận tiền mới trước khi rút doanh thu.");
+      setBankAccountOpen(true);
+      setWithdrawalOpen(false);
+      return;
+    }
     setWithdrawalOpen(true);
     setError("");
     setMessage("");
@@ -220,6 +231,7 @@ function useRevenueWithdrawalPanel({
 
   async function requestBankAccountOtp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!hasBankAccountChanges) return;
     setBankAccountLoading(true);
     setError("");
     setMessage("");
@@ -398,6 +410,7 @@ function useRevenueWithdrawalPanel({
     reportedAmount,
     complaintMessage,
     complaintEvidenceFile,
+    hasBankAccountChanges,
     setAmount,
     setBankName,
     setBankBranch,
@@ -405,6 +418,7 @@ function useRevenueWithdrawalPanel({
     setAccountName,
     setBankAccountOpen,
     setBankAccountOtp,
+    setOtpSent,
     setWithdrawalOpen,
     setActivityOpen,
     setComplaintTarget,
@@ -462,6 +476,7 @@ export function RevenueWithdrawalPanel(props: {
     reportedAmount,
     complaintMessage,
     complaintEvidenceFile,
+    hasBankAccountChanges,
     setAmount,
     setBankName,
     setBankBranch,
@@ -469,6 +484,7 @@ export function RevenueWithdrawalPanel(props: {
     setAccountName,
     setBankAccountOpen,
     setBankAccountOtp,
+    setOtpSent,
     setWithdrawalOpen,
     setActivityOpen,
     setComplaintTarget,
@@ -607,16 +623,16 @@ export function RevenueWithdrawalPanel(props: {
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Ngân hàng">
-                  <input required maxLength={100} value={bankName} onChange={(event) => setBankName(event.target.value)} className={fieldClassName} placeholder="Tên ngân hàng" />
+                  <input required maxLength={100} value={bankName} onChange={(event) => { setBankName(event.target.value); setOtpSent(false); setBankAccountOtp(""); }} className={fieldClassName} placeholder="Tên ngân hàng" />
                 </Field>
                 <Field label="Chi nhánh">
-                  <input maxLength={100} value={bankBranch} onChange={(event) => setBankBranch(event.target.value)} className={fieldClassName} placeholder="Chi nhánh (nếu có)" />
+                  <input maxLength={100} value={bankBranch} onChange={(event) => { setBankBranch(event.target.value); setOtpSent(false); setBankAccountOtp(""); }} className={fieldClassName} placeholder="Chi nhánh (nếu có)" />
                 </Field>
                 <Field label="Số tài khoản">
-                  <input inputMode="numeric" required minLength={6} maxLength={30} value={accountNumber} onChange={(event) => setAccountNumber(event.target.value.replace(/\D/g, ""))} className={fieldClassName} placeholder="Số tài khoản nhận tiền" />
+                  <input inputMode="numeric" required minLength={6} maxLength={30} value={accountNumber} onChange={(event) => { setAccountNumber(event.target.value.replace(/\D/g, "")); setOtpSent(false); setBankAccountOtp(""); }} className={fieldClassName} placeholder="Số tài khoản nhận tiền" />
                 </Field>
                 <Field label="Tên chủ tài khoản">
-                  <input required maxLength={100} value={accountName} onChange={(event) => setAccountName(event.target.value.toUpperCase())} className={`${fieldClassName} uppercase`} placeholder="NGUYEN VAN A" />
+                  <input required maxLength={100} value={accountName} onChange={(event) => { setAccountName(event.target.value.toUpperCase()); setOtpSent(false); setBankAccountOtp(""); }} className={`${fieldClassName} uppercase`} placeholder="NGUYEN VAN A" />
                 </Field>
               </div>
 
@@ -633,7 +649,7 @@ export function RevenueWithdrawalPanel(props: {
             </div>
 
             <div className="flex flex-col-reverse gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:justify-end">
-              <button type="submit" disabled={bankAccountLoading} className="rounded-lg border border-emerald-200 bg-white px-4 py-3 text-sm font-bold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60">
+              <button type="submit" disabled={bankAccountLoading || !hasBankAccountChanges} className="rounded-lg border border-emerald-200 bg-white px-4 py-3 text-sm font-bold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60">
                 {otpSent ? "Gửi lại OTP" : "Gửi OTP xác nhận"}
               </button>
               {otpSent ? (

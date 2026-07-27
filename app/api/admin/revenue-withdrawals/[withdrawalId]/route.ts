@@ -32,19 +32,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ wi
   const body = (await request.json().catch(() => null)) as {
     action?: unknown;
     note?: unknown;
-    systemBankName?: unknown;
     transferTransactionCode?: unknown;
   } | null;
   const action = typeof body?.action === "string" ? body.action.toUpperCase() as Action : null;
   const note = typeof body?.note === "string" ? body.note.trim().slice(0, 500) : "";
-  const systemBankName = typeof body?.systemBankName === "string" ? body.systemBankName.trim().slice(0, 100) : "";
   const transferTransactionCode = typeof body?.transferTransactionCode === "string" ? body.transferTransactionCode.trim().slice(0, 100) : "";
   if (!action || !(action in transition) || (action === "REJECT" && !note)) {
     return NextResponse.json({ error: "Thao tác hoặc lý do từ chối không hợp lệ." }, { status: 400 });
   }
-  if (action === "PAY" && (!systemBankName || !transferTransactionCode)) {
+  if (action === "PAY" && !transferTransactionCode) {
     return NextResponse.json(
-      { error: "Cần nhập ngân hàng chuyển và mã giao dịch trước khi xác nhận đã thanh toán." },
+      { error: "Cần nhập mã giao dịch trước khi xác nhận đã thanh toán." },
       { status: 400 },
     );
   }
@@ -87,7 +85,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ wi
           note: action === "REJECT" ? note : current.note,
           processedAt: action === "PAY" || action === "REJECT" ? new Date() : null,
           processedById: action === "PAY" || action === "REJECT" ? admin.id : current.processedById,
-          systemBankName: action === "PAY" ? systemBankName || null : current.systemBankName,
           transferTransactionCode: action === "PAY" ? transferTransactionCode || null : current.transferTransactionCode,
         },
         include: {

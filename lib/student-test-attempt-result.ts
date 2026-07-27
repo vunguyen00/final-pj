@@ -1,4 +1,9 @@
 import type { AppRole } from "@/lib/auth";
+import {
+  getCourseLearningGateState,
+  getNextCourseLearningAction,
+  type CourseLearningAction,
+} from "@/lib/course-learning-gates";
 import { prisma } from "@/lib/prisma";
 
 export type AiEvaluation = {
@@ -39,6 +44,8 @@ export type TestResultData = {
   maxScore: number;
   passingScore: number;
   isPassed: boolean;
+  courseComplete: boolean;
+  nextAction: CourseLearningAction | null;
   courseId: string | null;
   courseName: string;
   language: { name: string; code: string } | null;
@@ -106,6 +113,9 @@ export async function getStudentTestAttemptResult(
   }
 
   const stored = (attempt.results ?? {}) as Record<string, unknown>;
+  const gateState = attempt.isPassed && attempt.test.course?.id
+    ? await getCourseLearningGateState(attempt.userId, attempt.test.course.id)
+    : null;
 
   return {
     attemptId: attempt.id,
@@ -114,6 +124,8 @@ export async function getStudentTestAttemptResult(
     maxScore: Number(attempt.maxScore ?? attempt.score),
     passingScore: attempt.test.passingScore,
     isPassed: attempt.isPassed,
+    courseComplete: Boolean(gateState?.courseComplete),
+    nextAction: gateState ? getNextCourseLearningAction(gateState) : null,
     courseId: attempt.test.course?.id ?? null,
     courseName: attempt.test.course?.name ?? "Public practice",
     language: attempt.test.language ?? attempt.test.course?.language ?? null,

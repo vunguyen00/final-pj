@@ -1,5 +1,8 @@
 import type { AppRole } from "@/lib/auth";
-import { getCourseProgressPercent } from "@/lib/learning-progress";
+import {
+  getCourseLearningGateState,
+  isCourseTestUnlocked,
+} from "@/lib/course-learning-gates";
 import { prisma } from "@/lib/prisma";
 import { FIXED_TEST_MAX_SCORE, isTestReady } from "@/lib/test-rules";
 
@@ -76,23 +79,33 @@ export async function getStudentTestsData(
     orderBy: { createdAt: "desc" },
   });
 
-  const progressByCourse = new Map(
+  const gateStateByCourse = new Map(
     await Promise.all(
       visibleCourseIds.map(async (visibleCourseId) => [
         visibleCourseId,
         ownedCourseIdSet.has(visibleCourseId)
-          ? 100
-          : await getCourseProgressPercent(user.id, visibleCourseId),
+          ? null
+          : await getCourseLearningGateState(user.id, visibleCourseId),
       ] as const),
     ),
   );
 
   return {
     tests: tests.map((test) => {
+      const gateState = test.courseId ? gateStateByCourse.get(test.courseId) : null;
+      const moduleLessons = gateState?.modules.flatMap((module) => module.lessons) ?? [];
+      const completedLessons = moduleLessons.filter((lesson) => gateState?.completedLessonIds.has(lesson.id)).length;
       const progress = test.courseId
-        ? (progressByCourse.get(test.courseId) ?? 0)
+        ? ownedCourseIdSet.has(test.courseId)
+          ? 100
+          : moduleLessons.length > 0
+            ? Math.round((completedLessons / moduleLessons.length) * 100)
+            : 0
         : 100;
-      const isUnlocked = test.kind === "PUBLIC_PRACTICE" || progress >= 100;
+      const isUnlocked =
+        test.kind === "PUBLIC_PRACTICE" ||
+        Boolean(test.courseId && ownedCourseIdSet.has(test.courseId)) ||
+        Boolean(gateState && isCourseTestUnlocked(gateState, test));
       const totalQuestionScore = test.questions.reduce(
         (sum, question) => sum + Number(question.score || 0),
         0,
@@ -105,6 +118,7 @@ export async function getStudentTestsData(
         name: test.name,
         description: test.description,
         courseId: test.courseId,
+        moduleId: test.moduleId,
         courseName: test.courseId
           ? (courseNameMap.get(test.courseId) ?? "Unknown course")
           : "Public practice",
@@ -138,26 +152,17 @@ export async function getStudentTestHistoryData(
   user: TestsViewer,
   filters: { courseId?: string | null; testId?: string | null } = {},
 ) {
-  const whereClause: {
-    userId: string;
-    test?: { courseId?: string; id?: string };
-  } = { userId: user.id };
-
-  if (filters.courseId || filters.testId) {
-    whereClause.test = {};
-    if (filters.courseId) whereClause.test.courseId = filters.courseId;
-    if (filters.testId) whereClause.test.id = filters.testId;
-  }
-
   const [attempts, enrolledCourses] = await Promise.all([
     prisma.testAttempt.findMany({
-      where: whereClause,
+      where: { userId: user.id },
       include: {
         test: {
           select: {
             id: true,
             name: true,
             maxScore: true,
+            moduleId: true,
+            lessonId: true,
             course: { select: { id: true, name: true } },
           },
         },
@@ -180,19 +185,29 @@ export async function getStudentTestHistoryData(
       ].map((course) => [course.id, course]),
     ).values(),
   );
-  const tests = Array.from(
-    new Map(
-      attempts.map((attempt) => [
-        attempt.test.id,
-        {
-          id: attempt.test.id,
-          name: attempt.test.name,
-          courseId: attempt.test.course?.id ?? null,
-        },
-      ]),
-    ).values(),
-  );
-  const history = attempts.map((attempt) => {
+  const testsById = new Map<
+    string,
+    { id: string; name: string; courseId: string | null }
+  >();
+  for (const attempt of attempts) {
+    if (attempt.test.moduleId || attempt.test.lessonId) continue;
+    testsById.set(attempt.test.id, {
+      id: attempt.test.id,
+      name: attempt.test.name,
+      courseId: attempt.test.course?.id ?? null,
+    });
+  }
+  const tests = Array.from(testsById.values());
+  const filteredAttempts = attempts.filter((attempt) => {
+    if (filters.courseId && attempt.test.course?.id !== filters.courseId) {
+      return false;
+    }
+    if (filters.testId && attempt.test.id !== filters.testId) {
+      return false;
+    }
+    return true;
+  });
+  const history = filteredAttempts.map((attempt) => {
     const stored = (attempt.results ?? {}) as Record<string, unknown>;
     const questionResults = Array.isArray(stored.questionResults)
       ? stored.questionResults

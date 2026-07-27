@@ -120,6 +120,8 @@ export async function GET(
             maxScore: true,
             passingScore: true,
             timeLimit: true,
+            module: { select: { id: true, name: true } },
+            lesson: { select: { id: true, title: true } },
             _count: {
               select: {
                 questions: true,
@@ -153,6 +155,16 @@ export async function GET(
       );
     }
 
+    const fixedTeacherLanguage =
+      user.role === "TEACHER" && !course.language
+        ? await prisma.teacherApplication.findFirst({
+            where: { userId: user.id, status: "APPROVED" },
+            select: {
+              language: { select: { id: true, name: true, code: true } },
+            },
+            orderBy: { reviewedAt: "desc" },
+          })
+        : null;
     const languages =
       user.role === "ADMIN"
         ? await prisma.learningLanguage.findMany({
@@ -160,22 +172,11 @@ export async function GET(
             select: { id: true, name: true, code: true },
             orderBy: { name: "asc" },
           })
-        : await prisma.teacherApplication
-            .findMany({
-              where: { userId: user.id, status: "APPROVED" },
-              select: { language: { select: { id: true, name: true, code: true } } },
-              orderBy: { reviewedAt: "desc" },
-            })
-            .then((applications) => {
-              const seen = new Set<string>();
-              return applications.flatMap((application) => {
-                if (!application.language || seen.has(application.language.id)) return [];
-                seen.add(application.language.id);
-                return [application.language];
-              });
-            });
+        : course.language || fixedTeacherLanguage?.language
+          ? [course.language ?? fixedTeacherLanguage!.language]
+          : [];
 
-    return NextResponse.json({ course, languages });
+    return NextResponse.json({ course, languages, viewerRole: user.role });
   } catch (error) {
     console.error("Error fetching course:", error);
     return NextResponse.json(
@@ -251,8 +252,7 @@ export async function PUT(
       updateData.price = normalizedPrice;
     }
 
-    if (typeof languageId === "string" && languageId) {
-      if (user.role === "ADMIN") {
+    if (typeof languageId === "string" && languageId && user.role === "ADMIN") {
         const language = await prisma.learningLanguage.findFirst({
           where: { id: languageId, isActive: true },
           select: { id: true },
@@ -264,19 +264,6 @@ export async function PUT(
           );
         }
         updateData.languageId = languageId;
-      } else {
-        const approvedLanguage = await prisma.teacherApplication.findFirst({
-          where: { userId: user.id, status: "APPROVED", languageId },
-          select: { languageId: true },
-        });
-        if (!approvedLanguage && languageId !== course.languageId) {
-          return NextResponse.json(
-            { error: "You can only assign an approved teaching language to this course" },
-            { status: 403 },
-          );
-        }
-        updateData.languageId = languageId;
-      }
     }
 
     if (user.role === "ADMIN") {

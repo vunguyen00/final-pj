@@ -1,7 +1,14 @@
 import { shouldChargeAiPoints } from "@/lib/ai-access";
-import { SPEAKING_AI_COST, WRITING_AI_COST } from "@/lib/ai-points";
+import {
+  getAvailableAiPoints,
+  SPEAKING_AI_COST,
+  WRITING_AI_COST,
+} from "@/lib/ai-points";
 import { getCurrentUser } from "@/lib/auth";
-import { getCourseProgressPercent } from "@/lib/learning-progress";
+import {
+  getCourseLearningGateState,
+  isCourseTestUnlocked,
+} from "@/lib/course-learning-gates";
 import { prisma } from "@/lib/prisma";
 import { createTestAttemptToken } from "@/lib/test-attempt-token";
 import { FIXED_TEST_MAX_SCORE, isTestReady } from "@/lib/test-rules";
@@ -41,6 +48,7 @@ export type StudentTestInfo = {
   attemptExpiresAt: string | null;
   aiFeedbackCost: number;
   chargeAiFeedback: boolean;
+  availableAiPoints: number;
 };
 
 export type StudentTestAttemptHistoryItem = {
@@ -157,30 +165,35 @@ export async function getStudentTestPayload(
       };
     }
 
-    const progress = await getCourseProgressPercent(user.id, test.courseId);
-    if (progress < 100) {
+    const gateState = await getCourseLearningGateState(user.id, test.courseId);
+    if (!gateState || !isCourseTestUnlocked(gateState, test)) {
       return {
         ok: false,
         status: 403,
-        error: "Bạn cần hoàn thành 100% bài học trước khi làm test.",
-        details: { progress },
+        error: test.moduleId
+          ? "Bạn cần hoàn thành các bài học của module và vượt qua module trước đó trước khi làm test."
+          : "Bạn cần hoàn thành toàn bộ module và bài kiểm tra tương ứng trước khi làm test cuối khóa.",
       };
     }
   }
 
-  const attempts = await prisma.testAttempt.findMany({
-    where: { testId, userId: user.id },
-    orderBy: { submittedAt: "desc" },
-    select: {
-      id: true,
-      attemptNo: true,
-      score: true,
-      maxScore: true,
-      isPassed: true,
-      submittedAt: true,
-    },
-    take: 20,
-  });
+  const chargeAiFeedback = shouldChargeAiPoints(user.role);
+  const [attempts, availableAiPoints] = await Promise.all([
+    prisma.testAttempt.findMany({
+      where: { testId, userId: user.id },
+      orderBy: { submittedAt: "desc" },
+      select: {
+        id: true,
+        attemptNo: true,
+        score: true,
+        maxScore: true,
+        isPassed: true,
+        submittedAt: true,
+      },
+      take: 20,
+    }),
+    chargeAiFeedback ? getAvailableAiPoints(user.id) : Promise.resolve(0),
+  ]);
 
   const questions = test.questions.map((question) => ({
     id: question.id,
@@ -241,7 +254,8 @@ export async function getStudentTestPayload(
         attemptStartedAt: tokenStartedAt.toISOString(),
         attemptExpiresAt: attemptExpiresAt?.toISOString() ?? null,
         aiFeedbackCost,
-        chargeAiFeedback: shouldChargeAiPoints(user.role),
+        chargeAiFeedback,
+        availableAiPoints,
       },
       questions,
       attempts: attempts.map((attempt) => ({

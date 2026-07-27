@@ -1,13 +1,14 @@
 import type { FormEvent } from "react";
 import type { CourseManagementLabels } from "@/lib/language-display";
 import { FIXED_TEST_MAX_SCORE } from "@/lib/test-rules";
-import type { TestForm } from "../types";
+import type { Module, TestForm } from "../types";
 
 type TestModalProps = {
   isOpen: boolean;
   form: TestForm;
   isSubmitting: boolean;
   labels: CourseManagementLabels["testModal"];
+  modules: Module[];
   onChangeForm: (form: TestForm) => void;
   onClose: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -18,6 +19,7 @@ export function TestModal({
   form,
   isSubmitting,
   labels,
+  modules,
   onChangeForm,
   onClose,
   onSubmit,
@@ -26,6 +28,7 @@ export function TestModal({
 
   const inputClass =
     "mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+  const selectedModule = modules.find((module) => module.id === form.moduleId);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
@@ -64,6 +67,59 @@ export function TestModal({
               className={`${inputClass} disabled:cursor-not-allowed disabled:bg-slate-100`}
             />
           </label>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm font-semibold text-slate-700">
+              {labels.target}
+              <select
+                value={form.targetType}
+                disabled={isSubmitting}
+                onChange={(event) => onChangeForm({
+                  ...form,
+                  targetType: event.target.value as TestForm["targetType"],
+                  moduleId: "",
+                  lessonId: "",
+                })}
+                className={inputClass}
+              >
+                <option value="COURSE">{labels.targetCourse}</option>
+                <option value="MODULE">{labels.targetModule}</option>
+                <option value="LESSON">{labels.targetLesson}</option>
+              </select>
+            </label>
+
+            {form.targetType !== "COURSE" ? (
+              <label className="block text-sm font-semibold text-slate-700">
+                {labels.chooseModule}
+                <select
+                  required
+                  value={form.moduleId}
+                  disabled={isSubmitting}
+                  onChange={(event) => onChangeForm({ ...form, moduleId: event.target.value, lessonId: "" })}
+                  className={inputClass}
+                >
+                  <option value="">{labels.chooseModule}</option>
+                  {modules.map((module) => <option key={module.id} value={module.id}>{module.name}</option>)}
+                </select>
+              </label>
+            ) : null}
+
+            {form.targetType === "LESSON" ? (
+              <label className="block text-sm font-semibold text-slate-700 sm:col-start-2">
+                {labels.chooseLesson}
+                <select
+                  required
+                  value={form.lessonId}
+                  disabled={isSubmitting || !form.moduleId}
+                  onChange={(event) => onChangeForm({ ...form, lessonId: event.target.value })}
+                  className={inputClass}
+                >
+                  <option value="">{labels.chooseLesson}</option>
+                  {(selectedModule?.lessons ?? []).map((lesson) => <option key={lesson.id} value={lesson.id}>{lesson.title}</option>)}
+                </select>
+              </label>
+            ) : null}
+          </div>
 
           <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-900">
             {labels.fixedScore(FIXED_TEST_MAX_SCORE)}

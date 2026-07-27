@@ -3,15 +3,16 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getCourseLearningLabels } from "@/lib/language-display";
+import { getCourseLearningGateState } from "@/lib/course-learning-gates";
 import LearningContent from "./components/LearningContent";
 
 export default async function StudentHocBaiPage({
   searchParams,
 }: {
-  searchParams: Promise<{ courseId?: string }>;
+  searchParams: Promise<{ courseId?: string; lessonId?: string }>;
 }) {
   const user = await requireUser();
-  const { courseId } = await searchParams;
+  const { courseId, lessonId } = await searchParams;
   const normalizedCourseId = typeof courseId === "string" ? courseId.trim() : "";
 
   if (!normalizedCourseId) {
@@ -22,13 +23,28 @@ export default async function StudentHocBaiPage({
     where: { id: normalizedCourseId },
     include: {
       language: { select: { name: true, code: true } },
-      modules: { orderBy: { order: "asc" }, include: { lessons: true } },
+      modules: {
+        orderBy: { order: "asc" },
+        include: {
+          lessons: true,
+          tests: {
+            where: { kind: "COURSE" },
+            orderBy: { createdAt: "asc" },
+            select: { id: true, name: true },
+          },
+        },
+      },
+      tests: {
+        where: { kind: "COURSE", moduleId: null },
+        orderBy: { createdAt: "asc" },
+        select: { id: true, name: true },
+      },
     },
   });
 
   if (!course) {
     return (
-      <main className="min-h-screen bg-slate-50 p-6">
+      <main className="min-h-dvh bg-slate-50 p-6">
         <div className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-8">
           <h1 className="text-2xl font-bold text-slate-950">Course not found</h1>
           <p className="mt-3 text-slate-600">This course does not exist.</p>
@@ -48,7 +64,7 @@ export default async function StudentHocBaiPage({
 
   if (!canAccess) {
     return (
-      <main className="min-h-screen bg-slate-50 p-6">
+      <main className="min-h-dvh bg-slate-50 p-6">
         <div className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-8">
           <h1 className="text-2xl font-bold text-slate-950">Không thể truy cập khóa học</h1>
           <p className="mt-3 text-slate-600">
@@ -62,11 +78,29 @@ export default async function StudentHocBaiPage({
     );
   }
 
-  const feedbacks = await prisma.feedback.findMany({
-    where: { userId: user.id, content: { startsWith: "PROGRESS:" } },
-    select: { content: true },
+  const gateState = await getCourseLearningGateState(user.id, course.id);
+  const completedIds = Array.from(gateState?.completedLessonIds ?? []);
+  const passedTestIds = Array.from(gateState?.passedTestIds ?? []);
+  const unlockedModuleIds = new Set<string>();
+  if (isAdmin || isInstructor) {
+    for (const courseModule of course.modules) unlockedModuleIds.add(courseModule.id);
+  } else {
+    for (const courseModule of gateState?.modules ?? []) {
+      if (courseModule.isUnlocked) unlockedModuleIds.add(courseModule.id);
+    }
+  }
+  const learningModules = course.modules.map((module) => {
+    const isUnlocked = unlockedModuleIds.has(module.id);
+    return {
+      ...module,
+      isUnlocked,
+      lessons: module.lessons.map((courseLesson) => ({
+        ...courseLesson,
+        content: isUnlocked ? courseLesson.content : "",
+        videoUrl: isUnlocked ? courseLesson.videoUrl : null,
+      })),
+    };
   });
-  const completedIds = feedbacks.map((item) => item.content.replace("PROGRESS:", ""));
   const courseLanguageKey = course.language?.code || course.language?.name || "vi";
   const labels = getCourseLearningLabels(courseLanguageKey);
 
@@ -84,7 +118,16 @@ export default async function StudentHocBaiPage({
           </Link>
         </div>
         <div className="mt-4 min-h-0 flex-1">
-          <LearningContent modules={course.modules} completedIds={completedIds} courseId={course.id} language={courseLanguageKey} />
+          <LearningContent
+            modules={learningModules}
+            courseTests={course.tests}
+            completedIds={completedIds}
+            passedTestIds={passedTestIds}
+            courseId={course.id}
+            language={courseLanguageKey}
+            initialLessonId={typeof lessonId === "string" ? lessonId : null}
+            bypassGates={isAdmin || isInstructor}
+          />
         </div>
       </div>
     </main>

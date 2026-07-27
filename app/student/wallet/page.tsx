@@ -1,11 +1,14 @@
 import { getAiPointsSummary } from "@/lib/ai-points";
 import { requireUser } from "@/lib/auth";
+import { isSafeLocalReturnPath } from "@/lib/ai-point-purchase-flow";
 import WalletClient, { type WalletData } from "./WalletClient";
 
 type PageProps = {
   searchParams: Promise<{
     payment?: string;
     code?: string;
+    returnTo?: string;
+    purchaseFlow?: string;
   }>;
 };
 
@@ -30,6 +33,8 @@ export default async function StudentWalletPage({ searchParams }: PageProps) {
     message: paymentMessage(payment, params.code ?? null),
     isError: payment === "failed" || payment === "invalid_signature",
   };
+  const returnTo = isSafeLocalReturnPath(params.returnTo) ? params.returnTo : "";
+  const isPopupPurchase = params.purchaseFlow === "popup";
 
   if (user.role === "ADMIN") {
     return (
@@ -40,6 +45,9 @@ export default async function StudentWalletPage({ searchParams }: PageProps) {
           isError: Boolean(notice.message),
         }}
         canBuy={false}
+        returnTo={returnTo}
+        isPopupPurchase={isPopupPurchase}
+        payment={payment}
       />
     );
   }
@@ -74,5 +82,14 @@ export default async function StudentWalletPage({ searchParams }: PageProps) {
     canBuy = false;
   }
 
-  return <WalletClient initialData={walletData} initialNotice={walletNotice} canBuy={canBuy} />;
+  return (
+    <WalletClient
+      initialData={walletData}
+      initialNotice={walletNotice}
+      canBuy={canBuy}
+      returnTo={returnTo}
+      isPopupPurchase={isPopupPurchase}
+      payment={payment}
+    />
+  );
 }

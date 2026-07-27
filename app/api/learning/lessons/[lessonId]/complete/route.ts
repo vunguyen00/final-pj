@@ -1,8 +1,13 @@
 ﻿import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getLessonStart, markLessonCompleted } from "@/lib/learning-progress";
+import { getLessonStart, markCourseCompleted, markLessonCompleted } from "@/lib/learning-progress";
 import { recordLearningActivity } from "@/lib/ai-points";
+import {
+  getCourseLearningGateState,
+  getNextCourseLearningAction,
+  isModuleUnlocked,
+} from "@/lib/course-learning-gates";
 
 const MIN_READING_SECONDS = 3 * 60;
 
@@ -21,6 +26,7 @@ export async function POST(
         videoUrl: true,
         module: {
           select: {
+            id: true,
             course: {
               select: { id: true, instructorId: true },
             },
@@ -51,6 +57,16 @@ export async function POST(
         },
         { status: 403 },
       );
+    }
+
+    if (!isAdmin && !isInstructor) {
+      const gateState = await getCourseLearningGateState(user.id, courseId);
+      if (!gateState || !isModuleUnlocked(gateState, lesson.module.id)) {
+        return NextResponse.json(
+          { error: "Bạn cần hoàn thành bài kiểm tra của module trước để mở bài học này." },
+          { status: 403 },
+        );
+      }
     }
 
     if (!lesson.videoUrl) {
@@ -105,7 +121,17 @@ export async function POST(
       sourceId: lessonId,
     });
 
-    return NextResponse.json({ ok: true });
+    const updatedGateState = !isAdmin && !isInstructor
+      ? await getCourseLearningGateState(user.id, courseId)
+      : null;
+    if (updatedGateState?.courseComplete) {
+      await markCourseCompleted(user.id, courseId);
+    }
+
+    return NextResponse.json({
+      ok: true,
+      nextAction: updatedGateState ? getNextCourseLearningAction(updatedGateState) : null,
+    });
   } catch {
     return NextResponse.json({ error: "Lỗi hệ thống." }, { status: 500 });
   }

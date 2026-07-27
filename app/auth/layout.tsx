@@ -4,11 +4,11 @@ export default function AuthLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <main className="relative flex min-h-screen items-center overflow-hidden bg-slate-950 px-4 py-8 sm:px-6">
+    <main className="relative flex min-h-dvh items-center overflow-hidden bg-slate-950 px-4 py-8 sm:px-6">
       <div className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-blue-500/20 blur-3xl" />
       <div className="pointer-events-none absolute -right-20 bottom-0 h-80 w-80 rounded-full bg-violet-500/20 blur-3xl" />
       <div className="relative mx-auto grid w-full max-w-5xl overflow-hidden rounded-3xl border border-white/10 bg-white shadow-2xl lg:grid-cols-[.9fr_1.1fr]">
-        <aside className="relative hidden overflow-hidden bg-gradient-to-br from-blue-700 via-indigo-700 to-violet-800 p-10 text-white lg:flex lg:flex-col lg:justify-between">
+        <aside className="relative hidden overflow-hidden bg-linear-to-br from-blue-700 via-indigo-700 to-violet-800 p-10 text-white lg:flex lg:flex-col lg:justify-between">
           <div>
             <Link href="/" className="inline-flex items-center gap-3 text-lg font-black tracking-tight">
               <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/15 ring-1 ring-white/25">FC</span>

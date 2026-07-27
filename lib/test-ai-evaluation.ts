@@ -652,20 +652,61 @@ function failedEvaluation(
   summary: string,
   failureReason: TestAiAnswerResult["failureReason"] = "service_unavailable",
 ): TestAiAnswerResult {
+  const fallback = getEvaluationFailureCopy(input.languageCode, summary);
   return {
     normalizedScore: 0,
     failed: true,
     failureReason,
     aiEvaluation: {
       mode: input.mode,
-      language: "Unknown",
+      language: getTargetLanguageName(input.languageCode),
       overallScore: 0,
-      summary,
+      summary: fallback.summary || summary,
       strengths: [],
-      weaknesses: ["AI evaluation is temporarily unavailable."],
+      weaknesses: [fallback.unavailable],
       feedback: [],
-      suggestions: ["Please try submitting the test again."],
+      suggestions: [fallback.retry],
       corrections: [],
     },
+  };
+}
+
+function getEvaluationFailureCopy(
+  languageCode: string | null | undefined,
+  fallbackSummary: string,
+) {
+  const language = getTargetLanguageName(languageCode);
+  if (language === "Vietnamese") {
+    return {
+      summary: "Không thể tạo nhận xét AI cho câu trả lời này.",
+      unavailable: "Dịch vụ nhận xét AI đang tạm thời không khả dụng.",
+      retry: "Vui lòng làm lại bài test sau.",
+    };
+  }
+  if (language === "Chinese") {
+    return {
+      summary: "暂时无法为此答案生成 AI 反馈。",
+      unavailable: "AI 反馈服务暂时不可用。",
+      retry: "请稍后重新参加测试。",
+    };
+  }
+  if (language === "Japanese") {
+    return {
+      summary: "この回答のAIフィードバックを生成できませんでした。",
+      unavailable: "AIフィードバックサービスは一時的に利用できません。",
+      retry: "時間をおいて再度テストを受けてください。",
+    };
+  }
+  if (language === "Korean") {
+    return {
+      summary: "이 답변에 대한 AI 피드백을 생성할 수 없습니다.",
+      unavailable: "AI 피드백 서비스를 일시적으로 사용할 수 없습니다.",
+      retry: "잠시 후 테스트를 다시 응시해 주세요.",
+    };
+  }
+  return {
+    summary: fallbackSummary,
+    unavailable: "AI evaluation is temporarily unavailable.",
+    retry: "Please try submitting the test again.",
   };
 }

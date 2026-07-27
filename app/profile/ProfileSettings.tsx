@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { readJsonResponse } from "@/lib/http-response";
 
 type ProfileUser = {
   username: string;
@@ -36,7 +37,7 @@ function ProfileSettingsForm({ user }: { user: ProfileUser }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, phoneNumber }),
     });
-    const data = await response.json().catch(() => ({}));
+    const data = await readJsonResponse(response).catch(() => ({}));
     setProfileMessage(response.ok ? "Đã cập nhật hồ sơ." : data?.error || "Không thể cập nhật.");
   };
 
@@ -48,7 +49,7 @@ function ProfileSettingsForm({ user }: { user: ProfileUser }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(passwordForm),
     });
-    const data = await response.json().catch(() => ({}));
+    const data = await readJsonResponse(response).catch(() => ({}));
     if (response.ok) {
       setPasswordMessage("Đã đổi mật khẩu.");
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });

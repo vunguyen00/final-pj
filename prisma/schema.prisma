@@ -176,6 +176,7 @@ model Module {
 
   course  Course   @relation(fields: [courseId], references: [id])
   lessons Lesson[]
+  tests   Test[]
 }
 
 model Lesson {
@@ -188,6 +189,7 @@ model Lesson {
   module        Module               @relation(fields: [moduleId], references: [id])
   watchProgress VideoWatchProgress[]
   reports       CourseReport[]
+  tests         Test[]
 }
 
 model VideoWatchProgress {
@@ -232,6 +234,8 @@ model Test {
   id               String             @id @default(uuid())
   courseId         String?
   languageId       String?
+  moduleId         String?
+  lessonId         String?
   kind             TestKind           @default(COURSE)
   assessmentMode   TestAssessmentMode @default(STANDARD)
   name             String
@@ -251,9 +255,14 @@ model Test {
 
   course              Course?              @relation(fields: [courseId], references: [id])
   language            LearningLanguage?    @relation(fields: [languageId], references: [id])
+  module              Module?              @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+  lesson              Lesson?              @relation(fields: [lessonId], references: [id], onDelete: SetNull)
   attempts            TestAttempt[]
   questions           Question[]
   teacherApplications TeacherApplication[]
+
+  @@index([moduleId])
+  @@index([lessonId])
 }
 
 enum TestKind {
@@ -427,40 +436,110 @@ model SystemSetting {
 }
 
 model TeacherApplication {
-  id                       String                   @id @default(uuid())
-  userId                   String
-  languageId               String
-  status                   TeacherApplicationStatus @default(DRAFT)
-  attemptNo                Int
-  entranceTestId           String?
-  entranceAttemptId        String?
-  answerState              Json?
-  startedAt                DateTime?
-  submittedAt              DateTime?
-  reviewedAt               DateTime?
-  reviewedById             String?
-  rejectionReason          String?
-  violationCount           Int                      @default(0)
-  failureReason            String?
-  antiCheatAcknowledgedAt  DateTime?
-  proctorSessionId         String?
-  proctorHeartbeatAt       DateTime?
-  proctorHeartbeatSequence Int                      @default(0)
-  questionRevealState      Json?
-  createdAt                DateTime                 @default(now())
-  updatedAt                DateTime                 @updatedAt
+  id                        String                   @id @default(uuid())
+  userId                    String
+  languageId                String
+  status                    TeacherApplicationStatus @default(DRAFT)
+  attemptNo                 Int
+  entranceTestId            String?
+  entranceAttemptId         String?
+  answerState               Json?
+  startedAt                 DateTime?
+  submittedAt               DateTime?
+  reviewedAt                DateTime?
+  reviewedById              String?
+  rejectionReason           String?
+  violationCount            Int                      @default(0)
+  failureReason             String?
+  antiCheatAcknowledgedAt   DateTime?
+  proctorSessionId          String?
+  proctorHeartbeatAt        DateTime?
+  proctorHeartbeatSequence  Int                      @default(0)
+  questionRevealState       Json?
+  currentQuestionInstanceId String?
+  sequentialCompletedAt     DateTime?
+  entrancePassingScore      Float?
+  entranceMaxScore          Float?
+  entranceTimeLimit         Int?
+  createdAt                 DateTime                 @default(now())
+  updatedAt                 DateTime                 @updatedAt
 
-  user             User                    @relation("TeacherApplicationUser", fields: [userId], references: [id], onDelete: Cascade)
-  language         LearningLanguage        @relation(fields: [languageId], references: [id])
-  entranceTest     Test?                   @relation(fields: [entranceTestId], references: [id])
-  reviewedBy       User?                   @relation("TeacherApplicationReviewer", fields: [reviewedById], references: [id])
-  certificates     TeacherCertificate[]
-  logs             TeacherApplicationLog[]
-  antiCheatLogs    AntiCheatLog[]
-  suspiciousEvents SuspiciousEvent[]
+  user              User                              @relation("TeacherApplicationUser", fields: [userId], references: [id], onDelete: Cascade)
+  language          LearningLanguage                  @relation(fields: [languageId], references: [id])
+  entranceTest      Test?                             @relation(fields: [entranceTestId], references: [id])
+  reviewedBy        User?                             @relation("TeacherApplicationReviewer", fields: [reviewedById], references: [id])
+  certificates      TeacherCertificate[]
+  logs              TeacherApplicationLog[]
+  antiCheatLogs     AntiCheatLog[]
+  suspiciousEvents  SuspiciousEvent[]
+  questionInstances TeacherEntranceQuestionInstance[]
 
   @@index([userId, createdAt])
   @@index([status, createdAt])
+}
+
+enum TeacherQuestionInstanceStatus {
+  LOCKED
+  REVEALED
+  ANSWERING
+  FINALIZING
+  FINALIZED
+  SKIPPED
+  EXPIRED
+}
+
+enum TeacherSpeakingMediaStatus {
+  NONE
+  UPLOADED
+  PROCESSING
+  READY
+  FAILED
+}
+
+model TeacherEntranceQuestionInstance {
+  id                               String                        @id @default(uuid())
+  applicationId                    String
+  sourceQuestionId                 String
+  sequence                         Int
+  type                             QuestionType
+  content                          String
+  audioUrl                         String?
+  hint                             String?
+  score                            Float
+  preparationTimeSeconds           Int?
+  answerTimeSeconds                Int?
+  answerOptions                    Json?
+  scoringData                      Json?
+  status                           TeacherQuestionInstanceStatus @default(LOCKED)
+  revealedAt                       DateTime?
+  answerStartsAt                   DateTime?
+  deadlineAt                       DateTime?
+  answerState                      String?
+  answerRevision                   Int                           @default(0)
+  finalAnswer                      String?
+  finalizedAt                      DateTime?
+  transitionTokenHash              String?
+  transitionTokenExpiresAt         DateTime?
+  speakingAudioUrl                 String?
+  speakingAudioHash                String?
+  speakingAudioMime                String?
+  speakingAudioBytes               Int?
+  speakingMediaStatus              TeacherSpeakingMediaStatus    @default(NONE)
+  speakingTranscript               String?
+  speakingProcessingTokenHash      String?
+  speakingProcessingTokenExpiresAt DateTime?
+  speakingProcessingError          String?
+  speakingProcessingAttempts       Int                           @default(0)
+  contentHash                      String
+  createdAt                        DateTime                      @default(now())
+  updatedAt                        DateTime                      @updatedAt
+
+  application TeacherApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@unique([applicationId, sequence])
+  @@index([applicationId, status])
+  @@index([applicationId, id])
+  @@index([applicationId, speakingMediaStatus])
 }
 
 enum TeacherApplicationStatus {
@@ -760,7 +839,6 @@ model TeacherRevenueWithdrawal {
   bankVerificationStatus  TeacherBankAccountVerificationStatus @default(UNVERIFIED)
   status                  TeacherRevenueWithdrawalStatus       @default(PENDING)
   note                    String?
-  systemBankName          String?
   transferTransactionCode String?
   processedById           String?
   processedAt             DateTime?

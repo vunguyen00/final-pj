@@ -34,25 +34,8 @@ function serializeEntranceTest(test: Awaited<ReturnType<typeof findEntranceTest>
     assessmentMode: test.assessmentMode,
     timeLimit: test.timeLimit,
     shuffleQuestions: test.shuffleQuestions,
-    questions: test.questions.map((question) => ({
-      id: question.id,
-      type: question.type,
-      content: question.content,
-      audioUrl: question.audioUrl,
-      hint: question.hint,
-      order: question.order,
-      score: question.score,
-      preparationTimeSeconds: question.preparationTimeSeconds,
-      answerTimeSeconds: question.answerTimeSeconds,
-      answers:
-        question.type === "MULTIPLE_CHOICE" || question.type === "TRUE_FALSE"
-          ? question.answers.map((answer) => ({
-              id: answer.id,
-              content: answer.content,
-              order: answer.order,
-            }))
-          : null,
-    })),
+    // Questions are released one at a time by the sequential session API.
+    questions: [],
   };
 }
 
@@ -93,7 +76,14 @@ export async function GET() {
     languages,
     applications: applications.map((application) => ({
       ...application,
-      entranceTest: serializeEntranceTest(application.entranceTest),
+      entranceTest: application.entranceTest
+        ? {
+            ...serializeEntranceTest(application.entranceTest),
+            timeLimit:
+              application.entranceTimeLimit ??
+              application.entranceTest.timeLimit,
+          }
+        : null,
     })),
   });
 }

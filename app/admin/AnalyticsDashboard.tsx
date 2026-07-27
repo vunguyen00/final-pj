@@ -10,6 +10,7 @@ import {
   FinanceSection,
   OverviewKpis,
   ReportAndRefundSection,
+  RevenueContributorsSection,
   UserAndEnrollmentSection,
 } from "./AnalyticsDashboardSections";
 
@@ -75,12 +76,16 @@ function convertJsonToCsvRows(data: AnalyticsPayload) {
   lines.push(`Courses,Total Courses,${data.overview.courses.totalCourses}`);
   lines.push(`Courses,Active Courses,${data.overview.courses.activeCourses}`);
   lines.push(`Revenue,Total Revenue,${data.overview.revenue.totalRevenue}`);
+  lines.push(`Revenue,Platform Sales,${data.revenueAnalytics.totalRevenue + data.revenueAnalytics.walletTopUpRevenue}`);
   lines.push(`Revenue,Admin Commission,${data.overview.revenue.adminRevenue}`);
   lines.push(`Revenue,Teacher Commission,${data.overview.revenue.teacherRevenue}`);
   lines.push(`Revenue,Successful Transactions,${data.overview.revenue.successfulTransactions}`);
   lines.push(`Withdrawals,Count,${data.overview.revenue.withdrawalCount}`);
   lines.push(`Withdrawals,Amount,${data.overview.revenue.withdrawalAmount}`);
   lines.push(`Language,Most Learned,${data.languageAnalytics.mostPopularLanguage?.name ?? ""}`);
+  data.rankings.teachers.highestGrossRevenue.forEach((item, index) => {
+    lines.push(`Revenue Contributor ${index + 1},${item.username},${item.value}`);
+  });
   return lines.join("\n");
 }
 
@@ -152,6 +157,7 @@ export default function AnalyticsDashboard({ initialData }: Props) {
       { Section: "Users", Metric: "Total Users", Value: data.overview.users.totalUsers },
       { Section: "Courses", Metric: "Total Courses", Value: data.overview.courses.totalCourses },
       { Section: "Revenue", Metric: "Total Revenue", Value: data.overview.revenue.totalRevenue },
+      { Section: "Revenue", Metric: "Platform Sales", Value: data.revenueAnalytics.totalRevenue + data.revenueAnalytics.walletTopUpRevenue },
       { Section: "Revenue", Metric: "Admin Commission", Value: data.overview.revenue.adminRevenue },
       { Section: "Revenue", Metric: "Teacher Commission", Value: data.overview.revenue.teacherRevenue },
       { Section: "Withdrawals", Metric: "Count", Value: data.overview.revenue.withdrawalCount },
@@ -204,6 +210,7 @@ export default function AnalyticsDashboard({ initialData }: Props) {
       />
       <OverviewKpis data={data} />
       <FinanceSection data={data} />
+      <RevenueContributorsSection data={data} />
       <ReportAndRefundSection data={data} />
       <CourseAndLanguageSection data={data} />
       <UserAndEnrollmentSection data={data} />

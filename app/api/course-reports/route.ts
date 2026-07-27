@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     items,
+    viewerId: user.id,
     page,
     pageSize,
     totalItems,
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
   const [enrollment, recentReports, lesson] = await Promise.all([
     prisma.enrollment.findUnique({
       where: { userId_courseId: { userId: user.id, courseId } },
-      select: { id: true },
+      select: { id: true, course: { select: { name: true } } },
     }),
     prisma.courseReport.count({
       where: { reporterId: user.id, createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } },
@@ -92,16 +93,36 @@ export async function POST(request: NextRequest) {
   if (lessonId && !lesson) return NextResponse.json({ error: "Bài học không thuộc khóa học." }, { status: 400 });
   if (recentReports >= 5) return NextResponse.json({ error: "Bạn đã gửi quá nhiều báo cáo. Vui lòng thử lại sau." }, { status: 429 });
 
-  const report = await prisma.courseReport.create({
-    data: {
-      courseId,
-      reporterId: user.id,
-      lessonId,
-      category: category as CourseReportCategory,
-      title,
-      description,
-      truthfulConfirmed: true,
-    },
+  const report = await prisma.$transaction(async (tx) => {
+    const [createdReport, admins] = await Promise.all([
+      tx.courseReport.create({
+        data: {
+          courseId,
+          reporterId: user.id,
+          lessonId,
+          category: category as CourseReportCategory,
+          title,
+          description,
+          truthfulConfirmed: true,
+        },
+      }),
+      tx.user.findMany({
+        where: { role: "ADMIN" },
+        select: { id: true },
+      }),
+    ]);
+
+    if (admins.length > 0) {
+      await tx.notification.createMany({
+        data: admins.map((admin) => ({
+          userId: admin.id,
+          title: "Có báo cáo khóa học mới",
+          body: `${user.username} đã báo cáo khóa học "${enrollment.course.name}": ${title}. Mở mục Báo cáo khóa học để kiểm tra.`,
+        })),
+      });
+    }
+
+    return createdReport;
   });
   return NextResponse.json({ report }, { status: 201 });
 }

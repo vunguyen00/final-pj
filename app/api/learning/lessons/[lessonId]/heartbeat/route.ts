@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getCourseLearningGateState, isModuleUnlocked } from "@/lib/course-learning-gates";
 
 export async function POST(
   request: Request,
@@ -21,7 +22,7 @@ export async function POST(
     where: { id: lessonId },
     select: {
       videoUrl: true,
-      module: { select: { course: { select: { id: true, instructorId: true } } } },
+      module: { select: { id: true, course: { select: { id: true, instructorId: true } } } },
     },
   });
   if (!lesson?.videoUrl) {
@@ -46,6 +47,17 @@ export async function POST(
       },
       { status: 403 },
     );
+  }
+
+  const isPrivileged = user.role === "ADMIN" || lesson.module.course.instructorId === user.id;
+  if (!isPrivileged) {
+    const gateState = await getCourseLearningGateState(user.id, courseId);
+    if (!gateState || !isModuleUnlocked(gateState, lesson.module.id)) {
+      return NextResponse.json(
+        { error: "Bạn cần hoàn thành bài kiểm tra của module trước để mở bài học này." },
+        { status: 403 },
+      );
+    }
   }
 
   const now = new Date();

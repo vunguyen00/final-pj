@@ -34,7 +34,7 @@ export default async function AboutPage() {
   const stats = await getAboutStats();
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-dvh bg-background">
       <Section background="muted" padding="lg">
         <SectionHeader
           title="Về FinnCenter"

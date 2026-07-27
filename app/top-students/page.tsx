@@ -76,7 +76,7 @@ export default async function TopStudentsPage() {
   const topStudents = await getTopStudents();
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-dvh bg-background">
       <Section background="muted" padding="md">
         <SectionHeader title="Học viên xuất sắc" subtitle="Bảng xếp hạng dựa trên tiến độ học, bài test đã đạt và hoạt động luyện tập AI." />
 

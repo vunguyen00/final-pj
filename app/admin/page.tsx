@@ -5,9 +5,9 @@ import AdminShell from "./AdminShell";
 import { getDashboardAnalytics } from "@/lib/admin-analytics";
 import { getTeacherEntranceSetting, getActiveLanguages } from "@/lib/teacher-onboarding";
 import { getCourseAutoApprovalSetting } from "@/lib/course-approval";
-import type { AdminManagedTest } from "./types";
 import type { AdminCourseRefund } from "./types";
 import type { AdminWithdrawal } from "./AdminRevenueWithdrawals";
+import { getAdminManagedTestsPage } from "@/lib/admin-managed-tests";
 
 export default async function AdminPage() {
   await requireRole("ADMIN");
@@ -19,7 +19,7 @@ export default async function AdminPage() {
     applicationsRaw,
     analyticsInitialData,
     courses,
-    adminManagedTests,
+    adminManagedTestsPage,
     withdrawals,
     refunds,
   ] = await Promise.all([
@@ -60,21 +60,7 @@ export default async function AdminPage() {
       orderBy: { createdAt: "desc" },
       take: 200,
     }),
-    prisma.test.findMany({
-      where: { kind: { in: ["TEACHER_ENTRANCE", "PUBLIC_PRACTICE"] } },
-      select: {
-        id: true,
-        name: true,
-        kind: true,
-        assessmentMode: true,
-        timeLimit: true,
-        language: { select: { id: true, name: true, code: true } },
-        createdAt: true,
-        _count: { select: { questions: true, attempts: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 100,
-    }),
+    getAdminManagedTestsPage(),
     prisma.teacherRevenueWithdrawal.findMany({
       include: {
         teacher: { select: { id: true, username: true, email: true } },
@@ -148,11 +134,8 @@ export default async function AdminPage() {
             registeredLanguage: course.instructor?.teacherApplications[0]?.language ?? null,
             _count: course._count,
           }))}
-          initialAdminManagedTests={adminManagedTests.map((test) => ({
-            ...test,
-            kind: test.kind as AdminManagedTest["kind"],
-            createdAt: test.createdAt.toISOString(),
-          }))}
+          initialAdminManagedTests={adminManagedTestsPage.tests}
+          initialAdminManagedTestTotal={adminManagedTestsPage.total}
           analyticsInitialData={analyticsInitialData}
           initialWithdrawals={withdrawals.map((item) => ({
             ...item,

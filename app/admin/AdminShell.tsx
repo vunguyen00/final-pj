@@ -32,6 +32,7 @@ export default function AdminShell({
   initialApplications,
   initialCourses,
   initialAdminManagedTests,
+  initialAdminManagedTestTotal,
   analyticsInitialData,
   initialWithdrawals,
   initialRefunds,
@@ -42,6 +43,7 @@ export default function AdminShell({
   initialApplications: Application[];
   initialCourses: Course[];
   initialAdminManagedTests: AdminManagedTest[];
+  initialAdminManagedTestTotal: number;
   analyticsInitialData: AnalyticsPayload;
   initialWithdrawals: AdminWithdrawal[];
   initialRefunds: AdminCourseRefund[];
@@ -100,6 +102,7 @@ export default function AdminShell({
         <AdminTestsManagement
           initialLanguages={initialLanguages}
           initialAdminManagedTests={initialAdminManagedTests}
+          initialAdminManagedTestTotal={initialAdminManagedTestTotal}
           isAdmin
         />
       ) : currentTab === "withdrawals" ? (

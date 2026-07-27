@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 type CourseFilter = {
   id: string;
@@ -57,7 +58,7 @@ export default function StudentTestHistoryClient({
   selectedTestId: string;
   error?: string;
 }) {
-
+  const router = useRouter();
   const visibleTests = useMemo(() => {
     if (selectedCourseId === "all") return tests;
     return tests.filter((item) => item.courseId === selectedCourseId);
@@ -104,49 +105,36 @@ export default function StudentTestHistoryClient({
         </section>
 
         <section className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-sm font-semibold text-slate-700">Lọc theo khóa học</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Link
-              href={historyHref()}
-              className={`rounded-full px-4 py-2 text-sm font-semibold ${
-                selectedCourseId === "all" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700"
-              }`}
+          <div className="grid gap-4 md:grid-cols-2">
+            <FilterSelect
+              id="history-course-filter"
+              label="Lọc theo khóa học"
+              value={selectedCourseId}
+              onChange={(courseId) => router.push(historyHref(courseId))}
             >
-              Tất cả khóa học
-            </Link>
-            {courses.map((course) => (
-              <Link
-                key={course.id}
-                href={historyHref(course.id)}
-                className={`rounded-full px-4 py-2 text-sm font-semibold ${
-                  selectedCourseId === course.id ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700"
-                }`}
-              >
-                {course.name}
-              </Link>
-            ))}
-          </div>
-          <p className="mt-4 text-sm font-semibold text-slate-700">Lọc theo bài test</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Link
-              href={historyHref(selectedCourseId)}
-              className={`rounded-full px-4 py-2 text-sm font-semibold ${
-                selectedTestId === "all" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700"
-              }`}
+              <option value="all">Tất cả khóa học</option>
+              {courses.map((course) => (
+                <option key={course.id} value={course.id}>
+                  {course.name}
+                </option>
+              ))}
+            </FilterSelect>
+
+            <FilterSelect
+              id="history-test-filter"
+              label="Lọc theo bài test"
+              value={selectedTestId}
+              onChange={(testId) =>
+                router.push(historyHref(selectedCourseId, testId))
+              }
             >
-              Tất cả bài test
-            </Link>
-            {visibleTests.map((test) => (
-              <Link
-                key={test.id}
-                href={historyHref(selectedCourseId, test.id)}
-                className={`rounded-full px-4 py-2 text-sm font-semibold ${
-                  selectedTestId === test.id ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700"
-                }`}
-              >
-                {test.name}
-              </Link>
-            ))}
+              <option value="all">Tất cả bài test chính</option>
+              {visibleTests.map((test) => (
+                <option key={test.id} value={test.id}>
+                  {test.name}
+                </option>
+              ))}
+            </FilterSelect>
           </div>
         </section>
 
@@ -176,12 +164,14 @@ export default function StudentTestHistoryClient({
                     </div>
                   </div>
 
-                  <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
-                    <Metric label="Số câu đúng" value={`${item.correctAnswers}/${item.totalQuestions}`} />
-                    <Metric label="Tổng câu hỏi" value={`${item.totalQuestions}`} />
+                  <div className="mt-4 flex flex-col gap-4 border-t border-slate-100 pt-4 text-sm sm:flex-row sm:items-end sm:justify-between">
+                    <dl className="grid w-full flex-1 grid-cols-2 gap-x-12 gap-y-3 sm:max-w-xl sm:gap-x-20">
+                      <Metric label="Số câu đúng" value={`${item.correctAnswers}/${item.totalQuestions}`} />
+                      <Metric label="Tổng câu hỏi" value={`${item.totalQuestions}`} />
+                    </dl>
                     <Link
                       href={`/student/tests/${item.test.id}/result/${item.attemptId}`}
-                      className="rounded-lg bg-blue-600 px-4 py-2 text-center font-semibold text-white hover:bg-blue-700"
+                      className="w-fit font-semibold text-blue-700 underline decoration-blue-300 underline-offset-4 hover:text-blue-900"
                     >
                       Xem chi tiết kết quả
                     </Link>
@@ -212,9 +202,37 @@ function Stat({ label, value }: { label: string; value: number | string }) {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-slate-50 p-3">
-      <p className="text-xs uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-1 font-semibold text-slate-950">{value}</p>
+    <div>
+      <dt className="text-xs uppercase tracking-wide text-slate-500">{label}</dt>
+      <dd className="mt-1 font-semibold text-slate-950">{value}</dd>
     </div>
+  );
+}
+
+function FilterSelect({
+  id,
+  label,
+  value,
+  onChange,
+  children,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <label htmlFor={id} className="block text-sm font-semibold text-slate-700">
+      {label}
+      <select
+        id={id}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-2 block h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+      >
+        {children}
+      </select>
+    </label>
   );
 }

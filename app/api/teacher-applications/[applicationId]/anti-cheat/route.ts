@@ -53,6 +53,15 @@ export async function POST(
     if (message === "INVALID_ANTI_CHEAT_EVENT") {
       return NextResponse.json({ error: "Sự kiện không hợp lệ." }, { status: 400 });
     }
+    if (message === "INVALID_PROCTOR_SESSION") {
+      return NextResponse.json({ error: "Phiên giám sát không hợp lệ." }, { status: 400 });
+    }
+    if (message === "SESSION_CONNECTION_MISMATCH") {
+      return NextResponse.json(
+        { error: "Bài thi đang hoạt động ở tab hoặc thiết bị khác." },
+        { status: 423 },
+      );
+    }
     console.error("Unable to record teacher anti-cheat event", { error });
     return NextResponse.json({ error: "Lỗi hệ thống." }, { status: 500 });
   }

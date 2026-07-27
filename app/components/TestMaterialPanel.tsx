@@ -86,12 +86,12 @@ function ChartView({ data }: { data: ChartMaterialData }) {
       <p className="text-center text-sm font-bold text-slate-900">
         {data.title}
       </p>
-      <div className="mt-3 overflow-x-auto">
+      <div className="mt-3 w-full">
         <svg
           viewBox={`0 0 ${width} ${height}`}
           role="img"
           aria-label={data.title}
-          className="min-w-[620px]"
+          className="h-auto w-full"
         >
           {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
             const y = padding.top + plotHeight * (1 - ratio);

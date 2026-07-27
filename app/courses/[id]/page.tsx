@@ -65,7 +65,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
   const totalRatingPoints = reviews.reduce((sum, review) => sum + review.rating, 0);
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-dvh bg-background">
       <Section padding="md">
         <div className="grid gap-8 rounded-2xl border border-border bg-card p-6 lg:grid-cols-[1.4fr_0.8fr] lg:items-center">
           <div>
@@ -188,6 +188,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
                 initiallyEnrolled={Boolean(enrollment)}
                 accessSuspended={enrollment?.accessStatus === "REFUND_PENDING"}
                 canLearnDirectly={canLearnDirectly}
+                languageCode={courseLanguage}
               />
             ) : (
               <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
@@ -198,6 +199,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
             {user?.role === "STUDENT" && enrollment ? (
               <CourseReportButton
                 courseId={course.id}
+                languageCode={courseLanguage}
                 lessons={course.modules.flatMap((module) => module.lessons.map((lesson) => ({ id: lesson.id, title: lesson.title })))}
               />
             ) : null}
