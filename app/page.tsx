@@ -59,7 +59,7 @@ export default async function HomePage() {
         title="Xây dựng lộ trình ngoại ngữ cùng FinnCenter"
         description="Khóa học, lộ trình combo, luyện kỹ năng, gói từ vựng, đề thi thử và chương trình luyện thi chứng chỉ cho tiếng Anh, Trung, Nhật và Hàn."
         primaryAction={{ label: "Khám phá khóa học", href: "/courses" }}
-        secondaryAction={{ label: "Luyện tập với bài test", href: "/student/tests" }}
+        secondaryAction={{ label: "Luyện tập", href: "/student/tests" }}
       />
 
       <Section padding="md">

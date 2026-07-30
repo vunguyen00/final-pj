@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { CourseReportCategory } from "@/.generated/prisma/client";
+import { CourseReportCategory, Prisma } from "@/.generated/prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -16,12 +16,31 @@ export async function GET(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Bạn chưa đăng nhập." }, { status: 401 });
 
   const { page, pageSize } = getPagination(request);
-  const where =
+  const search = (request.nextUrl.searchParams.get("search") ?? "").trim().slice(0, 120);
+  const accessWhere: Prisma.CourseReportWhereInput =
     user.role === "ADMIN"
       ? {}
       : user.role === "TEACHER"
         ? { course: { instructorId: user.id } }
         : { reporterId: user.id };
+  const where: Prisma.CourseReportWhereInput = {
+    AND: [
+      accessWhere,
+      ...(search
+        ? [{
+            OR: [
+              { title: { contains: search, mode: "insensitive" as const } },
+              { description: { contains: search, mode: "insensitive" as const } },
+              { response: { contains: search, mode: "insensitive" as const } },
+              { course: { name: { contains: search, mode: "insensitive" as const } } },
+              { lesson: { title: { contains: search, mode: "insensitive" as const } } },
+              { reporter: { username: { contains: search, mode: "insensitive" as const } } },
+              { reporter: { email: { contains: search, mode: "insensitive" as const } } },
+            ],
+          }]
+        : []),
+    ],
+  };
 
   const [items, totalItems] = await Promise.all([
     prisma.courseReport.findMany({

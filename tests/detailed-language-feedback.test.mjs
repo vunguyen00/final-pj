@@ -18,12 +18,13 @@ test("multilingual AI contract requires detailed feedback for every rubric crite
 });
 
 test("writing, speaking, and saved results use the detailed multilingual layout", async () => {
-  const [writingRoute, speakingRoute, writingClient, speakingClient, savedResult] = await Promise.all([
+  const [writingRoute, speakingRoute, writingClient, speakingClient, savedResult, testResult] = await Promise.all([
     source("app/api/ai/essay-evaluation/route.ts"),
     source("app/api/ai/speaking-evaluation/route.ts"),
     source("app/student/writing-ai/WritingAiClient.tsx"),
     source("app/student/speaking-ai/SpeakingAiClient.tsx"),
     source("app/student/results/[resultId]/page.tsx"),
+    source("app/student/tests/[testId]/result/[attemptId]/StudentTestResultClient.tsx"),
   ]);
 
   assert.match(writingRoute, /criteriaFeedback: evaluation\.criteriaFeedback/);
@@ -31,4 +32,6 @@ test("writing, speaking, and saved results use the detailed multilingual layout"
   assert.match(writingClient, /<LanguageEvaluationResult/);
   assert.match(speakingClient, /<LanguageEvaluationResult/);
   assert.match(savedResult, /<LanguageEvaluationResult/);
+  assert.match(testResult, /getTestAiDisplayCriteria/);
+  assert.match(testResult, /criteriaScores: aiEvaluation\.criteriaScores/);
 });

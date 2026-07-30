@@ -451,6 +451,12 @@ function parseBatchResponse(raw: string, inputs: TestAiAnswerInput[]) {
         clampCriterionPercent(rawCriteria100[item.key] ?? rawCriteria[item.key]),
       ]),
     );
+    const rubricCriteria = Object.fromEntries(
+      rubric.criteria.map((item) => [
+        item.key,
+        Math.round((criteriaScores[item.key] ?? 0)) / 10,
+      ]),
+    );
     const reportedTotalScore = clampCriterionPercent(
       source.totalScore ??
         source.total_score ??
@@ -461,7 +467,7 @@ function parseBatchResponse(raw: string, inputs: TestAiAnswerInput[]) {
     const parsedCriteria = Object.fromEntries(
       Object.entries(rawCriteria).map(([key, value]) => [key, clampScore(value)]),
     );
-    const { criteria, normalizedScore } = calibrateTestScore({
+    const { normalizedScore } = calibrateTestScore({
       answer: input.answer,
       mode,
       prompt: input.prompt,
@@ -489,7 +495,7 @@ function parseBatchResponse(raw: string, inputs: TestAiAnswerInput[]) {
       ),
       detailedComment: String(source.detailedComment ?? source.detailed_comment ?? source.summary ?? ""),
       sampleAnswer: String(source.sampleAnswer ?? source.sample_answer ?? ""),
-      criteria,
+      criteria: rubricCriteria,
       criteriaScores,
       criteriaFeedback: criterionFeedbackMap(source, rubric, criteriaScores),
       majorErrors: stringArray(source.majorErrors ?? source.major_errors ?? source.weaknesses),
@@ -538,6 +544,7 @@ function buildEvaluationMessages(
       role: "system" as const,
       content: `You are a fair language examiner. Grade every submitted answer independently.
 Return only compact valid JSON. Criteria and overall scores use a 0-10 scale. Task relevance uses a 0-100 scale.
+For WRITING, criteria must contain only task_response, coherence, vocabulary, and grammar. For SPEAKING, criteria must contain only fluency, vocabulary, grammar, and pronunciation. Never return an inapplicable criterion with a placeholder score of 0.
 Also grade with the provided certificateRubric. Return criteriaScores on a 0-100 scale using the exact rubric criterion keys and weights. Return totalScore as a weighted 0-100 score. Include majorErrors, improvementsNeeded, suggestions, sampleAnswer, and certificateFit.
 Task relevance is mandatory. If the answer does not address the requested topic or required points, set onTopic=false, explain why, and score it very low.
 Completely unrelated answers: relevance <=20 and overall <=1.5. Mostly unrelated answers: relevance <=40 and overall <=3. Partly off-topic answers: relevance <=60 and overall <=5.
@@ -559,7 +566,7 @@ Return criteriaFeedback for every exact key in certificateRubric.criteria. Each 
 ${JSON.stringify(payload)}
 
 Return exactly:
-{"results":[{"questionId":"id","language":"language","overallScore":0,"totalScore":0,"taskRelevance":0,"onTopic":true,"offTopicReason":"","criteria":{"grammar":0,"vocabulary":0,"coherence":0,"task_response":0,"fluency":0,"pronunciation":0},"criteriaScores":{"criterion_key":0},"criteriaFeedback":{"criterion_key":{"shortComment":"short","detailedFeedback":"specific paragraph","strengths":["short"],"weaknesses":["short"],"improvementSuggestions":["short"],"examplesFromAnswer":["quote"],"correctedExamples":["correction"]}},"band":{"system":"system","level":"level","rationale":"short"},"certificateFit":"short fit against the certificate level/system","summary":"short","detailedComment":"clear grading comment","majorErrors":["short"],"improvementsNeeded":["short"],"strengths":["short"],"weaknesses":["short"],"feedback":["short"],"suggestions":["short"],"corrections":[{"original":"text","improved":"text","reason":"short"}],"pronunciationErrors":["short"],"grammarErrors":["short"],"vocabularyErrors":["short"],"fluencyIssues":["short"],"practiceMethods":["short"],"sampleAnswer":"complete model answer that directly answers the prompt"}]}`,
+{"results":[{"questionId":"id","language":"language","overallScore":0,"totalScore":0,"taskRelevance":0,"onTopic":true,"offTopicReason":"","criteria":{"criterion_key":0},"criteriaScores":{"rubric_criterion_key":0},"criteriaFeedback":{"rubric_criterion_key":{"shortComment":"short","detailedFeedback":"specific paragraph","strengths":["short"],"weaknesses":["short"],"improvementSuggestions":["short"],"examplesFromAnswer":["quote"],"correctedExamples":["correction"]}},"band":{"system":"system","level":"level","score":0,"rationale":"short"},"certificateFit":"short fit against the certificate level/system","summary":"short","detailedComment":"clear grading comment","majorErrors":["short"],"improvementsNeeded":["short"],"strengths":["short"],"weaknesses":["short"],"feedback":["short"],"suggestions":["short"],"corrections":[{"original":"text","improved":"text","reason":"short"}],"pronunciationErrors":["short"],"grammarErrors":["short"],"vocabularyErrors":["short"],"fluencyIssues":["short"],"practiceMethods":["short"],"sampleAnswer":"complete model answer that directly answers the prompt"}]}`,
     },
   ];
 }

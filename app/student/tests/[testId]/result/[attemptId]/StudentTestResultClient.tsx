@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { LanguageEvaluationResult } from "@/app/components/LanguageEvaluationResult";
 import StarRatingInput from "@/app/components/StarRatingInput";
+import { getTestAiDisplayCriteria } from "@/lib/test-ai-display-criteria";
 import type { TestAiCriterionFeedback } from "@/lib/test-ai-evaluation";
 import { getLearningUiLabels } from "@/lib/test-language-labels";
 
@@ -271,23 +272,18 @@ function AiQuestionEvaluation({ question }: { question: QuestionResult }) {
   const aiEvaluation = question.aiEvaluation;
   if (!aiEvaluation) return null;
 
-  const fallbackCriteria = Object.fromEntries(
-    Object.entries(aiEvaluation.criteriaScores || {}).map(([key, value]) => [
-      key,
-      value > 10 ? value / 10 : value,
-    ]),
-  );
-  const scores =
-    aiEvaluation.criteria && Object.keys(aiEvaluation.criteria).length > 0
-      ? aiEvaluation.criteria
-      : Object.keys(fallbackCriteria).length > 0
-        ? fallbackCriteria
-        : { overall: aiEvaluation.overallScore };
+  const skill = question.questionType === "SPEAKING" ? "speaking" : "writing";
+  const scores = getTestAiDisplayCriteria({
+    mode: skill === "speaking" ? "SPEAKING" : "WRITING",
+    criteria: aiEvaluation.criteria,
+    criteriaScores: aiEvaluation.criteriaScores,
+    overallScore: aiEvaluation.overallScore,
+  });
 
   return (
     <div className="mt-5 border-t border-slate-100 pt-5">
       <LanguageEvaluationResult
-        skill={question.questionType === "SPEAKING" ? "speaking" : "writing"}
+        skill={skill}
         evaluation={{
           scores,
           overall: aiEvaluation.overallScore,

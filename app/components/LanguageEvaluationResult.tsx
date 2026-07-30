@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { normalizeFeedbackTextItems } from "@/lib/ai-feedback-normalization";
 import { getContentUiLanguage } from "@/lib/language-display";
+import { getTestAiDisplayCriteria } from "@/lib/test-ai-display-criteria";
 import type { TestAiCriterionFeedback } from "@/lib/test-ai-evaluation";
 import type { UiLanguage } from "@/lib/test-language-labels";
 
@@ -86,7 +87,11 @@ export function LanguageEvaluationResult({
 }) {
   const language = getContentUiLanguage(evaluation.language || evaluation.exam || evaluation.band.system);
   const labels = LABELS[language];
-  const criterionEntries = Object.entries(evaluation.scores || {});
+  const criterionEntries = Object.entries(getTestAiDisplayCriteria({
+    mode: skill === "speaking" ? "SPEAKING" : "WRITING",
+    criteria: evaluation.scores,
+    overallScore: evaluation.overall,
+  }));
   const errors = collectErrors(mistakes, evaluation.criteriaFeedback);
   const priorities = uniqueItems([
     ...(analysis.improvementsNeeded || []),
