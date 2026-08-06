@@ -74,10 +74,16 @@ export function getSampleAnswerCompletenessError(
   if (input.mode === "WRITING" && usesWhitespaceWordBoundaries(input.languageCode)) {
     const range = getWritingSampleAnswerWordRange(input.prompt);
     const wordCount = countWhitespaceWords(answer);
-    if (wordCount < range.min) {
+    // Generative word counts commonly differ by a few tokens around hyphenated
+    // words and punctuation. Accept a narrow 5% margin so a complete 175-word
+    // model answer is not discarded for a 180-word target, while genuinely
+    // short or truncated answers still fail validation.
+    const acceptedMin = Math.ceil(range.min * 0.95);
+    const acceptedMax = range.max === null ? null : Math.floor(range.max * 1.05);
+    if (wordCount < acceptedMin) {
       return `AI model answer has ${wordCount} words; expected at least ${range.min}.`;
     }
-    if (range.max !== null && wordCount > range.max) {
+    if (acceptedMax !== null && wordCount > acceptedMax) {
       return `AI model answer has ${wordCount} words; expected at most ${range.max}.`;
     }
   }

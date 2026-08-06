@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { FIXED_TEST_MAX_SCORE } from "@/lib/test-rules";
+import { FIXED_TEST_MAX_SCORE, normalizeTestScore } from "@/lib/test-rules";
 
 const ALLOWED_TYPES = new Set(["MULTIPLE_CHOICE", "FILL_IN_BLANK", "ESSAY", "TRUE_FALSE", "SPEAKING"]);
 type QuestionAnswerInput = {
@@ -144,7 +144,9 @@ export async function POST(
       where: { testId },
       _sum: { score: true },
     });
-    const nextTotalScore = Number(scoreAggregate._sum.score || 0) + parsedScore;
+    const nextTotalScore = normalizeTestScore(
+      Number(scoreAggregate._sum.score || 0) + parsedScore,
+    );
     if (nextTotalScore > FIXED_TEST_MAX_SCORE) {
       return NextResponse.json(
         { error: `Tong diem cau hoi khong duoc vuot ${FIXED_TEST_MAX_SCORE}` },

@@ -1,36 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { unlink } from "fs/promises";
-import { join } from "path";
 import { normalizeLessonVideoUrl } from "@/lib/lesson-video";
-
-function getLocalVideoPath(videoUrl: string | null | undefined) {
-  if (!videoUrl || !videoUrl.startsWith("/videos/")) return null;
-  const fileName = videoUrl.replace("/videos/", "").trim();
-  if (!fileName) return null;
-  return join(process.cwd(), "public", "videos", fileName);
-}
-
-async function cleanupVideoIfUnused(videoUrl: string | null | undefined, excludeLessonId?: string) {
-  if (!videoUrl) return;
-  const inUseCount = await prisma.lesson.count({
-    where: {
-      videoUrl,
-      ...(excludeLessonId ? { id: { not: excludeLessonId } } : {}),
-    },
-  });
-  if (inUseCount > 0) return;
-
-  const localPath = getLocalVideoPath(videoUrl);
-  if (!localPath) return;
-
-  try {
-    await unlink(localPath);
-  } catch {
-    // Ignore when file was already removed or path is invalid.
-  }
-}
+import { cleanupLessonVideoIfUnused } from "@/lib/lesson-video-storage";
 
 export async function GET(
   request: NextRequest,
@@ -58,11 +30,11 @@ export async function GET(
       );
     }
 
-    const lesson = await prisma.lesson.findUnique({
-      where: { id: lessonId },
+    const lesson = await prisma.lesson.findFirst({
+      where: { id: lessonId, moduleId, module: { courseId } },
     });
 
-    if (!lesson || lesson.moduleId !== moduleId) {
+    if (!lesson) {
       return NextResponse.json(
         { error: "Lesson not found" },
         { status: 404 }
@@ -105,11 +77,11 @@ export async function PUT(
       );
     }
 
-    const existingLesson = await prisma.lesson.findUnique({
-      where: { id: lessonId },
+    const existingLesson = await prisma.lesson.findFirst({
+      where: { id: lessonId, moduleId, module: { courseId } },
     });
 
-    if (!existingLesson || existingLesson.moduleId !== moduleId) {
+    if (!existingLesson) {
       return NextResponse.json(
         { error: "Lesson not found" },
         { status: 404 }
@@ -123,10 +95,6 @@ export async function PUT(
       return NextResponse.json({ error: "Invalid video URL" }, { status: 400 });
     }
 
-    if (nextVideoUrl !== undefined && existingLesson.videoUrl && nextVideoUrl !== existingLesson.videoUrl) {
-      await cleanupVideoIfUnused(existingLesson.videoUrl, lessonId);
-    }
-
     const lesson = await prisma.lesson.update({
       where: { id: lessonId },
       data: {
@@ -135,6 +103,10 @@ export async function PUT(
         ...(nextVideoUrl !== undefined && { videoUrl: nextVideoUrl }),
       },
     });
+
+    if (nextVideoUrl !== undefined && existingLesson.videoUrl && nextVideoUrl !== existingLesson.videoUrl) {
+      await cleanupLessonVideoIfUnused(existingLesson.videoUrl);
+    }
 
     return NextResponse.json({ lesson });
   } catch (error) {
@@ -172,32 +144,29 @@ export async function DELETE(
       );
     }
 
-    const existingLesson = await prisma.lesson.findUnique({
-      where: { id: lessonId },
+    const existingLesson = await prisma.lesson.findFirst({
+      where: { id: lessonId, moduleId, module: { courseId } },
     });
 
-    if (!existingLesson || existingLesson.moduleId !== moduleId) {
+    if (!existingLesson) {
       return NextResponse.json(
         { error: "Lesson not found" },
         { status: 404 }
       );
     }
 
-    await cleanupVideoIfUnused(existingLesson.videoUrl, lessonId);
-
-    await prisma.lesson.delete({
-      where: { id: lessonId },
+    await prisma.$transaction(async (tx) => {
+      await tx.lesson.delete({ where: { id: lessonId } });
+      const remainingLessons = await tx.lesson.count({
+        where: { module: { courseId } },
+      });
+      await tx.course.update({
+        where: { id: courseId },
+        data: { lessons: remainingLessons },
+      });
     });
 
-    // Update course lessons count
-    await prisma.course.update({
-      where: { id: courseId },
-      data: {
-        lessons: {
-          decrement: 1,
-        },
-      },
-    });
+    await cleanupLessonVideoIfUnused(existingLesson.videoUrl);
 
     return NextResponse.json({ message: "Lesson deleted successfully" });
   } catch (error) {

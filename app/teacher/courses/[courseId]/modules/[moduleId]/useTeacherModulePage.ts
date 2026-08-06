@@ -46,7 +46,17 @@ export function useTeacherModulePage() {
   const fetchModule = useCallback(async () => {
     try {
       const response = await fetch(`/api/teacher/courses/${courseId}/modules/${moduleId}`);
-      if (!response.ok) return;
+      if (!response.ok) {
+        const data = await readJsonResponse<{ error?: string }>(response).catch(
+          (): { error?: string } => ({}),
+        );
+        setModule(null);
+        setNotice({
+          tone: "error",
+          message: data.error || "Không thể tải chương. Vui lòng quay lại khóa học và thử lại.",
+        });
+        return;
+      }
 
       const data = await response.json();
       setModule(data.module);
@@ -170,6 +180,13 @@ export function useTeacherModulePage() {
 
   function openCreateModal() {
     setNotice(null);
+    if (!module) {
+      setNotice({
+        tone: "error",
+        message: "Chương này không còn tồn tại. Vui lòng quay lại khóa học và tải lại trang.",
+      });
+      return;
+    }
     setEditingLesson(null);
     setLessonForm(EMPTY_LESSON_FORM);
     setIsSavingLesson(false);

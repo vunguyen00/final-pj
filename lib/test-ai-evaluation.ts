@@ -547,48 +547,70 @@ function buildEvaluationMessages(
   payload: Array<Record<string, unknown>>,
   retryingInvalidJson = false,
 ) {
+  const scoreOnly = payload.every((item) => item.scoreOnly === true);
   const retryInstruction = retryingInvalidJson
-    ? "\nA previous attempt was invalid, incomplete, or truncated. Regenerate valid JSON and keep sampleAnswer complete and inside sampleAnswerWordRange. Shorten the feedback arrays instead of shortening sampleAnswer. Escape quotes inside strings."
+    ? " A previous response was invalid or truncated. Return shorter valid JSON and finish every string."
     : "";
+
+  if (scoreOnly) {
+    return [
+      {
+        role: "system" as const,
+        content: `You are a language examiner. Return only compact valid JSON and do not explain your reasoning.
+Grade each answer independently. overallScore and criteria use 0-10; criteriaScores, totalScore, and taskRelevance use 0-100.
+For WRITING, criteria must contain task_response, coherence, vocabulary, and grammar. For SPEAKING, criteria must contain fluency, vocabulary, grammar, and pronunciation.
+criteriaScores must use every exact key from certificateRubric.criteria. Set onTopic=false and score very low for an unrelated answer.${retryInstruction}`,
+      },
+      {
+        role: "user" as const,
+        content: `Evaluate: ${JSON.stringify(payload)}
+Return exactly this compact shape with no feedback text:
+{"results":[{"questionId":"id","language":"language","overallScore":0,"totalScore":0,"taskRelevance":0,"onTopic":true,"criteria":{"criterion_key":0},"criteriaScores":{"rubric_key":0},"band":{"system":"system","level":"level","score":0}}]}`,
+      },
+    ];
+  }
 
   return [
     {
       role: "system" as const,
-      content: `You are a fair language examiner. Grade every submitted answer independently.
-Return only compact valid JSON. Criteria and overall scores use a 0-10 scale. Task relevance uses a 0-100 scale.
-For WRITING, criteria must contain only task_response, coherence, vocabulary, and grammar. For SPEAKING, criteria must contain only fluency, vocabulary, grammar, and pronunciation. Never return an inapplicable criterion with a placeholder score of 0.
-Also grade with the provided certificateRubric. Return criteriaScores on a 0-100 scale using the exact rubric criterion keys and weights. Return totalScore as a weighted 0-100 score. Include majorErrors, improvementsNeeded, suggestions, sampleAnswer, and certificateFit.
-Task relevance is mandatory. If the answer does not address the requested topic or required points, set onTopic=false, explain why, and score it very low.
-Completely unrelated answers: relevance <=20 and overall <=1.5. Mostly unrelated answers: relevance <=40 and overall <=3. Partly off-topic answers: relevance <=60 and overall <=5.
-Calibrate fairly. A score of 5 is limited, 6 is competent with noticeable limitations, 7 is solid and clearly successful, 8 shows strong control, and 9-10 should be rare. For short classroom prompts and non-IELTS rubrics, a concise answer can receive 7-9 when it fully answers the prompt and the language control is strong; do not default to 5 when the rubric criteria are high.
-For writing, calculate overallScore from task_response, coherence, vocabulary, and grammar. IELTS-like Task 2 responses below 250 words must not exceed 6.5. A missing conclusion or unclear position limits task_response to 5.
-For speaking transcripts, calculate overallScore from fluency, vocabulary, grammar, and pronunciation. A basic or repetitive response should normally remain at 6 or below. A transcript below 150 words must not exceed 6.5. Without acoustic audio analysis, pronunciation must not exceed 6.
-Speaking transcripts may come from browser automatic speech recognition. Isolated misspellings, homophones, missing punctuation, or contextually improbable substitutions may be recognition errors. Infer an intended word only when the prompt and surrounding sentence provide strong evidence. Do not penalize that isolated token as a definite learner error, but do not excuse repeated misuse, broken grammar, or plausible learner mistakes. If uncertain, label it as a possible recognition error. Transcript spelling alone is not pronunciation evidence.
-For speaking, set onTopic=true whenever the answer addresses the requested topic, even if grammar, pronunciation, fluency, or the overall score is weak.
-Use each input's languageCode to identify the submitted language. Grade grammar, vocabulary, coherence, and task response according to that language, and write feedback and the sample answer in the same language.
-Each input also has targetLanguage. Every human-readable value for language, offTopicReason, detailedComment, sampleAnswer, certificateFit, band.rationale, summary, majorErrors, improvementsNeeded, strengths, weaknesses, feedback, suggestions, corrections.reason, pronunciationErrors, grammarErrors, vocabularyErrors, fluencyIssues, practiceMethods, and every human-readable criteriaFeedback field must be written in targetLanguage. Do not use English section labels or English advice for non-English targetLanguage inputs. Do not embed labels such as "suggestions", "sample Answer", "strengths", or "weaknesses" inside string values; return only the actual content.
-When an input has scoreOnly=true, calculate all numeric scores normally but set every comment string, sampleAnswer, correction, and feedback array to empty. Do not provide explanations or improvement advice.
-Unless scoreOnly=true, always provide a detailedComment with actionable feedback and a sampleAnswer that correctly answers the original prompt. For WRITING, use the exact sampleAnswerWordRange supplied with that input; this range comes from the question's explicit word requirement, or defaults to 100-140 words when the question has no requirement. Finish the complete response and never stop mid-sentence. For SPEAKING use a complete natural model response of about 60-90 words.
-Unless scoreOnly=true, provide 2 concise overall strengths, weaknesses, feedback items, suggestions, majorErrors, and improvementsNeeded. Provide 1-2 corrections when evidence exists. For SPEAKING provide 1-2 pronunciationErrors, grammarErrors, vocabularyErrors, fluencyIssues, and practiceMethods when relevant.
-Return criteriaFeedback for every exact key in certificateRubric.criteria. Each criterion must contain a concise shortComment, a specific 2-3 sentence detailedFeedback, exactly 2 strengths, 2 weaknesses, 2 improvementSuggestions, and at most 1 relevant examplesFromAnswer/correctedExamples pair. Base every comment on evidence from the submitted answer. Keep the JSON compact, but prioritize returning the complete sampleAnswer over extra feedback detail.${retryInstruction}`,
+      content: `You are a fair language examiner. Return only compact valid JSON and do not reveal reasoning.
+Grade each answer in its targetLanguage. overallScore and the four core criteria use 0-10. criteriaScores and weighted totalScore use 0-100 and every exact key from certificateRubric.criteria.
+WRITING core criteria: task_response, coherence, vocabulary, grammar. SPEAKING core criteria: fluency, vocabulary, grammar, pronunciation. A relevant competent answer is about 6, a solid answer about 7, strong control about 8, and 9-10 is rare. Set onTopic=false, relevance <=20, and overall <=1.5 for unrelated answers.
+For short classroom prompts, a concise complete answer can score 7-9; do not default to 5 when the rubric criteria are high.
+Return actionable feedback in targetLanguage. The sampleAnswer must answer the original prompt, contain the exact sampleAnswerWordRange for WRITING, and end with complete punctuation; use 60-90 words for SPEAKING.
+Return exactly the requested fields: do not add criteriaFeedback, band, certificateFit, majorErrors, improvementsNeeded, feedback, or mode-specific error arrays. Use two short sentences for detailedComment and exactly one concise item in strengths, weaknesses, and suggestions. Include at most one correction. Keep all prose except sampleAnswer under 35 words per field.${retryInstruction}`,
     },
     {
       role: "user" as const,
-      content: `Evaluate these test answers:
-${JSON.stringify(payload)}
-
-Return exactly:
-{"results":[{"questionId":"id","language":"language","overallScore":0,"totalScore":0,"taskRelevance":0,"onTopic":true,"offTopicReason":"","criteria":{"criterion_key":0},"criteriaScores":{"rubric_criterion_key":0},"criteriaFeedback":{"rubric_criterion_key":{"shortComment":"short","detailedFeedback":"specific paragraph","strengths":["short"],"weaknesses":["short"],"improvementSuggestions":["short"],"examplesFromAnswer":["quote"],"correctedExamples":["correction"]}},"band":{"system":"system","level":"level","score":0,"rationale":"short"},"certificateFit":"short fit against the certificate level/system","summary":"short","detailedComment":"clear grading comment","majorErrors":["short"],"improvementsNeeded":["short"],"strengths":["short"],"weaknesses":["short"],"feedback":["short"],"suggestions":["short"],"corrections":[{"original":"text","improved":"text","reason":"short"}],"pronunciationErrors":["short"],"grammarErrors":["short"],"vocabularyErrors":["short"],"fluencyIssues":["short"],"practiceMethods":["short"],"sampleAnswer":"complete model answer that directly answers the prompt"}]}`,
+      content: `Evaluate: ${JSON.stringify(payload)}
+Return this shape:
+{"results":[{"questionId":"id","language":"language","overallScore":0,"totalScore":0,"taskRelevance":0,"onTopic":true,"offTopicReason":"","criteria":{"criterion_key":0},"criteriaScores":{"rubric_key":0},"summary":"short","detailedComment":"two short sentences","strengths":["one"],"weaknesses":["one"],"suggestions":["one"],"corrections":[{"original":"text","improved":"text","reason":"short"}],"sampleAnswer":"complete answer"}]}`,
     },
   ];
+}
+
+function getRequestedWritingSampleRange(prompt?: string) {
+  const range = getWritingSampleAnswerWordRange(prompt);
+  if (range.source !== "prompt") return range;
+
+  const bufferedMin = Math.ceil(range.min * 1.08);
+  return {
+    ...range,
+    min: range.max === null ? bufferedMin : Math.min(bufferedMin, range.max),
+  };
 }
 
 export async function evaluateTestAiAnswers(inputs: TestAiAnswerInput[]) {
   const results = new Map<string, TestAiAnswerResult>();
   if (!inputs.length) return results;
 
-  for (let index = 0; index < inputs.length; index += 1) {
-    const chunk = inputs.slice(index, index + 1);
+  // A submit request can contain several writing/speaking answers. Evaluating
+  // them serially easily exceeds the upstream proxy timeout, which surfaces in
+  // the browser as an unhelpful `Failed to fetch`. Keep each answer isolated
+  // for reliable JSON parsing, but evaluate the independent answers together.
+  const evaluated = await Promise.all(inputs.map(async (input) => {
+    const chunk = [input];
+    const deadline = Date.now() + 105_000;
     try {
       const payload = chunk.map((input) => ({
         questionId: input.questionId,
@@ -602,7 +624,7 @@ export async function evaluateTestAiAnswers(inputs: TestAiAnswerInput[]) {
         targetLanguage: getTargetLanguageName(input.languageCode),
         sampleAnswerWordRange:
           input.mode === "WRITING"
-            ? getWritingSampleAnswerWordRange(input.prompt)
+            ? getRequestedWritingSampleRange(input.prompt)
             : { min: 60, max: 90, source: "default" },
         prompt: input.prompt || "",
         answer: input.answer,
@@ -612,9 +634,18 @@ export async function evaluateTestAiAnswers(inputs: TestAiAnswerInput[]) {
       let lastResponseError: AiEvaluationResponseError | null = null;
 
       for (let responseAttempt = 1; responseAttempt <= 2; responseAttempt += 1) {
+        const remainingTime = deadline - Date.now();
+        if (remainingTime < 1_000) {
+          throw new Error("AI evaluation exceeded its request time budget.");
+        }
         const raw = await ollamaService.chat(
           buildEvaluationMessages(payload, responseAttempt > 1),
-          { maxOutputTokens: chunk.some((input) => !input.scoreOnly) ? 7000 : 1800 },
+          {
+            maxOutputTokens: input.scoreOnly ? 4000 : 6500,
+            timeoutMs: remainingTime,
+            maxRetries: 2,
+            think: false,
+          },
         );
 
         try {
@@ -641,31 +672,28 @@ export async function evaluateTestAiAnswers(inputs: TestAiAnswerInput[]) {
         throw lastResponseError || new AiEvaluationResponseError("AI returned an invalid evaluation.");
       }
 
-      for (const input of chunk) {
-        const parsed = parsedResults.get(input.questionId);
-        if (parsed) {
-          results.set(input.questionId, parsed);
-          continue;
-        }
-        results.set(input.questionId, failedEvaluation(input, "AI returned an incomplete evaluation."));
-      }
+      const parsed = parsedResults.get(input.questionId);
+      return [
+        input.questionId,
+        parsed || failedEvaluation(input, "AI returned an incomplete evaluation."),
+      ] as const;
     } catch (error) {
       console.error("Error evaluating test AI answer chunk:", error);
       const invalidResponse = error instanceof AiEvaluationResponseError;
-      for (const input of chunk) {
-        results.set(
-          input.questionId,
-          failedEvaluation(
-            input,
-            invalidResponse
-              ? "AI returned an invalid evaluation."
-              : "Could not evaluate this answer.",
-            invalidResponse ? "invalid_response" : "service_unavailable",
-          ),
-        );
-      }
+      return [
+        input.questionId,
+        failedEvaluation(
+          input,
+          invalidResponse
+            ? "AI returned an invalid evaluation."
+            : "Could not evaluate this answer.",
+          invalidResponse ? "invalid_response" : "service_unavailable",
+        ),
+      ] as const;
     }
-  }
+  }));
+
+  for (const [questionId, result] of evaluated) results.set(questionId, result);
 
   return results;
 }

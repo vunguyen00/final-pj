@@ -186,7 +186,11 @@ export default function AdminDashboard({
       }
       setMessage(
         isDeleteRequest
-          ? action === "APPROVE" ? "Đã duyệt xóa khóa học." : "Đã từ chối yêu cầu xóa khóa học."
+          ? action === "APPROVE"
+            ? data.archived
+              ? "Khóa học có người học hoặc giao dịch nên đã được khóa để bảo toàn lịch sử."
+              : "Đã duyệt xóa khóa học."
+            : "Đã từ chối yêu cầu xóa khóa học."
           : action === "APPROVE" ? "Đã duyệt khóa học." : "Đã từ chối khóa học.",
       );
     } catch {

@@ -29,11 +29,11 @@ export async function GET(
       );
     }
 
-    const courseModule = await prisma.module.findUnique({
-      where: { id: moduleId },
+    const courseModule = await prisma.module.findFirst({
+      where: { id: moduleId, courseId },
     });
 
-    if (!courseModule || courseModule.courseId !== courseId) {
+    if (!courseModule) {
       return NextResponse.json(
         { error: "Module not found" },
         { status: 404 }
@@ -81,11 +81,11 @@ export async function POST(
       );
     }
 
-    const courseModule = await prisma.module.findUnique({
-      where: { id: moduleId },
+    const courseModule = await prisma.module.findFirst({
+      where: { id: moduleId, courseId },
     });
 
-    if (!courseModule || courseModule.courseId !== courseId) {
+    if (!courseModule) {
       return NextResponse.json(
         { error: "Module not found" },
         { status: 404 }
@@ -93,7 +93,9 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { title, content, videoUrl } = body;
+    const { videoUrl } = body;
+    const title = typeof body.title === "string" ? body.title.trim() : "";
+    const content = typeof body.content === "string" ? body.content.trim() : "";
     const normalizedVideoUrl = normalizeLessonVideoUrl(videoUrl);
 
     if (!title || !content) {
@@ -106,27 +108,33 @@ export async function POST(
       return NextResponse.json({ error: "Invalid video URL" }, { status: 400 });
     }
 
-    const lesson = await prisma.lesson.create({
-      data: {
-        moduleId,
-        title,
-        content,
-        videoUrl: normalizedVideoUrl,
-      },
-    });
+    const lesson = await prisma.$transaction(async (tx) => {
+      const currentModule = await tx.module.findFirst({
+        where: { id: moduleId, courseId },
+        select: { id: true },
+      });
+      if (!currentModule) throw new Error("MODULE_NOT_FOUND");
 
-    // Update course lessons count
-    await prisma.course.update({
-      where: { id: courseId },
-      data: {
-        lessons: {
-          increment: 1,
-        },
-      },
+      const [createdLesson] = await Promise.all([
+        tx.lesson.create({
+          data: { moduleId, title, content, videoUrl: normalizedVideoUrl },
+        }),
+        tx.course.update({
+          where: { id: courseId },
+          data: { lessons: { increment: 1 } },
+        }),
+      ]);
+      return createdLesson;
     });
 
     return NextResponse.json({ lesson }, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.message === "MODULE_NOT_FOUND") {
+      return NextResponse.json(
+        { error: "Module not found. Please reload the course page." },
+        { status: 404 },
+      );
+    }
     console.error("Error creating lesson:", error);
     return NextResponse.json(
       { error: "Failed to create lesson" },

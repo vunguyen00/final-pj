@@ -201,7 +201,10 @@ export default function TeacherTestQuestionsPage() {
       return;
     }
     setEditingQuestion(null);
-    setQuestionForm(createDefaultForm());
+    setQuestionForm({
+      ...createDefaultForm(),
+      score: String(Math.min(10, remainingScore)),
+    });
     setAudioUploadMessage("");
     setIsSavingQuestion(false);
     savingQuestionRef.current = false;

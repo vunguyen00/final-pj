@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { cleanupLessonVideoIfUnused } from "@/lib/lesson-video-storage";
 
 export async function GET(
   request: NextRequest,
@@ -157,9 +158,26 @@ export async function DELETE(
       );
     }
 
-    await prisma.module.delete({
-      where: { id: moduleId },
+    const lessons = await prisma.lesson.findMany({
+      where: { moduleId },
+      select: { videoUrl: true },
     });
+
+    await prisma.$transaction(async (tx) => {
+      await tx.lesson.deleteMany({ where: { moduleId } });
+      await tx.module.delete({ where: { id: moduleId } });
+      const lessonCount = await tx.lesson.count({
+        where: { module: { courseId } },
+      });
+      await tx.course.update({
+        where: { id: courseId },
+        data: { lessons: lessonCount },
+      });
+    });
+
+    await Promise.all(
+      lessons.map((lesson) => cleanupLessonVideoIfUnused(lesson.videoUrl)),
+    );
 
     return NextResponse.json({ message: "Module deleted successfully" });
   } catch (error) {

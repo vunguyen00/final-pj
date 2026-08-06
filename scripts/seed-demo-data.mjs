@@ -32,11 +32,15 @@ const LANGUAGES = [
     nativeName: "Chinese",
     teacherEmail: "teacher.chinese.seed@finncenter.local",
     teacherName: "Li Wei - Chinese Teacher",
-    courseName: "Advanced Chinese HSK 5-6 Communication",
+    legacyCourseName: "Advanced Chinese HSK 5-6 Communication",
+    courseName: "高级中文 HSK 5-6 沟通课程",
     courseDescription:
-      "Develop advanced Chinese reading, formal expression, idiomatic vocabulary, and HSK 5-6 communication skills.",
-    category: "Reading",
-    level: "Advanced",
+      "提升高级中文阅读、正式表达、惯用词汇以及 HSK 5-6 级综合沟通能力。",
+    category: "阅读",
+    level: "高级",
+    duration: "6课",
+    courseTestName: "期末测试——高级中文 HSK 5-6 沟通课程",
+    courseTestDescription: "高级中文 HSK 5-6 沟通课程期末考核，总分为100分。",
     entrancePrompt:
       "请用中文写一篇短文，说明你会如何帮助初级学生学习汉语词汇和语法。",
     speakingPrompt:
@@ -49,11 +53,15 @@ const LANGUAGES = [
     nativeName: "Japanese",
     teacherEmail: "teacher.japanese.seed@finncenter.local",
     teacherName: "Haruka Sato - Japanese Teacher",
-    courseName: "Advanced Japanese JLPT N2 Communication",
+    legacyCourseName: "Advanced Japanese JLPT N2 Communication",
+    courseName: "上級日本語 JLPT N2 コミュニケーション",
     courseDescription:
-      "Strengthen advanced Japanese grammar, reading comprehension, honorific language, and JLPT N2 communication.",
-    category: "Grammar",
-    level: "Advanced",
+      "上級文法、読解、敬語表現を身につけ、JLPT N2レベルの総合的なコミュニケーション能力を高めます。",
+    category: "読解",
+    level: "上級",
+    duration: "6レッスン",
+    courseTestName: "期末試験：上級日本語 JLPT N2 コミュニケーション",
+    courseTestDescription: "上級日本語 JLPT N2 コミュニケーションの期末評価です。100点満点です。",
     entrancePrompt:
       "日本語で、初級学習者に文法と会話を教える方法について短い作文を書いてください。",
     speakingPrompt:
@@ -271,10 +279,15 @@ async function upsertApprovedTeacherApplication(client, {
 }
 
 async function upsertCourse(client, { language, teacherId }) {
+  const legacyCourseName = language.legacyCourseName ?? language.courseName;
   const existing = await query(
     client,
-    `SELECT "id" FROM "Course" WHERE "name" = $1 AND "instructorId" = $2 LIMIT 1`,
-    [language.courseName, teacherId],
+    `
+      SELECT "id" FROM "Course"
+      WHERE "instructorId" = $2 AND ("name" = $1 OR "name" = $3)
+      LIMIT 1
+    `,
+    [language.courseName, teacherId, legacyCourseName],
   );
 
   if (existing.rowCount) {
@@ -282,17 +295,19 @@ async function upsertCourse(client, { language, teacherId }) {
       client,
       `
         UPDATE "Course"
-        SET "description" = $2, "category" = $3, "level" = $4, "duration" = $5,
-            "status" = 'ACTIVE'::"CourseStatus", "price" = $6, "languageId" = $7,
+        SET "name" = $2, "description" = $3, "category" = $4, "level" = $5,
+            "duration" = $6, "status" = 'ACTIVE'::"CourseStatus", "price" = $7,
+            "languageId" = $8,
             "updatedAt" = NOW()
         WHERE "id" = $1
       `,
       [
         existing.rows[0].id,
+        language.courseName,
         language.courseDescription,
         language.category,
         language.level,
-        "6 lessons",
+        language.duration ?? "6 lessons",
         299000,
         language.id,
       ],
@@ -316,7 +331,7 @@ async function upsertCourse(client, { language, teacherId }) {
       language.courseDescription,
       language.category,
       language.level,
-      "6 lessons",
+      language.duration ?? "6 lessons",
       299000,
       language.id,
       teacherId,
@@ -1236,8 +1251,10 @@ async function main() {
         languageId: language.id,
         kind: "COURSE",
         assessmentMode: "STANDARD",
-        name: `Final Test - ${language.courseName}`,
-        description: `Final assessment for ${language.courseName}. Total score is 100.`,
+        name: language.courseTestName ?? `Final Test - ${language.courseName}`,
+        description:
+          language.courseTestDescription ??
+          `Final assessment for ${language.courseName}. Total score is 100.`,
         passingScore: 60,
         timeLimit: 45,
         shuffleQuestions: true,

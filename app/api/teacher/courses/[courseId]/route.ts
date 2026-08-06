@@ -16,11 +16,11 @@ async function deleteCourseWithRelations(courseId: string) {
       tx.payment.count({ where: { courseId } }),
     ]);
     if (enrollments > 0 || orderItems > 0 || payments > 0) {
-      await tx.course.update({
+      const course = await tx.course.update({
         where: { id: courseId },
         data: { status: "LOCKED", deleteRequestedFromStatus: null },
       });
-      return { deleted: false, archived: true };
+      return { deleted: false, archived: true, course };
     }
     const tests = await tx.test.findMany({
       where: { courseId },
@@ -56,9 +56,10 @@ async function deleteCourseWithRelations(courseId: string) {
     }
 
     await tx.courseRefundRequest.deleteMany({ where: { courseId } });
-    await tx.aiAssessment.deleteMany({ where: { courseId } });
-    await tx.pointTransaction.deleteMany({ where: { courseId } });
-    await tx.learningActivity.deleteMany({ where: { courseId } });
+    await tx.aiAssessment.updateMany({ where: { courseId }, data: { courseId: null } });
+    await tx.pointTransaction.updateMany({ where: { courseId }, data: { courseId: null } });
+    await tx.learningActivity.updateMany({ where: { courseId }, data: { courseId: null } });
+    await tx.payment.updateMany({ where: { courseId }, data: { courseId: null } });
     await tx.test.deleteMany({ where: { courseId } });
     await tx.lesson.deleteMany({ where: { module: { courseId } } });
     await tx.module.deleteMany({ where: { courseId } });
@@ -66,7 +67,7 @@ async function deleteCourseWithRelations(courseId: string) {
     await tx.feedback.deleteMany({ where: { courseId } });
     await tx.orderItem.deleteMany({ where: { courseId } });
     await tx.course.delete({ where: { id: courseId } });
-    return { deleted: true, archived: false };
+    return { deleted: true, archived: false, course: null };
   });
 }
 
@@ -454,8 +455,12 @@ export async function PATCH(
             await prisma.notification.create({
               data: {
                 userId: course.instructorId,
-                title: "Yêu cầu xóa khóa học đã được duyệt",
-                body: `Khóa học "${course.name}" đã được admin duyệt xóa.`,
+                title: deletion.archived
+                  ? "Khóa học đã được lưu trữ"
+                  : "Yêu cầu xóa khóa học đã được duyệt",
+                body: deletion.archived
+                  ? `Khóa học "${course.name}" có người học hoặc giao dịch nên đã được khóa để bảo toàn lịch sử.`
+                  : `Khóa học "${course.name}" đã được admin duyệt xóa.`,
               },
             });
           }

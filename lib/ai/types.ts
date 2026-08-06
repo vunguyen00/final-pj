@@ -71,6 +71,7 @@ export interface OllamaChatRequest {
   temperature: number;
   top_p: number;
   stream: boolean;
+  think?: boolean | "low" | "medium" | "high";
   format?: "json" | "text";
   options?: {
     num_predict?: number;

@@ -37,6 +37,8 @@ test("short or abruptly truncated model answers are rejected for regeneration", 
     /104 words; expected at least 180/,
   );
   assert.equal(getSampleAnswerCompletenessError(input, completeAnswer), null);
+  const nearTargetAnswer = `${Array.from({ length: 175 }, (_, index) => `word${index}`).join(" ")}.`;
+  assert.equal(getSampleAnswerCompletenessError(input, nearTargetAnswer), null);
   assert.match(
     getSampleAnswerCompletenessError(
       { ...input, prompt: "Write about 100 words." },

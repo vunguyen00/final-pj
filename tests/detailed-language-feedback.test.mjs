@@ -6,10 +6,13 @@ async function source(path) {
   return readFile(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
-test("multilingual AI contract requires detailed feedback for every rubric criterion", async () => {
+test("multilingual AI results derive rubric feedback without bloating the model response", async () => {
   const evaluator = await source("lib/test-ai-evaluation.ts");
 
-  assert.match(evaluator, /Return criteriaFeedback for every exact key in certificateRubric\.criteria/);
+  assert.match(evaluator, /Object\.fromEntries\(rubric\.criteria\.map/);
+  assert.match(evaluator, /source\.strengths/);
+  assert.match(evaluator, /criterionSpecificFallback\(source, criterion\.key\)/);
+  assert.match(evaluator, /source\.suggestions/);
   assert.match(evaluator, /shortComment/);
   assert.match(evaluator, /detailedFeedback/);
   assert.match(evaluator, /improvementSuggestions/);

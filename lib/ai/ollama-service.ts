@@ -28,6 +28,9 @@ const DEFAULT_CONFIG: AIServiceConfig = {
 
 const ALLOWED_CLOUD_MODELS = new Set([
   DEFAULT_CLOUD_MODEL,
+  "nemotron-3-super:cloud",
+  "qwen2.5:7b",
+  "gemma4:latest",
 ]);
 
 class OllamaService {
@@ -49,7 +52,13 @@ class OllamaService {
    */
   async chat(
     messages: OllamaMessage[],
-    options?: { maxOutputTokens?: number },
+    options?: {
+      maxOutputTokens?: number;
+      /** Total budget for every retry made by this call. */
+      timeoutMs?: number;
+      maxRetries?: number;
+      think?: boolean | "low" | "medium" | "high";
+    },
   ): Promise<string> {
     const model = this.resolveModel();
     const requestedMax = Number(options?.maxOutputTokens);
@@ -57,15 +66,25 @@ class OllamaService {
       ? Math.max(256, Math.min(this.maxOutputTokens, Math.floor(requestedMax)))
       : this.maxOutputTokens;
     const startTime = Date.now();
+    const requestedTimeout = Number(options?.timeoutMs);
+    const totalTimeout = Number.isFinite(requestedTimeout)
+      ? Math.max(1_000, Math.floor(requestedTimeout))
+      : this.config.timeout * this.config.maxRetries;
+    const deadline = startTime + totalTimeout;
+    const requestedRetries = Number(options?.maxRetries);
+    const maxRetries = Number.isFinite(requestedRetries)
+      ? Math.max(1, Math.floor(requestedRetries))
+      : this.config.maxRetries;
     const failures: string[] = [];
 
-    for (let attempt = 1; attempt <= this.config.maxRetries; attempt += 1) {
+    for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
       const request: OllamaChatRequest = {
         model,
         messages,
         temperature: this.config.temperature,
         top_p: this.config.top_p,
         stream: false,
+        ...(options?.think !== undefined && { think: options.think }),
         format: "json",
         options: {
           num_predict: maxOutputTokens,
@@ -75,7 +94,15 @@ class OllamaService {
       };
 
       try {
-        const data = await this.callChat(request, model);
+        const remainingTime = deadline - Date.now();
+        if (remainingTime <= 0) {
+          throw new Error(`Ollama request exceeded its ${totalTimeout}ms total time budget.`);
+        }
+        const data = await this.callChat(
+          request,
+          model,
+          Math.min(this.config.timeout, remainingTime),
+        );
         this.log("success", {
           model,
           attempt,
@@ -93,19 +120,21 @@ class OllamaService {
           duration: Date.now() - startTime,
           error: errorMessage,
         });
-        if (attempt < this.config.maxRetries) {
+        if (attempt < maxRetries) {
           const retryDelay = this.retryDelayMs * attempt;
+          if (Date.now() + retryDelay >= deadline) break;
           await new Promise((resolve) => setTimeout(resolve, retryDelay));
         }
       }
     }
 
-    throw new Error(`Ollama cloud request failed after ${this.config.maxRetries} attempts. ${failures.join(" | ")}`);
+    throw new Error(`Ollama cloud request failed after ${failures.length} attempt(s). ${failures.join(" | ")}`);
   }
 
   private async callChat(
     request: OllamaChatRequest,
-    model: string
+    model: string,
+    timeout: number,
   ): Promise<OllamaChatResponse> {
     const chatResponse = await this.fetchWithTimeout(
       `${this.config.ollamaUrl}/api/chat`,
@@ -114,7 +143,7 @@ class OllamaService {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(request),
       },
-      this.config.timeout,
+      timeout,
     );
 
     if (!chatResponse.ok) {

@@ -248,7 +248,13 @@ function useTeacherCoursesPage() {
       const res = await fetch(`/api/teacher/courses/${courseId}`, { method: "DELETE" });
       const data = await readJsonResponse(res).catch(() => ({}));
       if (res.ok) {
-        setMessage(data?.requiresApproval ? "Yêu cầu xóa khóa học đã được gửi tới admin duyệt." : "Xóa khóa học thành công.");
+        setMessage(
+          data?.requiresApproval
+            ? "Yêu cầu xóa khóa học đã được gửi tới admin duyệt."
+            : data?.archived
+              ? "Khóa học đã có người học hoặc giao dịch nên được khóa để bảo toàn lịch sử, không thể xóa vĩnh viễn."
+              : "Xóa khóa học thành công.",
+        );
         await fetchCourses();
       } else {
         setMessage(data?.error || "Không thể xóa khóa học.");

@@ -21,11 +21,15 @@ export function requiresLanguageForTest(kind: TestKind): boolean {
 }
 
 export function getRemainingQuestionScore(totalQuestionScore: number) {
-  return FIXED_TEST_MAX_SCORE - totalQuestionScore;
+  return normalizeTestScore(FIXED_TEST_MAX_SCORE - totalQuestionScore);
 }
 
 export function isTestReady(totalQuestionScore: number) {
-  return Math.round(totalQuestionScore * 100) / 100 === FIXED_TEST_MAX_SCORE;
+  return normalizeTestScore(totalQuestionScore) === FIXED_TEST_MAX_SCORE;
+}
+
+export function normalizeTestScore(score: number) {
+  return Math.round(Number(score) * 100) / 100;
 }
 
 export function getSpeechRecognitionLocale(languageCode?: string | null) {
