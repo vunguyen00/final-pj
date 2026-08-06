@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { REVENUE_ELIGIBLE_ORDER_ITEM_WHERE } from "@/lib/teacher-revenue";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const APP_STATUSES = ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "APPROVED", "REJECTED", "EXPIRED", "FAILED_CHEATING"] as const;
+const APP_STATUSES = ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "APPROVED", "PENDING", "INVITED_TO_EXAM", "CHECKED_IN", "EXAM_COMPLETED", "PASSED", "CONVERTED_TO_TEACHER", "REJECTED", "EXPIRED", "FAILED_CHEATING"] as const;
 
 export type AnalyticsPreset =
   | "TODAY"

@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import {
   ROLE_HOME,
-  createAuthToken,
-  setAuthCookie,
+  createLoginDeviceChallenge,
+  getTrustedDeviceForUser,
+  startAuthenticatedSession,
   verifyPassword,
 } from "@/lib/auth";
 import { getDatabaseUrlTarget } from "@/lib/database-url";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { sendBasicEmail } from "@/lib/mailer";
 
 function getErrorDetails(error: unknown) {
   if (error instanceof Error) {
@@ -80,6 +82,7 @@ export async function POST(request: Request) {
         isBanned: true,
         accountStatus: true,
         authVersion: true,
+        email: true,
       },
     });
 
@@ -108,8 +111,50 @@ export async function POST(request: Request) {
       );
     }
 
-    const token = createAuthToken(user.id, user.role, user.authVersion);
-    await setAuthCookie(token);
+    const trustedDevice = await getTrustedDeviceForUser(user.id);
+    if (!trustedDevice) {
+      const challengeToken = await createLoginDeviceChallenge(user.id, request);
+      const baseUrl =
+        process.env.NEXT_PUBLIC_APP_URL ||
+        process.env.VNPAY_BASE_URL ||
+        new URL(request.url).origin;
+      const confirmationUrl = `${baseUrl.replace(/\/$/, "")}/auth/confirm-device?token=${encodeURIComponent(challengeToken)}`;
+      const subject = "Xác nhận thiết bị đăng nhập FinnCenter";
+      const text = `Có yêu cầu đăng nhập FinnCenter từ một thiết bị chưa được xác nhận. Nếu là bạn, hãy mở liên kết trong vòng 15 phút: ${confirmationUrl}. Nếu không phải bạn, hãy bỏ qua email và đổi mật khẩu.`;
+
+      try {
+        await sendBasicEmail(user.email, subject, text);
+        await prisma.emailLog.create({
+          data: { userId: user.id, to: user.email, subject, status: "SENT", sentAt: new Date() },
+        });
+      } catch (error) {
+        await prisma.emailLog.create({
+          data: {
+            userId: user.id,
+            to: user.email,
+            subject,
+            status: "FAILED",
+            error: error instanceof Error ? error.message : String(error),
+          },
+        });
+        return NextResponse.json(
+          { error: "Không thể gửi email xác nhận thiết bị. Vui lòng thử lại sau." },
+          { status: 503 },
+        );
+      }
+
+      return NextResponse.json({
+        ok: true,
+        requiresDeviceConfirmation: true,
+        message: "Chúng tôi phát hiện đăng nhập từ một trình duyệt mới. Vui lòng kiểm tra email và mở liên kết xác minh trên chính trình duyệt bạn đang sử dụng để hoàn tất đăng nhập..",
+      });
+    }
+
+    await startAuthenticatedSession({
+      user,
+      request,
+      trustedDeviceId: trustedDevice.id,
+    });
 
     return NextResponse.json({
       ok: true,

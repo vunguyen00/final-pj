@@ -56,7 +56,7 @@ export default async function HomePage() {
     <main className="min-h-dvh bg-background">
       <Hero
         subtitle="Nền tảng học ngoại ngữ đa ngôn ngữ"
-        title="Xây dựng lộ trình ngoại ngữ cùng FinnCenter"
+        title="Đồng hành chinh phục ngoại ngữ cùng FinnCenter"
         description="Khóa học, lộ trình combo, luyện kỹ năng, gói từ vựng, đề thi thử và chương trình luyện thi chứng chỉ cho tiếng Anh, Trung, Nhật và Hàn."
         primaryAction={{ label: "Khám phá khóa học", href: "/courses" }}
         secondaryAction={{ label: "Luyện tập", href: "/student/tests" }}

@@ -55,7 +55,7 @@ export async function GET() {
         : Promise.resolve([]),
       user.role === "TEACHER"
         ? prisma.teacherApplication.findFirst({
-            where: { userId: user.id, status: "APPROVED" },
+            where: { userId: user.id, status: { in: ["APPROVED", "CONVERTED_TO_TEACHER"] } },
             select: { language: { select: { id: true, name: true, code: true } } },
             orderBy: { reviewedAt: "desc" },
           })
@@ -116,7 +116,7 @@ export async function POST(request: Request) {
       ? await prisma.teacherApplication.findFirst({
             where: {
               userId: user.id,
-              status: "APPROVED",
+              status: { in: ["APPROVED", "CONVERTED_TO_TEACHER"] },
             },
             select: { languageId: true },
             orderBy: { reviewedAt: "desc" },

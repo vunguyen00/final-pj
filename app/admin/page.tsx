@@ -3,27 +3,31 @@ import { prisma } from "@/lib/prisma";
 import { Suspense } from "react";
 import AdminShell from "./AdminShell";
 import { getDashboardAnalytics } from "@/lib/admin-analytics";
-import { getTeacherEntranceSetting, getActiveLanguages } from "@/lib/teacher-onboarding";
+import { getTeacherRecruitmentSetting, getTeacherExamLocations, getActiveLanguages } from "@/lib/teacher-onboarding";
 import { getCourseAutoApprovalSetting } from "@/lib/course-approval";
 import type { AdminCourseRefund } from "./types";
 import type { AdminWithdrawal } from "./AdminRevenueWithdrawals";
 import { getAdminManagedTestsPage } from "@/lib/admin-managed-tests";
+import { parseRoundLocations } from "@/lib/teacher-recruitment-rounds";
 
 export default async function AdminPage() {
   await requireRole("ADMIN");
 
   const [
     setting,
+    examLocations,
     courseApprovalSetting,
     languages,
     applicationsRaw,
+    recruitmentRoundsRaw,
     analyticsInitialData,
     courses,
     adminManagedTestsPage,
     withdrawals,
     refunds,
   ] = await Promise.all([
-    getTeacherEntranceSetting(),
+    getTeacherRecruitmentSetting(),
+    getTeacherExamLocations(),
     getCourseAutoApprovalSetting(),
     getActiveLanguages(),
     prisma.teacherApplication.findMany({
@@ -31,12 +35,25 @@ export default async function AdminPage() {
         user: { select: { id: true, username: true, email: true, phoneNumber: true, role: true } },
         language: true,
         certificates: true,
-        antiCheatLogs: { orderBy: { serverTimestamp: "desc" }, take: 50 },
-        suspiciousEvents: true,
-        entranceTest: { select: { id: true, name: true, passingScore: true, maxScore: true } },
+        recruitmentRound: { select: { id: true, name: true, status: true } },
       },
       orderBy: { createdAt: "desc" },
       take: 100,
+    }),
+    prisma.recruitmentRound.findMany({
+      include: {
+        createdBy: { select: { id: true, username: true } },
+        applications: {
+          include: {
+            user: { select: { username: true, email: true, phoneNumber: true, role: true } },
+            language: { select: { id: true, name: true, code: true } },
+            certificates: true,
+            examResult: true,
+          },
+          orderBy: { createdAt: "desc" },
+        },
+      },
+      orderBy: { createdAt: "desc" },
     }),
     getDashboardAnalytics({ preset: "LAST_30_DAYS" }),
     prisma.course.findMany({
@@ -48,7 +65,7 @@ export default async function AdminPage() {
             username: true,
             email: true,
             teacherApplications: {
-              where: { status: "APPROVED" },
+              where: { status: { in: ["APPROVED", "CONVERTED_TO_TEACHER"] } },
               select: { language: { select: { id: true, name: true, code: true } } },
               orderBy: { reviewedAt: "desc" },
               take: 1,
@@ -92,20 +109,41 @@ export default async function AdminPage() {
     }),
   ]);
 
-  const attemptIds = applicationsRaw.flatMap((application) => application.entranceAttemptId ? [application.entranceAttemptId] : []);
-  const attempts = attemptIds.length
-    ? await prisma.testAttempt.findMany({ where: { id: { in: attemptIds } }, select: { id: true, score: true, maxScore: true, isPassed: true, submittedAt: true } })
-    : [];
-  const attemptMap = new Map(attempts.map((at) => [at.id, { ...at, submittedAt: at.submittedAt?.toISOString() ?? null }] ))
-
   const applications = applicationsRaw.map((app) => ({
     ...app,
     submittedAt: app.submittedAt ? app.submittedAt.toISOString() : null,
     reviewedAt: app.reviewedAt ? app.reviewedAt.toISOString() : null,
     certificates: app.certificates.map((c) => ({ ...c, expiryDate: c.expiryDate ? c.expiryDate.toISOString() : null })),
-    antiCheatLogs: app.antiCheatLogs.map((log) => ({ ...log, serverTimestamp: log.serverTimestamp ? log.serverTimestamp.toISOString() : null })),
-    suspiciousEvents: app.suspiciousEvents.map((s) => ({ ...s, updatedAt: s.updatedAt ? s.updatedAt.toISOString() : null })),
-    entranceAttempt: app.entranceAttemptId ? (attemptMap.get(app.entranceAttemptId) ?? null) : null,
+  }));
+  const recruitmentRounds = recruitmentRoundsRaw.map((round) => ({
+    ...round,
+    gradingTokenHash: undefined,
+    locations: parseRoundLocations(round.locations),
+    registrationOpensAt: round.registrationOpensAt.toISOString(),
+    registrationClosesAt: round.registrationClosesAt.toISOString(),
+    examStartsAt: round.examStartsAt.toISOString(),
+    examEndsAt: round.examEndsAt.toISOString(),
+    gradingTokenIssuedAt: round.gradingTokenIssuedAt?.toISOString() ?? null,
+    createdAt: round.createdAt.toISOString(),
+    updatedAt: round.updatedAt.toISOString(),
+    applications: round.applications.map((application) => ({
+      ...application,
+      createdAt: application.createdAt.toISOString(),
+      updatedAt: application.updatedAt.toISOString(),
+      submittedAt: application.submittedAt?.toISOString() ?? null,
+      reviewedAt: application.reviewedAt?.toISOString() ?? null,
+      certificates: application.certificates.map((certificate) => ({
+        ...certificate,
+        createdAt: certificate.createdAt.toISOString(),
+        expiryDate: certificate.expiryDate.toISOString(),
+      })),
+      examResult: application.examResult ? {
+        ...application.examResult,
+        submittedAt: application.examResult.submittedAt?.toISOString() ?? null,
+        createdAt: application.examResult.createdAt.toISOString(),
+        updatedAt: application.examResult.updatedAt.toISOString(),
+      } : null,
+    })),
   }));
 
   return (
@@ -113,6 +151,9 @@ export default async function AdminPage() {
       <Suspense fallback={<div className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">Đang tải trang quản trị...</div>}>
         <AdminShell
           initialEnabled={Boolean(setting.enabled)}
+          initialTeacherRecruitmentSetting={setting}
+          initialTeacherExamLocations={examLocations}
+          initialRecruitmentRounds={recruitmentRounds}
           initialCourseAutoApproval={Boolean(courseApprovalSetting.enabled)}
           initialLanguages={languages}
           initialApplications={applications}

@@ -69,7 +69,7 @@ export async function getPublicTeachers(): Promise<PublicTeacher[]> {
           },
         },
         teacherApplications: {
-          where: { status: "APPROVED" },
+          where: { status: { in: ["APPROVED", "CONVERTED_TO_TEACHER"] } },
           select: { language: { select: { name: true } } },
           orderBy: [{ reviewedAt: "desc" }, { createdAt: "desc" }],
           take: 1,
@@ -133,7 +133,7 @@ export async function getPublicTeacherDetail(id: string): Promise<PublicTeacherD
           orderBy: { createdAt: "desc" },
         },
         teacherApplications: {
-          where: { status: "APPROVED" },
+          where: { status: { in: ["APPROVED", "CONVERTED_TO_TEACHER"] } },
           select: { language: { select: { name: true } } },
           orderBy: [{ reviewedAt: "desc" }, { createdAt: "desc" }],
           take: 1,

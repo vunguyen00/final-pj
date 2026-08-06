@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import {
   getCourseAutoApprovalSetting,
+  scanPendingCoursesForAutoApproval,
   setCourseAutoApprovalSetting,
 } from "@/lib/course-approval";
 
@@ -26,8 +27,9 @@ export async function PUT(request: Request) {
     const enabled = Boolean(body.enabled);
 
     await setCourseAutoApprovalSetting(enabled);
+    const scan = enabled ? await scanPendingCoursesForAutoApproval() : null;
 
-    return NextResponse.json({ enabled });
+    return NextResponse.json({ enabled, scan });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Lỗi hệ thống.";
     return NextResponse.json({ error: message }, { status: 500 });

@@ -29,7 +29,10 @@ model User {
   feedbacks                    Feedback[]
   orders                       Order[]
   payments                     Payment[]
-  wallet                       Wallet?
+  trustedDevices               TrustedDevice[]
+  loginDeviceChallenges        LoginDeviceChallenge[]
+  invitationsSent              UserInvitation[]                    @relation("InvitationSender")
+  invitationAccepted           UserInvitation?                     @relation("InvitationAcceptedUser")
   courses                      Course[]
   refundRequests               CourseRefundRequest[]               @relation("RefundRequestStudent")
   reviewedRefundRequests       CourseRefundRequest[]               @relation("RefundRequestReviewer")
@@ -41,6 +44,7 @@ model User {
   learningLanguage             LearningLanguage?                   @relation("UserLearningLanguage", fields: [learningLanguageId], references: [id])
   teacherApplications          TeacherApplication[]                @relation("TeacherApplicationUser")
   reviewedTeacherApplications  TeacherApplication[]                @relation("TeacherApplicationReviewer")
+  recruitmentRoundsCreated     RecruitmentRound[]                  @relation("RecruitmentRoundCreator")
   notifications                Notification[]
   emailLogs                    EmailLog[]
   teacherBankAccount           TeacherBankAccount?
@@ -53,13 +57,75 @@ model User {
 }
 
 model Session {
-  id        String   @id @default(uuid())
-  userId    String
-  tokenHash String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id              String   @id @default(uuid())
+  userId          String
+  trustedDeviceId String
+  tokenHash       String   @unique
+  expiresAt       DateTime
+  lastSeenAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trustedDevice TrustedDevice @relation(fields: [trustedDeviceId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([trustedDeviceId])
+}
+
+model TrustedDevice {
+  id         String   @id @default(uuid())
+  userId     String
+  tokenHash  String   @unique
+  label      String?
+  userAgent  String?
+  lastIp     String?
+  verifiedAt DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions Session[]
+
+  @@index([userId, lastUsedAt])
+}
+
+model LoginDeviceChallenge {
+  id         String    @id @default(uuid())
+  userId     String
+  tokenHash  String    @unique
+  requestIp  String?
+  userAgent  String?
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+}
+
+model UserInvitation {
+  id             String    @id @default(uuid())
+  email          String
+  username       String
+  role           Role      @default(TEACHER)
+  languageId     String?
+  tokenHash      String    @unique
+  invitedById    String
+  acceptedUserId String?   @unique
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  language     LearningLanguage? @relation(fields: [languageId], references: [id], onDelete: SetNull)
+  invitedBy    User              @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Cascade)
+  acceptedUser User?             @relation("InvitationAcceptedUser", fields: [acceptedUserId], references: [id], onDelete: SetNull)
+
+  @@index([email, createdAt])
+  @@index([invitedById, createdAt])
 }
 
 model PasswordResetOtp {
@@ -427,6 +493,7 @@ model LearningLanguage {
   courses             Course[]
   tests               Test[]
   teacherApplications TeacherApplication[]
+  userInvitations     UserInvitation[]
 }
 
 model SystemSetting {
@@ -439,6 +506,11 @@ model TeacherApplication {
   id                        String                   @id @default(uuid())
   userId                    String
   languageId                String
+  examLocationId            String?
+  examLocationName          String?
+  examLocationAddress       String?
+  examLocationNote          String?
+  recruitmentRoundId        String?
   status                    TeacherApplicationStatus @default(DRAFT)
   attemptNo                 Int
   entranceTestId            String?
@@ -468,6 +540,8 @@ model TeacherApplication {
   language          LearningLanguage                  @relation(fields: [languageId], references: [id])
   entranceTest      Test?                             @relation(fields: [entranceTestId], references: [id])
   reviewedBy        User?                             @relation("TeacherApplicationReviewer", fields: [reviewedById], references: [id])
+  recruitmentRound  RecruitmentRound?                 @relation(fields: [recruitmentRoundId], references: [id], onDelete: SetNull)
+  examResult        TeacherExamResult?
   certificates      TeacherCertificate[]
   logs              TeacherApplicationLog[]
   antiCheatLogs     AntiCheatLog[]
@@ -476,6 +550,57 @@ model TeacherApplication {
 
   @@index([userId, createdAt])
   @@index([status, createdAt])
+  @@index([examLocationId])
+  @@index([recruitmentRoundId, createdAt])
+}
+
+model RecruitmentRound {
+  id                   String                 @id @default(uuid())
+  name                 String
+  description          String                 @default("")
+  status               RecruitmentRoundStatus @default(DRAFT)
+  registrationOpensAt  DateTime
+  registrationClosesAt DateTime
+  examStartsAt         DateTime
+  examEndsAt           DateTime
+  locations            Json
+  gradingTokenHash     String?                @unique
+  gradingTokenIssuedAt DateTime?
+  createdById          String
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+
+  createdBy    User                 @relation("RecruitmentRoundCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  applications TeacherApplication[]
+
+  @@index([status, registrationOpensAt])
+  @@index([createdAt])
+}
+
+model TeacherExamResult {
+  id             String    @id @default(uuid())
+  applicationId  String    @unique
+  checkedIn      Boolean   @default(false)
+  completed      Boolean   @default(false)
+  writingScore   Float?
+  speakingScore  Float?
+  listeningScore Float?
+  readingScore   Float?
+  failed         Boolean   @default(false)
+  submittedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  application TeacherApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([submittedAt])
+}
+
+enum RecruitmentRoundStatus {
+  DRAFT
+  OPEN
+  CLOSED
+  ARCHIVED
 }
 
 enum TeacherQuestionInstanceStatus {
@@ -547,6 +672,12 @@ enum TeacherApplicationStatus {
   SUBMITTED
   UNDER_REVIEW
   APPROVED
+  PENDING
+  INVITED_TO_EXAM
+  CHECKED_IN
+  EXAM_COMPLETED
+  PASSED
+  CONVERTED_TO_TEACHER
   REJECTED
   EXPIRED
   FAILED_CHEATING
@@ -873,16 +1004,6 @@ model TeacherRevenueWithdrawalComplaint {
 
   @@index([teacherId, createdAt])
   @@index([status, createdAt])
-}
-
-model Wallet {
-  id        String   @id @default(uuid())
-  userId    String   @unique
-  balance   Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Payment {

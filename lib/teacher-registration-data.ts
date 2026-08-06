@@ -1,13 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import {
   getActiveLanguages,
-  getTeacherEntranceSetting,
+  getTeacherRecruitmentSetting,
+  isTeacherRegistrationOpen,
 } from "@/lib/teacher-onboarding";
-import { parseTeacherQuestionRevealState } from "@/lib/teacher-question-timing";
+import { getActiveRecruitmentRound, parseRoundLocations } from "@/lib/teacher-recruitment-rounds";
 
 export async function getTeacherRegistrationData(userId?: string) {
-  const [setting, languages, applications] = await Promise.all([
-    getTeacherEntranceSetting(),
+  const [setting, activeRound, languages, applications] = await Promise.all([
+    getTeacherRecruitmentSetting(),
+    getActiveRecruitmentRound(),
     getActiveLanguages(),
     userId
       ? prisma.teacherApplication.findMany({
@@ -16,62 +18,46 @@ export async function getTeacherRegistrationData(userId?: string) {
             id: true,
             status: true,
             attemptNo: true,
-            answerState: true,
-            startedAt: true,
             createdAt: true,
             submittedAt: true,
-            violationCount: true,
-            failureReason: true,
-            questionRevealState: true,
-            entranceTimeLimit: true,
+            rejectionReason: true,
+            examLocationId: true,
+            examLocationName: true,
+            examLocationAddress: true,
+            examLocationNote: true,
+            recruitmentRound: { select: { id: true, name: true } },
             language: { select: { id: true, name: true, code: true } },
-            entranceTest: {
-              select: {
-                id: true,
-                name: true,
-                description: true,
-                assessmentMode: true,
-                timeLimit: true,
-                shuffleQuestions: true,
-              },
-            },
           },
           orderBy: { createdAt: "desc" },
         })
       : Promise.resolve([]),
   ]);
 
+  const roundLocations = activeRound ? parseRoundLocations(activeRound.locations) : [];
+  const publicSetting = activeRound ? {
+    ...setting,
+    activeRoundId: activeRound.id,
+    title: activeRound.name,
+    description: activeRound.description,
+    locations: roundLocations,
+    locationIds: roundLocations.map((location) => location.id),
+    location: roundLocations.map((location) => `${location.name}: ${location.address}`).join(" | "),
+    registrationOpensAt: activeRound.registrationOpensAt.toISOString(),
+    registrationClosesAt: activeRound.registrationClosesAt.toISOString(),
+    examStartsAt: activeRound.examStartsAt.toISOString(),
+    examEndsAt: activeRound.examEndsAt.toISOString(),
+  } : setting;
+
   return {
     generatedAt: new Date().toISOString(),
-    setting,
+    setting: publicSetting,
+    activeRound: activeRound ? { id: activeRound.id, name: activeRound.name } : null,
+    registrationOpen: Boolean(activeRound && setting.enabled && setting.activeRoundId === activeRound.id && isTeacherRegistrationOpen(publicSetting)),
     languages,
     applications: applications.map((application) => ({
       ...application,
-      answerState:
-        application.answerState &&
-        typeof application.answerState === "object" &&
-        !Array.isArray(application.answerState)
-          ? Object.fromEntries(
-              Object.entries(application.answerState).filter(
-                (entry): entry is [string, string] =>
-                  typeof entry[1] === "string",
-              ),
-            )
-          : null,
-      startedAt: application.startedAt?.toISOString() ?? null,
       createdAt: application.createdAt.toISOString(),
       submittedAt: application.submittedAt?.toISOString() ?? null,
-      questionRevealState: parseTeacherQuestionRevealState(application.questionRevealState),
-      entranceTest: application.entranceTest
-        ? {
-            ...application.entranceTest,
-            timeLimit:
-              application.entranceTimeLimit ??
-              application.entranceTest.timeLimit,
-            // Never preload prompts for a sequential entrance exam.
-            questions: [],
-          }
-        : null,
     })),
   };
 }

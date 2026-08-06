@@ -27,9 +27,8 @@ test("non-IELTS classroom scoring uses rubric-aligned calibration", async () => 
 });
 
 test("AI question points are converted from rubric total percentage", async () => {
-  const [studentSubmitRoute, teacherEntranceGrading, evaluator] = await Promise.all([
+  const [studentSubmitRoute, evaluator] = await Promise.all([
     source("app/api/student/tests/[testId]/submit/route.ts"),
-    source("lib/teacher-entrance-grading.ts"),
     source("lib/test-ai-evaluation.ts"),
   ]);
 
@@ -37,6 +36,4 @@ test("AI question points are converted from rubric total percentage", async () =
   assert.match(evaluator, /totalScore\)\) \/ 100/);
   assert.match(studentSubmitRoute, /getTestAiScoreRatio\(aiResult\)/);
   assert.doesNotMatch(studentSubmitRoute, /normalizedScore \/ 10/);
-  assert.match(teacherEntranceGrading, /getTestAiScoreRatio\(aiResult\)/);
-  assert.doesNotMatch(teacherEntranceGrading, /normalizedScore \/ 10/);
 });

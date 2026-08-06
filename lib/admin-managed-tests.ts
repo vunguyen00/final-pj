@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 
 export const ADMIN_MANAGED_TESTS_PAGE_SIZE = 10;
 
-const MANAGED_TEST_KINDS = ["TEACHER_ENTRANCE", "PUBLIC_PRACTICE"] as const;
+const MANAGED_TEST_KINDS = ["PUBLIC_PRACTICE"] as const;
 const ASSESSMENT_MODES = ["STANDARD", "WRITING", "SPEAKING"] as const;
 
 type ManagedTestKind = (typeof MANAGED_TEST_KINDS)[number];

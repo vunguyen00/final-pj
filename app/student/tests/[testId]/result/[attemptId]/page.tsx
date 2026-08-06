@@ -1,8 +1,12 @@
 import { notFound } from "next/navigation";
 import StudentTestResultClient from "./StudentTestResultClient";
+import StudentTestPreviewResultClient from "./StudentTestPreviewResultClient";
 import { requireRole } from "@/lib/auth";
 import { canReviewCourse, getUserCourseReview } from "@/lib/course-reviews";
+import { prisma } from "@/lib/prisma";
 import { getStudentTestAttemptResult } from "@/lib/student-test-attempt-result";
+
+const PREVIEW_ATTEMPT_PATTERN = /^preview-\d{10,}$/;
 
 export default async function StudentTestResultPage({
   params,
@@ -13,6 +17,24 @@ export default async function StudentTestResultPage({
     params,
     requireRole("STUDENT", "TEACHER", "ADMIN"),
   ]);
+
+  if (attemptId.startsWith("preview-")) {
+    if (!PREVIEW_ATTEMPT_PATTERN.test(attemptId)) notFound();
+    const test = await prisma.test.findUnique({
+      where: { id: testId },
+      select: { course: { select: { instructorId: true } } },
+    });
+    const canPreview =
+      user.role === "ADMIN" ||
+      (user.role === "TEACHER" && test?.course?.instructorId === user.id);
+    if (!test || !canPreview) notFound();
+    return (
+      <StudentTestPreviewResultClient
+        testId={testId}
+        attemptId={attemptId}
+      />
+    );
+  }
 
   let result;
   try {

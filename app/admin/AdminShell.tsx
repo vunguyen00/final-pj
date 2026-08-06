@@ -7,13 +7,17 @@ import AdminTestsManagement from "./AdminTestsManagement";
 import AdminCourseRefunds from "./AdminCourseRefunds";
 import AdminRevenueWithdrawals, { type AdminWithdrawal } from "./AdminRevenueWithdrawals";
 import CourseReportsPanel from "@/app/components/CourseReportsPanel";
+import AdminTeacherRecruitment from "./AdminTeacherRecruitment";
 import type { AnalyticsPayload } from "@/lib/admin-analytics";
+import type { TeacherExamLocation, TeacherRecruitmentSetting } from "@/lib/teacher-onboarding";
+import type { AdminRecruitmentRound } from "./AdminRecruitmentRounds";
 import type { AdminCourseRefund, AdminManagedTest, Application, Course, Language } from "./types";
 
-type AdminTab = "overview" | "tests" | "withdrawals" | "analytics" | "refunds" | "reports";
+type AdminTab = "overview" | "recruitment" | "tests" | "withdrawals" | "analytics" | "refunds" | "reports";
 
 const adminTabs: { id: AdminTab; label: string }[] = [
   { id: "overview", label: "Tổng quan" },
+  { id: "recruitment", label: "Tuyển giảng viên" },
   { id: "tests", label: "Quản lý bài kiểm tra" },
   { id: "analytics", label: "Thống kê" },
   { id: "withdrawals", label: "Rút doanh thu" },
@@ -27,6 +31,9 @@ function isAdminTab(value: string | null): value is AdminTab {
 
 export default function AdminShell({
   initialEnabled,
+  initialTeacherRecruitmentSetting,
+  initialTeacherExamLocations,
+  initialRecruitmentRounds,
   initialCourseAutoApproval,
   initialLanguages,
   initialApplications,
@@ -38,6 +45,9 @@ export default function AdminShell({
   initialRefunds,
 }: {
   initialEnabled: boolean;
+  initialTeacherRecruitmentSetting: TeacherRecruitmentSetting;
+  initialTeacherExamLocations: TeacherExamLocation[];
+  initialRecruitmentRounds: AdminRecruitmentRound[];
   initialCourseAutoApproval: boolean;
   initialLanguages: Language[];
   initialApplications: Application[];
@@ -97,6 +107,12 @@ export default function AdminShell({
           initialCourseAutoApproval={initialCourseAutoApproval}
           initialApplications={initialApplications}
           initialCourses={initialCourses}
+        />
+      ) : currentTab === "recruitment" ? (
+        <AdminTeacherRecruitment
+          initialSetting={initialTeacherRecruitmentSetting}
+          initialLocations={initialTeacherExamLocations}
+          initialRounds={initialRecruitmentRounds}
         />
       ) : currentTab === "tests" ? (
         <AdminTestsManagement

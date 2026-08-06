@@ -17,11 +17,11 @@ test("payment callbacks have a claim step and unique order item key", async () =
 });
 
 test("refund is external, never credited internally, and removes learning state", async () => {
-  const [wallet, refund] = await Promise.all([
-    source("app/api/wallet/route.ts"),
+  const [schema, refund] = await Promise.all([
+    source("prisma/schema.prisma"),
     source("app/api/admin/course-refunds/[refundId]/route.ts"),
   ]);
-  assert.match(wallet, /status:\s*410/);
+  assert.doesNotMatch(schema, /model Wallet/);
   assert.match(refund, /refundMethod: "EXTERNAL_ACCOUNT"/);
   assert.doesNotMatch(refund, /tx\.wallet\.(upsert|update)/);
   assert.match(refund, /testAttempt\.deleteMany/);
@@ -106,7 +106,7 @@ test("only admins choose course language and teachers use their latest approved 
   ]);
 
   assert.match(route, /const normalizedLanguageId = typeof languageId === "string" \? languageId\.trim\(\) : ""/);
-  assert.match(route, /status: "APPROVED",[\s\S]*orderBy: \{ reviewedAt: "desc" \}/);
+  assert.match(route, /status: \{ in: \["APPROVED", "CONVERTED_TO_TEACHER"\] \}[\s\S]*orderBy: \{ reviewedAt: "desc" \}/);
   assert.match(route, /user\.role === "TEACHER" && !approvedApplication/);
   assert.match(route, /\? approvedApplication!\.languageId/);
   assert.match(updateRoute, /languageId && user\.role === "ADMIN"/);
@@ -135,7 +135,7 @@ test("teachers see every enrollee without roles while admins retain role visibil
   assert.match(adminQuery, /role: true/);
 });
 
-test("teacher entrance test is server-sequential and counts each leave incident once", async () => {
+test.skip("removed online teacher entrance test was server-sequential", async () => {
   const [
     client,
     sequentialClient,
@@ -212,7 +212,7 @@ test("teacher entrance test is server-sequential and counts each leave incident 
   assert.match(createQuestion, /type === "SPEAKING" \? 300 : 10800/);
 });
 
-test("teacher entrance grading runs after submission and exposes completed attempts to admin", async () => {
+test.skip("removed teacher entrance grading exposed completed attempts to admin", async () => {
   const [client, submit, grading, adminDashboard, adminAttempt] = await Promise.all([
     source("app/teacher-registration/TeacherRegistrationClient.tsx"),
     source("app/api/teacher-applications/[applicationId]/submit-test/route.ts"),
@@ -244,7 +244,7 @@ test("teacher entrance grading runs after submission and exposes completed attem
   assert.match(adminDashboard, /TeacherEntranceAttemptDialog/);
 });
 
-test("teacher speaking audio is durable and transcribed in a resumable background queue", async () => {
+test.skip("removed teacher entrance speaking queue", async () => {
   const [
     sequentialClient,
     recorder,
@@ -285,17 +285,51 @@ test("teacher speaking audio is durable and transcribed in a resumable backgroun
   assert.match(schema, /speakingProcessingTokenHash\s+String\?/);
 });
 
-test("admin only offers teacher-application actions for statuses accepted by the review API", async () => {
+test("admin reviews recruitment applications by inviting or rejecting from the dashboard", async () => {
   const [dashboard, reviewRoute] = await Promise.all([
     source("app/admin/AdminDashboard.tsx"),
-    source("app/api/admin/teacher-applications/[applicationId]/review/route.ts"),
+    source("app/api/admin/recruitment-applications/[applicationId]/route.ts"),
   ]);
 
-  assert.match(dashboard, /function canReviewTeacherApplication[\s\S]*status === "UNDER_REVIEW"/);
-  assert.match(dashboard, /pendingApplications[\s\S]*canReviewTeacherApplication\(application\.status\)/);
-  assert.match(dashboard, /\{canReviewTeacherApplication\(application\.status\) \? \(/);
-  assert.match(dashboard, /rejectionReason = promptedReason\.trim\(\)/);
-  assert.match(reviewRoute, /application\.status !== "UNDER_REVIEW"/);
+  assert.match(dashboard, /function canReviewTeacherApplication[\s\S]*application\.status === "PENDING"/);
+  assert.match(dashboard, /pendingApplications[\s\S]*applications\.filter\(canReviewTeacherApplication\)/);
+  assert.match(dashboard, /\{canReviewTeacherApplication\(application\) \?/);
+  assert.match(dashboard, /action: "INVITE_TO_EXAM"/);
+  assert.match(dashboard, /\/api\/admin\/recruitment-applications/);
+  assert.doesNotMatch(dashboard, /\/api\/admin\/teacher-applications\/\$\{application\.id\}\/review/);
+  assert.match(dashboard, /window\.prompt\("Lý do từ chối hồ sơ:"\)\?\.trim\(\)/);
+  assert.match(reviewRoute, /\["PENDING", "UNDER_REVIEW"\]/);
+  assert.match(reviewRoute, /nextStatus = "INVITED_TO_EXAM"/);
+});
+
+test("admin course approval uses the existing course review endpoint", async () => {
+  const dashboard = await source("app/admin/AdminDashboard.tsx");
+
+  assert.match(dashboard, /fetch\(`\/api\/teacher\/courses\/\$\{encodeURIComponent\(course\.id\)\}`/);
+  assert.match(dashboard, /method: "PATCH"/);
+  assert.match(dashboard, /action: "reviewCourse"/);
+  assert.match(dashboard, /decision: action/);
+  assert.doesNotMatch(dashboard, /fetch\("\/api\/admin\/course-approval", \{\s*method: "POST"/);
+});
+
+test("enabling course auto approval scans and resolves every pending course", async () => {
+  const [approvalService, approvalRoute, dashboard, readiness] = await Promise.all([
+    source("lib/course-approval.ts"),
+    source("app/api/admin/course-approval/route.ts"),
+    source("app/admin/AdminDashboard.tsx"),
+    source("lib/course-readiness.ts"),
+  ]);
+
+  assert.match(approvalService, /scanPendingCoursesForAutoApproval/);
+  assert.match(approvalService, /where: \{ status: "PENDING_APPROVAL" \}/);
+  assert.match(approvalService, /getCourseReadiness\(course\.id\)/);
+  assert.match(approvalService, /const nextStatus = readiness\.ready \? "ACTIVE" : "REJECTED"/);
+  assert.match(approvalService, /Lý do: \$\{reasons\.join\(" "\)\}/);
+  assert.match(approvalRoute, /enabled \? await scanPendingCoursesForAutoApproval\(\) : null/);
+  assert.match(dashboard, /quét toàn bộ khóa chờ duyệt/);
+  assert.match(readiness, /Khóa học cần ít nhất một chương/);
+  assert.match(readiness, /Khóa học cần ít nhất một bài học/);
+  assert.match(readiness, /Khóa học cần một bài kiểm tra cuối khóa/);
 });
 
 test("course report submission notifies every admin in the same transaction", async () => {
@@ -356,9 +390,9 @@ test("admin managed tests use server-side search, filters, and ten-item paginati
   assert.match(query, /\.\.\.\(languageId \? \{ languageId \} : \{\}\)/);
   assert.match(query, /take: ADMIN_MANAGED_TESTS_PAGE_SIZE/);
   assert.match(route, /user\.role !== "ADMIN"/);
-  assert.match(client, /Tìm theo tên đề/);
-  assert.match(client, /Hiển thị tối đa 10 đề mỗi trang/);
-  assert.match(client, /Trang \{state\.page\}\/\{state\.totalPages\}/);
+  assert.match(client, /Tìm tên đề/);
+  assert.match(client, /kind: "PUBLIC_PRACTICE"/);
+  assert.doesNotMatch(client, /kind: "TEACHER_ENTRANCE"/);
 });
 
 test("admin analytics highlights platform sales and ranks revenue contributors in full-width reports", async () => {

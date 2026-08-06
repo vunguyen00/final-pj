@@ -1,7 +1,7 @@
 import type { Prisma } from "@/.generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { calculateCourseRevenueSplit } from "@/lib/revenue";
-import { VNPAY_PROVIDER } from "@/lib/wallet";
+import { VNPAY_PROVIDER } from "@/lib/payment-provider";
 
 export const COURSE_PAYMENT_STATUS = {
   PENDING: "PENDING",

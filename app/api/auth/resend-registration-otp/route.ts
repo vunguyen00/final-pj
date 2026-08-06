@@ -1,55 +1,52 @@
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import {
-  createAndSendRegistrationOtp,
+  getRegistrationOtpCookieOptions,
   getRequestSecurityContext,
+  REGISTRATION_OTP_COOKIE_NAME,
+  resendRegistrationOtp,
 } from "@/lib/registration-otp";
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as { email?: unknown } | null;
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
-
   if (!email) {
     return NextResponse.json({ error: "Email là bắt buộc." }, { status: 400 });
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true, accountStatus: true },
-  });
-
-  if (!user) {
-    return NextResponse.json({ error: "Không tìm thấy tài khoản." }, { status: 404 });
-  }
-
-  if (user.accountStatus === "ACTIVE") {
-    return NextResponse.json({ ok: true, alreadyActive: true });
-  }
-
+  const cookieStore = await cookies();
+  const challengeToken = cookieStore.get(REGISTRATION_OTP_COOKIE_NAME)?.value ?? "";
   const securityContext = getRequestSecurityContext(request);
-  const result = await createAndSendRegistrationOtp({
-    userId: user.id,
+  const result = await resendRegistrationOtp({
+    challengeToken,
     email,
     requestIp: securityContext.requestIp,
     deviceFingerprint: securityContext.deviceFingerprint,
   });
-
   if (!result.ok) {
     return NextResponse.json(
       {
         error:
-          result.reason === "COOLDOWN"
-            ? `Vui lòng đợi ${result.retryAfter} giây trước khi gửi lại OTP.`
-            : "Bạn đã yêu cầu OTP quá nhiều lần. Vui lòng thử lại sau.",
-        retryAfter: result.retryAfter,
+          "error" in result
+            ? result.error
+            : result.reason === "COOLDOWN"
+              ? `Vui lòng đợi ${result.retryAfter} giây trước khi gửi lại OTP.`
+              : "Bạn đã yêu cầu OTP quá nhiều lần. Vui lòng thử lại sau.",
+        retryAfter: "retryAfter" in result ? result.retryAfter : undefined,
       },
-      { status: 429 },
+      { status: "status" in result ? result.status : 429 },
     );
   }
 
-  return NextResponse.json({
+  const response = NextResponse.json({
     ok: true,
     expiresAt: result.expiresAt.toISOString(),
     resendAvailableAt: result.resendAvailableAt.toISOString(),
   });
+  response.cookies.set(
+    REGISTRATION_OTP_COOKIE_NAME,
+    result.challengeToken,
+    getRegistrationOtpCookieOptions(),
+  );
+  return response;
 }

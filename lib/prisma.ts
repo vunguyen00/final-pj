@@ -32,8 +32,18 @@ function getReusablePrismaClient() {
     typeof cachedPrisma.teacherBankAccountChangeOtp === "undefined" ||
     typeof cachedPrisma.teacherBankAccountChangeLog === "undefined" ||
     typeof cachedPrisma.courseReport === "undefined" ||
+    typeof cachedPrisma.trustedDevice === "undefined" ||
+    typeof cachedPrisma.loginDeviceChallenge === "undefined" ||
+    typeof cachedPrisma.userInvitation === "undefined" ||
+    typeof cachedPrisma.recruitmentRound === "undefined" ||
+    typeof cachedPrisma.teacherExamResult === "undefined" ||
     !hasRuntimeModelFields(cachedPrisma, "TeacherApplication", [
       "questionRevealState",
+      "examLocationId",
+      "examLocationName",
+      "examLocationAddress",
+      "examLocationNote",
+      "recruitmentRoundId",
     ]) ||
     !hasRuntimeModelFields(cachedPrisma, "Question", [
       "preparationTimeSeconds",

@@ -1,15 +1,53 @@
-import { createHash, randomInt, timingSafeEqual } from "node:crypto";
-import type { Prisma } from "@/.generated/prisma/client";
-import { prisma } from "@/lib/prisma";
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  randomBytes,
+  randomInt,
+  timingSafeEqual,
+} from "node:crypto";
+import { hashPassword } from "@/lib/auth";
 import { sendRegistrationOtpEmail } from "@/lib/mailer";
 import { getRequiredAuthSecret } from "@/lib/server-secret";
 
 export const REGISTRATION_OTP_EXPIRY_MINUTES = 10;
 export const REGISTRATION_OTP_RESEND_SECONDS = 60;
 export const REGISTRATION_OTP_MAX_ATTEMPTS = 5;
+export const REGISTRATION_OTP_COOKIE_NAME = "registration_challenge";
+
 const MAX_EMAIL_OTPS_PER_HOUR = 5;
 const MAX_IP_OTPS_PER_HOUR = 20;
 const MAX_DEVICE_OTPS_PER_HOUR = 10;
+const RATE_LIMIT_STORE_MAX_KEYS = 10_000;
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+const VERIFY_LIMIT_WINDOW_MS = REGISTRATION_OTP_EXPIRY_MINUTES * 60 * 1000;
+
+type PendingRegistration = {
+  version: 1;
+  challengeId: string;
+  username: string;
+  email: string;
+  passwordHash: string;
+  codeHash: string;
+  deviceFingerprint: string;
+  expiresAt: number;
+  resendAvailableAt: number;
+  attempts: number;
+};
+
+type RateLimitState = {
+  entries: Map<string, number[]>;
+  operations: number;
+};
+
+const globalRateLimit = globalThis as typeof globalThis & {
+  registrationOtpRateLimit?: RateLimitState;
+};
+const rateLimitState =
+  globalRateLimit.registrationOtpRateLimit ??
+  { entries: new Map<string, number[]>(), operations: 0 };
+
+globalRateLimit.registrationOtpRateLimit = rateLimitState;
 
 function hashOtp(code: string) {
   return createHash("sha256")
@@ -21,6 +59,196 @@ function compareHash(value: string, expected: string) {
   const left = Buffer.from(hashOtp(value));
   const right = Buffer.from(expected);
   return left.length === right.length && timingSafeEqual(left, right);
+}
+
+function opaqueRateLimitKey(namespace: string, value: string) {
+  return `${namespace}:${createHash("sha256").update(value).digest("hex")}`;
+}
+
+function pruneRateLimitStore(now: number) {
+  rateLimitState.operations += 1;
+  if (
+    rateLimitState.operations % 100 !== 0 &&
+    rateLimitState.entries.size <= RATE_LIMIT_STORE_MAX_KEYS
+  ) return;
+
+  const oldestAllowed = now - RATE_LIMIT_WINDOW_MS;
+  for (const [key, timestamps] of rateLimitState.entries) {
+    const active = timestamps.filter((timestamp) => timestamp > oldestAllowed);
+    if (active.length === 0) rateLimitState.entries.delete(key);
+    else rateLimitState.entries.set(key, active);
+  }
+
+  while (rateLimitState.entries.size > RATE_LIMIT_STORE_MAX_KEYS) {
+    const oldestKey = rateLimitState.entries.keys().next().value;
+    if (typeof oldestKey !== "string") break;
+    rateLimitState.entries.delete(oldestKey);
+  }
+}
+
+function consumeRateLimitRule(params: {
+  key: string;
+  limit: number;
+  windowMs: number;
+  now: number;
+}) {
+  const active = (rateLimitState.entries.get(params.key) ?? []).filter(
+    (timestamp) => timestamp > params.now - params.windowMs,
+  );
+  if (active.length >= params.limit) {
+    return {
+      ok: false as const,
+      retryAfter: Math.max(
+        1,
+        Math.ceil((active[0] + params.windowMs - params.now) / 1000),
+      ),
+    };
+  }
+  rateLimitState.entries.set(params.key, [...active, params.now]);
+  return { ok: true as const };
+}
+
+function consumeRegistrationOtpSend(params: {
+  email: string;
+  requestIp?: string | null;
+  deviceFingerprint?: string | null;
+}) {
+  const now = Date.now();
+  pruneRateLimitStore(now);
+  const rules = [
+    {
+      key: opaqueRateLimitKey("registration-email-cooldown", params.email),
+      limit: 1,
+      windowMs: REGISTRATION_OTP_RESEND_SECONDS * 1000,
+      reason: "COOLDOWN" as const,
+    },
+    {
+      key: opaqueRateLimitKey("registration-email-hour", params.email),
+      limit: MAX_EMAIL_OTPS_PER_HOUR,
+      windowMs: RATE_LIMIT_WINDOW_MS,
+      reason: "RATE_LIMIT" as const,
+    },
+    ...(params.requestIp
+      ? [{
+          key: opaqueRateLimitKey("registration-ip-hour", params.requestIp),
+          limit: MAX_IP_OTPS_PER_HOUR,
+          windowMs: RATE_LIMIT_WINDOW_MS,
+          reason: "RATE_LIMIT" as const,
+        }]
+      : []),
+    ...(params.deviceFingerprint
+      ? [{
+          key: opaqueRateLimitKey("registration-device-hour", params.deviceFingerprint),
+          limit: MAX_DEVICE_OTPS_PER_HOUR,
+          windowMs: RATE_LIMIT_WINDOW_MS,
+          reason: "RATE_LIMIT" as const,
+        }]
+      : []),
+  ];
+
+  // Validate every rule before consuming any counter.
+  for (const rule of rules) {
+    const active = (rateLimitState.entries.get(rule.key) ?? []).filter(
+      (timestamp) => timestamp > now - rule.windowMs,
+    );
+    if (active.length >= rule.limit) {
+      return {
+        ok: false as const,
+        reason: rule.reason,
+        retryAfter: Math.max(
+          1,
+          Math.ceil((active[0] + rule.windowMs - now) / 1000),
+        ),
+      };
+    }
+  }
+  for (const rule of rules) {
+    const active = (rateLimitState.entries.get(rule.key) ?? []).filter(
+      (timestamp) => timestamp > now - rule.windowMs,
+    );
+    rateLimitState.entries.set(rule.key, [...active, now]);
+  }
+  return { ok: true as const };
+}
+
+export function reserveRegistrationOtpCapacity(params: {
+  email: string;
+  requestIp?: string | null;
+  deviceFingerprint?: string | null;
+}) {
+  return consumeRegistrationOtpSend(params);
+}
+
+function consumeVerificationAttempt(challengeId: string) {
+  const now = Date.now();
+  pruneRateLimitStore(now);
+  return consumeRateLimitRule({
+    key: opaqueRateLimitKey("registration-verify", challengeId),
+    limit: REGISTRATION_OTP_MAX_ATTEMPTS,
+    windowMs: VERIFY_LIMIT_WINDOW_MS,
+    now,
+  });
+}
+
+function getEncryptionKey() {
+  return createHash("sha256")
+    .update(`registration-challenge:${getRequiredAuthSecret()}`)
+    .digest();
+}
+
+function encryptPendingRegistration(payload: PendingRegistration) {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", getEncryptionKey(), iv);
+  const encrypted = Buffer.concat([
+    cipher.update(JSON.stringify(payload), "utf8"),
+    cipher.final(),
+  ]);
+  return [iv, encrypted, cipher.getAuthTag()]
+    .map((part) => part.toString("base64url"))
+    .join(".");
+}
+
+function decryptPendingRegistration(token: string): PendingRegistration | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const [ivValue, encryptedValue, tagValue] = parts;
+    const decipher = createDecipheriv(
+      "aes-256-gcm",
+      getEncryptionKey(),
+      Buffer.from(ivValue, "base64url"),
+    );
+    decipher.setAuthTag(Buffer.from(tagValue, "base64url"));
+    const decrypted = Buffer.concat([
+      decipher.update(Buffer.from(encryptedValue, "base64url")),
+      decipher.final(),
+    ]).toString("utf8");
+    const payload = JSON.parse(decrypted) as PendingRegistration;
+    if (
+      payload.version !== 1 ||
+      !payload.challengeId ||
+      !payload.username ||
+      !payload.email ||
+      !payload.passwordHash ||
+      !payload.codeHash ||
+      !payload.deviceFingerprint ||
+      !Number.isFinite(payload.expiresAt) ||
+      !Number.isFinite(payload.resendAvailableAt) ||
+      !Number.isInteger(payload.attempts) ||
+      payload.attempts < 0
+    ) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+function challengeMatchesRequest(
+  challenge: PendingRegistration,
+  email: string,
+  deviceFingerprint: string,
+) {
+  return challenge.email === email && challenge.deviceFingerprint === deviceFingerprint;
 }
 
 export function generateOtpCode() {
@@ -36,238 +264,170 @@ export function getRequestSecurityContext(request: Request) {
     request.headers.get("x-device-id") ||
     request.headers.get("user-agent") ||
     "unknown-device";
-  const deviceFingerprint = createHash("sha256").update(rawDevice).digest("hex").slice(0, 64);
-
+  const deviceFingerprint = createHash("sha256")
+    .update(rawDevice)
+    .digest("hex")
+    .slice(0, 64);
   return { requestIp: ip, deviceFingerprint };
 }
 
-async function logRegistrationEvent(params: {
-  tx?: Prisma.TransactionClient;
-  userId?: string | null;
-  email: string;
-  requestIp?: string | null;
-  deviceFingerprint?: string | null;
-  eventType: string;
-  detail?: Prisma.InputJsonValue;
-}) {
-  const client = params.tx ?? prisma;
-  await client.registrationSecurityEvent.create({
-    data: {
-      userId: params.userId ?? null,
-      email: params.email,
-      requestIp: params.requestIp ?? null,
-      deviceFingerprint: params.deviceFingerprint ?? null,
-      eventType: params.eventType,
-      detail: params.detail ?? {},
-    },
-  });
-}
-
-export async function ensureRegistrationOtpCanBeSent(params: {
-  userId: string;
-  email: string;
-  requestIp?: string | null;
-  deviceFingerprint?: string | null;
-}) {
-  const now = new Date();
-  const since = new Date(now.getTime() - 60 * 60 * 1000);
-  const latest = await prisma.emailVerificationOtp.findFirst({
-    where: { userId: params.userId, consumedAt: null },
-    orderBy: { createdAt: "desc" },
-    select: { resendAvailableAt: true },
-  });
-
-  if (latest && latest.resendAvailableAt > now) {
-    const retryAfter = Math.ceil((latest.resendAvailableAt.getTime() - now.getTime()) / 1000);
-    await logRegistrationEvent({
-      userId: params.userId,
-      email: params.email,
-      requestIp: params.requestIp,
-      deviceFingerprint: params.deviceFingerprint,
-      eventType: "OTP_RESEND_COOLDOWN",
-      detail: { retryAfter },
-    });
-    return { ok: false as const, retryAfter, reason: "COOLDOWN" as const };
-  }
-
-  const [emailCount, ipCount, deviceCount] = await Promise.all([
-    prisma.emailVerificationOtp.count({ where: { email: params.email, createdAt: { gte: since } } }),
-    params.requestIp
-      ? prisma.emailVerificationOtp.count({ where: { requestIp: params.requestIp, createdAt: { gte: since } } })
-      : Promise.resolve(0),
-    params.deviceFingerprint
-      ? prisma.emailVerificationOtp.count({ where: { deviceFingerprint: params.deviceFingerprint, createdAt: { gte: since } } })
-      : Promise.resolve(0),
-  ]);
-
-  if (
-    emailCount >= MAX_EMAIL_OTPS_PER_HOUR ||
-    ipCount >= MAX_IP_OTPS_PER_HOUR ||
-    deviceCount >= MAX_DEVICE_OTPS_PER_HOUR
-  ) {
-    await logRegistrationEvent({
-      userId: params.userId,
-      email: params.email,
-      requestIp: params.requestIp,
-      deviceFingerprint: params.deviceFingerprint,
-      eventType: "OTP_RATE_LIMITED",
-      detail: { emailCount, ipCount, deviceCount },
-    });
-    return { ok: false as const, retryAfter: REGISTRATION_OTP_RESEND_SECONDS, reason: "RATE_LIMIT" as const };
-  }
-
-  return { ok: true as const };
+export function getRegistrationOtpCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge: REGISTRATION_OTP_EXPIRY_MINUTES * 60,
+  };
 }
 
 export async function createAndSendRegistrationOtp(params: {
-  userId: string;
+  username: string;
   email: string;
+  password: string;
   requestIp?: string | null;
-  deviceFingerprint?: string | null;
+  deviceFingerprint: string;
+  rateLimitReserved?: boolean;
 }) {
-  const allowed = await ensureRegistrationOtpCanBeSent(params);
-  if (!allowed.ok) return allowed;
+  if (!params.rateLimitReserved) {
+    const allowed = consumeRegistrationOtpSend(params);
+    if (!allowed.ok) return allowed;
+  }
 
   const code = generateOtpCode();
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + REGISTRATION_OTP_EXPIRY_MINUTES * 60 * 1000);
-  const resendAvailableAt = new Date(now.getTime() + REGISTRATION_OTP_RESEND_SECONDS * 1000);
-
-  await prisma.emailVerificationOtp.create({
-    data: {
-      userId: params.userId,
-      email: params.email,
-      codeHash: hashOtp(code),
-      expiresAt,
-      resendAvailableAt,
-      requestIp: params.requestIp,
-      deviceFingerprint: params.deviceFingerprint,
-    },
-  });
-
-  try {
-    await sendRegistrationOtpEmail(params.email, code, REGISTRATION_OTP_EXPIRY_MINUTES);
-    await prisma.emailLog.create({
-      data: {
-        userId: params.userId,
-        to: params.email,
-        subject: "Mã OTP xác thực tài khoản",
-        status: "SENT",
-        sentAt: new Date(),
-      },
-    });
-  } catch (error) {
-    await prisma.emailLog.create({
-      data: {
-        userId: params.userId,
-        to: params.email,
-        subject: "Mã OTP xác thực tài khoản",
-        status: "FAILED",
-        error: error instanceof Error ? error.message : String(error),
-      },
-    });
-    throw error;
-  }
-
-  await logRegistrationEvent({
-    userId: params.userId,
+  const now = Date.now();
+  const expiresAt = now + REGISTRATION_OTP_EXPIRY_MINUTES * 60 * 1000;
+  const resendAvailableAt = now + REGISTRATION_OTP_RESEND_SECONDS * 1000;
+  const challenge: PendingRegistration = {
+    version: 1,
+    challengeId: randomBytes(16).toString("hex"),
+    username: params.username,
     email: params.email,
-    requestIp: params.requestIp,
+    passwordHash: hashPassword(params.password),
+    codeHash: hashOtp(code),
     deviceFingerprint: params.deviceFingerprint,
-    eventType: "OTP_SENT",
-    detail: { expiresAt: expiresAt.toISOString() },
-  });
+    expiresAt,
+    resendAvailableAt,
+    attempts: 0,
+  };
 
-  return { ok: true as const, expiresAt, resendAvailableAt };
+  await sendRegistrationOtpEmail(params.email, code, REGISTRATION_OTP_EXPIRY_MINUTES);
+  return {
+    ok: true as const,
+    challengeToken: encryptPendingRegistration(challenge),
+    expiresAt: new Date(expiresAt),
+    resendAvailableAt: new Date(resendAvailableAt),
+  };
 }
 
-export async function verifyRegistrationOtp(params: {
+export async function resendRegistrationOtp(params: {
+  challengeToken: string;
   email: string;
-  code: string;
   requestIp?: string | null;
-  deviceFingerprint?: string | null;
+  deviceFingerprint: string;
 }) {
-  const user = await prisma.user.findUnique({
-    where: { email: params.email },
-    select: { id: true, role: true, accountStatus: true, authVersion: true },
-  });
-
-  if (!user) return { ok: false as const, status: 404, error: "Không tìm thấy tài khoản." };
-  if (user.accountStatus === "ACTIVE") return { ok: true as const, user, alreadyActive: true };
-
-  const otp = await prisma.emailVerificationOtp.findFirst({
-    where: { userId: user.id, email: params.email, consumedAt: null },
-    orderBy: { createdAt: "desc" },
-  });
-
-  if (!otp) {
-    return { ok: false as const, status: 400, error: "Mã OTP không tồn tại hoặc đã được sử dụng." };
-  }
-
-  if (otp.expiresAt < new Date()) {
-    await logRegistrationEvent({
-      userId: user.id,
-      email: params.email,
-      requestIp: params.requestIp,
-      deviceFingerprint: params.deviceFingerprint,
-      eventType: "OTP_EXPIRED",
-      detail: { otpId: otp.id },
-    });
-    return { ok: false as const, status: 400, error: "Mã OTP đã hết hạn. Vui lòng gửi lại mã mới." };
-  }
-
-  if (otp.attempts >= REGISTRATION_OTP_MAX_ATTEMPTS) {
-    await logRegistrationEvent({
-      userId: user.id,
-      email: params.email,
-      requestIp: params.requestIp,
-      deviceFingerprint: params.deviceFingerprint,
-      eventType: "OTP_ATTEMPTS_EXCEEDED",
-      detail: { otpId: otp.id },
-    });
-    return { ok: false as const, status: 429, error: "Bạn đã nhập sai OTP quá nhiều lần. Vui lòng gửi lại mã mới." };
-  }
-
-  if (!compareHash(params.code, otp.codeHash)) {
-    const updated = await prisma.emailVerificationOtp.update({
-      where: { id: otp.id },
-      data: { attempts: { increment: 1 } },
-      select: { attempts: true },
-    });
-    await logRegistrationEvent({
-      userId: user.id,
-      email: params.email,
-      requestIp: params.requestIp,
-      deviceFingerprint: params.deviceFingerprint,
-      eventType: "OTP_INVALID",
-      detail: { attempts: updated.attempts },
-    });
+  const challenge = decryptPendingRegistration(params.challengeToken);
+  if (!challenge || !challengeMatchesRequest(challenge, params.email, params.deviceFingerprint)) {
     return {
       ok: false as const,
-      status: updated.attempts >= REGISTRATION_OTP_MAX_ATTEMPTS ? 429 : 400,
-      error: "Mã OTP không đúng.",
-      attemptsRemaining: Math.max(0, REGISTRATION_OTP_MAX_ATTEMPTS - updated.attempts),
+      status: 400,
+      reason: "INVALID_CHALLENGE" as const,
+      error: "Phiên đăng ký không hợp lệ. Vui lòng đăng ký lại.",
     };
   }
 
-  await prisma.$transaction([
-    prisma.emailVerificationOtp.update({
-      where: { id: otp.id },
-      data: { consumedAt: new Date() },
-    }),
-    prisma.user.update({
-      where: { id: user.id },
-      data: { accountStatus: "ACTIVE", emailVerifiedAt: new Date() },
-    }),
-  ]);
+  const now = Date.now();
+  if (challenge.resendAvailableAt > now) {
+    return {
+      ok: false as const,
+      status: 429,
+      reason: "COOLDOWN" as const,
+      retryAfter: Math.ceil((challenge.resendAvailableAt - now) / 1000),
+    };
+  }
 
-  await logRegistrationEvent({
-    userId: user.id,
-    email: params.email,
-    requestIp: params.requestIp,
-    deviceFingerprint: params.deviceFingerprint,
-    eventType: "OTP_VERIFIED",
-  });
+  const allowed = consumeRegistrationOtpSend(params);
+  if (!allowed.ok) return { ...allowed, status: 429 };
 
-  return { ok: true as const, user };
+  const code = generateOtpCode();
+  const expiresAt = now + REGISTRATION_OTP_EXPIRY_MINUTES * 60 * 1000;
+  const resendAvailableAt = now + REGISTRATION_OTP_RESEND_SECONDS * 1000;
+  const refreshed: PendingRegistration = {
+    ...challenge,
+    challengeId: randomBytes(16).toString("hex"),
+    codeHash: hashOtp(code),
+    expiresAt,
+    resendAvailableAt,
+    attempts: 0,
+  };
+
+  await sendRegistrationOtpEmail(params.email, code, REGISTRATION_OTP_EXPIRY_MINUTES);
+  return {
+    ok: true as const,
+    challengeToken: encryptPendingRegistration(refreshed),
+    expiresAt: new Date(expiresAt),
+    resendAvailableAt: new Date(resendAvailableAt),
+  };
+}
+
+export function verifyRegistrationOtp(params: {
+  challengeToken: string;
+  email: string;
+  code: string;
+  deviceFingerprint: string;
+}) {
+  const challenge = decryptPendingRegistration(params.challengeToken);
+  if (!challenge || !challengeMatchesRequest(challenge, params.email, params.deviceFingerprint)) {
+    return {
+      ok: false as const,
+      status: 400,
+      clearChallenge: true,
+      error: "Phiên đăng ký không hợp lệ. Vui lòng đăng ký lại.",
+    };
+  }
+  if (challenge.expiresAt <= Date.now()) {
+    return {
+      ok: false as const,
+      status: 400,
+      clearChallenge: true,
+      error: "Mã OTP đã hết hạn. Vui lòng đăng ký lại để nhận mã mới.",
+    };
+  }
+  if (challenge.attempts >= REGISTRATION_OTP_MAX_ATTEMPTS) {
+    return {
+      ok: false as const,
+      status: 429,
+      error: "Bạn đã nhập sai OTP quá nhiều lần. Vui lòng gửi lại mã mới.",
+      attemptsRemaining: 0,
+    };
+  }
+
+  const attemptAllowed = consumeVerificationAttempt(challenge.challengeId);
+  if (!attemptAllowed.ok) {
+    return {
+      ok: false as const,
+      status: 429,
+      error: "Bạn đã nhập OTP quá nhiều lần. Vui lòng thử lại sau.",
+      attemptsRemaining: 0,
+    };
+  }
+  if (!compareHash(params.code, challenge.codeHash)) {
+    const attempts = challenge.attempts + 1;
+    return {
+      ok: false as const,
+      status: attempts >= REGISTRATION_OTP_MAX_ATTEMPTS ? 429 : 400,
+      error: "Mã OTP không đúng.",
+      attemptsRemaining: Math.max(0, REGISTRATION_OTP_MAX_ATTEMPTS - attempts),
+      challengeToken: encryptPendingRegistration({ ...challenge, attempts }),
+    };
+  }
+
+  return {
+    ok: true as const,
+    registration: {
+      username: challenge.username,
+      email: challenge.email,
+      passwordHash: challenge.passwordHash,
+    },
+  };
 }

@@ -65,8 +65,8 @@ export function getVnpayConfig(request?: Request | null): VnpayConfig {
   const defaultBaseUrl = readVnpEnv("VNPAY_BASE_URL");
   const configuredReturnUrl = readVnpEnv("VNPAY_RETURN_URL");
   const configuredIpnUrl = readVnpEnv("VNPAY_IPN_URL");
-  const returnPath = readVnpEnv("VNPAY_RETURN_PATH", "/api/wallet/vnpay-return");
-  const ipnPath = readVnpEnv("VNPAY_IPN_PATH", "/api/wallet/vnpay-ipn");
+  const returnPath = readVnpEnv("VNPAY_RETURN_PATH", "/api/payments/vnpay-return");
+  const ipnPath = readVnpEnv("VNPAY_IPN_PATH", "/api/payments/vnpay-ipn");
 
   if (!tmnCode || !hashSecret || !paymentUrl || !apiUrl || !defaultBaseUrl || !returnPath || !ipnPath) {
     throw new Error("VNPAY_CONFIG_MISSING");

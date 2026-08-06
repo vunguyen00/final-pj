@@ -69,9 +69,12 @@ Phạm vi rà soát:
 - Chặn tài khoản chưa xác thực OTP.
 - Chặn tài khoản bị khóa.
 - Rate limit chống thử mật khẩu liên tục theo email và IP.
-- Cookie đăng nhập được ký và có thời hạn.
+- Mỗi tài khoản chỉ có một phiên đăng nhập hoạt động; phiên cũ bị thu hồi khi đăng nhập phiên mới.
+- Thiết bị lạ phải được xác nhận bằng liên kết gửi qua email trước khi truy cập hệ thống.
+- Có thể lưu thiết bị tin cậy để các lần đăng nhập sau không phải xác nhận lại.
+- Cookie phiên và cookie thiết bị tin cậy đều được ký/băm, đặt HttpOnly và có thời hạn.
 - Hỗ trợ thu hồi phiên bằng authVersion.
-- Đăng xuất và xóa cookie xác thực.
+- Đăng xuất thu hồi phiên hiện tại nhưng vẫn có thể ghi nhớ thiết bị tin cậy.
 
 2.3. Quên mật khẩu
 - Gửi OTP đặt lại mật khẩu qua email.
@@ -186,7 +189,7 @@ Phạm vi rà soát:
 
 Lưu ý hiện hành:
 - Hệ thống không còn sử dụng ví tiền nội bộ.
-- API /api/wallet và /api/wallet/top-up trả HTTP 410.
+- Các route /api/wallet, /api/wallet/top-up và /wallet đã được xóa.
 - Mua khóa học và mua điểm AI đều thanh toán trực tiếp qua VNPay.
 
 
@@ -214,7 +217,7 @@ Lưu ý hiện hành:
 9.1. Loại bài test
 - COURSE: bài test gắn với khóa học.
 - PUBLIC_PRACTICE: bài luyện tập công khai.
-- TEACHER_ENTRANCE: bài thi đầu vào giảng viên.
+- TEACHER_ENTRANCE chỉ còn là dữ liệu lịch sử; hệ thống không tạo hoặc tổ chức loại bài này online.
 
 9.2. Chế độ đánh giá
 - STANDARD: chấm tiêu chuẩn.
@@ -359,7 +362,10 @@ Lưu ý hiện hành:
 ----------------------
 
 16.1. Nộp hồ sơ
-- Admin bật/tắt việc nhận hồ sơ giảng viên.
+- Admin đăng thông báo kỳ tuyển giảng viên, địa điểm thi, thời gian thi, thời gian mở và đóng đăng ký.
+- Admin quản lý danh sách địa điểm thi cố định gồm tên, địa chỉ và ghi chú; một thông báo có thể chọn nhiều địa điểm.
+- Email/notification tự động liệt kê đầy đủ các địa chỉ đã chọn.
+- Hệ thống chỉ nhận hồ sơ khi công tắc nhận hồ sơ đang bật và thời điểm hiện tại nằm đúng giữa thời gian mở/đóng đăng ký.
 - Người dùng chọn ngôn ngữ muốn giảng dạy.
 - Upload từ 1 đến 3 chứng chỉ.
 - Hỗ trợ JPG, PNG và PDF.
@@ -367,56 +373,22 @@ Lưu ý hiện hành:
 - Nhập ngày hết hạn cho từng chứng chỉ.
 - Lưu lịch sử từng lần đăng ký.
 
-16.2. Bài thi đầu vào
-- Tìm bài thi đầu vào theo ngôn ngữ.
-- Nếu không có bài thi, hồ sơ chuyển thẳng sang chờ admin review.
-- Nếu có bài thi, hồ sơ ở trạng thái draft cho đến khi nộp bài.
-- Hỗ trợ bài thi Writing hoặc Speaking AI.
-- Đếm ngược thời gian.
-- Tự động lưu đáp án.
-- Thứ tự câu hỏi ổn định theo từng hồ sơ.
-- Hiển thị điểm và nhận xét AI sau khi nộp.
+16.2. Kỳ thi bàn giấy
+- Bài thi đầu vào được tổ chức trực tiếp trên giấy tại địa điểm admin thông báo.
+- Ứng dụng không còn tạo đề, làm bài, chấm AI, ghi âm, tự lưu hoặc chống gian lận cho kỳ thi này.
+- Sau khi đăng ký, hồ sơ chuyển thẳng sang trạng thái chờ admin xem xét.
 
-16.3. Anti-cheat
-- Yêu cầu người thi xác nhận quy định chống gian lận.
-- Yêu cầu cấp quyền camera trước, sau khi camera sẵn sàng mới cho vào toàn màn hình và bắt đầu bài thi.
-- Không mở hộp thoại cấp quyền camera sau khi đã vào toàn màn hình, tránh trình duyệt tự thoát fullscreen.
-- Chỉ bắt đầu tính thời gian làm bài sau khi camera, fullscreen và phiên anti-cheat đã được máy chủ xác nhận.
-- Che toàn bộ nội dung câu hỏi, khóa phần trả lời nếu người thi thoát toàn màn hình và yêu cầu vào lại fullscreen để tiếp tục.
-- Thử bật Keyboard Lock khi trình duyệt hỗ trợ để giữ Esc và các phím hệ thống trong fullscreen; chặn Tab và các phím tắt điều hướng trong phạm vi trang.
-- Alt+Tab/Esc không thể bị website vô hiệu hóa tuyệt đối trên mọi trình duyệt/hệ điều hành; nếu hệ điều hành vẫn cho thoát, hệ thống ghi nhận ngay qua fullscreen, visibility, focus và heartbeat.
-- Chặn menu chuột phải, copy, cut và paste trong thời gian làm bài.
-- Mỗi lần nhấn Esc hoặc rời bài bằng Alt+Tab/mất focus được gắn một mã sự cố riêng và tính đúng một vi phạm, không dùng thời gian chờ 10 giây.
-- Các tín hiệu fullscreen, visibility và blur phát sinh từ cùng một hành động được khử trùng theo mã sự cố, tránh cộng nhiều lỗi cho một lần rời bài.
-- Gửi heartbeat giám sát định kỳ lên máy chủ để xác minh camera, fullscreen, focus và tính toàn vẹn phiên; gián đoạn heartbeat chỉ cảnh báo, không tự cộng thêm lỗi rời bài.
-- Chặn nộp bài nếu heartbeat giám sát đã quá hạn.
-- Khi Screen API của trình duyệt hỗ trợ, chặn bắt đầu và ghi nhận vi phạm nếu phát hiện nhiều màn hình.
-- Phát hiện nhiều phiên làm bài đồng thời bằng mã phiên heartbeat.
-- Theo dõi rời tab hoặc tab bị ẩn.
-- Theo dõi cửa sổ mất focus.
-- Theo dõi thoát fullscreen.
-- Theo dõi copy và paste.
-- Theo dõi camera bị tắt hoặc không truy cập được.
-- Giám sát khuôn mặt cục bộ nếu trình duyệt hỗ trợ FaceDetector.
-- Ghi log anti-cheat và các sự kiện đáng ngờ.
-- Ngay sau khi máy chủ xác nhận nộp bài thành công, tự thoát toàn màn hình, mở khóa bàn phím, dừng camera/heartbeat và ngừng ghi log chống gian lận.
-- Có thể tự động đánh trượt hồ sơ khi vi phạm vượt ngưỡng.
-- Toàn bộ thông báo chống gian lận hiển thị theo ngôn ngữ người dùng đăng ký làm bài giảng viên: Việt, Anh, Trung, Nhật hoặc Hàn.
-- Riêng câu nói và câu viết của đề đầu vào giảng viên được che trước khi lấy câu hỏi.
-- Nút lấy câu hỏi hiển thị cảnh báo thời gian trước khi bắt đầu đồng hồ riêng của câu.
-- Câu nói mặc định có 60 giây chuẩn bị và 120 giây trả lời; người tạo đề có thể cấu hình trong giới hạn cho phép.
-- Câu viết dùng đơn vị phút trong giao diện tạo đề, mặc định 60 phút và có thể cấu hình từ 1 đến 180 phút.
-- Thời điểm lấy câu hỏi và hạn trả lời được lưu, kiểm tra phía máy chủ; tải lại trang không đặt lại đồng hồ.
-- Thời gian riêng câu nói/viết chỉ áp dụng cho đề TEACHER_ENTRANCE, không thay đổi các đề khóa học hoặc đề luyện tập.
+16.3. Mời giảng viên
+- Admin nhập email, tên người dùng và ngôn ngữ giảng dạy.
+- Hệ thống gửi liên kết mời có thời hạn 7 ngày qua email.
+- Người nhận mở liên kết, đặt mật khẩu mạnh và được tạo tài khoản TEACHER đã xác thực email.
+- Hồ sơ ngôn ngữ của giảng viên được ghi nhận là đã duyệt theo lời mời của admin.
 
 16.4. Trạng thái hồ sơ
-- DRAFT.
-- SUBMITTED. 
 - UNDER_REVIEW.
 - APPROVED.
 - REJECTED.
 - EXPIRED.
-- FAILED_CHEATING.
 
 
 17. DASHBOARD GIẢNG VIÊN
@@ -472,8 +444,7 @@ Lưu ý hiện hành:
 - Giảng viên tạo test cho khóa thuộc quyền sở hữu.
 - Mỗi khóa chỉ có một course test.
 - Khóa phải có ít nhất một chương trước khi tạo test.
-- Admin tạo PUBLIC_PRACTICE và TEACHER_ENTRANCE.
-- Teacher entrance yêu cầu chế độ Writing hoặc Speaking.
+- Admin chỉ tạo PUBLIC_PRACTICE; bài thi đầu vào giảng viên đã chuyển sang bàn giấy.
 - Tạo, sửa và xóa đề test.
 - Cấu hình tên đề, mô tả, điểm đạt và thời gian.
 - Quản lý câu hỏi và đáp án.
@@ -593,8 +564,9 @@ Lưu ý hiện hành:
 - Hiển thị số hồ sơ giảng viên và khóa học đang chờ xử lý.
 
 25.2. Cấu hình nghiệp vụ
-- Bật/tắt đăng ký giảng viên.
-- Khi bật lại có thể gửi notification/email cho học viên.
+- Cập nhật thông báo, địa điểm, thời gian thi và cửa sổ đăng ký giảng viên.
+- Có thể gửi notification/email thông báo kỳ thi cho học viên.
+- Mời trực tiếp giảng viên bằng email, tên người dùng và ngôn ngữ giảng dạy.
 - Bật/tắt tự động duyệt khóa học.
 - Có API cấu hình Speaking AI gồm loại IELTS/HSK và thời lượng.
 - Có API thêm ngôn ngữ mới.
@@ -602,9 +574,8 @@ Lưu ý hiện hành:
 
 25.3. Duyệt hồ sơ giảng viên
 - Tìm hồ sơ theo tên hoặc email.
-- Xem ngôn ngữ, lần đăng ký và điểm đầu vào.
+- Xem ngôn ngữ, lần đăng ký và chứng chỉ.
 - Xem chứng chỉ và trạng thái hết hạn.
-- Xem log anti-cheat và sự kiện đáng ngờ.
 - Duyệt hoặc từ chối kèm lý do.
 - Khi duyệt, chuyển người dùng sang role TEACHER.
 
@@ -685,7 +656,6 @@ Lưu ý hiện hành:
 - Tổng báo cáo khóa học.
 - Báo cáo chờ xử lý, đã giải quyết và bị từ chối.
 - Khóa học bị báo cáo nhiều.
-- Tổng vi phạm anti-cheat.
 - Số bài thi và hồ sơ có gian lận.
 - Email gửi thành công/thất bại và tỷ lệ lỗi.
 
@@ -713,6 +683,8 @@ Lưu ý hiện hành:
 - Gửi email duyệt/từ chối hồ sơ giảng viên.
 - Gửi email chứng nhận hoàn thành khóa học.
 - Gửi email/notification khi thay đổi cấu hình đăng ký giảng viên.
+- Gửi email mời giảng viên đặt mật khẩu.
+- Gửi email xác nhận khi đăng nhập từ thiết bị lạ.
 - Lưu EmailLog với trạng thái SENT hoặc FAILED.
 - Lưu nội dung lỗi khi gửi email thất bại.
 
@@ -746,7 +718,6 @@ Lưu ý hiện hành:
 30. CÁC ROUTE CHUYỂN HƯỚNG CŨ
 ----------------------------
 
-- /wallet chuyển đến /student/wallet.
 - /my-learning chuyển đến /my-courses.
 - /student/lam-bai chuyển đến /student/tests.
 - /forgot-password chuyển đến /auth/forgot-password.
@@ -756,7 +727,7 @@ Lưu ý hiện hành:
 --------------------------------
 
 - Danh sách này phản ánh code trong workspace hiện tại, kể cả thay đổi chưa commit.
-- Ví tiền nội bộ không còn hoạt động dù một số model lịch sử vẫn còn trong schema.
+- Model và API ví tiền nội bộ đã bị xóa khỏi hệ thống.
 - Trang /student/wallet hiện là trang quản lý điểm đậu AI, không phải ví tiền VND.
 - Thanh toán khóa học và điểm AI thực hiện trực tiếp qua VNPay.
 - Hoàn tiền và chuyển doanh thu được xử lý ngoài hệ thống; chưa có chuyển khoản ngân hàng tự động.

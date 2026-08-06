@@ -307,6 +307,7 @@ export async function POST(
 
       return NextResponse.json({
         attemptId: previewAttemptId,
+        attemptNo: 0,
         score: finalScore,
         maxScore: FIXED_TEST_MAX_SCORE,
         passingScore: test.passingScore,
@@ -315,11 +316,15 @@ export async function POST(
         courseName: test.course?.name ?? "Public practice",
         language: test.language ?? test.course?.language ?? null,
         courseCompleted: false,
+        courseComplete: false,
         certificateSent: false,
+        nextAction: null,
         previewMode: true,
         totalQuestions: test.questions.length,
         correctAnswers: questionResults.filter((q) => q.isCorrect === true).length,
         questionResults,
+        submittedAnswers: answerSnapshots,
+        submittedAt: new Date().toISOString(),
         scoreOnlyAiFeedback,
         aiFeedbackPurchased: includeAiFeedback && aiInputs.length > 0,
         aiFeedbackCost: previewPointResult.spent,

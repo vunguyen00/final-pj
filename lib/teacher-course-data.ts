@@ -56,7 +56,7 @@ export async function getTeacherCourseData(
   const fixedTeacherLanguage =
     user.role === "TEACHER" && !course.language
       ? await prisma.teacherApplication.findFirst({
-          where: { userId: user.id, status: "APPROVED" },
+          where: { userId: user.id, status: { in: ["APPROVED", "CONVERTED_TO_TEACHER"] } },
           select: {
             language: { select: { id: true, name: true, code: true } },
           },

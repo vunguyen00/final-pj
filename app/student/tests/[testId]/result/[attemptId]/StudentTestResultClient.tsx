@@ -52,7 +52,7 @@ type QuestionResult = {
   aiEvaluation?: AiEvaluation;
 };
 
-type ResultData = {
+export type ResultData = {
   attemptId: string;
   score: number;
   maxScore: number;

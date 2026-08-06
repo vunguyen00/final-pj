@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { readJsonResponse } from "@/lib/http-response";
 
@@ -10,6 +10,7 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function RegisterForm() {
   const router = useRouter();
+  const mutationInFlight = useRef(false);
   const [form, setForm] = useState({ username: "", email: "", password: "", confirmPassword: "", loading: false, error: "" });
   const [otpEmail, setOtpEmail] = useState("");
   const [otpCode, setOtpCode] = useState("");
@@ -20,20 +21,25 @@ export function RegisterForm() {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (mutationInFlight.current) return;
+    mutationInFlight.current = true;
     updateForm({ loading: true, error: "" });
 
     if (!username.trim() || !email.trim() || !password || !confirmPassword) {
       updateForm({ error: "Vui lòng nhập đầy đủ tên hiển thị, email, mật khẩu và xác nhận mật khẩu.", loading: false });
+      mutationInFlight.current = false;
       return;
     }
 
     if (!emailPattern.test(email.trim())) {
       updateForm({ error: "Vui lòng nhập email hợp lệ.", loading: false });
+      mutationInFlight.current = false;
       return;
     }
 
     if (password !== confirmPassword) {
       updateForm({ error: "Xác nhận mật khẩu không khớp.", loading: false });
+      mutationInFlight.current = false;
       return;
     }
 
@@ -61,17 +67,21 @@ export function RegisterForm() {
     } catch {
       updateForm({ error: "Lỗi mạng. Vui lòng thử lại." });
     } finally {
+      mutationInFlight.current = false;
       updateForm({ loading: false });
     }
   }
 
   async function verifyOtp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (mutationInFlight.current) return;
+    mutationInFlight.current = true;
     updateForm({ loading: true, error: "" });
     setOtpMessage("");
 
     if (!/^\d{6}$/.test(otpCode)) {
       updateForm({ error: "Vui lòng nhập mã OTP gồm 6 chữ số.", loading: false });
+      mutationInFlight.current = false;
       return;
     }
 
@@ -93,11 +103,14 @@ export function RegisterForm() {
     } catch {
       updateForm({ error: "Lỗi mạng. Vui lòng thử lại." });
     } finally {
+      mutationInFlight.current = false;
       updateForm({ loading: false });
     }
   }
 
   async function resendOtp() {
+    if (mutationInFlight.current) return;
+    mutationInFlight.current = true;
     setResending(true);
     updateForm({ error: "" });
     setOtpMessage("");
@@ -119,8 +132,16 @@ export function RegisterForm() {
     } catch {
       updateForm({ error: "Lỗi mạng. Vui lòng thử lại." });
     } finally {
+      mutationInFlight.current = false;
       setResending(false);
     }
+  }
+
+  function restartRegistration() {
+    setOtpEmail("");
+    setOtpCode("");
+    setOtpMessage("");
+    updateForm({ error: "" });
   }
 
   if (otpEmail) {
@@ -168,6 +189,14 @@ export function RegisterForm() {
           className="w-full rounded-xl border border-slate-300 px-4 py-3 font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {resending ? "Đang gửi lại..." : "Gửi lại OTP"}
+        </button>
+        <button
+          type="button"
+          disabled={resending || loading}
+          onClick={restartRegistration}
+          className="w-full px-4 py-2 text-sm font-semibold text-slate-600 transition hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          Nhập lại thông tin đăng ký
         </button>
       </form>
     );

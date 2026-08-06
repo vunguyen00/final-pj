@@ -1,6 +1,6 @@
 import type { Prisma } from "@/.generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { VNPAY_PROVIDER } from "@/lib/wallet";
+import { VNPAY_PROVIDER } from "@/lib/payment-provider";
 
 export const SPEAKING_AI_COST = 7;
 export const WRITING_AI_COST = 2;

@@ -13,11 +13,13 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError("");
+    setNotice("");
 
     try {
       const response = await fetch("/api/auth/login", {
@@ -29,6 +31,11 @@ export function LoginForm() {
       const data = await readJsonResponse(response);
       if (!response.ok) {
         setError(data.error ?? "Đăng nhập thất bại.");
+        return;
+      }
+
+      if (data.requiresDeviceConfirmation) {
+        setNotice(data.message ?? "Vui lòng kiểm tra email để xác nhận thiết bị.");
         return;
       }
 
@@ -76,6 +83,11 @@ export function LoginForm() {
       </div>
 
       {error ? <p className="text-sm font-medium text-destructive">{error}</p> : null}
+      {notice ? (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-800">
+          {notice}
+        </p>
+      ) : null}
 
       <button
         type="submit"

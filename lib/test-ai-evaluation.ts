@@ -4,6 +4,10 @@ import { getSpeakingExamTypeForLanguageCode } from "@/lib/test-rules";
 import { normalizeFeedbackTextItems } from "@/lib/ai-feedback-normalization";
 import { parseAiJsonObject } from "@/lib/ai-json-repair";
 import {
+  getSampleAnswerCompletenessError,
+  getWritingSampleAnswerWordRange,
+} from "@/lib/test-ai-sample-answer";
+import {
   averageScoreKeys,
   capScoreRecord,
   detectLikelyIeltsWritingTask,
@@ -520,6 +524,14 @@ function parseBatchResponse(raw: string, inputs: TestAiAnswerInput[]) {
       practiceMethods: stringArray(source.practiceMethods ?? source.practice_methods ?? (mode === "SPEAKING" ? source.suggestions : undefined)),
     };
 
+    const sampleAnswerError = getSampleAnswerCompletenessError(
+      input,
+      aiEvaluation.sampleAnswer || "",
+    );
+    if (sampleAnswerError) {
+      throw new AiEvaluationResponseError(sampleAnswerError);
+    }
+
     results.set(input.questionId, {
       normalizedScore,
       aiEvaluation: input.scoreOnly
@@ -536,7 +548,7 @@ function buildEvaluationMessages(
   retryingInvalidJson = false,
 ) {
   const retryInstruction = retryingInvalidJson
-    ? "\nA previous attempt was invalid or truncated JSON. Regenerate it under 4500 characters. Use exactly 1 concise item per feedback array and escape quotes inside strings."
+    ? "\nA previous attempt was invalid, incomplete, or truncated. Regenerate valid JSON and keep sampleAnswer complete and inside sampleAnswerWordRange. Shorten the feedback arrays instead of shortening sampleAnswer. Escape quotes inside strings."
     : "";
 
   return [
@@ -556,9 +568,9 @@ For speaking, set onTopic=true whenever the answer addresses the requested topic
 Use each input's languageCode to identify the submitted language. Grade grammar, vocabulary, coherence, and task response according to that language, and write feedback and the sample answer in the same language.
 Each input also has targetLanguage. Every human-readable value for language, offTopicReason, detailedComment, sampleAnswer, certificateFit, band.rationale, summary, majorErrors, improvementsNeeded, strengths, weaknesses, feedback, suggestions, corrections.reason, pronunciationErrors, grammarErrors, vocabularyErrors, fluencyIssues, practiceMethods, and every human-readable criteriaFeedback field must be written in targetLanguage. Do not use English section labels or English advice for non-English targetLanguage inputs. Do not embed labels such as "suggestions", "sample Answer", "strengths", or "weaknesses" inside string values; return only the actual content.
 When an input has scoreOnly=true, calculate all numeric scores normally but set every comment string, sampleAnswer, correction, and feedback array to empty. Do not provide explanations or improvement advice.
-Unless scoreOnly=true, always provide a detailedComment with actionable feedback and a sampleAnswer that correctly answers the original prompt. For WRITING use about 100-140 words. For SPEAKING use a natural model response of about 60-90 words.
+Unless scoreOnly=true, always provide a detailedComment with actionable feedback and a sampleAnswer that correctly answers the original prompt. For WRITING, use the exact sampleAnswerWordRange supplied with that input; this range comes from the question's explicit word requirement, or defaults to 100-140 words when the question has no requirement. Finish the complete response and never stop mid-sentence. For SPEAKING use a complete natural model response of about 60-90 words.
 Unless scoreOnly=true, provide 2 concise overall strengths, weaknesses, feedback items, suggestions, majorErrors, and improvementsNeeded. Provide 1-2 corrections when evidence exists. For SPEAKING provide 1-2 pronunciationErrors, grammarErrors, vocabularyErrors, fluencyIssues, and practiceMethods when relevant.
-Return criteriaFeedback for every exact key in certificateRubric.criteria. Each criterion must contain a concise shortComment, a specific 2-3 sentence detailedFeedback, exactly 2 strengths, 2 weaknesses, 2 improvementSuggestions, and at most 1 relevant examplesFromAnswer/correctedExamples pair. Base every comment on evidence from the submitted answer. Keep the entire JSON under 6000 characters.${retryInstruction}`,
+Return criteriaFeedback for every exact key in certificateRubric.criteria. Each criterion must contain a concise shortComment, a specific 2-3 sentence detailedFeedback, exactly 2 strengths, 2 weaknesses, 2 improvementSuggestions, and at most 1 relevant examplesFromAnswer/correctedExamples pair. Base every comment on evidence from the submitted answer. Keep the JSON compact, but prioritize returning the complete sampleAnswer over extra feedback detail.${retryInstruction}`,
     },
     {
       role: "user" as const,
@@ -588,6 +600,10 @@ export async function evaluateTestAiAnswers(inputs: TestAiAnswerInput[]) {
         certificateRubric: getCertificateRubric(input.languageCode, input.mode),
         languageCode: input.languageCode || "",
         targetLanguage: getTargetLanguageName(input.languageCode),
+        sampleAnswerWordRange:
+          input.mode === "WRITING"
+            ? getWritingSampleAnswerWordRange(input.prompt)
+            : { min: 60, max: 90, source: "default" },
         prompt: input.prompt || "",
         answer: input.answer,
         scoreOnly: Boolean(input.scoreOnly),

@@ -13,27 +13,13 @@ export async function GET() {
       user: { select: { id: true, username: true, email: true, phoneNumber: true, role: true } },
       language: true,
       certificates: true,
-      antiCheatLogs: { orderBy: { serverTimestamp: "desc" }, take: 50 },
-      suspiciousEvents: true,
-      entranceTest: { select: { id: true, name: true, passingScore: true, maxScore: true } },
+      recruitmentRound: { select: { id: true, name: true, status: true } },
     },
     orderBy: { createdAt: "desc" },
     take: 100,
   });
 
-  const attemptIds = applications
-    .map((application) => application.entranceAttemptId)
-    .filter((id): id is string => Boolean(id));
-  const attempts = await prisma.testAttempt.findMany({
-    where: { id: { in: attemptIds } },
-    select: { id: true, score: true, maxScore: true, isPassed: true, submittedAt: true },
-  });
-  const attemptMap = new Map(attempts.map((attempt) => [attempt.id, attempt]));
-
   return NextResponse.json({
-    applications: applications.map((application) => ({
-      ...application,
-      entranceAttempt: application.entranceAttemptId ? attemptMap.get(application.entranceAttemptId) ?? null : null,
-    })),
+    applications,
   });
 }

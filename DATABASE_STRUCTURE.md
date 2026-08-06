@@ -4,12 +4,12 @@ Du an dung Prisma 7 voi PostgreSQL. Schema nam tai `prisma/schema.prisma`, Prism
 
 ## Tong quan nhom bang
 
-- **Tai khoan va phien dang nhap**: `User`, `Session`, `PasswordResetOtp`.
+- **Tai khoan va phien dang nhap**: `User`, `Session`, `TrustedDevice`, `LoginDeviceChallenge`, `PasswordResetOtp`, `UserInvitation`.
 - **Khoa hoc va hoc tap**: `Course`, `Module`, `Lesson`, `Enrollment`, `Feedback`, `LearningActivity`.
 - **Bai test**: `Test`, `Question`, `Answer`, `TestAttempt`, `CheatingLog`.
 - **AI danh gia**: `AiAssessment`, `PointTransaction`, `SystemSetting`.
-- **Dang ky giang vien**: `TeacherApplication`, `TeacherCertificate`, `TeacherApplicationLog`, `AntiCheatLog`, `SuspiciousEvent`.
-- **Thanh toan va doanh thu**: `Wallet`, `Payment`, `Order`, `OrderItem`, `TeacherRevenueWithdrawal`.
+- **Dang ky giang vien**: `TeacherApplication`, `TeacherCertificate`, `TeacherApplicationLog`; cac bang anti-cheat chi con phuc vu du lieu lich su.
+- **Thanh toan va doanh thu**: `Payment`, `Order`, `OrderItem`, `TeacherRevenueWithdrawal`; khong con vi VND noi bo.
 - **Ngon ngu va thong bao**: `LearningLanguage`, `Notification`, `EmailLog`.
 
 ## Enum
@@ -31,7 +31,7 @@ Du an dung Prisma 7 voi PostgreSQL. Schema nam tai `prisma/schema.prisma`, Prism
 
 - `COURSE`: test gan voi khoa hoc.
 - `PUBLIC_PRACTICE`: bai luyen cong khai.
-- `TEACHER_ENTRANCE`: bai dau vao giang vien.
+- `TEACHER_ENTRANCE`: gia tri lich su, khong con duoc tao hoac lam online.
 
 ### `TestAssessmentMode`
 
@@ -80,19 +80,30 @@ Truong chinh:
 
 Lien ket:
 
-- 1-n `Session`, `PasswordResetOtp`, `Enrollment`, `TestAttempt`, `Feedback`, `Order`, `Payment`, `Course`, `AiAssessment`, `PointTransaction`, `LearningActivity`, `Notification`, `EmailLog`, `TeacherRevenueWithdrawal`.
-- 1-1 `Wallet`.
+- 1-n `Session`, `TrustedDevice`, `LoginDeviceChallenge`, `UserInvitation`, `PasswordResetOtp`, `Enrollment`, `TestAttempt`, `Feedback`, `Order`, `Payment`, `Course`, `AiAssessment`, `PointTransaction`, `LearningActivity`, `Notification`, `EmailLog`, `TeacherRevenueWithdrawal`.
 - n-1 `LearningLanguage` qua `learningLanguageId`.
 - 1-n `TeacherApplication` voi 2 vai tro: nguoi nop ho so va admin review.
 
 ### `Session`
 
-Luu phien dang nhap server-side theo `tokenHash`.
+Luu phien dang nhap server-side theo `tokenHash`, gan voi mot thiet bi tin cay. Moi tai khoan chi giu mot session hoat dong.
 
 Lien ket:
 
 - n-1 `User`.
 - Xoa cascade khi `User` bi xoa.
+
+### `TrustedDevice`
+
+Luu token thiet bi da duoc xac nhan, user-agent, IP gan nhat va thoi diem su dung gan nhat.
+
+### `LoginDeviceChallenge`
+
+Luu thu thach xac nhan thiet bi la qua email, co han dung va chi duoc su dung mot lan.
+
+### `UserInvitation`
+
+Luu loi moi do admin gui, gom email, username, role, ngon ngu giang day, token bam, han dung va tai khoan da chap nhan.
 
 ### `PasswordResetOtp`
 
@@ -356,7 +367,7 @@ Truong chinh:
 
 Thuc te dang dung cho:
 
-- Bat/tat dang ky dau vao giang vien.
+- Thong bao ky thi giang vien tren giay, dia diem va cua so dang ky.
 - Bat/tat auto approve khoa hoc.
 - Cau hinh Speaking AI.
 
@@ -367,9 +378,8 @@ Ho so dang ky tro thanh giang vien.
 Truong chinh:
 
 - `userId`, `languageId`, `status`, `attemptNo`.
-- `entranceTestId`, `entranceAttemptId`.
-- `answerState`.
-- `startedAt`, `submittedAt`, `reviewedAt`, `reviewedById`.
+- `entranceTestId`, `entranceAttemptId`, `answerState`, `startedAt`, `submittedAt` chi con la du lieu lich su.
+- `reviewedAt`, `reviewedById`.
 - `rejectionReason`, `createdAt`, `updatedAt`.
 
 Index:
@@ -466,22 +476,9 @@ Lien ket:
 - n-1 `Order`.
 - n-1 `Course`.
 
-### `Wallet`
-
-Vi tien noi bo cua user.
-
-Truong chinh:
-
-- `userId`: unique.
-- `balance`.
-
-Lien ket:
-
-- 1-1 `User`, xoa cascade theo user.
-
 ### `Payment`
 
-Giao dich thanh toan/nap vi qua VNPAY.
+Giao dich thanh toan truc tiep qua VNPAY.
 
 Truong chinh:
 
@@ -531,7 +528,9 @@ erDiagram
   User ||--o{ Feedback : writes
   User ||--o{ Order : places
   User ||--o{ Payment : pays
-  User ||--|| Wallet : owns
+  User ||--o{ TrustedDevice : trusts
+  User ||--o{ LoginDeviceChallenge : confirms
+  User ||--o{ UserInvitation : accepts
   User ||--o{ AiAssessment : receives
   User ||--o{ PointTransaction : changes
   User ||--o{ LearningActivity : performs
@@ -575,7 +574,7 @@ erDiagram
 ## Cac luu y thiet ke
 
 - `Feedback` dang kiem nhiem review va progress marker; nen tach thanh `CourseReview`, `LessonProgress`, `CourseCompletion` khi can bao cao lon.
-- `Session` ton tai trong schema nhung flow auth hien tai dung cookie token HMAC tu `lib/auth.ts`, khong thay tao `Session` trong cac route auth hien co.
-- Wallet duoc tinh bang `Wallet.balance`, co the doi chieu voi ledger tu `Payment`, `OrderItem`, `PointTransaction`.
+- `Session` duoc tao o phia server, gan voi `TrustedDevice`; moi lan dang nhap thanh cong thu hoi session truoc do.
+- Thanh toan khoa hoc va diem AI di thang qua VNPAY; he thong khong con bang `Wallet`.
 - `PointTransaction.sourceKey` va `LearningActivity.sourceKey` duoc dung de chong ghi trung.
-- `Order` duoc dung cho ca nap vi va mua khoa hoc; order nap vi co `Payment`, order mua khoa hoc co `OrderItem`.
+- `Order` ghi nhan mua khoa hoc; mua diem AI duoc doi chieu bang `Payment` va `PointTransaction`.

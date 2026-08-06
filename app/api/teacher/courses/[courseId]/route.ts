@@ -158,7 +158,7 @@ export async function GET(
     const fixedTeacherLanguage =
       user.role === "TEACHER" && !course.language
         ? await prisma.teacherApplication.findFirst({
-            where: { userId: user.id, status: "APPROVED" },
+            where: { userId: user.id, status: { in: ["APPROVED", "CONVERTED_TO_TEACHER"] } },
             select: {
               language: { select: { id: true, name: true, code: true } },
             },
@@ -280,7 +280,7 @@ export async function PUT(
     } else {
       if (!course.languageId) {
         const approvedApplication = await prisma.teacherApplication.findFirst({
-          where: { userId: user.id, status: "APPROVED" },
+          where: { userId: user.id, status: { in: ["APPROVED", "CONVERTED_TO_TEACHER"] } },
           select: { languageId: true },
           orderBy: { reviewedAt: "desc" },
         });
@@ -489,7 +489,7 @@ export async function PATCH(
       const approvedApplication =
         !course.languageId && course.instructorId
           ? await prisma.teacherApplication.findFirst({
-              where: { userId: course.instructorId, status: "APPROVED" },
+              where: { userId: course.instructorId, status: { in: ["APPROVED", "CONVERTED_TO_TEACHER"] } },
               select: { languageId: true },
               orderBy: { reviewedAt: "desc" },
             })
@@ -549,7 +549,7 @@ export async function PATCH(
       const autoApproval = await getCourseAutoApprovalSetting();
       const approvedApplication = !course.languageId
         ? await prisma.teacherApplication.findFirst({
-            where: { userId: user.id, status: "APPROVED" },
+            where: { userId: user.id, status: { in: ["APPROVED", "CONVERTED_TO_TEACHER"] } },
             select: { languageId: true },
             orderBy: { reviewedAt: "desc" },
           })

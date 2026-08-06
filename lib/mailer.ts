@@ -159,9 +159,20 @@ export async function sendBasicEmail(
   to: string,
   subject: string,
   text: string,
+  options?: { actionUrl?: string; actionLabel?: string },
 ): Promise<void> {
   const config = readMailerConfig();
   const transporter = getTransporter();
+  const escapeHtml = (value: string) => value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+  const actionUrl = options?.actionUrl && /^https?:\/\//i.test(options.actionUrl)
+    ? options.actionUrl
+    : null;
+  const formattedText = escapeHtml(text).replace(/\r?\n/g, "<br />");
 
   await transporter.sendMail({
     from: config.from,
@@ -170,7 +181,8 @@ export async function sendBasicEmail(
     text,
     html: `
       <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">
-        <p>${text}</p>
+        <p style="margin: 0 0 16px;">${formattedText}</p>
+        ${actionUrl ? `<p style="margin: 20px 0 0;"><a href="${escapeHtml(actionUrl)}" style="display: inline-block; border-radius: 8px; background: #2563eb; color: #ffffff; padding: 10px 16px; font-weight: 700; text-decoration: none;">${escapeHtml(options?.actionLabel || "Mở FinnCenter")}</a></p>` : ""}
       </div>
     `,
   });

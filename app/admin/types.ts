@@ -10,14 +10,16 @@ export type Application = {
   status: string;
   attemptNo: number;
   rejectionReason: string | null;
-  failureReason?: string | null;
   submittedAt?: string | null;
+  examLocationId: string | null;
+  examLocationName: string | null;
+  examLocationAddress: string | null;
+  examLocationNote: string | null;
+  recruitmentRoundId: string | null;
+  recruitmentRound: { id: string; name: string; status: string } | null;
   user: { username: string; email: string; phoneNumber: string | null; role: string };
   language: { name: string };
   certificates: { id: string; fileName: string; fileUrl: string; expiryDate: string | null }[];
-  suspiciousEvents: { eventType: string; count: number; totalDurationSeconds: number; severity: number }[];
-  antiCheatLogs: { id: string; eventType: string; detail: string | null; severity?: number; serverTimestamp: string | null }[];
-  entranceAttempt: { score: number; maxScore: number; isPassed: boolean } | null;
 };
 
 export type Course = {
@@ -36,7 +38,7 @@ export type Course = {
 export type AdminManagedTest = {
   id: string;
   name: string;
-  kind: "TEACHER_ENTRANCE" | "PUBLIC_PRACTICE";
+  kind: "PUBLIC_PRACTICE";
   assessmentMode: "STANDARD" | "WRITING" | "SPEAKING";
   timeLimit: number | null;
   language: { id: string; name: string; code: string } | null;

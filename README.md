@@ -9,7 +9,7 @@ FinnCenter la nen tang hoc ngoai ngu theo mo hinh LMS ket hop marketplace khoa h
 - Prisma 7 voi PostgreSQL.
 - Nodemailer de gui OTP, thong bao va email chung chi.
 - Ollama de tao de, cham Writing/Speaking va cham cau hoi tu luan/noi trong bai test.
-- VNPAY de nap tien vao vi noi bo.
+- VNPAY de thanh toan truc tiep khoa hoc va diem AI.
 - Web Worker phia trinh duyet de nhan dien va phan tich audio Speaking.
 
 ## Cai dat va chay du an
@@ -20,7 +20,7 @@ FinnCenter la nen tang hoc ngoai ngu theo mo hinh LMS ket hop marketplace khoa h
 - PostgreSQL, co the chay bang Docker Compose trong repo.
 - Ollama neu muon dung cac tinh nang AI cham bai.
 - Tai khoan SMTP neu muon gui OTP/email.
-- Cau hinh VNPAY sandbox/production neu muon nap vi that.
+- Cau hinh VNPAY sandbox/production neu muon thanh toan that.
 
 ### Cai dependency
 
@@ -52,8 +52,8 @@ VNPAY_HASH_SECRET="your_vnpay_hash_secret"
 VNPAY_PAYMENT_URL="https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
 VNPAY_API="https://sandbox.vnpayment.vn/merchant_webapi/api/transaction"
 VNPAY_BASE_URL="http://localhost:3000"
-VNPAY_RETURN_PATH="/api/wallet/vnpay-return"
-VNPAY_IPN_PATH="/api/wallet/vnpay-ipn"
+VNPAY_RETURN_PATH="/api/payments/vnpay-return"
+VNPAY_IPN_PATH="/api/payments/vnpay-ipn"
 
 OLLAMA_URL="http://127.0.0.1:11434"
 OLLAMA_MODEL="minimax-m3:cloud"
@@ -111,7 +111,7 @@ Mot so script co san:
 - `app/api/`: backend route handler cho auth, khoa hoc, vi, AI, giao vien, hoc vien va admin.
 - `app/generated/prisma/`: Prisma Client duoc generate.
 - `components/`: component UI dung chung ngoai `app/components`.
-- `lib/`: business logic nhu auth, wallet, VNPAY, AI, IELTS grading, hoc tap, doanh thu, analytics.
+- `lib/`: business logic nhu auth, thiet bi tin cay, VNPAY, AI, IELTS grading, hoc tap, doanh thu, analytics.
 - `prisma/schema.prisma`: schema database.
 - `prisma/migrations/`: lich su migration.
 - `public/uploads/`, `public/videos/`, `public/certificates/`: file upload/runtime.
@@ -146,15 +146,16 @@ He thong co 3 role chinh:
 8. Neu dat bai test khoa hoc, he thong ghi nhan hoan thanh khoa hoc, co the gui email chung chi va mo quyen danh gia khoa hoc.
 9. Dung `/student/writing-ai` de tao de Writing, nhap bai viet, cham diem hoac nhan xet chi tiet bang AI.
 10. Dung `/student/speaking-ai` de tao de Speaking, ghi am, nhan dien noi dung noi, cham diem hoac nhan xet chi tiet bang AI.
-11. Dung `/student/wallet` de nap tien qua VNPAY, xem so du, mua hat dau AI va xem lich su giao dich.
+11. Dung `/student/wallet` de mua diem AI truc tiep qua VNPAY va xem lich su cong/tru diem; day khong phai vi VND.
 12. Dung `/student/rewards` de xem hat dau, lich su dung diem AI va thong ke luyen tap.
 
 ### Giao vien
 
 1. Hoc vien hoac giao vien vao `/teacher-registration` de nop ho so giang vien khi admin bat chuc nang dang ky.
 2. Upload 1 den 3 chung chi dinh dang JPG, PNG hoac PDF, moi file toi da 10MB, kem ngay het han.
-3. Neu ngon ngu duoc chon co bai test dau vao, nguoi nop ho so phai lam bai test. He thong co autosave va ghi log anti-cheat.
-4. Sau khi admin duyet, tai khoan duoc chuyen sang role `TEACHER`.
+3. Xem thong bao ky thi ban giay, dia diem thi, thoi gian mo va dong dang ky.
+4. Nop ho so/chung chi truc tuyen, tham du ky thi truc tiep va cho admin duyet ket qua.
+5. Sau khi admin duyet, tai khoan duoc chuyen sang role `TEACHER`.
 5. Vao `/teacher/courses` de tao va quan ly khoa hoc.
 6. Trong tung khoa hoc, giao vien co the cap nhat thong tin, upload thumbnail, tao module, tao lesson, upload video bai hoc.
 7. Tao bai test cho khoa hoc, them cau hoi trac nghiem, dung/sai, dien tu, tu luan hoac speaking, upload audio cau hoi va tai lieu de.
@@ -164,13 +165,14 @@ He thong co 3 role chinh:
 ### Quan tri vien
 
 1. Vao `/admin` de xem dashboard quan tri.
-2. Xem analytics tong quan ve user, khoa hoc, doanh thu, bai test, AI, hoat dong hoc tap, email, anti-cheat va bang xep hang.
+2. Xem analytics tong quan ve user, khoa hoc, doanh thu, bai test, AI, hoat dong hoc tap, email va bang xep hang.
 3. Bat/tat dang ky giang vien. Khi bat tu trang thai tat, he thong gui notification/email cho hoc vien.
 4. Bat/tat tu dong duyet khoa hoc cua giao vien.
 5. Cau hinh Speaking AI, vi du loai bai thi va thoi luong.
 6. Duyet hoac tu choi ho so giang vien; khi duyet, user duoc nang role len `TEACHER`.
 7. Duyet, tu choi, khoa hoac mo khoa khoa hoc.
-8. Quan ly de test public practice va teacher entrance.
+8. Quan ly de test public practice; ky thi giang vien duoc to chuc truc tiep tren giay.
+9. Gui loi moi giang vien theo email, ten nguoi dung va ngon ngu giang day.
 9. Khoa/mo user hoac thay doi role khi can.
 10. Duyet, xac nhan da thanh toan hoac tu choi yeu cau rut doanh thu cua giao vien.
 
@@ -195,14 +197,13 @@ He thong co 3 role chinh:
 - Admin khong reset mat khau qua OTP.
 - Trang ho so cho phep cap nhat ten, so dien thoai, ngon ngu hoc va doi mat khau.
 
-### Vi noi bo va VNPAY
+### Thanh toan truc tiep qua VNPAY
 
-- Moi user khong phai admin co vi rieng.
-- Nap vi qua VNPAY, so tien toi thieu 10.000 VND.
+- He thong khong con vi VND noi bo.
+- Khoa hoc va diem AI duoc thanh toan truc tiep qua VNPAY.
 - Tao `Payment` trang thai `PENDING`, ky tham so VNPAY va redirect sang cong thanh toan.
 - Xu ly ca VNPAY IPN va return URL, xac thuc chu ky, kiem tra so tien, chong cong tien nhieu lan.
-- Lich su vi gom nap tien, mua khoa hoc va mua hat dau AI.
-- Admin khong dung vi.
+- Lich su diem AI gom cac giao dich mua va su dung diem.
 
 ### Mua khoa hoc va doanh thu
 
@@ -224,7 +225,7 @@ He thong co 3 role chinh:
 
 ### Bai test
 
-- Test co 3 loai: `COURSE`, `PUBLIC_PRACTICE`, `TEACHER_ENTRANCE`.
+- Test dang hoat dong co 2 loai: `COURSE` va `PUBLIC_PRACTICE`.
 - Che do cham: `STANDARD`, `WRITING`, `SPEAKING`.
 - Dang cau hoi: trac nghiem, dung/sai, dien tu, tu luan, speaking.
 - Co the them audio cho cau hoi listening va tai lieu de thi.
@@ -287,7 +288,7 @@ He thong co 3 role chinh:
 - Nguoi dung upload chung chi, chon ngon ngu apply va lam bai test dau vao neu co.
 - Ho so co trang thai: draft, submitted, under review, approved, rejected, expired.
 - He thong ghi log tien trinh ho so.
-- Trong bai test dau vao co autosave va anti-cheat log/suspicious events.
+- Ky thi giang vien lam tren giay tai dia diem va thoi gian admin thong bao.
 - Admin duyet ho so se chuyen user sang `TEACHER`; tu choi thi luu ly do va gui notification/email.
 
 ### Quan ly khoa hoc cho giao vien
@@ -304,15 +305,14 @@ He thong co 3 role chinh:
 - Giao vien tao test cho khoa hoc cua minh.
 - Moi khoa hoc chi co mot course test.
 - Khoa hoc phai co it nhat mot module truoc khi tao test.
-- Admin co the tao `PUBLIC_PRACTICE` va `TEACHER_ENTRANCE`.
-- Teacher entrance test bat buoc dung mode Writing AI hoac Speaking AI.
+- Admin co the tao `PUBLIC_PRACTICE`; khong con tao de thi dau vao giang vien tren he thong.
 - Co upload audio cau hoi va upload tai lieu de.
 - Cau hoi duoc validate de tong diem khong vuot 100.
 
 ### Quan tri he thong
 
 - Dashboard analytics theo khoang thoi gian.
-- Thong ke user, role, khoa hoc, enrollments, doanh thu, diem test, AI usage, hat dau, hoc tap, email va anti-cheat.
+- Thong ke user, role, khoa hoc, enrollments, doanh thu, diem test, AI usage, diem AI, hoc tap va email.
 - Bang xep hang hoc vien, giao vien va khoa hoc.
 - Quan ly user, role va trang thai khoa.
 - Duyet/tu choi/khoa/mo khoa khoa hoc.
@@ -325,7 +325,9 @@ He thong co 3 role chinh:
 - Auth: `/api/auth/register`, `/api/auth/login`, `/api/auth/logout`, `/api/auth/me`, `/api/auth/forgot-password/*`.
 - Profile: `/api/profile`, `/api/profile/password`.
 - Courses: `/api/courses`, `/api/courses/[id]/access`, `/api/courses/[id]/enroll`, `/api/courses/[id]/reviews`.
-- Wallet: `/api/wallet`, `/api/wallet/top-up`, `/api/wallet/vnpay-ipn`, `/api/wallet/vnpay-return`.
+- Payments: `/api/payments/vnpay-return`, `/api/payments/vnpay-ipn`, `/api/ai/points/vnpay-return`, `/api/ai/points/vnpay-ipn`.
+- Invitations: `/api/admin/invitations`, `/api/auth/invitations`.
+- Device security: `/api/auth/confirm-device`.
 - Learning: `/api/learning/lessons/[lessonId]/start`, `/api/learning/lessons/[lessonId]/complete`.
 - Student tests/results: `/api/student/tests/**`, `/api/student/results/**`.
 - AI: `/api/ai/essay-evaluation`, `/api/ai/writing-prompt`, `/api/ai/speaking-evaluation/**`, `/api/ai/points/**`.
@@ -343,7 +345,7 @@ Cac nhom bang chinh:
 - Bai test: `Test`, `Question`, `Answer`, `TestAttempt`, `CheatingLog`.
 - AI va hoat dong hoc: `AiAssessment`, `PointTransaction`, `LearningActivity`, `SystemSetting`.
 - Giao vien: `TeacherApplication`, `TeacherCertificate`, `TeacherApplicationLog`, `AntiCheatLog`, `SuspiciousEvent`.
-- Thanh toan/doanh thu: `Wallet`, `Payment`, `Order`, `OrderItem`, `TeacherRevenueWithdrawal`.
+- Thanh toan/doanh thu: `Payment`, `Order`, `OrderItem`, `TeacherRevenueWithdrawal`; khong co vi VND noi bo.
 - Phu tro: `LearningLanguage`, `Notification`, `EmailLog`.
 
 ## Diem manh
@@ -351,9 +353,10 @@ Cac nhom bang chinh:
 - Bao phu gan tron luong LMS: marketplace, mua khoa hoc, hoc bai, lam test, ket qua, chung chi va review.
 - Co du 3 vai tro Student/Teacher/Admin voi phan quyen ro trong API.
 - Tich hop AI sau cho Writing, Speaking va cau hoi tu luan/noi trong test.
-- Co vi noi bo, VNPAY, lich su giao dich va chia doanh thu giao vien.
-- Co workflow xet duyet giao vien gom chung chi, bai test dau vao, anti-cheat, notification va email.
-- Admin dashboard nhieu du lieu: doanh thu, hoc tap, AI, test, anti-cheat, email, ranking.
+- Co thanh toan VNPAY truc tiep, lich su giao dich diem AI va chia doanh thu giang vien.
+- Co workflow xet duyet giang vien gom thong bao ky thi ban giay, chung chi, admin review, notification va email.
+- Dia diem thi duoc luu thanh danh muc co dinh (ten, dia chi, ghi chu), co the chon nhieu dia diem va chen tu dong vao email thong bao.
+- Co loi moi giang vien qua email va co che mot thiet bi dang nhap, xac nhan thiet bi la qua email.
 - Logic backend duoc gom kha nhieu vao `lib/`, de doc va tai su dung.
 - Co kiem tra idempotency cho nhieu nghiep vu nhu cong vi, point transaction va learning activity.
 - Ho tro nhieu ngon ngu hoc chinh: Anh, Trung, Nhat, Han.

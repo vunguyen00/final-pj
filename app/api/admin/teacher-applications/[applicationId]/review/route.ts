@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { sendBasicEmail } from "@/lib/mailer";
 import { prisma } from "@/lib/prisma";
-import { logTeacherApplication } from "@/lib/teacher-onboarding";
+import { getTeacherRecruitmentSetting, logTeacherApplication } from "@/lib/teacher-onboarding";
 
 export async function PUT(
   request: Request,
@@ -25,7 +25,7 @@ export async function PUT(
 
     const application = await prisma.teacherApplication.findUnique({
       where: { id: applicationId },
-      include: { user: true, certificates: true },
+      include: { user: true, language: true, certificates: true },
     });
 
     if (!application) {
@@ -47,28 +47,23 @@ export async function PUT(
           { status: 400 },
         );
       }
-      if (application.entranceTestId) {
-        const passedAttempt = application.entranceAttemptId
-          ? await prisma.testAttempt.findFirst({
-              where: {
-                id: application.entranceAttemptId,
-                userId: application.userId,
-                testId: application.entranceTestId,
-                isPassed: true,
-              },
-              select: { id: true },
-            })
-          : null;
-        if (!passedAttempt) {
-          return NextResponse.json(
-            { error: "Ứng viên chưa vượt qua bài test đầu vào." },
-            { status: 400 },
-          );
-        }
-      }
     }
 
     const nextStatus = action === "APPROVE" ? "APPROVED" : "REJECTED";
+    const setting = await getTeacherRecruitmentSetting();
+    const selectedLocation = application.examLocationId
+      ? setting.locations.find((location) => location.id === application.examLocationId)
+      : null;
+    const locationName = application.examLocationName || selectedLocation?.name || "Địa điểm sẽ được thông báo sau";
+    const locationAddress = application.examLocationAddress || selectedLocation?.address || "";
+    const examTime = setting.examStartsAt
+      ? `${new Date(setting.examStartsAt).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}${setting.examEndsAt ? ` – ${new Date(setting.examEndsAt).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}` : ""}`
+      : "Sẽ được thông báo sau";
+    const approvalNotice = [
+      "Hồ sơ đăng ký kỳ thi giảng viên của bạn đã được duyệt.",
+      `Địa điểm thi: ${locationName}${locationAddress ? ` — ${locationAddress}` : ""}.`,
+      `Thời gian thi: ${examTime}.`,
+    ].join(" ");
 
     await prisma.$transaction(async (tx) => {
       await tx.teacherApplication.update({
@@ -84,8 +79,9 @@ export async function PUT(
       if (action === "APPROVE") {
         await tx.user.update({
           where: { id: application.userId },
-          data: { role: "TEACHER" },
+          data: { role: "TEACHER", authVersion: { increment: 1 } },
         });
+        await tx.session.deleteMany({ where: { userId: application.userId } });
       }
 
       await tx.notification.create({
@@ -94,8 +90,8 @@ export async function PUT(
           title: action === "APPROVE" ? "Hồ sơ giảng viên đã được duyệt" : "Hồ sơ giảng viên bị từ chối",
           body:
             action === "APPROVE"
-              ? "Tài khoản của bạn đã được chuyển sang Teacher."
-              : rejectionReason || "Admin da tu choi ho so giang vien cua ban.",
+              ? approvalNotice
+              : rejectionReason || "Quản trị viên đã từ chối hồ sơ giảng viên của bạn.",
         },
       });
     });
@@ -105,20 +101,71 @@ export async function PUT(
       status: nextStatus,
       message:
         action === "APPROVE"
-          ? "Admin da approve ho so va chuyen role sang Teacher."
-          : `Admin rejected ho so.${rejectionReason ? ` Ly do: ${rejectionReason}` : ""}`,
+          ? "Quản trị viên đã duyệt hồ sơ đăng ký kỳ thi giảng viên."
+          : `Quản trị viên đã từ chối hồ sơ.${rejectionReason ? ` Lý do: ${rejectionReason}` : ""}`,
       actorId: admin.id,
     });
 
     try {
+      const baseUrl =
+        process.env.NEXT_PUBLIC_APP_URL ||
+        process.env.VNPAY_BASE_URL ||
+        new URL(request.url).origin;
+      const registrationUrl = `${baseUrl.replace(/\/$/, "")}/teacher-registration`;
+      const subject = action === "APPROVE"
+        ? "Xác nhận hồ sơ đăng ký kỳ thi giảng viên đã được duyệt"
+        : "Hồ sơ đăng ký giảng viên bị từ chối";
+      const text = action === "APPROVE"
+        ? [
+            `Xin chào ${application.user.username},`,
+            "",
+            "Hồ sơ đăng ký kỳ thi giảng viên của bạn đã được duyệt.",
+            `Ngôn ngữ đăng ký: ${application.language.name}`,
+            `Địa điểm thi: ${locationName}`,
+            locationAddress ? `Địa chỉ: ${locationAddress}` : null,
+            application.examLocationNote ? `Lưu ý địa điểm: ${application.examLocationNote}` : null,
+            `Thời gian thi: ${examTime}`,
+            "",
+            "Vui lòng có mặt đúng giờ và mang theo giấy tờ cần thiết.",
+            "Theo dõi hồ sơ tại:",
+            registrationUrl,
+          ].filter((line): line is string => line !== null).join("\n")
+        : [
+            `Xin chào ${application.user.username},`,
+            "",
+            "Hồ sơ đăng ký giảng viên của bạn chưa được duyệt.",
+            `Lý do: ${rejectionReason || "Chưa đáp ứng yêu cầu."}`,
+            "",
+            "Xem hồ sơ tại:",
+            registrationUrl,
+          ].join("\n");
       await sendBasicEmail(
         application.user.email,
-        action === "APPROVE" ? "Hồ sơ giảng viên đã được approve" : "Hồ sơ giảng viên bị reject",
-        action === "APPROVE"
-          ? "Tài khoản của bạn đã được chuyển sang Teacher. Bạn có thể tạo khóa học ngay."
-          : rejectionReason || "Hồ sơ của bạn chưa được approve.",
+        subject,
+        text,
+        { actionUrl: registrationUrl, actionLabel: "Xem hồ sơ đăng ký" },
       );
-    } catch {
+      await prisma.emailLog.create({
+        data: {
+          userId: application.userId,
+          to: application.user.email,
+          subject,
+          status: "SENT",
+          sentAt: new Date(),
+        },
+      });
+    } catch (error) {
+      await prisma.emailLog.create({
+        data: {
+          userId: application.userId,
+          to: application.user.email,
+          subject: action === "APPROVE"
+            ? "Xác nhận hồ sơ đăng ký kỳ thi giảng viên đã được duyệt"
+            : "Hồ sơ đăng ký giảng viên bị từ chối",
+          status: "FAILED",
+          error: error instanceof Error ? error.message : String(error),
+        },
+      }).catch(() => undefined);
       // Review state is the source of truth; SMTP failures should not block admin action.
     }
 

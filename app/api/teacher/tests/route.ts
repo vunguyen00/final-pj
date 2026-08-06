@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     const targetType = body.targetType === "MODULE" || body.targetType === "LESSON" ? body.targetType : "COURSE";
     const moduleId = targetType === "MODULE" || targetType === "LESSON" ? String(body.moduleId || "").trim() : "";
     const lessonId = targetType === "LESSON" ? String(body.lessonId || "").trim() : "";
-    const kind: TestKind = body.kind === "PUBLIC_PRACTICE" || body.kind === "TEACHER_ENTRANCE" ? body.kind : "COURSE";
+    const kind: TestKind = body.kind === "PUBLIC_PRACTICE" ? body.kind : "COURSE";
     const assessmentMode = normalizeTestAssessmentMode(body.assessmentMode);
 
     if (!name || (kind === "COURSE" && !courseId)) {
@@ -82,15 +82,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (kind !== "COURSE" && user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Only admin can create public or teacher entrance tests" }, { status: 403 });
+      return NextResponse.json({ error: "Chỉ admin được tạo bài luyện tập công khai." }, { status: 403 });
     }
 
     if (requiresLanguageForTest(kind) && !languageId) {
       return NextResponse.json({ error: "Language is required for this test" }, { status: 400 });
-    }
-
-    if (kind === "TEACHER_ENTRANCE" && assessmentMode === "STANDARD") {
-      return NextResponse.json({ error: "Teacher entrance tests must use Writing AI or Speaking AI" }, { status: 400 });
     }
 
     const course = courseId
