@@ -1,0 +1,1231 @@
+' FinnCenter — database ERD mới, sinh trực tiếp từ prisma/schema.prisma
+' Sinh ngày 2026-08-06; 44 model; 18 enum
+' Mỗi khối @startuml là một diagram độc lập: tổng quan, 6 miền chi tiết và enum.
+@startuml 00_tong_quan
+hide methods
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam entityBorderColor #334155
+skinparam entityBackgroundColor #F8FAFC
+skinparam entityFontColor #0F172A
+skinparam ArrowColor #64748B
+skinparam packageBorderColor #94A3B8
+skinparam packageBackgroundColor #FFFFFF
+title FinnCenter — Tổng quan 44 bảng
+left to right direction
+
+package "Tài khoản, bảo mật và ngôn ngữ" {
+  entity "User" as User
+  entity "Session" as Session
+  entity "TrustedDevice" as TrustedDevice
+  entity "LoginDeviceChallenge" as LoginDeviceChallenge
+  entity "UserInvitation" as UserInvitation
+  entity "PasswordResetOtp" as PasswordResetOtp
+  entity "EmailVerificationOtp" as EmailVerificationOtp
+  entity "RegistrationSecurityEvent" as RegistrationSecurityEvent
+  entity "LearningLanguage" as LearningLanguage
+}
+
+package "Khóa học và tiến độ học tập" {
+  entity "Course" as Course
+  entity "Module" as Module
+  entity "Lesson" as Lesson
+  entity "VideoWatchProgress" as VideoWatchProgress
+  entity "Enrollment" as Enrollment
+  entity "Feedback" as Feedback
+  entity "LearningActivity" as LearningActivity
+}
+
+package "Bài kiểm tra, AI và điểm AI" {
+  entity "Test" as Test
+  entity "Question" as Question
+  entity "Answer" as Answer
+  entity "TestAttempt" as TestAttempt
+  entity "CheatingLog" as CheatingLog
+  entity "AiAssessment" as AiAssessment
+  entity "PointTransaction" as PointTransaction
+  entity "SystemSetting" as SystemSetting
+}
+
+package "Tuyển dụng và hồ sơ giảng viên" {
+  entity "TeacherApplication" as TeacherApplication
+  entity "RecruitmentRound" as RecruitmentRound
+  entity "TeacherExamResult" as TeacherExamResult
+  entity "TeacherEntranceQuestionInstance" as TeacherEntranceQuestionInstance
+  entity "TeacherCertificate" as TeacherCertificate
+  entity "TeacherApplicationLog" as TeacherApplicationLog
+  entity "AntiCheatLog" as AntiCheatLog
+  entity "SuspiciousEvent" as SuspiciousEvent
+}
+
+package "Thanh toán, hoàn tiền và doanh thu" {
+  entity "Order" as Order
+  entity "OrderItem" as OrderItem
+  entity "CourseRefundRequest" as CourseRefundRequest
+  entity "CourseReport" as CourseReport
+  entity "TeacherBankAccount" as TeacherBankAccount
+  entity "TeacherBankAccountChangeOtp" as TeacherBankAccountChangeOtp
+  entity "TeacherBankAccountChangeLog" as TeacherBankAccountChangeLog
+  entity "TeacherRevenueWithdrawal" as TeacherRevenueWithdrawal
+  entity "TeacherRevenueWithdrawalComplaint" as TeacherRevenueWithdrawalComplaint
+  entity "Payment" as Payment
+}
+
+package "Thông báo và thư điện tử" {
+  entity "Notification" as Notification
+  entity "EmailLog" as EmailLog
+}
+
+LearningLanguage o|--o{ User : "learningLanguageId→id"
+User ||--o{ Session : "userId→id"
+TrustedDevice ||--o{ Session : "trustedDeviceId→id"
+User ||--o{ TrustedDevice : "userId→id"
+User ||--o{ LoginDeviceChallenge : "userId→id"
+LearningLanguage o|--o{ UserInvitation : "languageId→id"
+User ||--o{ UserInvitation : "invitedById→id"
+User o|--o| UserInvitation : "acceptedUserId→id"
+User ||--o{ PasswordResetOtp : "userId→id"
+User ||--o{ EmailVerificationOtp : "userId→id"
+User o|--o{ RegistrationSecurityEvent : "userId→id"
+User o|--o{ Course : "instructorId→id"
+LearningLanguage o|--o{ Course : "languageId→id"
+Course ||--o{ Module : "courseId→id"
+Module ||--o{ Lesson : "moduleId→id"
+User ||--o{ VideoWatchProgress : "userId→id"
+Lesson ||--o{ VideoWatchProgress : "lessonId→id"
+User ||--o{ Enrollment : "userId→id"
+Course ||--o{ Enrollment : "courseId→id"
+Course o|--o{ Test : "courseId→id"
+LearningLanguage o|--o{ Test : "languageId→id"
+Module o|--o{ Test : "moduleId→id"
+Lesson o|--o{ Test : "lessonId→id"
+Test ||--o{ Question : "testId→id"
+Question ||--o{ Answer : "questionId→id"
+Test ||--o{ TestAttempt : "testId→id"
+User ||--o{ TestAttempt : "userId→id"
+User ||--o{ AiAssessment : "userId→id"
+Course o|--o{ AiAssessment : "courseId→id"
+User ||--o{ PointTransaction : "userId→id"
+Course o|--o{ PointTransaction : "courseId→id"
+User ||--o{ LearningActivity : "userId→id"
+Course o|--o{ LearningActivity : "courseId→id"
+TestAttempt ||--o{ CheatingLog : "attemptId→id"
+User ||--o{ TeacherApplication : "userId→id"
+LearningLanguage ||--o{ TeacherApplication : "languageId→id"
+Test o|--o{ TeacherApplication : "entranceTestId→id"
+User o|--o{ TeacherApplication : "reviewedById→id"
+RecruitmentRound o|--o{ TeacherApplication : "recruitmentRoundId→id"
+User ||--o{ RecruitmentRound : "createdById→id"
+TeacherApplication ||--o| TeacherExamResult : "applicationId→id"
+TeacherApplication ||--o{ TeacherEntranceQuestionInstance : "applicationId→id"
+TeacherApplication ||--o{ TeacherCertificate : "applicationId→id"
+TeacherApplication ||--o{ TeacherApplicationLog : "applicationId→id"
+TeacherApplication ||--o{ AntiCheatLog : "applicationId→id"
+TestAttempt o|--o{ AntiCheatLog : "testAttemptId→id"
+TeacherApplication ||--o{ SuspiciousEvent : "applicationId→id"
+User ||--o{ Notification : "userId→id"
+User o|--o{ EmailLog : "userId→id"
+User ||--o{ Feedback : "userId→id"
+Course ||--o{ Feedback : "courseId→id"
+User ||--o{ Order : "userId→id"
+Order ||--o{ OrderItem : "orderId→id"
+Course ||--o{ OrderItem : "courseId→id"
+User ||--o{ CourseRefundRequest : "studentId→id"
+Course ||--o{ CourseRefundRequest : "courseId→id"
+OrderItem ||--o| CourseRefundRequest : "orderItemId→id"
+User o|--o{ CourseRefundRequest : "reviewedById→id"
+Course ||--o{ CourseReport : "courseId→id"
+User ||--o{ CourseReport : "reporterId→id"
+Lesson o|--o{ CourseReport : "lessonId→id"
+User o|--o{ CourseReport : "respondedById→id"
+User ||--o| TeacherBankAccount : "teacherId→id"
+User ||--o{ TeacherBankAccountChangeOtp : "teacherId→id"
+User ||--o{ TeacherBankAccountChangeLog : "teacherId→id"
+User ||--o{ TeacherRevenueWithdrawal : "teacherId→id"
+User o|--o{ TeacherRevenueWithdrawal : "processedById→id"
+TeacherRevenueWithdrawal ||--o| TeacherRevenueWithdrawalComplaint : "withdrawalId→id"
+User ||--o{ TeacherRevenueWithdrawalComplaint : "teacherId→id"
+Order o|--o| Payment : "orderId→id"
+User ||--o{ Payment : "userId→id"
+Course o|--o{ Payment : "courseId→id"
+
+legend right
+  ||= bắt buộc một; o|=không hoặc một; o{=không hoặc nhiều
+endlegend
+@enduml
+
+@startuml 01_auth
+hide methods
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam entityBorderColor #334155
+skinparam entityBackgroundColor #F8FAFC
+skinparam entityFontColor #0F172A
+skinparam ArrowColor #64748B
+skinparam packageBorderColor #94A3B8
+skinparam packageBackgroundColor #FFFFFF
+title 01 — Tài khoản, bảo mật và ngôn ngữ
+left to right direction
+
+package "Tài khoản, bảo mật và ngôn ngữ" {
+  entity "User" as User {
+    *id : String <<PK>>
+    --
+    username : String
+    email : String <<UQ>>
+    password : String
+    role : Role
+    phoneNumber : String?
+    isBanned : Boolean
+    accountStatus : UserAccountStatus
+    emailVerifiedAt : DateTime?
+    authVersion : Int
+    learningLanguageId : String? <<FK>>
+    createdAt : DateTime
+  }
+  entity "Session" as Session {
+    *id : String <<PK>>
+    --
+    userId : String <<FK>>
+    trustedDeviceId : String <<FK>>
+    tokenHash : String <<UQ>>
+    expiresAt : DateTime
+    lastSeenAt : DateTime
+    createdAt : DateTime
+  }
+  entity "TrustedDevice" as TrustedDevice {
+    *id : String <<PK>>
+    --
+    userId : String <<FK>>
+    tokenHash : String <<UQ>>
+    label : String?
+    userAgent : String?
+    lastIp : String?
+    verifiedAt : DateTime
+    lastUsedAt : DateTime
+    createdAt : DateTime
+  }
+  entity "LoginDeviceChallenge" as LoginDeviceChallenge {
+    *id : String <<PK>>
+    --
+    userId : String <<FK>>
+    tokenHash : String <<UQ>>
+    requestIp : String?
+    userAgent : String?
+    expiresAt : DateTime
+    consumedAt : DateTime?
+    createdAt : DateTime
+  }
+  entity "UserInvitation" as UserInvitation {
+    *id : String <<PK>>
+    --
+    email : String
+    username : String
+    role : Role
+    languageId : String? <<FK>>
+    tokenHash : String <<UQ>>
+    invitedById : String <<FK>>
+    acceptedUserId : String? <<FK,UQ>>
+    expiresAt : DateTime
+    acceptedAt : DateTime?
+    revokedAt : DateTime?
+    createdAt : DateTime
+    updatedAt : DateTime
+  }
+  entity "PasswordResetOtp" as PasswordResetOtp {
+    *id : String <<PK>>
+    --
+    userId : String <<FK>>
+    email : String
+    codeHash : String
+    expiresAt : DateTime
+    consumedAt : DateTime?
+    attempts : Int
+    createdAt : DateTime
+  }
+  entity "EmailVerificationOtp" as EmailVerificationOtp {
+    *id : String <<PK>>
+    --
+    userId : String <<FK>>
+    email : String
+    codeHash : String
+    expiresAt : DateTime
+    consumedAt : DateTime?
+    attempts : Int
+    resendAvailableAt : DateTime
+    requestIp : String?
+    deviceFingerprint : String?
+    createdAt : DateTime
+    updatedAt : DateTime
+  }
+  entity "RegistrationSecurityEvent" as RegistrationSecurityEvent {
+    *id : String <<PK>>
+    --
+    userId : String? <<FK>>
+    email : String
+    requestIp : String?
+    deviceFingerprint : String?
+    eventType : String
+    detail : Json?
+    createdAt : DateTime
+  }
+  entity "LearningLanguage" as LearningLanguage {
+    *id : String <<PK>>
+    --
+    name : String <<UQ>>
+    code : String <<UQ>>
+    isActive : Boolean
+    createdAt : DateTime
+    updatedAt : DateTime
+  }
+}
+
+package "Bảng liên quan ở miền khác" #FFF7ED {
+  entity "AiAssessment" as AiAssessment <<external>>
+  entity "Course" as Course <<external>>
+  entity "CourseRefundRequest" as CourseRefundRequest <<external>>
+  entity "CourseReport" as CourseReport <<external>>
+  entity "EmailLog" as EmailLog <<external>>
+  entity "Enrollment" as Enrollment <<external>>
+  entity "Feedback" as Feedback <<external>>
+  entity "LearningActivity" as LearningActivity <<external>>
+  entity "Notification" as Notification <<external>>
+  entity "Order" as Order <<external>>
+  entity "Payment" as Payment <<external>>
+  entity "PointTransaction" as PointTransaction <<external>>
+  entity "RecruitmentRound" as RecruitmentRound <<external>>
+  entity "TeacherApplication" as TeacherApplication <<external>>
+  entity "TeacherBankAccount" as TeacherBankAccount <<external>>
+  entity "TeacherBankAccountChangeLog" as TeacherBankAccountChangeLog <<external>>
+  entity "TeacherBankAccountChangeOtp" as TeacherBankAccountChangeOtp <<external>>
+  entity "TeacherRevenueWithdrawal" as TeacherRevenueWithdrawal <<external>>
+  entity "TeacherRevenueWithdrawalComplaint" as TeacherRevenueWithdrawalComplaint <<external>>
+  entity "Test" as Test <<external>>
+  entity "TestAttempt" as TestAttempt <<external>>
+  entity "VideoWatchProgress" as VideoWatchProgress <<external>>
+}
+
+LearningLanguage o|--o{ User : "learningLanguageId→id"
+User ||--o{ Session : "userId→id"
+TrustedDevice ||--o{ Session : "trustedDeviceId→id"
+User ||--o{ TrustedDevice : "userId→id"
+User ||--o{ LoginDeviceChallenge : "userId→id"
+LearningLanguage o|--o{ UserInvitation : "languageId→id"
+User ||--o{ UserInvitation : "invitedById→id"
+User o|--o| UserInvitation : "acceptedUserId→id"
+User ||--o{ PasswordResetOtp : "userId→id"
+User ||--o{ EmailVerificationOtp : "userId→id"
+User o|--o{ RegistrationSecurityEvent : "userId→id"
+User o|--o{ Course : "instructorId→id"
+LearningLanguage o|--o{ Course : "languageId→id"
+User ||--o{ VideoWatchProgress : "userId→id"
+User ||--o{ Enrollment : "userId→id"
+LearningLanguage o|--o{ Test : "languageId→id"
+User ||--o{ TestAttempt : "userId→id"
+User ||--o{ AiAssessment : "userId→id"
+User ||--o{ PointTransaction : "userId→id"
+User ||--o{ LearningActivity : "userId→id"
+User ||--o{ TeacherApplication : "userId→id"
+LearningLanguage ||--o{ TeacherApplication : "languageId→id"
+User o|--o{ TeacherApplication : "reviewedById→id"
+User ||--o{ RecruitmentRound : "createdById→id"
+User ||--o{ Notification : "userId→id"
+User o|--o{ EmailLog : "userId→id"
+User ||--o{ Feedback : "userId→id"
+User ||--o{ Order : "userId→id"
+User ||--o{ CourseRefundRequest : "studentId→id"
+User o|--o{ CourseRefundRequest : "reviewedById→id"
+User ||--o{ CourseReport : "reporterId→id"
+User o|--o{ CourseReport : "respondedById→id"
+User ||--o| TeacherBankAccount : "teacherId→id"
+User ||--o{ TeacherBankAccountChangeOtp : "teacherId→id"
+User ||--o{ TeacherBankAccountChangeLog : "teacherId→id"
+User ||--o{ TeacherRevenueWithdrawal : "teacherId→id"
+User o|--o{ TeacherRevenueWithdrawal : "processedById→id"
+User ||--o{ TeacherRevenueWithdrawalComplaint : "teacherId→id"
+User ||--o{ Payment : "userId→id"
+
+legend right
+  PK=khóa chính; FK=khóa ngoại; UQ=duy nhất; dấu ?=cho phép NULL
+endlegend
+@enduml
+
+@startuml 02_learning
+hide methods
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam entityBorderColor #334155
+skinparam entityBackgroundColor #F8FAFC
+skinparam entityFontColor #0F172A
+skinparam ArrowColor #64748B
+skinparam packageBorderColor #94A3B8
+skinparam packageBackgroundColor #FFFFFF
+title 02 — Khóa học và tiến độ học tập
+left to right direction
+
+package "Khóa học và tiến độ học tập" {
+  entity "Course" as Course {
+    *id : String <<PK>>
+    --
+    name : String
+    description : String
+    thumbnail : String?
+    category : String?
+    level : String?
+    duration : String?
+    lessons : Int
+    status : CourseStatus
+    deleteRequestedFromStatus : CourseStatus?
+    createdAt : DateTime
+    updatedAt : DateTime
+    price : Float
+    languageId : String? <<FK>>
+    instructorId : String? <<FK>>
+  }
+  entity "Module" as Module {
+    *id : String <<PK>>
+    --
+    courseId : String <<FK>>
+    name : String
+    order : Int
+  }
+  entity "Lesson" as Lesson {
+    *id : String <<PK>>
+    --
+    moduleId : String <<FK>>
+    title : String
+    content : String
+    videoUrl : String?
+  }
+  entity "VideoWatchProgress" as VideoWatchProgress {
+    *id : String <<PK>>
+    --
+    userId : String <<FK>>
+    lessonId : String <<FK>>
+    lastPositionSeconds : Float
+    durationSeconds : Float?
+    lastHeartbeatAt : DateTime
+    startedAt : DateTime
+    completedAt : DateTime?
+    seekViolation : Boolean
+    createdAt : DateTime
+    updatedAt : DateTime
+  }
+  entity "Enrollment" as Enrollment {
+    *id : String <<PK>>
+    --
+    userId : String <<FK>>
+    courseId : String <<FK>>
+    accessStatus : EnrollmentAccessStatus
+    createdAt : DateTime
+  }
+  entity "Feedback" as Feedback {
+    *id : String <<PK>>
+    --
+    userId : String <<FK>>
+    courseId : String <<FK>>
+    content : String
+    createdAt : DateTime
+  }
+  entity "LearningActivity" as LearningActivity {
+    *id : String <<PK>>
+    --
+    userId : String <<FK>>
+    courseId : String? <<FK>>
+    activityType : String
+    sourceKey : String <<UQ>>
+    activityDate : DateTime
+    createdAt : DateTime
+  }
+}
+
+package "Bảng liên quan ở miền khác" #FFF7ED {
+  entity "AiAssessment" as AiAssessment <<external>>
+  entity "CourseRefundRequest" as CourseRefundRequest <<external>>
+  entity "CourseReport" as CourseReport <<external>>
+  entity "LearningLanguage" as LearningLanguage <<external>>
+  entity "OrderItem" as OrderItem <<external>>
+  entity "Payment" as Payment <<external>>
+  entity "PointTransaction" as PointTransaction <<external>>
+  entity "Test" as Test <<external>>
+  entity "User" as User <<external>>
+}
+
+User o|--o{ Course : "instructorId→id"
+LearningLanguage o|--o{ Course : "languageId→id"
+Course ||--o{ Module : "courseId→id"
+Module ||--o{ Lesson : "moduleId→id"
+User ||--o{ VideoWatchProgress : "userId→id"
+Lesson ||--o{ VideoWatchProgress : "lessonId→id"
+User ||--o{ Enrollment : "userId→id"
+Course ||--o{ Enrollment : "courseId→id"
+Course o|--o{ Test : "courseId→id"
+Module o|--o{ Test : "moduleId→id"
+Lesson o|--o{ Test : "lessonId→id"
+Course o|--o{ AiAssessment : "courseId→id"
+Course o|--o{ PointTransaction : "courseId→id"
+User ||--o{ LearningActivity : "userId→id"
+Course o|--o{ LearningActivity : "courseId→id"
+User ||--o{ Feedback : "userId→id"
+Course ||--o{ Feedback : "courseId→id"
+Course ||--o{ OrderItem : "courseId→id"
+Course ||--o{ CourseRefundRequest : "courseId→id"
+Course ||--o{ CourseReport : "courseId→id"
+Lesson o|--o{ CourseReport : "lessonId→id"
+Course o|--o{ Payment : "courseId→id"
+
+legend right
+  PK=khóa chính; FK=khóa ngoại; UQ=duy nhất; dấu ?=cho phép NULL
+endlegend
+@enduml
+
+@startuml 03_tests_ai
+hide methods
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam entityBorderColor #334155
+skinparam entityBackgroundColor #F8FAFC
+skinparam entityFontColor #0F172A
+skinparam ArrowColor #64748B
+skinparam packageBorderColor #94A3B8
+skinparam packageBackgroundColor #FFFFFF
+title 03 — Bài kiểm tra, AI và điểm AI
+left to right direction
+
+package "Bài kiểm tra, AI và điểm AI" {
+  entity "Test" as Test {
+    *id : String <<PK>>
+    --
+    courseId : String? <<FK>>
+    languageId : String? <<FK>>
+    moduleId : String? <<FK>>
+    lessonId : String? <<FK>>
+    kind : TestKind
+    assessmentMode : TestAssessmentMode
+    name : String
+    description : String?
+    maxScore : Float
+    passingScore : Float
+    maxAttempts : Int
+    timeLimit : Int?
+    shuffleQuestions : Boolean
+    materialTitle : String?
+    materialContent : String?
+    materialUrl : String?
+    materialType : String?
+    materialData : Json?
+    createdAt : DateTime
+    updatedAt : DateTime
+  }
+  entity "Question" as Question {
+    *id : String <<PK>>
+    --
+    testId : String <<FK>>
+    type : QuestionType
+    content : String
+    audioUrl : String?
+    order : Int
+    score : Float
+    explanation : String?
+    hint : String?
+    preparationTimeSeconds : Int?
+    answerTimeSeconds : Int?
+    createdAt : DateTime
+    updatedAt : DateTime
+  }
+  entity "Answer" as Answer {
+    *id : String <<PK>>
+    --
+    questionId : String <<FK>>
+    content : String
+    isCorrect : Boolean
+    order : Int
+    feedback : String?
+  }
+  entity "TestAttempt" as TestAttempt {
+    *id : String <<PK>>
+    --
+    testId : String <<FK>>
+    userId : String <<FK>>
+    attemptNo : Int
+    score : Float
+    maxScore : Float
+    answers : Json?
+    results : Json?
+    startedAt : DateTime
+    submittedAt : DateTime
+    isPassed : Boolean
+  }
+  entity "CheatingLog" as CheatingLog {
+    *id : String <<PK>>
+    --
+    attemptId : String <<FK>>
+    type : String
+    severity : Int
+    createdAt : DateTime
+  }
+  entity "AiAssessment" as AiAssessment {
+    *id : String <<PK>>
+    --
+    userId : String <<FK>>
+    courseId : String? <<FK>>
+    type : String
+    taskType : String?
+    title : String?
+    prompt : String?
+    submissionText : String?
+    audioUrl : String?
+    durationSeconds : Int?
+    score : Float
+    maxScore : Float
+    bandSystem : String
+    bandLevel : String
+    bandScore : Float
+    criteria : Json
+    feedback : Json
+    mistakes : Json?
+    improvements : Json?
+    sampleAnswer : String?
+    startedAt : DateTime?
+    submittedAt : DateTime
+    createdAt : DateTime
+    updatedAt : DateTime
+  }
+  entity "PointTransaction" as PointTransaction {
+    *id : String <<PK>>
+    --
+    userId : String <<FK>>
+    courseId : String? <<FK>>
+    type : String
+    amount : Int
+    balanceAfter : Int
+    sourceKey : String <<UQ>>
+    description : String
+    metadata : Json?
+    createdAt : DateTime
+  }
+  entity "SystemSetting" as SystemSetting {
+    *key : String <<PK>>
+    --
+    value : Json
+    updatedAt : DateTime
+  }
+}
+
+package "Bảng liên quan ở miền khác" #FFF7ED {
+  entity "AntiCheatLog" as AntiCheatLog <<external>>
+  entity "Course" as Course <<external>>
+  entity "LearningLanguage" as LearningLanguage <<external>>
+  entity "Lesson" as Lesson <<external>>
+  entity "Module" as Module <<external>>
+  entity "TeacherApplication" as TeacherApplication <<external>>
+  entity "User" as User <<external>>
+}
+
+Course o|--o{ Test : "courseId→id"
+LearningLanguage o|--o{ Test : "languageId→id"
+Module o|--o{ Test : "moduleId→id"
+Lesson o|--o{ Test : "lessonId→id"
+Test ||--o{ Question : "testId→id"
+Question ||--o{ Answer : "questionId→id"
+Test ||--o{ TestAttempt : "testId→id"
+User ||--o{ TestAttempt : "userId→id"
+User ||--o{ AiAssessment : "userId→id"
+Course o|--o{ AiAssessment : "courseId→id"
+User ||--o{ PointTransaction : "userId→id"
+Course o|--o{ PointTransaction : "courseId→id"
+TestAttempt ||--o{ CheatingLog : "attemptId→id"
+Test o|--o{ TeacherApplication : "entranceTestId→id"
+TestAttempt o|--o{ AntiCheatLog : "testAttemptId→id"
+
+legend right
+  PK=khóa chính; FK=khóa ngoại; UQ=duy nhất; dấu ?=cho phép NULL
+endlegend
+@enduml
+
+@startuml 04_teacher
+hide methods
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam entityBorderColor #334155
+skinparam entityBackgroundColor #F8FAFC
+skinparam entityFontColor #0F172A
+skinparam ArrowColor #64748B
+skinparam packageBorderColor #94A3B8
+skinparam packageBackgroundColor #FFFFFF
+title 04 — Tuyển dụng và hồ sơ giảng viên
+left to right direction
+
+package "Tuyển dụng và hồ sơ giảng viên" {
+  entity "TeacherApplication" as TeacherApplication {
+    *id : String <<PK>>
+    --
+    userId : String <<FK>>
+    languageId : String <<FK>>
+    examLocationId : String?
+    examLocationName : String?
+    examLocationAddress : String?
+    examLocationNote : String?
+    recruitmentRoundId : String? <<FK>>
+    status : TeacherApplicationStatus
+    attemptNo : Int
+    entranceTestId : String? <<FK>>
+    entranceAttemptId : String?
+    answerState : Json?
+    startedAt : DateTime?
+    submittedAt : DateTime?
+    reviewedAt : DateTime?
+    reviewedById : String? <<FK>>
+    rejectionReason : String?
+    violationCount : Int
+    failureReason : String?
+    antiCheatAcknowledgedAt : DateTime?
+    proctorSessionId : String?
+    proctorHeartbeatAt : DateTime?
+    proctorHeartbeatSequence : Int
+    questionRevealState : Json?
+    currentQuestionInstanceId : String?
+    sequentialCompletedAt : DateTime?
+    entrancePassingScore : Float?
+    entranceMaxScore : Float?
+    entranceTimeLimit : Int?
+    createdAt : DateTime
+    updatedAt : DateTime
+  }
+  entity "RecruitmentRound" as RecruitmentRound {
+    *id : String <<PK>>
+    --
+    name : String
+    description : String
+    status : RecruitmentRoundStatus
+    registrationOpensAt : DateTime
+    registrationClosesAt : DateTime
+    examStartsAt : DateTime
+    examEndsAt : DateTime
+    locations : Json
+    gradingTokenHash : String? <<UQ>>
+    gradingTokenIssuedAt : DateTime?
+    createdById : String <<FK>>
+    createdAt : DateTime
+    updatedAt : DateTime
+  }
+  entity "TeacherExamResult" as TeacherExamResult {
+    *id : String <<PK>>
+    --
+    applicationId : String <<FK,UQ>>
+    checkedIn : Boolean
+    completed : Boolean
+    writingScore : Float?
+    speakingScore : Float?
+    listeningScore : Float?
+    readingScore : Float?
+    failed : Boolean
+    submittedAt : DateTime?
+    createdAt : DateTime
+    updatedAt : DateTime
+  }
+  entity "TeacherEntranceQuestionInstance" as TeacherEntranceQuestionInstance {
+    *id : String <<PK>>
+    --
+    applicationId : String <<FK>>
+    sourceQuestionId : String
+    sequence : Int
+    type : QuestionType
+    content : String
+    audioUrl : String?
+    hint : String?
+    score : Float
+    preparationTimeSeconds : Int?
+    answerTimeSeconds : Int?
+    answerOptions : Json?
+    scoringData : Json?
+    status : TeacherQuestionInstanceStatus
+    revealedAt : DateTime?
+    answerStartsAt : DateTime?
+    deadlineAt : DateTime?
+    answerState : String?
+    answerRevision : Int
+    finalAnswer : String?
+    finalizedAt : DateTime?
+    transitionTokenHash : String?
+    transitionTokenExpiresAt : DateTime?
+    speakingAudioUrl : String?
+    speakingAudioHash : String?
+    speakingAudioMime : String?
+    speakingAudioBytes : Int?
+    speakingMediaStatus : TeacherSpeakingMediaStatus
+    speakingTranscript : String?
+    speakingProcessingTokenHash : String?
+    speakingProcessingTokenExpiresAt : DateTime?
+    speakingProcessingError : String?
+    speakingProcessingAttempts : Int
+    contentHash : String
+    createdAt : DateTime
+    updatedAt : DateTime
+  }
+  entity "TeacherCertificate" as TeacherCertificate {
+    *id : String <<PK>>
+    --
+    applicationId : String <<FK>>
+    fileName : String
+    fileUrl : String
+    fileType : String
+    fileSize : Int
+    expiryDate : DateTime
+    createdAt : DateTime
+  }
+  entity "TeacherApplicationLog" as TeacherApplicationLog {
+    *id : String <<PK>>
+    --
+    applicationId : String <<FK>>
+    status : TeacherApplicationStatus
+    message : String
+    actorId : String?
+    createdAt : DateTime
+  }
+  entity "AntiCheatLog" as AntiCheatLog {
+    *id : String <<PK>>
+    --
+    applicationId : String <<FK>>
+    testAttemptId : String? <<FK>>
+    eventType : String
+    detail : String?
+    severity : Int
+    durationSeconds : Int?
+    confidence : Float?
+    counted : Boolean
+    clientTimestamp : DateTime?
+    serverTimestamp : DateTime
+    metadata : Json?
+    incidentId : String?
+  }
+  entity "SuspiciousEvent" as SuspiciousEvent {
+    *id : String <<PK>>
+    --
+    applicationId : String <<FK>>
+    eventType : String
+    count : Int
+    totalDurationSeconds : Int
+    severity : Int
+    createdAt : DateTime
+    updatedAt : DateTime
+  }
+}
+
+package "Bảng liên quan ở miền khác" #FFF7ED {
+  entity "LearningLanguage" as LearningLanguage <<external>>
+  entity "Test" as Test <<external>>
+  entity "TestAttempt" as TestAttempt <<external>>
+  entity "User" as User <<external>>
+}
+
+User ||--o{ TeacherApplication : "userId→id"
+LearningLanguage ||--o{ TeacherApplication : "languageId→id"
+Test o|--o{ TeacherApplication : "entranceTestId→id"
+User o|--o{ TeacherApplication : "reviewedById→id"
+RecruitmentRound o|--o{ TeacherApplication : "recruitmentRoundId→id"
+User ||--o{ RecruitmentRound : "createdById→id"
+TeacherApplication ||--o| TeacherExamResult : "applicationId→id"
+TeacherApplication ||--o{ TeacherEntranceQuestionInstance : "applicationId→id"
+TeacherApplication ||--o{ TeacherCertificate : "applicationId→id"
+TeacherApplication ||--o{ TeacherApplicationLog : "applicationId→id"
+TeacherApplication ||--o{ AntiCheatLog : "applicationId→id"
+TestAttempt o|--o{ AntiCheatLog : "testAttemptId→id"
+TeacherApplication ||--o{ SuspiciousEvent : "applicationId→id"
+
+legend right
+  PK=khóa chính; FK=khóa ngoại; UQ=duy nhất; dấu ?=cho phép NULL
+endlegend
+@enduml
+
+@startuml 05_commerce
+hide methods
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam entityBorderColor #334155
+skinparam entityBackgroundColor #F8FAFC
+skinparam entityFontColor #0F172A
+skinparam ArrowColor #64748B
+skinparam packageBorderColor #94A3B8
+skinparam packageBackgroundColor #FFFFFF
+title 05 — Thanh toán, hoàn tiền và doanh thu
+left to right direction
+
+package "Thanh toán, hoàn tiền và doanh thu" {
+  entity "Order" as Order {
+    *id : String <<PK>>
+    --
+    userId : String <<FK>>
+    createdAt : DateTime
+  }
+  entity "OrderItem" as OrderItem {
+    *id : String <<PK>>
+    --
+    orderId : String <<FK>>
+    courseId : String <<FK>>
+    price : Float
+    adminRevenue : Int
+    teacherRevenue : Int
+    revenueSplit : String
+  }
+  entity "CourseRefundRequest" as CourseRefundRequest {
+    *id : String <<PK>>
+    --
+    studentId : String <<FK>>
+    courseId : String <<FK>>
+    orderItemId : String <<FK,UQ>>
+    amount : Int
+    reason : String
+    status : CourseRefundRequestStatus
+    adminNote : String?
+    reviewedById : String? <<FK>>
+    processedAt : DateTime?
+    createdAt : DateTime
+    updatedAt : DateTime
+    refundMethod : String
+  }
+  entity "CourseReport" as CourseReport {
+    *id : String <<PK>>
+    --
+    courseId : String <<FK>>
+    reporterId : String <<FK>>
+    lessonId : String? <<FK>>
+    category : CourseReportCategory
+    title : String
+    description : String
+    truthfulConfirmed : Boolean
+    status : CourseReportStatus
+    response : String?
+    respondedById : String? <<FK>>
+    createdAt : DateTime
+    updatedAt : DateTime
+  }
+  entity "TeacherBankAccount" as TeacherBankAccount {
+    *id : String <<PK>>
+    --
+    teacherId : String <<FK,UQ>>
+    bankName : String
+    accountNumber : String
+    accountName : String
+    branch : String?
+    verificationStatus : TeacherBankAccountVerificationStatus
+    createdAt : DateTime
+    updatedAt : DateTime
+  }
+  entity "TeacherBankAccountChangeOtp" as TeacherBankAccountChangeOtp {
+    *id : String <<PK>>
+    --
+    teacherId : String <<FK>>
+    email : String
+    codeHash : String
+    payload : Json
+    expiresAt : DateTime
+    consumedAt : DateTime?
+    attempts : Int
+    createdAt : DateTime
+    updatedAt : DateTime
+  }
+  entity "TeacherBankAccountChangeLog" as TeacherBankAccountChangeLog {
+    *id : String <<PK>>
+    --
+    teacherId : String <<FK>>
+    previousBankName : String?
+    previousAccountNumberMasked : String?
+    previousAccountName : String?
+    previousBranch : String?
+    nextBankName : String
+    nextAccountNumberMasked : String
+    nextAccountName : String
+    nextBranch : String?
+    requestIp : String?
+    deviceFingerprint : String?
+    createdAt : DateTime
+  }
+  entity "TeacherRevenueWithdrawal" as TeacherRevenueWithdrawal {
+    *id : String <<PK>>
+    --
+    teacherId : String <<FK>>
+    amount : Int
+    bankName : String
+    accountNumber : String
+    accountName : String
+    bankBranch : String?
+    bankVerificationStatus : TeacherBankAccountVerificationStatus
+    status : TeacherRevenueWithdrawalStatus
+    note : String?
+    transferTransactionCode : String?
+    processedById : String? <<FK>>
+    processedAt : DateTime?
+    createdAt : DateTime
+    updatedAt : DateTime
+  }
+  entity "TeacherRevenueWithdrawalComplaint" as TeacherRevenueWithdrawalComplaint {
+    *id : String <<PK>>
+    --
+    withdrawalId : String <<FK,UQ>>
+    teacherId : String <<FK>>
+    reason : TeacherRevenueWithdrawalComplaintReason
+    reportedAmount : Int?
+    message : String
+    evidenceImageUrl : String?
+    evidenceImageName : String?
+    status : TeacherRevenueWithdrawalComplaintStatus
+    adminNote : String?
+    resolvedAt : DateTime?
+    createdAt : DateTime
+    updatedAt : DateTime
+  }
+  entity "Payment" as Payment {
+    *id : String <<PK>>
+    --
+    orderId : String? <<FK,UQ>>
+    userId : String <<FK>>
+    courseId : String? <<FK>>
+    purpose : String?
+    pointAmount : Int?
+    provider : String
+    txnRef : String <<UQ>>
+    amount : Int
+    status : String
+    orderInfo : String?
+    bankCode : String?
+    transactionNo : String?
+    responseCode : String?
+    transactionStatus : String?
+    payDate : String?
+    rawResponse : Json?
+    expiresAt : DateTime?
+    createdAt : DateTime
+    updatedAt : DateTime
+  }
+}
+
+package "Bảng liên quan ở miền khác" #FFF7ED {
+  entity "Course" as Course <<external>>
+  entity "Lesson" as Lesson <<external>>
+  entity "User" as User <<external>>
+}
+
+User ||--o{ Order : "userId→id"
+Order ||--o{ OrderItem : "orderId→id"
+Course ||--o{ OrderItem : "courseId→id"
+User ||--o{ CourseRefundRequest : "studentId→id"
+Course ||--o{ CourseRefundRequest : "courseId→id"
+OrderItem ||--o| CourseRefundRequest : "orderItemId→id"
+User o|--o{ CourseRefundRequest : "reviewedById→id"
+Course ||--o{ CourseReport : "courseId→id"
+User ||--o{ CourseReport : "reporterId→id"
+Lesson o|--o{ CourseReport : "lessonId→id"
+User o|--o{ CourseReport : "respondedById→id"
+User ||--o| TeacherBankAccount : "teacherId→id"
+User ||--o{ TeacherBankAccountChangeOtp : "teacherId→id"
+User ||--o{ TeacherBankAccountChangeLog : "teacherId→id"
+User ||--o{ TeacherRevenueWithdrawal : "teacherId→id"
+User o|--o{ TeacherRevenueWithdrawal : "processedById→id"
+TeacherRevenueWithdrawal ||--o| TeacherRevenueWithdrawalComplaint : "withdrawalId→id"
+User ||--o{ TeacherRevenueWithdrawalComplaint : "teacherId→id"
+Order o|--o| Payment : "orderId→id"
+User ||--o{ Payment : "userId→id"
+Course o|--o{ Payment : "courseId→id"
+
+legend right
+  PK=khóa chính; FK=khóa ngoại; UQ=duy nhất; dấu ?=cho phép NULL
+endlegend
+@enduml
+
+@startuml 06_communication
+hide methods
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam entityBorderColor #334155
+skinparam entityBackgroundColor #F8FAFC
+skinparam entityFontColor #0F172A
+skinparam ArrowColor #64748B
+skinparam packageBorderColor #94A3B8
+skinparam packageBackgroundColor #FFFFFF
+title 06 — Thông báo và thư điện tử
+left to right direction
+
+package "Thông báo và thư điện tử" {
+  entity "Notification" as Notification {
+    *id : String <<PK>>
+    --
+    userId : String <<FK>>
+    title : String
+    body : String
+    readAt : DateTime?
+    createdAt : DateTime
+  }
+  entity "EmailLog" as EmailLog {
+    *id : String <<PK>>
+    --
+    userId : String? <<FK>>
+    to : String
+    subject : String
+    status : String
+    error : String?
+    sentAt : DateTime?
+    createdAt : DateTime
+  }
+}
+
+package "Bảng liên quan ở miền khác" #FFF7ED {
+  entity "User" as User <<external>>
+}
+
+User ||--o{ Notification : "userId→id"
+User o|--o{ EmailLog : "userId→id"
+
+legend right
+  PK=khóa chính; FK=khóa ngoại; UQ=duy nhất; dấu ?=cho phép NULL
+endlegend
+@enduml
+
+@startuml 07_enums
+hide methods
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam entityBorderColor #334155
+skinparam entityBackgroundColor #F8FAFC
+skinparam entityFontColor #0F172A
+skinparam ArrowColor #64748B
+skinparam packageBorderColor #94A3B8
+skinparam packageBackgroundColor #FFFFFF
+title 07 — Danh mục 18 enum Prisma
+left to right direction
+
+package "Prisma enums" {
+  enum Role {
+    STUDENT
+    TEACHER
+    ADMIN
+  }
+  enum UserAccountStatus {
+    PENDING_VERIFICATION
+    ACTIVE
+  }
+  enum CourseStatus {
+    ACTIVE
+    LOCKED
+    PENDING_APPROVAL
+    PENDING_DELETE
+    REJECTED
+  }
+  enum EnrollmentAccessStatus {
+    ACTIVE
+    REFUND_PENDING
+  }
+  enum TestKind {
+    COURSE
+    PUBLIC_PRACTICE
+    TEACHER_ENTRANCE
+  }
+  enum TestAssessmentMode {
+    STANDARD
+    WRITING
+    SPEAKING
+  }
+  enum QuestionType {
+    MULTIPLE_CHOICE
+    FILL_IN_BLANK
+    ESSAY
+    TRUE_FALSE
+    SPEAKING
+  }
+  enum RecruitmentRoundStatus {
+    DRAFT
+    OPEN
+    CLOSED
+    ARCHIVED
+  }
+  enum TeacherQuestionInstanceStatus {
+    LOCKED
+    REVEALED
+    ANSWERING
+    FINALIZING
+    FINALIZED
+    SKIPPED
+    EXPIRED
+  }
+  enum TeacherSpeakingMediaStatus {
+    NONE
+    UPLOADED
+    PROCESSING
+    READY
+    FAILED
+  }
+  enum TeacherApplicationStatus {
+    DRAFT
+    SUBMITTED
+    UNDER_REVIEW
+    APPROVED
+    PENDING
+    INVITED_TO_EXAM
+    CHECKED_IN
+    EXAM_COMPLETED
+    PASSED
+    CONVERTED_TO_TEACHER
+    REJECTED
+    EXPIRED
+    FAILED_CHEATING
+  }
+  enum CourseRefundRequestStatus {
+    PENDING
+    APPROVED
+    REJECTED
+  }
+  enum CourseReportCategory {
+    INACCURATE_CONTENT
+    BROKEN_RESOURCE
+    ACCESS_PROBLEM
+    INAPPROPRIATE_CONTENT
+    QUALITY_MISMATCH
+    INSTRUCTOR_PROBLEM
+    OTHER
+  }
+  enum CourseReportStatus {
+    PENDING
+    IN_REVIEW
+    RESOLVED
+    REJECTED
+  }
+  enum TeacherRevenueWithdrawalStatus {
+    PENDING
+    APPROVED
+    PAID
+    COMPLETED
+    REJECTED
+  }
+  enum TeacherBankAccountVerificationStatus {
+    UNVERIFIED
+    VERIFIED
+    REJECTED
+  }
+  enum TeacherRevenueWithdrawalComplaintReason {
+    NOT_RECEIVED
+    WRONG_AMOUNT
+    OTHER
+  }
+  enum TeacherRevenueWithdrawalComplaintStatus {
+    OPEN
+    RESOLVED
+    REJECTED
+  }
+}
+@enduml

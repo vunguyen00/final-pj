@@ -1,0 +1,816 @@
+' FinnCenter — UML sequence diagrams toàn website
+' Sinh tự động từ mã nguồn ngày 2026-08-06
+' Phạm vi: 18 luồng nghiệp vụ chính, Next.js API, PostgreSQL, VNPay, SMTP và Ollama
+@startuml 01_dang_ky_otp
+hide footbox
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam sequenceArrowThickness 1.2
+skinparam sequenceGroupBorderColor #64748B
+skinparam sequenceGroupBackgroundColor #F8FAFC
+skinparam participantBorderColor #334155
+skinparam participantBackgroundColor #F8FAFC
+skinparam actorBorderColor #0F766E
+skinparam actorBackgroundColor #CCFBF1
+skinparam databaseBorderColor #166534
+skinparam databaseBackgroundColor #DCFCE7
+skinparam noteBorderColor #D97706
+skinparam noteBackgroundColor #FFFBEB
+title 01 — Đăng ký tài khoản và xác thực OTP
+autonumber
+actor "Người dùng" as user #CCFBF1
+boundary "Register UI" as ui #DBEAFE
+control "Auth API" as api #F3E8FF
+control "Registration Security" as security #F3E8FF
+database "PostgreSQL" as db #DCFCE7
+participant "SMTP / Email" as mail #F3E8FF
+
+user -> ui: Nhập tên, email, mật khẩu
+ui -> api: POST /api/auth/register
+api -> security: Kiểm tra dữ liệu, mật khẩu, IP và fingerprint
+security -> db: Kiểm tra User + giới hạn RegistrationSecurityEvent
+alt Email đã có tài khoản
+  api --> ui: 409 Email đã tồn tại
+else Hợp lệ
+  api -> db: Tạo EmailVerificationOtp chứa dữ liệu đăng ký đã băm
+  api -> mail: Gửi OTP 6 chữ số (hết hạn 10 phút)
+  api --> ui: pendingVerification + thời gian gửi lại
+end
+user -> ui: Nhập OTP
+ui -> api: POST /api/auth/verify-registration-otp
+api -> db: Kiểm tra OTP, hạn dùng và số lần thử
+alt OTP sai / hết hạn / quá số lần thử
+  api -> db: Tăng attempts hoặc vô hiệu OTP
+  api --> ui: 400/429
+else OTP hợp lệ
+  api -> db: Transaction: tạo User ACTIVE + dùng OTP
+  api -> db: Tạo TrustedDevice + Session duy nhất
+  api --> ui: Cookie auth_token + trusted_device; redirect theo role
+end
+note over security,db: Có thể gửi lại OTP qua /api/auth/resend-registration-otp;
+rate limit theo email, IP và thiết bị.
+@enduml
+
+@startuml 02_dang_nhap_thiet_bi
+hide footbox
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam sequenceArrowThickness 1.2
+skinparam sequenceGroupBorderColor #64748B
+skinparam sequenceGroupBackgroundColor #F8FAFC
+skinparam participantBorderColor #334155
+skinparam participantBackgroundColor #F8FAFC
+skinparam actorBorderColor #0F766E
+skinparam actorBackgroundColor #CCFBF1
+skinparam databaseBorderColor #166534
+skinparam databaseBackgroundColor #DCFCE7
+skinparam noteBorderColor #D97706
+skinparam noteBackgroundColor #FFFBEB
+title 02 — Đăng nhập, xác nhận thiết bị lạ và đăng xuất
+autonumber
+actor "Người dùng" as user #CCFBF1
+boundary "Login / Confirm Device UI" as ui #DBEAFE
+control "Auth API" as api #F3E8FF
+control "Auth Service" as auth #F3E8FF
+database "PostgreSQL" as db #DCFCE7
+participant "SMTP / Email" as mail #F3E8FF
+
+user -> ui: Nhập email + mật khẩu
+ui -> api: POST /api/auth/login
+api -> auth: Rate limit + xác minh scrypt + trạng thái tài khoản
+auth -> db: Đọc User và TrustedDevice từ cookie đã băm
+alt Sai mật khẩu / chưa xác thực / bị khóa
+  api --> ui: 401/403/429
+else Thiết bị đã tin cậy
+  auth -> db: Xóa Session cũ; tạo Session mới
+  auth -> db: Cập nhật lastUsedAt của TrustedDevice
+  api --> ui: Cookie auth_token; redirect theo role
+else Thiết bị lạ
+  auth -> db: Tạo LoginDeviceChallenge, vô hiệu challenge cũ
+  auth -> mail: Gửi liên kết xác nhận thiết bị
+  api --> ui: requiresDeviceConfirmation = true
+  user -> ui: Mở liên kết email
+  ui -> api: POST /api/auth/confirm-device
+  api -> db: Dùng challenge; tạo TrustedDevice + Session duy nhất
+  api --> ui: Cookie đăng nhập + thiết bị tin cậy
+end
+user -> ui: Đăng xuất
+ui -> api: POST /api/auth/logout
+api -> db: Thu hồi Session hiện tại
+api --> ui: Xóa auth_token; giữ trusted_device
+note over auth,db: authenticate() đối chiếu chữ ký cookie, sessionId, authVersion, role và trạng thái tài khoản.
+@enduml
+
+@startuml 03_khoi_phuc_loi_moi_ho_so
+hide footbox
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam sequenceArrowThickness 1.2
+skinparam sequenceGroupBorderColor #64748B
+skinparam sequenceGroupBackgroundColor #F8FAFC
+skinparam participantBorderColor #334155
+skinparam participantBackgroundColor #F8FAFC
+skinparam actorBorderColor #0F766E
+skinparam actorBackgroundColor #CCFBF1
+skinparam databaseBorderColor #166534
+skinparam databaseBackgroundColor #DCFCE7
+skinparam noteBorderColor #D97706
+skinparam noteBackgroundColor #FFFBEB
+title 03 — Quên mật khẩu, lời mời giảng viên và hồ sơ cá nhân
+autonumber
+actor "Người dùng / Admin" as user #CCFBF1
+boundary "Account UI" as ui #DBEAFE
+control "Auth / Profile API" as api #F3E8FF
+database "PostgreSQL" as db #DCFCE7
+participant "SMTP / Email" as mail #F3E8FF
+
+group Quên mật khẩu
+  user -> ui: Yêu cầu OTP đặt lại mật khẩu
+  ui -> api: POST /api/auth/forgot-password/request-otp
+  api -> db: Tạo PasswordResetOtp nếu email hợp lệ
+  api -> mail: Gửi OTP (không tiết lộ email tồn tại)
+  user -> ui: Gửi OTP + mật khẩu mới
+  ui -> api: POST /api/auth/forgot-password/reset
+  api -> db: Transaction: đổi password, tăng authVersion, dùng OTP, xóa Session
+end
+group Admin mời giảng viên
+  user -> api: POST /api/admin/invitations
+  api -> db: Tạo UserInvitation với tokenHash + languageId
+  api -> mail: Gửi liên kết nhận lời mời
+  user -> ui: Mở /auth/accept-invitation và đặt mật khẩu
+  ui -> api: POST /api/auth/invitations
+  api -> db: Transaction: claim invitation, tạo User TEACHER + TeacherApplication APPROVED
+  api -> db: Tạo Session + TrustedDevice
+end
+group Hồ sơ và ngôn ngữ học
+  user -> ui: Sửa tên, điện thoại, ngôn ngữ hoặc mật khẩu
+  ui -> api: PATCH /api/profile hoặc /api/profile/password
+  api -> db: Cập nhật User / LearningLanguage; đổi mật khẩu thì thu hồi Session
+end
+@enduml
+
+@startuml 04_marketplace_thanh_toan_khoa_hoc
+hide footbox
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam sequenceArrowThickness 1.2
+skinparam sequenceGroupBorderColor #64748B
+skinparam sequenceGroupBackgroundColor #F8FAFC
+skinparam participantBorderColor #334155
+skinparam participantBackgroundColor #F8FAFC
+skinparam actorBorderColor #0F766E
+skinparam actorBackgroundColor #CCFBF1
+skinparam databaseBorderColor #166534
+skinparam databaseBackgroundColor #DCFCE7
+skinparam noteBorderColor #D97706
+skinparam noteBackgroundColor #FFFBEB
+title 04 — Marketplace, đăng ký và thanh toán khóa học qua VNPay
+autonumber
+actor "Khách / Học viên" as student #CCFBF1
+boundary "Course UI" as ui #DBEAFE
+control "Course / Enroll API" as api #F3E8FF
+database "PostgreSQL" as db #DCFCE7
+participant "VNPay" as vnpay #F3E8FF
+control "Payment Callback" as callback #F3E8FF
+
+student -> ui: Tìm kiếm, lọc, xem chi tiết khóa học/giảng viên
+ui -> api: GET /api/courses + GET /api/courses/{id}/access
+api -> db: Đọc Course, Module, Lesson, Test, Feedback, Enrollment
+api --> ui: Nội dung công khai + quyền xem/mua/học thử
+student -> ui: Chọn đăng ký
+ui -> api: POST /api/courses/{id}/enroll
+api -> db: Kiểm tra Course ACTIVE, trùng Enrollment và quyền sở hữu
+alt Khóa miễn phí hoặc giảng viên sở hữu
+  api -> db: Tạo Enrollment ACTIVE ngay
+  api --> ui: Đăng ký thành công
+else Khóa trả phí
+  api -> db: Tạo Order + OrderItem + Payment(PENDING, COURSE)
+  api --> ui: URL VNPay đã ký
+  ui -> vnpay: Chuyển hướng thanh toán
+  vnpay -> callback: Return URL và/hoặc IPN
+  callback -> callback: Xác minh chữ ký, txnRef, amount, response status
+  callback -> db: Claim PENDING -> PROCESSING (idempotent)
+  callback -> db: Payment=PAID + Enrollment ACTIVE + chia 70/30 doanh thu
+  callback --> ui: Kết quả thanh toán / khóa học
+end
+note over callback,db: IPN/return lặp không tạo Enrollment hoặc doanh thu lần hai.
+@enduml
+
+@startuml 05_hoc_bai_tien_do
+hide footbox
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam sequenceArrowThickness 1.2
+skinparam sequenceGroupBorderColor #64748B
+skinparam sequenceGroupBackgroundColor #F8FAFC
+skinparam participantBorderColor #334155
+skinparam participantBackgroundColor #F8FAFC
+skinparam actorBorderColor #0F766E
+skinparam actorBackgroundColor #CCFBF1
+skinparam databaseBorderColor #166534
+skinparam databaseBackgroundColor #DCFCE7
+skinparam noteBorderColor #D97706
+skinparam noteBackgroundColor #FFFBEB
+title 05 — Học bài, heartbeat video và cổng mở khóa
+autonumber
+actor "Học viên" as student #CCFBF1
+boundary "Learning UI" as ui #DBEAFE
+control "Lesson API" as api #F3E8FF
+control "Learning Gate" as gate #F3E8FF
+database "PostgreSQL" as db #DCFCE7
+participant "Video Player" as video #F3E8FF
+
+student -> ui: Mở khóa học / chọn bài học
+ui -> api: POST /api/learning/lessons/{lessonId}/start
+api -> db: Kiểm tra Enrollment ACTIVE hoặc teacher owner/admin
+api -> gate: Kiểm tra module/lesson đã được mở theo thứ tự
+api -> db: Ghi thời điểm bắt đầu + VideoWatchProgress
+alt Bài học có video
+  ui -> video: Phát video, chặn tua vượt tiến độ hợp lệ
+  loop Định kỳ khi video đang phát
+    video -> api: POST heartbeat(currentTime, duration, sequence)
+    api -> db: Cập nhật watchedSeconds/maxPosition; ghi seekViolation
+  end
+else Bài học văn bản
+  ui -> ui: Đếm thời gian học tối thiểu 3 phút
+end
+student -> ui: Đánh dấu hoàn thành
+ui -> api: POST /api/learning/lessons/{lessonId}/complete
+api -> db: Xác minh thời gian hoặc ≥90% video + heartbeat mới + không tua
+api -> db: Ghi marker Feedback + LearningActivity idempotent
+api -> gate: Tính tiến độ, module/test kế tiếp
+gate -> db: Đọc lesson hoàn thành + TestAttempt đã đạt
+api --> ui: Tiến độ mới và tài nguyên kế tiếp
+@enduml
+
+@startuml 06_bai_test_cham_ai
+hide footbox
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam sequenceArrowThickness 1.2
+skinparam sequenceGroupBorderColor #64748B
+skinparam sequenceGroupBackgroundColor #F8FAFC
+skinparam participantBorderColor #334155
+skinparam participantBackgroundColor #F8FAFC
+skinparam actorBorderColor #0F766E
+skinparam actorBackgroundColor #CCFBF1
+skinparam databaseBorderColor #166534
+skinparam databaseBackgroundColor #DCFCE7
+skinparam noteBorderColor #D97706
+skinparam noteBackgroundColor #FFFBEB
+title 06 — Làm bài test, chấm tự động/AI và xem kết quả
+autonumber
+actor "Học viên" as student #CCFBF1
+boundary "Student Test UI" as ui #DBEAFE
+control "Student Test API" as api #F3E8FF
+control "Rules + Attempt Token" as rules #F3E8FF
+control "AI Evaluation" as ai #F3E8FF
+participant "Ollama" as ollama #F3E8FF
+database "PostgreSQL" as db #DCFCE7
+
+student -> ui: Mở bài COURSE hoặc PUBLIC_PRACTICE
+ui -> api: GET /api/student/tests/{testId}
+api -> rules: Kiểm tra readiness=100 điểm, Enrollment, learning gate, accessStatus
+api -> db: Đọc Test + Question + Answer + lịch sử attempt
+api --> ui: Đề thi, attemptToken đã ký, hạn nộp
+student -> ui: Trả lời, ghi âm và nộp/tự động nộp
+ui -> api: POST /api/student/tests/{testId}/submit
+api -> rules: Xác minh token, thời gian, quyền và payload
+api -> api: Chấm MULTIPLE_CHOICE/TRUE_FALSE/FILL_IN_BLANK
+opt Có ESSAY/SPEAKING
+  api -> ai: Chuẩn hóa rubric theo ngôn ngữ/chế độ
+  ai -> ollama: Chấm điểm và tùy chọn nhận xét chi tiết
+  ollama --> ai: Điểm + criteria + lỗi + gợi ý
+  ai --> api: Kết quả đã hiệu chỉnh/normalize
+end
+api -> db: Transaction: TestAttempt snapshot + AiAssessment nếu có
+api -> db: PointTransaction nếu mua feedback + LearningActivity
+api --> ui: Điểm, đạt/không đạt, attemptId, hành động kế tiếp
+ui -> api: GET attempt/result/history
+api -> db: Đọc snapshot kết quả an toàn cho học viên
+api --> ui: Chi tiết từng câu và nhận xét được phép hiển thị
+@enduml
+
+@startuml 07_writing_ai
+hide footbox
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam sequenceArrowThickness 1.2
+skinparam sequenceGroupBorderColor #64748B
+skinparam sequenceGroupBackgroundColor #F8FAFC
+skinparam participantBorderColor #334155
+skinparam participantBackgroundColor #F8FAFC
+skinparam actorBorderColor #0F766E
+skinparam actorBackgroundColor #CCFBF1
+skinparam databaseBorderColor #166534
+skinparam databaseBackgroundColor #DCFCE7
+skinparam noteBorderColor #D97706
+skinparam noteBackgroundColor #FFFBEB
+title 07 — Luyện Writing với AI
+autonumber
+actor "Học viên / Giảng viên" as user #CCFBF1
+boundary "Writing AI UI" as ui #DBEAFE
+control "Writing API" as api #F3E8FF
+control "AI Points" as points #F3E8FF
+participant "Ollama" as ollama #F3E8FF
+database "PostgreSQL" as db #DCFCE7
+
+user -> ui: Chọn ngôn ngữ, task và chủ đề
+ui -> api: POST /api/ai/writing-prompt
+api -> ollama: Sinh đề Task 1/Task 2 và dữ liệu biểu đồ nếu cần
+ollama --> api: Đề AI hoặc dùng fallback khi lỗi
+api --> ui: Hiển thị đề
+user -> ui: Viết bài; chọn chỉ chấm điểm hoặc feedback chi tiết
+ui -> api: POST /api/ai/essay-evaluation
+opt Feedback chi tiết và không phải ADMIN
+  api -> points: Kiểm tra/claim chi phí 3 điểm AI
+end
+api -> ollama: Chấm IELTS Writing hoặc rubric đa ngôn ngữ
+ollama --> api: Overall + criteria + feedback
+api -> db: Tạo AiAssessment + LearningActivity
+opt Có trừ điểm
+  api -> db: Tạo PointTransaction với sourceKey idempotent
+end
+api --> ui: Kết quả theo đúng ngôn ngữ bài luyện
+@enduml
+
+@startuml 08_speaking_ai
+hide footbox
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam sequenceArrowThickness 1.2
+skinparam sequenceGroupBorderColor #64748B
+skinparam sequenceGroupBackgroundColor #F8FAFC
+skinparam participantBorderColor #334155
+skinparam participantBackgroundColor #F8FAFC
+skinparam actorBorderColor #0F766E
+skinparam actorBackgroundColor #CCFBF1
+skinparam databaseBorderColor #166534
+skinparam databaseBackgroundColor #DCFCE7
+skinparam noteBorderColor #D97706
+skinparam noteBackgroundColor #FFFBEB
+title 08 — Luyện Speaking, thu âm và chấm AI
+autonumber
+actor "Học viên / Giảng viên" as user #CCFBF1
+boundary "Speaking AI UI" as ui #DBEAFE
+participant "MediaRecorder + Worker" as media #F3E8FF
+control "Speaking API" as api #F3E8FF
+participant "Ollama" as ollama #F3E8FF
+collections "Local Upload Storage" as storage #FEF3C7
+database "PostgreSQL" as db #DCFCE7
+
+user -> ui: Chọn ngôn ngữ/task/topic
+ui -> api: POST /api/ai/speaking-evaluation/topic
+api -> ollama: Sinh đề nói theo cấu hình admin
+api --> ui: Đề + thời lượng 30–900 giây
+user -> ui: Cho phép microphone và bắt đầu nói
+ui -> media: getUserMedia + MediaRecorder
+media --> ui: Audio blob
+ui -> media: Worker nhận diện/chuyển thành transcript phía client
+media --> ui: Transcript
+ui -> api: multipart audio + transcript + prompt + feedback mode
+api -> storage: Kiểm tra và lưu public/uploads/speaking/*.webm
+api -> ollama: Chấm Speaking theo rubric ngôn ngữ
+ollama --> api: Điểm + criteria + feedback
+api -> db: AiAssessment + LearningActivity + PointTransaction(7 điểm nếu cần)
+api --> ui: Kết quả chi tiết + assessmentId
+note over media,api: Phần phát âm là ước lượng nếu chỉ dùng transcript; file hiện lưu local.
+@enduml
+
+@startuml 09_mua_su_dung_diem_ai
+hide footbox
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam sequenceArrowThickness 1.2
+skinparam sequenceGroupBorderColor #64748B
+skinparam sequenceGroupBackgroundColor #F8FAFC
+skinparam participantBorderColor #334155
+skinparam participantBackgroundColor #F8FAFC
+skinparam actorBorderColor #0F766E
+skinparam actorBackgroundColor #CCFBF1
+skinparam databaseBorderColor #166534
+skinparam databaseBackgroundColor #DCFCE7
+skinparam noteBorderColor #D97706
+skinparam noteBackgroundColor #FFFBEB
+title 09 — Mua và sử dụng điểm AI qua VNPay
+autonumber
+actor "Học viên / Giảng viên" as user #CCFBF1
+boundary "AI Points UI" as ui #DBEAFE
+control "Points API" as api #F3E8FF
+database "PostgreSQL" as db #DCFCE7
+participant "VNPay" as vnpay #F3E8FF
+control "Points Callback" as callback #F3E8FF
+
+user -> ui: Chọn số điểm cần mua
+ui -> api: POST /api/ai/points/buy
+api -> db: Tạo Order + Payment(PENDING, AI_POINTS, pointAmount)
+api --> ui: URL VNPay + txnRef
+ui -> vnpay: Thanh toán
+vnpay -> callback: Return/IPN
+callback -> callback: Xác minh chữ ký, số tiền, purpose, txnRef
+callback -> db: Claim Payment idempotent
+callback -> db: Payment=PAID + PointTransaction(PURCHASE, balanceAfter)
+callback --> ui: Chuyển về trang nguồn nội bộ an toàn
+user -> api: Yêu cầu feedback AI chi tiết
+api -> db: Tổng hợp balance từ PointTransaction
+alt Đủ điểm hoặc ADMIN
+  api -> db: Tạo giao dịch SPEND với sourceKey duy nhất
+  api --> user: Cho phép kết quả chi tiết
+else Không đủ điểm
+  api --> user: 402/409 và gợi ý mua thêm
+end
+note over api,db: Hệ thống không còn ví VND; chỉ còn sổ cái điểm AI.
+@enduml
+
+@startuml 10_tuyen_dung_giang_vien
+hide footbox
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam sequenceArrowThickness 1.2
+skinparam sequenceGroupBorderColor #64748B
+skinparam sequenceGroupBackgroundColor #F8FAFC
+skinparam participantBorderColor #334155
+skinparam participantBackgroundColor #F8FAFC
+skinparam actorBorderColor #0F766E
+skinparam actorBackgroundColor #CCFBF1
+skinparam databaseBorderColor #166534
+skinparam databaseBackgroundColor #DCFCE7
+skinparam noteBorderColor #D97706
+skinparam noteBackgroundColor #FFFBEB
+title 10 — Đợt tuyển, nộp hồ sơ và thi giảng viên trực tiếp
+autonumber
+actor "Admin" as admin #CCFBF1
+boundary "Recruitment UI" as ui #DBEAFE
+control "Recruitment API" as api #F3E8FF
+actor "Ứng viên" as applicant #CCFBF1
+actor "Giám khảo" as grader #CCFBF1
+database "PostgreSQL" as db #DCFCE7
+participant "SMTP / Notification" as notify #F3E8FF
+
+admin -> ui: Tạo đợt tuyển, thời gian và địa điểm
+ui -> api: POST /api/admin/recruitment-rounds
+api -> db: Tạo RecruitmentRound(DRAFT)
+admin -> api: PATCH OPEN
+api -> db: Đóng round cũ; mở round mới; cập nhật SystemSetting
+applicant -> ui: Chọn ngôn ngữ/địa điểm, tải 1–3 chứng chỉ
+ui -> api: POST /api/teacher-applications (multipart)
+api -> db: Tạo TeacherApplication(PENDING) + Certificate + Log
+admin -> api: PATCH INVITE_TO_EXAM hoặc REJECT
+api -> db: Kiểm tra chứng chỉ còn hạn; cập nhật trạng thái + Notification
+api -> notify: Gửi địa điểm/thời gian thi hoặc lý do từ chối
+admin -> api: EXPORT_GRADING_LINK
+api -> db: Lưu gradingTokenHash mới
+api --> grader: URL chấm thi chứa token một lần phát hành
+grader -> api: GET/POST /api/recruitment-grading/{token}
+api -> db: Upsert TeacherExamResult: check-in, completed, điểm 4 kỹ năng
+api -> db: TeacherApplication = PASSED hoặc REJECTED + Log
+admin -> api: CONVERT_TO_TEACHER cho ứng viên đủ điểm
+api -> db: Transaction: User.role=TEACHER, authVersion++, xóa Session, Notification
+api -> notify: Gửi kết quả/chuyển quyền qua email
+note over applicant,grader: Bài thi diễn ra trực tiếp trên giấy; website chỉ quản lý đợt tuyển, hồ sơ, điểm danh và kết quả.
+@enduml
+
+@startuml 11_giang_vien_quan_ly_noi_dung
+hide footbox
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam sequenceArrowThickness 1.2
+skinparam sequenceGroupBorderColor #64748B
+skinparam sequenceGroupBackgroundColor #F8FAFC
+skinparam participantBorderColor #334155
+skinparam participantBackgroundColor #F8FAFC
+skinparam actorBorderColor #0F766E
+skinparam actorBackgroundColor #CCFBF1
+skinparam databaseBorderColor #166534
+skinparam databaseBackgroundColor #DCFCE7
+skinparam noteBorderColor #D97706
+skinparam noteBackgroundColor #FFFBEB
+title 11 — Giảng viên quản lý khóa học, bài học và bài kiểm tra
+autonumber
+actor "Giảng viên" as teacher #CCFBF1
+boundary "Teacher Workspace" as ui #DBEAFE
+control "Teacher APIs" as api #F3E8FF
+control "Readiness / Approval" as rules #F3E8FF
+collections "Upload Storage" as storage #FEF3C7
+database "PostgreSQL" as db #DCFCE7
+actor "Admin" as admin #CCFBF1
+
+teacher -> ui: Tạo/sửa/xóa khóa học
+ui -> api: POST/PATCH/DELETE /api/teacher/courses/**
+api -> rules: Kiểm tra role, ownership, ngôn ngữ được duyệt, auto approval
+api -> db: Ghi Course ACTIVE/PENDING_APPROVAL/PENDING_DELETE/LOCKED
+teacher -> ui: Upload thumbnail, video, audio câu hỏi, tài liệu đề
+ui -> storage: Gửi file qua các upload API
+storage --> ui: URL file đã kiểm tra MIME/kích thước
+teacher -> api: CRUD Module và Lesson theo thứ tự
+api -> db: Ghi Module/Lesson; khóa xóa nếu ảnh hưởng dữ liệu học
+teacher -> api: CRUD Test, Question, Answer
+api -> rules: Course có module; một course test; tổng điểm không vượt 100
+api -> db: Ghi Test/Question/Answer và target course/module/lesson
+api --> ui: Readiness chỉ true khi có câu hỏi và tổng điểm = 100
+admin -> api: Duyệt/từ chối/khóa/mở khóa Course
+api -> db: Cập nhật Course + Notification cho giảng viên
+teacher -> api: GET /api/teacher/students và báo cáo doanh thu
+api -> db: Tổng hợp Enrollment, TestAttempt, chứng nhận và OrderItem
+api --> ui: Danh sách học viên + doanh thu theo khóa
+@enduml
+
+@startuml 12_hoan_tien_bao_cao
+hide footbox
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam sequenceArrowThickness 1.2
+skinparam sequenceGroupBorderColor #64748B
+skinparam sequenceGroupBackgroundColor #F8FAFC
+skinparam participantBorderColor #334155
+skinparam participantBackgroundColor #F8FAFC
+skinparam actorBorderColor #0F766E
+skinparam actorBackgroundColor #CCFBF1
+skinparam databaseBorderColor #166534
+skinparam databaseBackgroundColor #DCFCE7
+skinparam noteBorderColor #D97706
+skinparam noteBackgroundColor #FFFBEB
+title 12 — Hoàn tiền khóa học và báo cáo nội dung
+autonumber
+actor "Học viên" as student #CCFBF1
+boundary "My Courses / Course UI" as ui #DBEAFE
+control "Refund / Report API" as api #F3E8FF
+database "PostgreSQL" as db #DCFCE7
+actor "Admin" as admin #CCFBF1
+control "Notification Service" as notify #F3E8FF
+
+student -> ui: Gửi yêu cầu hoàn tiền kèm lý do
+ui -> api: POST /api/course-refunds
+api -> db: Kiểm tra khóa trả phí, ≤7 ngày, tiến độ ≤50%, chưa yêu cầu
+api -> db: Tạo CourseRefundRequest(PENDING)
+api -> db: Enrollment.accessStatus=REFUND_PENDING
+api -> notify: Thông báo admin
+admin -> api: PATCH /api/admin/course-refunds/{refundId}
+alt APPROVED
+  api -> db: Ghi hoàn tiền ngoài hệ thống; hủy quyền học và dữ liệu liên quan
+else REJECTED
+  api -> db: Enrollment.accessStatus=ACTIVE
+end
+api -> notify: Thông báo kết quả cho học viên
+student -> ui: Báo cáo khóa học hoặc bài học
+ui -> api: POST /api/course-reports
+api -> db: Tạo CourseReport(PENDING) + thông báo tất cả admin
+admin -> api: PATCH /api/course-reports/{reportId}
+api -> db: Cập nhật IN_REVIEW/RESOLVED/REJECTED, response, respondedBy
+api --> ui: Trạng thái xử lý mới
+@enduml
+
+@startuml 13_doanh_thu_rut_tien_khieu_nai
+hide footbox
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam sequenceArrowThickness 1.2
+skinparam sequenceGroupBorderColor #64748B
+skinparam sequenceGroupBackgroundColor #F8FAFC
+skinparam participantBorderColor #334155
+skinparam participantBackgroundColor #F8FAFC
+skinparam actorBorderColor #0F766E
+skinparam actorBackgroundColor #CCFBF1
+skinparam databaseBorderColor #166534
+skinparam databaseBackgroundColor #DCFCE7
+skinparam noteBorderColor #D97706
+skinparam noteBackgroundColor #FFFBEB
+title 13 — Tài khoản ngân hàng, rút doanh thu và khiếu nại
+autonumber
+actor "Giảng viên" as teacher #CCFBF1
+boundary "Revenue UI" as ui #DBEAFE
+control "Bank / Withdrawal API" as api #F3E8FF
+database "PostgreSQL" as db #DCFCE7
+participant "SMTP / Email" as mail #F3E8FF
+actor "Admin" as admin #CCFBF1
+
+teacher -> ui: Nhập/thay đổi tài khoản ngân hàng
+ui -> api: POST /api/teacher/bank-account/request-otp
+api -> db: Tạo TeacherBankAccountChangeOtp(payload đã chụp)
+api -> mail: Gửi OTP xác minh thay đổi
+teacher -> api: POST /verify-otp
+api -> db: Upsert TeacherBankAccount VERIFIED + ChangeLog; dùng OTP
+teacher -> ui: Tạo yêu cầu rút doanh thu
+ui -> api: POST /api/teacher/revenue-withdrawals
+api -> db: Tính doanh thu 70% đã trả - khoản đã/đang rút
+api -> db: Tạo Withdrawal(PENDING) với snapshot tài khoản ngân hàng
+admin -> api: APPROVE / PAID / COMPLETED / REJECT
+api -> db: Cập nhật status, processedBy, transactionCode
+api --> teacher: Notification kết quả
+opt Đã đánh dấu trả nhưng có vấn đề
+  teacher -> api: POST /withdrawals/{id}/complaints + ảnh bằng chứng
+  api -> db: Tạo Complaint(OPEN)
+  admin -> api: RESOLVE hoặc REJECT complaint
+  api -> db: Lưu adminNote + resolvedAt
+end
+note over admin,db: Chuyển khoản là thao tác ngân hàng thủ công; hệ thống lưu workflow và bằng chứng.
+@enduml
+
+@startuml 14_hoan_tat_chung_nhan_review
+hide footbox
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam sequenceArrowThickness 1.2
+skinparam sequenceGroupBorderColor #64748B
+skinparam sequenceGroupBackgroundColor #F8FAFC
+skinparam participantBorderColor #334155
+skinparam participantBackgroundColor #F8FAFC
+skinparam actorBorderColor #0F766E
+skinparam actorBackgroundColor #CCFBF1
+skinparam databaseBorderColor #166534
+skinparam databaseBackgroundColor #DCFCE7
+skinparam noteBorderColor #D97706
+skinparam noteBackgroundColor #FFFBEB
+title 14 — Hoàn tất khóa học, chứng nhận và đánh giá
+autonumber
+actor "Học viên" as student #CCFBF1
+boundary "Result / Course UI" as ui #DBEAFE
+control "Progress / Review API" as api #F3E8FF
+database "PostgreSQL" as db #DCFCE7
+participant "SMTP / Certificate" as mail #F3E8FF
+
+student -> ui: Xem kết quả TestAttempt đã đạt
+ui -> api: GET /api/student/tests/{id}/attempts/{attemptId}
+api -> db: Đối chiếu toàn bộ lesson/test gate của Course
+alt Đủ điều kiện hoàn tất
+  api -> db: Ghi marker hoàn tất + LearningActivity idempotent
+  api -> mail: Tạo/gửi email chứng nhận
+  api --> ui: completed=true + mở form đánh giá
+else Chưa đủ
+  api --> ui: Hành động học/test kế tiếp
+end
+student -> ui: Chọn 1–5 sao và nhập bình luận
+ui -> api: POST /api/courses/{id}/reviews
+api -> db: Kiểm tra đã đạt course test
+api -> db: Upsert Feedback review (tối đa một review/user/course)
+api --> ui: Rating trung bình + danh sách review mới
+@enduml
+
+@startuml 15_ket_qua_dashboard_xep_hang
+hide footbox
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam sequenceArrowThickness 1.2
+skinparam sequenceGroupBorderColor #64748B
+skinparam sequenceGroupBackgroundColor #F8FAFC
+skinparam participantBorderColor #334155
+skinparam participantBackgroundColor #F8FAFC
+skinparam actorBorderColor #0F766E
+skinparam actorBackgroundColor #CCFBF1
+skinparam databaseBorderColor #166534
+skinparam databaseBackgroundColor #DCFCE7
+skinparam noteBorderColor #D97706
+skinparam noteBackgroundColor #FFFBEB
+title 15 — Dashboard học viên, kết quả và bảng xếp hạng
+autonumber
+actor "Học viên" as student #CCFBF1
+boundary "Student UI" as ui #DBEAFE
+control "Server Pages / Result APIs" as api #F3E8FF
+database "PostgreSQL" as db #DCFCE7
+
+student -> ui: Mở dashboard / khóa của tôi / kết quả / top students
+ui -> api: Render server page hoặc GET /api/student/results/**
+api -> db: Đọc Enrollment + Course + lesson markers
+api -> db: Đọc TestAttempt + AiAssessment + LearningActivity
+api -> db: Tổng hợp PointTransaction và trạng thái refund
+api -> api: Tính tiến độ, streak 7 ngày, xu hướng điểm, xếp hạng
+api --> ui: Khóa đang học/hoàn tất, bài gần đây, AI points, charts
+student -> ui: Lọc theo loại/khoảng thời gian hoặc mở chi tiết
+ui -> api: GET /api/student/results/{resultId} hoặc test history
+api -> db: Đọc snapshot bài làm + feedback + sample answer
+api --> ui: Chi tiết kết quả đã chuẩn hóa theo phần trăm/chứng chỉ tham chiếu
+@enduml
+
+@startuml 16_thong_bao
+hide footbox
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam sequenceArrowThickness 1.2
+skinparam sequenceGroupBorderColor #64748B
+skinparam sequenceGroupBackgroundColor #F8FAFC
+skinparam participantBorderColor #334155
+skinparam participantBackgroundColor #F8FAFC
+skinparam actorBorderColor #0F766E
+skinparam actorBackgroundColor #CCFBF1
+skinparam databaseBorderColor #166534
+skinparam databaseBackgroundColor #DCFCE7
+skinparam noteBorderColor #D97706
+skinparam noteBackgroundColor #FFFBEB
+title 16 — Thông báo người dùng và thông báo doanh thu
+autonumber
+actor "Người dùng" as user #CCFBF1
+boundary "Header / Revenue UI" as ui #DBEAFE
+control "Notifications API" as api #F3E8FF
+database "PostgreSQL" as db #DCFCE7
+
+user -> ui: Đăng nhập / mở trang
+ui -> api: GET /api/notifications
+api -> db: Đọc Notification chưa đọc theo userId
+api --> ui: Toast/header notifications
+user -> ui: Đọc/đóng thông báo
+ui -> api: PATCH /api/notifications
+api -> db: Cập nhật readAt
+opt Giảng viên xem lịch sử doanh thu
+  ui -> api: GET /api/teacher/revenue-notifications?page=...
+  api -> db: Phân trang Notification liên quan thanh toán/rút tiền
+  api --> ui: Lịch sử thông báo doanh thu
+end
+note over api,db: Notification được tạo bởi duyệt hồ sơ, course, refund, report, withdrawal và payment.
+@enduml
+
+@startuml 17_quan_tri_analytics
+hide footbox
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam sequenceArrowThickness 1.2
+skinparam sequenceGroupBorderColor #64748B
+skinparam sequenceGroupBackgroundColor #F8FAFC
+skinparam participantBorderColor #334155
+skinparam participantBackgroundColor #F8FAFC
+skinparam actorBorderColor #0F766E
+skinparam actorBackgroundColor #CCFBF1
+skinparam databaseBorderColor #166534
+skinparam databaseBackgroundColor #DCFCE7
+skinparam noteBorderColor #D97706
+skinparam noteBackgroundColor #FFFBEB
+title 17 — Quản trị người dùng, nội dung, cấu hình và analytics
+autonumber
+actor "Admin" as admin #CCFBF1
+boundary "Admin Dashboard" as ui #DBEAFE
+control "Admin APIs" as api #F3E8FF
+control "Analytics Service" as analytics #F3E8FF
+database "PostgreSQL" as db #DCFCE7
+participant "Notification / SMTP" as notify #F3E8FF
+
+admin -> ui: Chọn khoảng thời gian/bộ lọc analytics
+ui -> api: GET /api/admin/analytics
+api -> analytics: Tổng hợp KPI và bảng xếp hạng
+analytics -> db: User, Course, Enrollment, OrderItem, Payment
+analytics -> db: TestAttempt, AiAssessment, PointTransaction, LearningActivity
+analytics -> db: EmailLog, refund, report, withdrawal, anti-cheat
+analytics --> api: Dataset dashboard
+api --> ui: Biểu đồ và bảng quản trị
+admin -> ui: Khóa/mở user, đổi role, quản lý tests/course/config
+ui -> api: PATCH/POST các /api/admin/**
+api -> db: requireRole(ADMIN) + cập nhật transaction
+api -> notify: Gửi thông báo/email khi nghiệp vụ yêu cầu
+api --> ui: Trạng thái mới + dữ liệu đã làm mới
+note over api,db: SystemSetting chứa recruitment, auto course approval và cấu hình Speaking.
+@enduml
+
+@startuml 18_public_health
+hide footbox
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam sequenceArrowThickness 1.2
+skinparam sequenceGroupBorderColor #64748B
+skinparam sequenceGroupBackgroundColor #F8FAFC
+skinparam participantBorderColor #334155
+skinparam participantBackgroundColor #F8FAFC
+skinparam actorBorderColor #0F766E
+skinparam actorBackgroundColor #CCFBF1
+skinparam databaseBorderColor #166534
+skinparam databaseBackgroundColor #DCFCE7
+skinparam noteBorderColor #D97706
+skinparam noteBackgroundColor #FFFBEB
+title 18 — Trang công khai và health check
+autonumber
+actor "Khách / Monitor" as guest #CCFBF1
+boundary "Public Pages" as ui #DBEAFE
+control "Next.js Server Components / APIs" as app #F3E8FF
+database "PostgreSQL" as db #DCFCE7
+
+guest -> ui: Mở trang chủ, about, teachers, courses, top-students
+ui -> app: Render trang / gọi API công khai
+app -> db: Chỉ đọc dữ liệu ACTIVE và thống kê đã lọc
+db --> app: Course/Teacher/Language/Feedback/Enrollment aggregates
+app --> ui: HTML/React response
+guest -> app: GET /api/languages
+app -> db: Đọc LearningLanguage isActive=true
+app --> guest: Danh mục ngôn ngữ
+guest -> app: GET /api/health
+app -> db: Kiểm tra kết nối SELECT 1
+alt CSDL sẵn sàng
+  app --> guest: 200 app=ok, database=ok
+else Lỗi kết nối
+  app --> guest: 503 degraded/error
+end
+@enduml

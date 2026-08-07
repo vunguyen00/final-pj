@@ -30,16 +30,14 @@ async function getHomeCourses() {
 
 async function getHomeStats() {
   try {
-    const [students, courses, teachers, languages] = await Promise.all([
-      prisma.user.count({ where: { role: "STUDENT" } }),
+    const [courses, languages] = await Promise.all([
       prisma.course.count({ where: { status: "ACTIVE" } }),
-      prisma.user.count({ where: { role: "TEACHER" } }),
       prisma.learningLanguage.count({ where: { isActive: true } }),
     ]);
 
-    return { students, courses, teachers, languages };
+    return { courses, languages };
   } catch {
-    return { students: 0, courses: 0, teachers: 0, languages: 0 };
+    return { courses: 0, languages: 0 };
   }
 }
 
@@ -94,10 +92,9 @@ export default async function HomePage() {
 
       <Section padding="md">
         <Stats
+          className="lg:!grid-cols-2"
           stats={[
-            { label: "Học viên đang học", value: formatCount(stats.students), hint: "Tài khoản học viên trong hệ thống" },
             { label: "Khóa học đang mở", value: formatCount(stats.courses), hint: "Khóa học đang hoạt động" },
-            { label: "Giảng viên nổi bật", value: formatCount(stats.teachers), hint: "Giảng viên hiện có trong hệ thống" },
             { label: "Ngôn ngữ", value: formatCount(stats.languages), hint: "Ngôn ngữ đang được mở" },
           ]}
         />
