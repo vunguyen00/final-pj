@@ -223,7 +223,7 @@ export function OverviewKpis({ data }: { data: AnalyticsPayload }) {
               <p className="mt-1 text-lg font-bold">{formatCurrency(data.revenueAnalytics.totalRevenue)}</p>
             </div>
             <div>
-              <p className="text-xs text-blue-200">Điểm AI</p>
+              <p className="text-xs text-blue-200">Điểm nhận xét</p>
               <p className="mt-1 text-lg font-bold">{formatCurrency(data.revenueAnalytics.walletTopUpRevenue)}</p>
             </div>
           </div>
@@ -254,12 +254,12 @@ export function OverviewKpis({ data }: { data: AnalyticsPayload }) {
 export function FinanceSection({ data }: { data: AnalyticsPayload }) {
   return (
     <section className="grid gap-5">
-      <Panel title="Tài chính" subtitle="Doanh thu khóa học, hoa hồng và nạp điểm AI">
+      <Panel title="Tài chính" subtitle="Doanh thu khóa học, hoa hồng và nạp điểm nhận xét">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <KpiCard label="Doanh số khóa học" value={formatCurrency(data.revenueAnalytics.totalRevenue)} tone="emerald" />
           <KpiCard label="Hoa hồng admin" value={formatCurrency(data.revenueAnalytics.adminRevenue)} tone="blue" />
           <KpiCard label="Hoa hồng giảng viên" value={formatCurrency(data.revenueAnalytics.teacherRevenue)} tone="amber" />
-          <KpiCard label="Doanh thu điểm AI" value={formatCurrency(data.revenueAnalytics.walletTopUpRevenue)} />
+          <KpiCard label="Doanh thu điểm nhận xét" value={formatCurrency(data.revenueAnalytics.walletTopUpRevenue)} />
           <KpiCard label="Giá trị đơn TB" value={formatCurrency(data.revenueAnalytics.averageOrderValue)} />
           <KpiCard label="Giao dịch khóa học" value={formatNumber(data.overview.revenue.successfulTransactions)} />
         </div>

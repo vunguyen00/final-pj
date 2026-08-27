@@ -22,7 +22,9 @@ interface ProfileMenuProps {
 
 export default function ProfileMenu({ user }: ProfileMenuProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const logoutInFlightRef = useRef(false);
   const teacherRegistrationEnabled = user.role === "STUDENT" && Boolean(user.teacherRegistrationEnabled);
   const points = user.role === "ADMIN" ? null : user.aiPoints?.available ?? null;
 
@@ -38,6 +40,10 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
   }, []);
 
   const handleLogout = async () => {
+    if (logoutInFlightRef.current) return;
+    logoutInFlightRef.current = true;
+    setLoggingOut(true);
+
     try {
       const res = await fetch("/api/auth/logout", { method: "POST" });
       if (!res.ok) {
@@ -49,6 +55,9 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
       window.location.href = "/";
     } catch (error) {
       console.error("Logout failed:", error);
+    } finally {
+      logoutInFlightRef.current = false;
+      setLoggingOut(false);
     }
   };
 
@@ -116,7 +125,7 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
             <p className="text-xs text-slate-500">{user?.email}</p>
             {points !== null ? (
               <p className="mt-2 text-xs font-semibold text-emerald-700">
-                Điểm đậu: {points.toLocaleString("vi-VN")}
+                Điểm nhận xét: {points.toLocaleString("vi-VN")}
               </p>
             ) : null}
           </div>
@@ -180,11 +189,20 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
                 </Link>
                 {user.role === "TEACHER" ? (
                   <Link
-                    href="/teacher/tests"
+                    href="/student/tests"
                     onClick={() => setMenuOpen(false)}
                     className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
                   >
                     Bài test
+                  </Link>
+                ) : null}
+                {user.role === "TEACHER" ? (
+                  <Link
+                    href="/student/wallet"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    Mua điểm nhận xét
                   </Link>
                 ) : null}
                 {user.role === "TEACHER" ? (
@@ -238,7 +256,8 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
             <button
               type="button"
               onClick={handleLogout}
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
+              disabled={loggingOut}
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -254,7 +273,7 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
                 <polyline points="16 17 21 12 16 7" />
                 <line x1="21" x2="9" y1="12" y2="12" />
               </svg>
-              Đăng xuất
+              {loggingOut ? "Đang đăng xuất..." : "Đăng xuất"}
             </button>
           </div>
         </div>

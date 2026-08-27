@@ -124,7 +124,7 @@ export default async function StudentPage() {
               <p className="text-sm font-bold uppercase tracking-wide text-blue-700">{user.role === "TEACHER" ? "Chế độ học thử" : "Bảng học sinh"}</p>
               <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Xin chào, {user.username}</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                Theo dõi khóa học đã đăng ký, tiến độ bài học, điểm đậu và kết quả kiểm tra gần nhất của bạn.
+                Theo dõi khóa học đã đăng ký, tiến độ bài học, điểm nhận xét và kết quả kiểm tra gần nhất của bạn.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -135,7 +135,7 @@ export default async function StudentPage() {
                 Làm bài test
               </Link>
               <Link href="/student/wallet" className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
-                Điểm đậu
+                Điểm nhận xét
               </Link>
             </div>
           </div>
@@ -146,7 +146,7 @@ export default async function StudentPage() {
           <Metric label="Đang học" value={activeCourses.length.toLocaleString("vi-VN")} detail="Khóa chưa hoàn thành" />
           <Metric label="Hoàn thành" value={completedCourses.length.toLocaleString("vi-VN")} detail="Khóa đã đạt 100%" />
           <Metric label="Bài test gần đây" value={tests.length.toLocaleString("vi-VN")} detail="Lần làm mới nhất" />
-          <Metric label="Điểm đậu hiện có" value={aiSummary.available.toLocaleString("vi-VN")} detail={`Đã dùng ${aiSummary.spent.toLocaleString("vi-VN")}`} />
+          <Metric label="Điểm nhận xét hiện có" value={aiSummary.available.toLocaleString("vi-VN")} detail={`Đã dùng ${aiSummary.spent.toLocaleString("vi-VN")}`} />
         </section>
 
         <section className="grid gap-5 xl:grid-cols-[1.4fr_0.9fr]">

@@ -19,6 +19,10 @@ export async function GET(
       return NextResponse.json({ error: "Không tìm thấy khóa học." }, { status: 404 });
     }
 
+    if (user.role === "ADMIN") {
+      return NextResponse.json({ canAccess: true, reason: "ADMIN" });
+    }
+
     const isOwner = course.instructorId === user.id;
     if (isOwner) {
       return NextResponse.json({ canAccess: true, reason: "OWNER" });

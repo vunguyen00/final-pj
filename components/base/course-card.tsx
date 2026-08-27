@@ -25,12 +25,14 @@ export function CourseCard({
   href,
   isEnrolled = false,
   isAccessSuspended = false,
+  canLearnDirectly = false,
   compact = false,
 }: {
   course: CourseCardCourse;
   href?: string;
   isEnrolled?: boolean;
   isAccessSuspended?: boolean;
+  canLearnDirectly?: boolean;
   compact?: boolean;
 }) {
   const language = getCourseLanguage(course);
@@ -39,7 +41,8 @@ export function CourseCard({
   const level = getCourseLevel(course);
   const thumbnailUrl = normalizeCourseThumbnailUrl(course.thumbnail);
   const courseHref = href ?? `/courses/${course.id}`;
-  const actionHref = isEnrolled && !isAccessSuspended
+  const hasCourseAccess = canLearnDirectly || (isEnrolled && !isAccessSuspended);
+  const actionHref = hasCourseAccess
     ? `/student/hoc-bai?courseId=${course.id}`
     : courseHref;
   const category = getCourseCategoryLabel(course.category, courseLanguage) || ui.course.categoryFallback;
@@ -87,17 +90,19 @@ export function CourseCard({
           <Link
             href={actionHref}
             className={`shrink-0 rounded-lg px-4 py-2 text-sm font-semibold ${
-              isAccessSuspended
+              isAccessSuspended && !canLearnDirectly
                 ? "bg-amber-100 text-amber-800"
-                : isEnrolled
+                : hasCourseAccess
                   ? "bg-accent/15 text-accent"
                   : "bg-primary text-primary-foreground"
             }`}
           >
-            {isAccessSuspended
+            {isAccessSuspended && !canLearnDirectly
               ? "Đang chờ hoàn tiền"
-              : isEnrolled
-                ? ui.course.continueLearning
+              : canLearnDirectly
+                ? ui.course.enterCourse
+                : isEnrolled
+                  ? ui.course.continueLearning
                 : ui.course.viewCourse}
           </Link>
         </div>

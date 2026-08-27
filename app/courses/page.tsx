@@ -92,6 +92,7 @@ export default async function CoursesPage({
               course={course}
               isEnrolled={enrolledIds.has(course.id)}
               isAccessSuspended={suspendedIds.has(course.id)}
+              canLearnDirectly={user?.role === "ADMIN"}
             />
           ))}
         </CardGrid>

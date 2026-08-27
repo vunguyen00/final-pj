@@ -175,6 +175,7 @@ type LearningUiLabels = {
     buyWithVnpay: string;
     enterCourse: string;
     teacherCanLearn: string;
+    adminCanLearn: string;
     enrollmentSuccess: string;
     paymentError: string;
     networkError: string;
@@ -207,7 +208,7 @@ const labels: Record<UiLanguage, LearningUiLabels> = {
     score: "Chấm điểm",
     scoreFree: "Chấm điểm miễn phí",
     aiFeedback: "Nhận xét AI",
-    aiFeedbackWithCost: (cost) => `Nhận xét AI (trừ ${cost} đậu)`,
+    aiFeedbackWithCost: (cost) => `Nhận xét AI (trừ ${cost} điểm nhận xét)`,
     waiting: "Vui lòng đợi...",
     aiReviewing: "AI đang nhận xét...",
     scoring: "Đang chấm điểm...",
@@ -251,10 +252,10 @@ const labels: Record<UiLanguage, LearningUiLabels> = {
       stopRecordingAlert: "Hãy dừng ghi âm và đợi hệ thống phân tích âm thanh xong trước khi chấm điểm.",
       unansweredConfirm: (count) => `Còn ${count} câu chưa trả lời. Bạn có chắc muốn nộp bài?`,
       paymentFailed: "Không tạo được giao dịch thanh toán.",
-      beanPurchaseComplete: "Hạt đậu đã được cộng. Đáp án vẫn được giữ nguyên; bạn có thể bấm nhận xét AI lần nữa.",
-      beanPurchaseBlocked: "Trình duyệt đã chặn tab mua hạt đậu. Hãy bấm nút bên dưới để mở tab.",
-      beanPurchaseOpened: "Trang mua hạt đậu đã được mở ở tab riêng. Bài test và đáp án vẫn được giữ tại đây.",
-      openBeanPurchase: "Mở tab mua hạt đậu",
+      beanPurchaseComplete: "Điểm nhận xét đã được cộng. Đáp án vẫn được giữ nguyên; bạn có thể bấm nhận xét AI lần nữa.",
+      beanPurchaseBlocked: "Trình duyệt đã chặn trang mua điểm nhận xét. Hãy bấm nút bên dưới để mở trang.",
+      beanPurchaseOpened: "Trang mua điểm nhận xét đã được mở ở thẻ riêng. Bài kiểm tra và đáp án vẫn được giữ tại đây.",
+      openBeanPurchase: "Mở trang mua điểm nhận xét",
       submitFailed: "Không thể nộp bài. Vui lòng thử lại.",
       connectionFailed: "Không thể nộp bài. Vui lòng kiểm tra kết nối và thử lại.",
       unsupportedAudio: "Trình duyệt của bạn không hỗ trợ phát âm thanh.",
@@ -365,6 +366,7 @@ const labels: Record<UiLanguage, LearningUiLabels> = {
       buyWithVnpay: "Mua khóa học qua VNPay",
       enterCourse: "Vào học",
       teacherCanLearn: "Bạn là giảng viên của khóa học này. Có thể vào học ngay.",
+      adminCanLearn: "Quản trị viên có thể vào học trực tiếp để kiểm tra khóa học, không cần đăng ký.",
       enrollmentSuccess: "Đăng ký khóa học thành công. Bạn có thể vào học ngay.",
       paymentError: "Không tạo được đường dẫn thanh toán VNPay.",
       networkError: "Lỗi mạng. Vui lòng thử lại.",
@@ -545,6 +547,7 @@ const labels: Record<UiLanguage, LearningUiLabels> = {
       buyWithVnpay: "Buy course with VNPay",
       enterCourse: "Start learning",
       teacherCanLearn: "You teach this course and can open it immediately.",
+      adminCanLearn: "Administrators can open this course directly for review without enrolling.",
       enrollmentSuccess: "Enrollment successful. You can start learning now.",
       paymentError: "Could not create the VNPay payment link.",
       networkError: "Network error. Please try again.",
@@ -725,6 +728,7 @@ const labels: Record<UiLanguage, LearningUiLabels> = {
       buyWithVnpay: "VNPayでコースを購入",
       enterCourse: "学習を開始",
       teacherCanLearn: "このコースの講師として、すぐに学習画面を開けます。",
+      adminCanLearn: "管理者は登録せずに、確認のためこのコースを直接開けます。",
       enrollmentSuccess: "コースへの登録が完了しました。すぐに学習を開始できます。",
       paymentError: "VNPay決済リンクを作成できませんでした。",
       networkError: "ネットワークエラーです。もう一度お試しください。",
@@ -911,6 +915,7 @@ labels.zh = {
     buyWithVnpay: "通过VNPay购买课程",
     enterCourse: "开始学习",
     teacherCanLearn: "您是本课程的讲师，可以立即进入学习。",
+    adminCanLearn: "管理员无需报名即可直接进入课程进行检查。",
     enrollmentSuccess: "课程报名成功，现在可以开始学习。",
     paymentError: "无法创建VNPay支付链接。",
     networkError: "网络错误，请重试。",
@@ -1094,6 +1099,7 @@ labels.ko = {
     buyWithVnpay: "VNPay로 코스 구매",
     enterCourse: "학습 시작",
     teacherCanLearn: "이 코스의 강사이므로 바로 학습 화면을 열 수 있습니다.",
+    adminCanLearn: "관리자는 등록하지 않고 검토를 위해 이 코스를 바로 열 수 있습니다.",
     enrollmentSuccess: "코스 등록이 완료되었습니다. 지금 학습을 시작할 수 있습니다.",
     paymentError: "VNPay 결제 링크를 만들 수 없습니다.",
     networkError: "네트워크 오류입니다. 다시 시도해 주세요.",

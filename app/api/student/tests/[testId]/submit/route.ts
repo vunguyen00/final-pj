@@ -101,7 +101,8 @@ export async function POST(
     }
 
     const isOwnerPreview =
-      (user.role === "TEACHER" || user.role === "ADMIN") && test.course?.instructorId === user.id;
+      user.role === "ADMIN" ||
+      (user.role === "TEACHER" && test.course?.instructorId === user.id);
 
     if (!isOwnerPreview && test.kind === "COURSE") {
       if (!test.courseId) {

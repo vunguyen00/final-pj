@@ -13,6 +13,10 @@ export type CourseReview = {
   createdAt: Date;
 };
 
+export function isCourseReviewRole(role: string) {
+  return role === "STUDENT" || role === "TEACHER";
+}
+
 function reviewContent(rating: number, comment: string) {
   return `${REVIEW_PREFIX}${JSON.stringify({ rating, comment })}`;
 }
@@ -87,8 +91,19 @@ export async function getUserCourseReview(userId: string, courseId: string) {
 }
 
 export async function canReviewCourse(userId: string, courseId: string) {
-  const gateState = await getCourseLearningGateState(userId, courseId);
-  return Boolean(gateState?.courseComplete);
+  const [gateState, course] = await Promise.all([
+    getCourseLearningGateState(userId, courseId),
+    prisma.course.findUnique({
+      where: { id: courseId },
+      select: { instructorId: true },
+    }),
+  ]);
+
+  return Boolean(
+    gateState?.courseComplete &&
+    course &&
+    course.instructorId !== userId,
+  );
 }
 
 export async function upsertCourseReview({

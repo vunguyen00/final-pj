@@ -8,7 +8,12 @@ import CourseReviewForm from "./components/CourseReviewForm";
 import CourseReportButton from "./components/CourseReportButton";
 import { Badge, BadgeGroup } from "@/components/base/badge";
 import { Section } from "@/components/base/section";
-import { canReviewCourse, getCourseReviews, getUserCourseReview } from "@/lib/course-reviews";
+import {
+  canReviewCourse,
+  getCourseReviews,
+  getUserCourseReview,
+  isCourseReviewRole,
+} from "@/lib/course-reviews";
 import {
   getCertification,
   getCourseDuration,
@@ -45,7 +50,11 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
   if (course.status !== "ACTIVE" && !canPreviewUnpublished) notFound();
 
   const totalLessons = course.modules.reduce((acc, module) => acc + module.lessons.length, 0);
-  const canLearnDirectly = Boolean(user && user.role === "TEACHER" && course.instructorId === user.id);
+  const directAccessRole = user?.role === "ADMIN"
+    ? "ADMIN"
+    : user?.role === "TEACHER" && course.instructorId === user.id
+      ? "TEACHER"
+      : null;
   const enrollment = user
     ? await prisma.enrollment.findUnique({ where: { userId_courseId: { userId: user.id, courseId: course.id } } })
     : null;
@@ -56,10 +65,11 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
   const levelLabel = getCourseLevelLabel(level, courseLanguage);
   const category = getCourseCategoryLabel(course.category, courseLanguage) || ui.course.uncategorized;
   const thumbnailUrl = normalizeCourseThumbnailUrl(course.thumbnail);
+  const canReviewAsLearner = Boolean(user && isCourseReviewRole(user.role));
   const [reviews, canReview, existingReview] = await Promise.all([
     getCourseReviews(course.id),
-    user?.role === "STUDENT" ? canReviewCourse(user.id, course.id) : Promise.resolve(false),
-    user?.role === "STUDENT" ? getUserCourseReview(user.id, course.id) : Promise.resolve(null),
+    canReviewAsLearner && user ? canReviewCourse(user.id, course.id) : Promise.resolve(false),
+    canReviewAsLearner && user ? getUserCourseReview(user.id, course.id) : Promise.resolve(null),
   ]);
   const averageRating = reviews.length ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length : 0;
   const totalRatingPoints = reviews.reduce((sum, review) => sum + review.rating, 0);
@@ -149,7 +159,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
               </div>
 
               <div className="mt-5">
-                {user?.role === "STUDENT" ? (
+                {user && isCourseReviewRole(user.role) ? (
                   <CourseReviewForm courseId={course.id} languageCode={course.language?.code} canReview={canReview} existingReview={existingReview} />
                 ) : user ? (
                   <div className="rounded-xl border border-border bg-muted p-4 text-sm text-muted-foreground">
@@ -186,8 +196,8 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
                 courseId={course.id}
                 price={course.price}
                 initiallyEnrolled={Boolean(enrollment)}
-                accessSuspended={enrollment?.accessStatus === "REFUND_PENDING"}
-                canLearnDirectly={canLearnDirectly}
+                accessSuspended={!directAccessRole && enrollment?.accessStatus === "REFUND_PENDING"}
+                directAccessRole={directAccessRole}
                 languageCode={courseLanguage}
               />
             ) : (

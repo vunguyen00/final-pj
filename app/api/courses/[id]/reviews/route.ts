@@ -4,6 +4,7 @@ import {
   canReviewCourse,
   getCourseReviews,
   getUserCourseReview,
+  isCourseReviewRole,
   upsertCourseReview,
 } from "@/lib/course-reviews";
 
@@ -12,10 +13,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const [{ id }, user] = await Promise.all([params, getCurrentUser()]);
+  const canReviewAsLearner = Boolean(user && isCourseReviewRole(user.role));
   const [reviews, myReview, canReview] = await Promise.all([
     getCourseReviews(id),
-    user?.role === "STUDENT" ? getUserCourseReview(user.id, id) : Promise.resolve(null),
-    user?.role === "STUDENT" ? canReviewCourse(user.id, id) : Promise.resolve(false),
+    canReviewAsLearner && user ? getUserCourseReview(user.id, id) : Promise.resolve(null),
+    canReviewAsLearner && user ? canReviewCourse(user.id, id) : Promise.resolve(false),
   ]);
 
   return NextResponse.json({ reviews, myReview, canReview });
@@ -29,7 +31,7 @@ export async function POST(
     const { id } = await params;
     const user = await getCurrentUser();
 
-    if (!user || user.role !== "STUDENT") {
+    if (!user || !isCourseReviewRole(user.role)) {
       return NextResponse.json({ error: "Bạn cần đăng nhập bằng tài khoản học viên." }, { status: 401 });
     }
 

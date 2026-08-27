@@ -1,5 +1,6 @@
 ﻿import Link from "next/link";
 import { getCourseCategoryLabel, getCourseManagementLabels } from "@/lib/language-display";
+import { getLearningUiLabels } from "@/lib/test-language-labels";
 import { Course } from "../types";
 
 type CourseHeaderProps = {
@@ -10,6 +11,7 @@ export function CourseHeader({ course }: CourseHeaderProps) {
   const createdAt = new Date(course.createdAt).toLocaleString("vi-VN");
   const courseLanguageKey = course.language?.code || course.language?.name || "vi";
   const labels = getCourseManagementLabels(courseLanguageKey);
+  const learningLabels = getLearningUiLabels(courseLanguageKey).course;
   const statusLabel =
     labels.status[course.status] || course.status;
   const statusClass =
@@ -54,6 +56,12 @@ export function CourseHeader({ course }: CourseHeaderProps) {
           <div className="text-right">
             <p className="text-2xl font-bold text-slate-900">{course.price.toLocaleString("vi-VN")}đ</p>
             <p className="text-sm text-slate-500">{getCourseCategoryLabel(course.category, courseLanguageKey) || course.category}</p>
+            <Link
+              href={`/student/hoc-bai?courseId=${course.id}`}
+              className="mt-3 inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+            >
+              {learningLabels.enterCourse}
+            </Link>
           </div>
         </div>
       </div>

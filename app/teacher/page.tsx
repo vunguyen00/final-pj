@@ -113,7 +113,7 @@ export default async function TeacherPage() {
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-end justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-950">Khóa học gần đây</h2><p className="text-sm text-slate-500">Trạng thái, số chương, bài test và học viên.</p></div><Link href="/teacher/tests" className="text-sm font-bold text-blue-700">Quản lý bài test</Link></div>
+          <div className="flex items-end justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-950">Khóa học gần đây</h2><p className="text-sm text-slate-500">Trạng thái, số chương, bài test và học viên.</p></div><Link href="/student/tests" className="text-sm font-bold text-blue-700">Xem bài test</Link></div>
           <div className="mt-4 grid gap-3 md:grid-cols-2">{courses.map((course) => <Link key={course.id} href={`/teacher/courses/${course.id}`} className="rounded-xl border border-slate-200 p-4 hover:border-blue-300"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate font-semibold text-slate-950">{course.name}</p><p className="mt-1 text-sm text-slate-500">{course._count.modules} chương · {course._count.tests} bài test · {course._count.enrollments} học viên</p></div><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{course.status}</span></div></Link>)}{courses.length === 0 ? <p className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">Chưa có khóa học nào.</p> : null}</div>
         </section>
       </div>

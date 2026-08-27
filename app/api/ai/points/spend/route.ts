@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     if (error instanceof Error && error.message === "INSUFFICIENT_POINTS") {
       return NextResponse.json(
         {
-          error: "Không đủ hạt đậu. Vào trang Điểm đậu để mua thêm.",
+          error: "Không đủ điểm nhận xét. Vào trang Điểm nhận xét để mua thêm.",
           requiresPointPurchase: true,
           pointPriceVnd: AI_POINT_PRICE_VND,
           beanPriceVnd: AI_POINT_PRICE_VND,

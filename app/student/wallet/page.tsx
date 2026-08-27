@@ -18,9 +18,9 @@ const EMPTY_WALLET_DATA: WalletData = {
 };
 
 function paymentMessage(payment: string | null, code: string | null) {
-  if (payment === "success") return "Mua điểm đậu thành công. Số điểm đã được cộng vào tài khoản.";
+  if (payment === "success") return "Mua điểm nhận xét thành công. Số điểm đã được cộng vào tài khoản.";
   if (payment === "failed") return `Thanh toán không thành công${code ? ` (mã: ${code})` : ""}.`;
-  if (payment === "cancelled") return "Bạn đã hủy thanh toán mua điểm đậu.";
+  if (payment === "cancelled") return "Bạn đã hủy thanh toán mua điểm nhận xét.";
   if (payment === "pending") return "Thanh toán đã được ghi nhận và đang chờ VNPay xác nhận.";
   if (payment === "invalid_signature") return "Không thể xác thực chữ ký trả về từ VNPay.";
   return "";
@@ -41,7 +41,7 @@ export default async function StudentWalletPage({ searchParams }: PageProps) {
       <WalletClient
         initialData={EMPTY_WALLET_DATA}
         initialNotice={{
-          message: notice.message || "Admin không cần mua điểm đậu.",
+          message: notice.message || "Quản trị viên không cần mua điểm nhận xét.",
           isError: Boolean(notice.message),
         }}
         canBuy={false}
@@ -76,7 +76,7 @@ export default async function StudentWalletPage({ searchParams }: PageProps) {
     };
   } catch {
     walletNotice = {
-      message: notice.message || "Không tải được điểm đậu.",
+      message: notice.message || "Không tải được điểm nhận xét.",
       isError: true,
     };
     canBuy = false;

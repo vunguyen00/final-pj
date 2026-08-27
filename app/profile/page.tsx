@@ -75,14 +75,14 @@ export default async function ProfilePage() {
             </div>
             {!isAdmin && (
               <div className="rounded-lg border border-slate-200 p-4">
-                <p className="text-sm text-slate-500">Điểm đậu hiện có</p>
+                <p className="text-sm text-slate-500">Điểm nhận xét hiện có</p>
                 <p className="mt-1 font-semibold text-slate-900">{aiPoints.available.toLocaleString("vi-VN")}</p>
               </div>
             )}
           </div>
           <div className="mt-4">
             {!isAdmin && (
-              <Link href="/student/wallet" className="text-sm font-medium text-blue-600 hover:text-blue-700">Mua điểm đậu</Link>
+              <Link href="/student/wallet" className="text-sm font-medium text-blue-600 hover:text-blue-700">Mua điểm nhận xét</Link>
             )}
           </div>
         </section>

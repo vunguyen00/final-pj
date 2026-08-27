@@ -2,7 +2,11 @@ import { notFound } from "next/navigation";
 import StudentTestResultClient from "./StudentTestResultClient";
 import StudentTestPreviewResultClient from "./StudentTestPreviewResultClient";
 import { requireRole } from "@/lib/auth";
-import { canReviewCourse, getUserCourseReview } from "@/lib/course-reviews";
+import {
+  canReviewCourse,
+  getUserCourseReview,
+  isCourseReviewRole,
+} from "@/lib/course-reviews";
 import { prisma } from "@/lib/prisma";
 import { getStudentTestAttemptResult } from "@/lib/student-test-attempt-result";
 
@@ -46,7 +50,7 @@ export default async function StudentTestResultPage({
   if (!result) notFound();
 
   const canReview =
-    user.role === "STUDENT" && result.isPassed && result.courseId
+    isCourseReviewRole(user.role) && result.isPassed && result.courseId
       ? await Promise.all([
           canReviewCourse(user.id, result.courseId),
           getUserCourseReview(user.id, result.courseId),

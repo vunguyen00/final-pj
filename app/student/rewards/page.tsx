@@ -9,7 +9,7 @@ const aiCosts = [
 ];
 
 function formatBeans(value: number) {
-  return `${Math.round(value).toLocaleString("vi-VN")} điểm đậu`;
+  return `${Math.round(value).toLocaleString("vi-VN")} điểm nhận xét`;
 }
 
 export default async function RewardCenterPage() {
@@ -44,7 +44,7 @@ export default async function RewardCenterPage() {
           {aiCosts.map((item) => (
             <article key={item.title} className="rounded-xl border border-slate-200 bg-white p-5">
               <h2 className="text-lg font-bold text-slate-950">{item.title}</h2>
-              <p className="mt-2 text-sm text-slate-600">Mỗi lần nhận xét AI sẽ trừ điểm đậu từ tài khoản.</p>
+              <p className="mt-2 text-sm text-slate-600">Mỗi lần nhận xét AI sẽ trừ điểm nhận xét từ tài khoản.</p>
               <p className="mt-4 text-2xl font-bold text-slate-950">{formatBeans(item.cost)}/lần</p>
               <Link href={item.href} className="mt-4 inline-flex rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                 Mở tính năng

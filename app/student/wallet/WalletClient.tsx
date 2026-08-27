@@ -77,7 +77,7 @@ function formatVnd(value: number) {
 }
 
 function formatBeans(value: number) {
-  return `${Math.round(value).toLocaleString("vi-VN")} điểm đậu`;
+  return `${Math.round(value).toLocaleString("vi-VN")} điểm nhận xét`;
 }
 
 function amountClass(amount: number) {
@@ -143,13 +143,13 @@ export default function WalletClient({
 
   async function handleBuyBeans() {
     if (!canBuy) {
-      dispatch({ type: "SET_NOTICE", notice: { message: "Tài khoản này không thể mua điểm đậu.", isError: true } });
+      dispatch({ type: "SET_NOTICE", notice: { message: "Tài khoản này không thể mua điểm nhận xét.", isError: true } });
       return;
     }
 
     const beans = Number(state.beanAmount);
     if (!Number.isFinite(beans) || !Number.isInteger(beans) || beans <= 0) {
-      dispatch({ type: "SET_NOTICE", notice: { message: "Vui lòng nhập số điểm đậu hợp lệ.", isError: true } });
+      dispatch({ type: "SET_NOTICE", notice: { message: "Vui lòng nhập số điểm nhận xét hợp lệ.", isError: true } });
       return;
     }
 
@@ -173,7 +173,7 @@ export default function WalletClient({
       });
       const data = await readJsonResponse(res).catch(() => ({}));
       if (!res.ok || !data?.paymentUrl) {
-        dispatch({ type: "SET_NOTICE", notice: { message: data?.error || "Không tạo được giao dịch mua điểm đậu.", isError: true } });
+        dispatch({ type: "SET_NOTICE", notice: { message: data?.error || "Không tạo được giao dịch mua điểm nhận xét.", isError: true } });
         return;
       }
 
@@ -189,13 +189,13 @@ export default function WalletClient({
     <main className="min-h-dvh bg-slate-50 p-6">
       <div className="mx-auto max-w-5xl space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Điểm đậu</h1>
-          <p className="mt-1 text-sm text-slate-600">Mua điểm đậu trực tiếp qua VNPay để dùng cho Writing AI, Speaking AI và nhận xét AI bài test.</p>
+          <h1 className="text-3xl font-bold text-slate-900">Điểm nhận xét</h1>
+          <p className="mt-1 text-sm text-slate-600">Mua điểm nhận xét qua VNPay để xem nhận xét chi tiết cho bài viết, bài nói và bài kiểm tra.</p>
         </div>
 
         <section className="grid gap-4 md:grid-cols-3">
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-            <p className="text-sm text-emerald-700">Điểm đậu hiện có</p>
+            <p className="text-sm text-emerald-700">Điểm nhận xét hiện có</p>
             <p className="mt-2 text-2xl font-bold text-emerald-800">{formatBeans(aiPoints.available)}</p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-white p-4">
@@ -222,8 +222,8 @@ export default function WalletClient({
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
             <p className="font-semibold">
               {shouldCloseAfterSuccess
-                ? "Đã nạp hạt đậu. Nếu tab này không tự đóng, bạn có thể đóng tab và tiếp tục bài test."
-                : "Đã nạp hạt đậu. Bạn có thể quay lại nơi đang làm dở."}
+                ? "Đã nạp điểm nhận xét. Nếu tab này không tự đóng, bạn có thể đóng tab và tiếp tục bài kiểm tra."
+                : "Đã nạp điểm nhận xét. Bạn có thể quay lại nơi đang làm dở."}
             </p>
             <Link
               href={effectiveReturnTo}
@@ -237,8 +237,8 @@ export default function WalletClient({
         <section className="rounded-lg border border-emerald-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-slate-900">Mua điểm đậu</h2>
-              <p className="text-sm text-slate-500">Tỷ lệ: {formatVnd(beanPrice)} / 1 điểm đậu. Bạn có thể mua số lượng tùy ý, ví dụ 100 điểm.</p>
+              <h2 className="text-xl font-semibold text-slate-900">Mua điểm nhận xét</h2>
+              <p className="text-sm text-slate-500">Giá: {formatVnd(beanPrice)} cho 1 điểm nhận xét. Bạn có thể mua số lượng tùy ý, ví dụ 100 điểm.</p>
             </div>
             <p className="text-sm font-medium text-emerald-700">Bạn đang có {formatBeans(aiPoints.available)}</p>
           </div>
@@ -251,8 +251,8 @@ export default function WalletClient({
               value={state.beanAmount}
               onChange={(event) => dispatch({ type: "SET_BEAN_AMOUNT", beanAmount: event.target.value })}
               className="h-11 w-full rounded-lg border border-slate-300 px-3 text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              placeholder="Nhập số điểm đậu"
-              aria-label="Số điểm đậu cần mua"
+              placeholder="Nhập số điểm nhận xét"
+              aria-label="Số điểm nhận xét cần mua"
             />
             <button
               type="button"
@@ -285,10 +285,10 @@ export default function WalletClient({
         </section>
 
         <section className="rounded-lg border border-slate-200 bg-white p-5">
-          <h2 className="text-lg font-semibold text-slate-900">Lịch sử điểm đậu</h2>
+          <h2 className="text-lg font-semibold text-slate-900">Lịch sử điểm nhận xét</h2>
           <div className="mt-3 space-y-2">
             {transactions.length === 0 ? (
-              <p className="text-sm text-slate-500">Chưa có giao dịch điểm đậu nào.</p>
+              <p className="text-sm text-slate-500">Chưa có giao dịch điểm nhận xét nào.</p>
             ) : (
               transactions.map((tx) => (
                 <div key={tx.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 p-3">

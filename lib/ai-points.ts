@@ -67,14 +67,15 @@ function isUsablePointTransaction(item: { type: string; amount: number }) {
 
 function getBeanPointDescription(item: { type: string; amount: number; description: string }) {
   if (item.type === "AI_POINTS_PURCHASE") {
-    return `Mua ${item.amount} hạt đậu`;
+    return `Mua ${item.amount} điểm nhận xét`;
   }
   if (item.type === "AI_POINTS_ADMIN_GRANT") {
-    return `Được cấp ${item.amount} hạt đậu`;
+    return `Được cấp ${item.amount} điểm nhận xét`;
   }
   return item.description
-    .replace(new RegExp("diem\\s+AI", "gi"), "hạt đậu")
-    .replace(new RegExp("\\u0111i\\u1ec3m\\s+AI", "gi"), "hạt đậu");
+    .replace(new RegExp("diem\\s+AI", "gi"), "điểm nhận xét")
+    .replace(new RegExp("\\u0111i\\u1ec3m\\s+AI", "gi"), "điểm nhận xét")
+    .replace(new RegExp("hạt\\s+đậu|điểm\\s+đậu", "gi"), "điểm nhận xét");
 }
 
 async function getCurrentBalance(userId: string, client: PointClient = prisma) {
@@ -330,7 +331,7 @@ export async function confirmAiPointPaymentFromVnpay(params: {
       type: "AI_POINTS_PURCHASE",
       amount: payment.pointAmount,
       sourceKey: `AI_POINTS_PAYMENT:${payment.id}`,
-      description: `Mua ${payment.pointAmount} hạt đậu`,
+      description: `Mua ${payment.pointAmount} điểm nhận xét`,
       metadata: {
         points: payment.pointAmount,
         cost: payment.amount,

@@ -10,7 +10,7 @@ type Props = {
   price: number;
   initiallyEnrolled: boolean;
   accessSuspended?: boolean;
-  canLearnDirectly?: boolean;
+  directAccessRole?: "ADMIN" | "TEACHER" | null;
   languageCode?: string | null;
 };
 
@@ -19,10 +19,11 @@ export default function EnrollCourseCard({
   price,
   initiallyEnrolled,
   accessSuspended = false,
-  canLearnDirectly = false,
+  directAccessRole = null,
   languageCode,
 }: Props) {
   const labels = getLearningUiLabels(languageCode).course;
+  const canLearnDirectly = directAccessRole !== null;
   const [enrolled, setEnrolled] = useState(initiallyEnrolled || canLearnDirectly);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -77,7 +78,7 @@ export default function EnrollCourseCard({
         </button>
       ) : (
         <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          {labels.teacherCanLearn}
+          {directAccessRole === "ADMIN" ? labels.adminCanLearn : labels.teacherCanLearn}
         </p>
       )}
 

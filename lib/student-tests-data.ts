@@ -22,7 +22,7 @@ export async function getStudentTestsData(
     include: { course: { select: { id: true, name: true } } },
   });
 
-  if (courseId && enrollments.length === 0) {
+  if (user.role !== "ADMIN" && courseId && enrollments.length === 0) {
     const ownedCourse = await prisma.course.findFirst({
       where: { id: courseId, instructorId: user.id },
       select: { id: true },
@@ -31,8 +31,13 @@ export async function getStudentTestsData(
   }
 
   const enrolledCourseIds = enrollments.map((item) => item.courseId);
-  const ownedCourses =
-    user.role === "TEACHER" || user.role === "ADMIN"
+  const privilegedCourses =
+    user.role === "ADMIN"
+      ? await prisma.course.findMany({
+          where: courseId ? { id: courseId } : undefined,
+          select: { id: true, name: true },
+        })
+      : user.role === "TEACHER"
       ? await prisma.course.findMany({
           where: courseId
             ? { id: courseId, instructorId: user.id }
@@ -40,15 +45,17 @@ export async function getStudentTestsData(
           select: { id: true, name: true },
         })
       : [];
-  const ownedCourseIds = ownedCourses.map((item) => item.id);
-  const ownedCourseIdSet = new Set(ownedCourseIds);
+  const privilegedCourseIds = privilegedCourses.map((item) => item.id);
+  const privilegedCourseIdSet = new Set(privilegedCourseIds);
   const visibleCourseIds = Array.from(
-    new Set([...enrolledCourseIds, ...ownedCourseIds]),
+    new Set([...enrolledCourseIds, ...privilegedCourseIds]),
   );
   const courseNameMap = new Map(
     enrollments.map((item) => [item.courseId, item.course.name]),
   );
-  for (const owned of ownedCourses) courseNameMap.set(owned.id, owned.name);
+  for (const privilegedCourse of privilegedCourses) {
+    courseNameMap.set(privilegedCourse.id, privilegedCourse.name);
+  }
 
   const tests = await prisma.test.findMany({
     where: courseId
@@ -83,7 +90,7 @@ export async function getStudentTestsData(
     await Promise.all(
       visibleCourseIds.map(async (visibleCourseId) => [
         visibleCourseId,
-        ownedCourseIdSet.has(visibleCourseId)
+        privilegedCourseIdSet.has(visibleCourseId)
           ? null
           : await getCourseLearningGateState(user.id, visibleCourseId),
       ] as const),
@@ -96,7 +103,7 @@ export async function getStudentTestsData(
       const moduleLessons = gateState?.modules.flatMap((module) => module.lessons) ?? [];
       const completedLessons = moduleLessons.filter((lesson) => gateState?.completedLessonIds.has(lesson.id)).length;
       const progress = test.courseId
-        ? ownedCourseIdSet.has(test.courseId)
+        ? privilegedCourseIdSet.has(test.courseId)
           ? 100
           : moduleLessons.length > 0
             ? Math.round((completedLessons / moduleLessons.length) * 100)
@@ -104,7 +111,7 @@ export async function getStudentTestsData(
         : 100;
       const isUnlocked =
         test.kind === "PUBLIC_PRACTICE" ||
-        Boolean(test.courseId && ownedCourseIdSet.has(test.courseId)) ||
+        Boolean(test.courseId && privilegedCourseIdSet.has(test.courseId)) ||
         Boolean(gateState && isCourseTestUnlocked(gateState, test));
       const totalQuestionScore = test.questions.reduce(
         (sum, question) => sum + Number(question.score || 0),

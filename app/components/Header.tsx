@@ -46,14 +46,15 @@ const studentNavItems = [
   { href: "/courses", label: "Khóa học" },
   { href: "/student/tests", label: "Bài test" },
   { href: "/student/results", label: "Kết quả" },
-  { href: "/student/wallet", label: "Điểm đậu" },
+  { href: "/student/wallet", label: "Điểm nhận xét" },
   { href: "/student", label: "Tổng quan" },
 ] satisfies BasicNavItem[];
 
 const teacherNavItems = [
   { href: "/my-courses", label: "Khóa học của tôi" },
-  { href: "/teacher/tests", label: "Bài test" },
+  { href: "/student/tests", label: "Bài test" },
   { href: "/teacher/students", label: "Học viên" },
+  { href: "/student/wallet", label: "Điểm nhận xét" },
 ] satisfies BasicNavItem[];
 
 const teacherOverviewNavItem = { href: "/teacher", label: "Tổng quan" } satisfies BasicNavItem;
@@ -64,7 +65,7 @@ const adminNavItems = [
   { href: "/my-courses", label: "Khóa học của tôi" },
   { href: "/student/tests", label: "Bài test" },
   { href: "/student/results", label: "Kết quả" },
-  { href: "/student/wallet", label: "Điểm đậu" },
+  { href: "/student/wallet", label: "Điểm nhận xét" },
   { href: "/admin", label: "Tổng quan" },
 ] satisfies BasicNavItem[];
 
@@ -80,8 +81,8 @@ const aiNavItems = [
 ] satisfies BasicNavItem[];
 
 function getNavigationLabel(item: BasicNavItem | MatchedNavItem) {
-  if (item.href === "/student/wallet") return "Điểm đậu";
-  if (item.href === "/student/rewards") return "Điểm đậu";
+  if (item.href === "/student/wallet") return "Điểm nhận xét";
+  if (item.href === "/student/rewards") return "Điểm nhận xét";
   return item.label;
 }
 
@@ -246,11 +247,16 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
     function handleGlobalError(event: Event) {
       const customEvent = event as CustomEvent;
       setGlobalError(customEvent.detail || "Đã xảy ra lỗi.");
-      setTimeout(() => setGlobalError(""), 5000);
     }
     window.addEventListener("app-global-error", handleGlobalError);
     return () => window.removeEventListener("app-global-error", handleGlobalError);
   }, []);
+
+  useEffect(() => {
+    if (!globalError) return;
+    const clearErrorTimer = setTimeout(() => setGlobalError(""), 5000);
+    return () => clearTimeout(clearErrorTimer);
+  }, [globalError]);
 
   if (hideHeader) return null;
 
