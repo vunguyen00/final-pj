@@ -105,6 +105,11 @@ class AiEvaluationResponseError extends Error {
   }
 }
 
+const TEST_AI_TOTAL_OUTPUT_BUDGET = Math.max(
+  256,
+  Number(process.env.TEST_AI_TOTAL_OUTPUT_BUDGET) || 12_000,
+);
+
 function clampScore(value: unknown) {
   const score = Number(value);
   return Number.isFinite(score) ? Math.max(0, Math.min(10, score)) : 0;
@@ -604,6 +609,16 @@ export async function evaluateTestAiAnswers(inputs: TestAiAnswerInput[]) {
   const results = new Map<string, TestAiAnswerResult>();
   if (!inputs.length) return results;
 
+  const perAnswerBudget = Math.max(
+    256,
+    Math.floor(TEST_AI_TOTAL_OUTPUT_BUDGET / inputs.length),
+  );
+  const responseAttempts = perAnswerBudget >= 1_600 ? 2 : 1;
+  const tokensPerAttempt = Math.max(
+    256,
+    Math.floor(perAnswerBudget / responseAttempts),
+  );
+
   // A submit request can contain several writing/speaking answers. Evaluating
   // them serially easily exceeds the upstream proxy timeout, which surfaces in
   // the browser as an unhelpful `Failed to fetch`. Keep each answer isolated
@@ -633,7 +648,7 @@ export async function evaluateTestAiAnswers(inputs: TestAiAnswerInput[]) {
       let parsedResults: Map<string, TestAiAnswerResult> | null = null;
       let lastResponseError: AiEvaluationResponseError | null = null;
 
-      for (let responseAttempt = 1; responseAttempt <= 2; responseAttempt += 1) {
+      for (let responseAttempt = 1; responseAttempt <= responseAttempts; responseAttempt += 1) {
         const remainingTime = deadline - Date.now();
         if (remainingTime < 1_000) {
           throw new Error("AI evaluation exceeded its request time budget.");
@@ -641,9 +656,11 @@ export async function evaluateTestAiAnswers(inputs: TestAiAnswerInput[]) {
         const raw = await ollamaService.chat(
           buildEvaluationMessages(payload, responseAttempt > 1),
           {
-            maxOutputTokens: input.scoreOnly ? 4000 : 6500,
+            maxOutputTokens: input.scoreOnly
+              ? Math.min(900, tokensPerAttempt)
+              : Math.min(3000, tokensPerAttempt),
             timeoutMs: remainingTime,
-            maxRetries: 2,
+            maxRetries: 1,
             think: false,
           },
         );
@@ -663,7 +680,7 @@ export async function evaluateTestAiAnswers(inputs: TestAiAnswerInput[]) {
             responseAttempt,
             responseLength: raw.length,
             error: error.message,
-            retrying: responseAttempt < 2,
+            retrying: responseAttempt < responseAttempts,
           });
         }
       }

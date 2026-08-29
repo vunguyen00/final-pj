@@ -23,7 +23,7 @@ const DEFAULT_CONFIG: AIServiceConfig = {
   temperature: 0,
   top_p: 0.1,
   timeout: positiveIntegerFromEnv("OLLAMA_TIMEOUT_MS", 180000),
-  maxRetries: positiveIntegerFromEnv("OLLAMA_MAX_RETRIES", 4),
+  maxRetries: positiveIntegerFromEnv("OLLAMA_MAX_RETRIES", 2),
 };
 
 const ALLOWED_CLOUD_MODELS = new Set([
@@ -40,10 +40,10 @@ class OllamaService {
 
   constructor(config?: Partial<AIServiceConfig>) {
     this.config = { ...DEFAULT_CONFIG, ...config };
-    const configuredMax = Number(process.env.OLLAMA_NUM_PREDICT ?? 7000);
+    const configuredMax = Number(process.env.OLLAMA_NUM_PREDICT ?? 3200);
     this.maxOutputTokens = Number.isFinite(configuredMax)
       ? Math.max(256, Math.floor(configuredMax))
-      : 7000;
+      : 3200;
     this.retryDelayMs = positiveIntegerFromEnv("OLLAMA_RETRY_DELAY_MS", 1500);
   }
 

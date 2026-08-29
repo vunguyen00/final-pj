@@ -117,7 +117,11 @@ class ScoringService {
         const messages = buildPromptMessagesWithTask(essay, taskPrompt);
 
         // Call Ollama API
-        const rawResponse = await ollamaService.chat(messages);
+        const rawResponse = await ollamaService.chat(messages, {
+          maxOutputTokens: 2800,
+          maxRetries: 1,
+          think: false,
+        });
 
         // Parse response
         const parsed = parseAIResponse(rawResponse);

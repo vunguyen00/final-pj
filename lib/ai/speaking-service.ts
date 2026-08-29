@@ -293,20 +293,23 @@ export class SpeakingService {
     }
 
     const language = detectLanguageFromText(transcript) as SpeakingEvaluationResponse["language"];
-    const raw = await ollamaService.chat([
-      { role: "system", content: SPEAKING_SYSTEM_PROMPT },
-      {
-        role: "user",
-        content: speakingPrompt({
-          exam: input.examType,
-          prompt: input.prompt,
-          transcript,
-          conversation: input.conversation,
-          durationSeconds: input.durationSeconds,
-          audioAvailable: Boolean(input.audioAvailable),
-        }),
-      },
-    ]);
+    const raw = await ollamaService.chat(
+      [
+        { role: "system", content: SPEAKING_SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: speakingPrompt({
+            exam: input.examType,
+            prompt: input.prompt,
+            transcript,
+            conversation: input.conversation,
+            durationSeconds: input.durationSeconds,
+            audioAvailable: Boolean(input.audioAvailable),
+          }),
+        },
+      ],
+      { maxOutputTokens: 2800, maxRetries: 1, think: false },
+    );
 
     const parsed = parseSpeakingResponse(raw, input.examType);
     if (!parsed) {

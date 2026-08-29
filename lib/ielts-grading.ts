@@ -514,13 +514,16 @@ async function requestValidatedEvaluation<T>(
     content: string;
   }>,
   validate: (value: unknown) => value is T,
+  maxOutputTokens: number,
 ) {
   let lastError: Error | null = null;
 
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
       const raw = await ollamaService.chat(messagesForAttempt(attempt), {
-        maxOutputTokens: 6500,
+        maxOutputTokens,
+        maxRetries: 1,
+        think: false,
       });
       const parsed = parseJsonObject(raw);
       if (!validate(parsed)) {
@@ -533,7 +536,7 @@ async function requestValidatedEvaluation<T>(
       lastError = error instanceof Error ? error : new Error(String(error));
       console.warn("Invalid IELTS grading response.", {
         attempt,
-        retrying: attempt < 3,
+        retrying: attempt < 2,
         error: lastError.message,
       });
     }
@@ -605,6 +608,7 @@ ${WRITING_SCHEMA}`,
       },
     ],
     hasCompleteModelAnswer,
+    input.scoreOnly ? 1200 : 3200,
   );
 
   const normalized = normalizeWritingEvaluation(
@@ -674,6 +678,7 @@ ${SPEAKING_SCHEMA}`,
       },
     ],
     isIeltsSpeakingEvaluation,
+    input.scoreOnly ? 1200 : 3000,
   );
 
   const normalized = normalizeSpeakingEvaluation(
