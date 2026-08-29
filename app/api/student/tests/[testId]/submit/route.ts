@@ -52,7 +52,7 @@ export async function POST(
 
     const body = await request.json();
     const answers = (body.answers ?? {}) as Record<string, string>;
-    const includeAiFeedback = body.includeAiFeedback === true;
+    const requestedAiFeedback = body.includeAiFeedback === true;
     const attemptToken = typeof body.attemptToken === "string" ? body.attemptToken : "";
 
     const test = await prisma.test.findUnique({
@@ -73,6 +73,8 @@ export async function POST(
     if (!test) {
       return NextResponse.json({ error: "Test not found" }, { status: 404 });
     }
+
+    const includeAiFeedback = test.kind === "COURSE" || requestedAiFeedback;
 
     const totalQuestionScore = test.questions.reduce((sum, question) => sum + Number(question.score || 0), 0);
     if (!isTestReady(totalQuestionScore)) {
@@ -171,6 +173,7 @@ export async function POST(
           : 0;
     const shouldChargeFeedback =
       includeAiFeedback &&
+      test.kind !== "COURSE" &&
       feedbackCost > 0 &&
       shouldChargeAiPoints(user.role);
 

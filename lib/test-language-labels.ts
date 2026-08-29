@@ -19,6 +19,7 @@ type LearningUiLabels = {
   submit: string;
   score: string;
   scoreFree: string;
+  scoreWithAiFeedback: string;
   aiFeedback: string;
   aiFeedbackWithCost: (cost: number) => string;
   waiting: string;
@@ -207,6 +208,7 @@ const labels: Record<UiLanguage, LearningUiLabels> = {
     submit: "Nộp bài",
     score: "Chấm điểm",
     scoreFree: "Chấm điểm miễn phí",
+    scoreWithAiFeedback: "Chấm điểm & nhận xét AI",
     aiFeedback: "Nhận xét AI",
     aiFeedbackWithCost: (cost) => `Nhận xét AI (trừ ${cost} điểm nhận xét)`,
     waiting: "Vui lòng đợi...",
@@ -396,6 +398,7 @@ const labels: Record<UiLanguage, LearningUiLabels> = {
     submit: "Submit",
     score: "Score",
     scoreFree: "Free scoring",
+    scoreWithAiFeedback: "Score & AI feedback",
     aiFeedback: "AI feedback",
     aiFeedbackWithCost: (cost) => `AI feedback (${cost} beans)`,
     waiting: "Please wait...",
@@ -577,6 +580,7 @@ const labels: Record<UiLanguage, LearningUiLabels> = {
     submit: "提出する",
     score: "採点する",
     scoreFree: "無料で採点",
+    scoreWithAiFeedback: "採点・AIフィードバック",
     aiFeedback: "AIフィードバック",
     aiFeedbackWithCost: (cost) => `AIフィードバック（${cost}豆）`,
     waiting: "お待ちください...",
@@ -763,6 +767,7 @@ labels.zh = {
   submit: "提交",
   score: "评分",
   scoreFree: "免费评分",
+  scoreWithAiFeedback: "评分与 AI 反馈",
   aiFeedback: "AI反馈",
   aiFeedbackWithCost: (cost) => `AI反馈（${cost}豆）`,
   waiting: "请稍候...",
@@ -947,6 +952,7 @@ labels.ko = {
   submit: "제출하기",
   score: "채점하기",
   scoreFree: "무료 채점",
+  scoreWithAiFeedback: "채점 및 AI 피드백",
   aiFeedback: "AI 피드백",
   aiFeedbackWithCost: (cost) => `AI 피드백 (${cost}콩)`,
   waiting: "잠시 기다려 주세요...",

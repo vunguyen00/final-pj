@@ -33,6 +33,7 @@ type TestInfo = {
   name: string;
   description: string | null;
   courseName: string;
+  kind: string;
   assessmentMode: "STANDARD" | "WRITING" | "SPEAKING";
   language: { id: string; name: string; code: string } | null;
   maxScore: number;
@@ -147,6 +148,7 @@ export default function StudentTakeTestClient({
   const loading = false;
   const isExpired = timeLeft === 0;
   const isInteractionLocked = submitting || isExpired;
+  const includesFreeCourseAiFeedback = test?.kind === "COURSE";
 
   const openBeanPurchase = useCallback(() => {
     const currentAnswers = answersRef.current;
@@ -220,6 +222,8 @@ export default function StudentTakeTestClient({
       }
 
       const currentAnswers = answersRef.current;
+      const shouldIncludeAiFeedback =
+        includesFreeCourseAiFeedback || includeAiFeedback;
       const unanswered = questions.filter(
         (question) => !String(currentAnswers[question.id] || "").trim(),
       );
@@ -232,7 +236,7 @@ export default function StudentTakeTestClient({
       }
 
       if (
-        includeAiFeedback &&
+        shouldIncludeAiFeedback &&
         test?.chargeAiFeedback &&
         questions.some(
           (question) =>
@@ -248,7 +252,7 @@ export default function StudentTakeTestClient({
 
       submittingRef.current = true;
       setSubmitting(true);
-      setSubmitAction(includeAiFeedback ? "feedback" : "score");
+      setSubmitAction(shouldIncludeAiFeedback ? "feedback" : "score");
 
       try {
         const response = await fetch(`/api/student/tests/${testId}/submit`, {
@@ -256,7 +260,7 @@ export default function StudentTakeTestClient({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             answers: currentAnswers,
-            includeAiFeedback,
+            includeAiFeedback: shouldIncludeAiFeedback,
             attemptToken: test?.attemptToken,
           }),
         });
@@ -292,7 +296,7 @@ export default function StudentTakeTestClient({
         setSubmitAction(null);
       }
     },
-    [availableAiPoints, answersStorageKey, deadlineStorageKey, openBeanPurchase, questions, router, test, testId, ui],
+    [availableAiPoints, answersStorageKey, deadlineStorageKey, includesFreeCourseAiFeedback, openBeanPurchase, questions, router, test, testId, ui],
   );
 
   useEffect(() => {
@@ -704,7 +708,7 @@ export default function StudentTakeTestClient({
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <button
             type="button"
-            onClick={() => void handleSubmit({ includeAiFeedback: false })}
+            onClick={() => void handleSubmit()}
             disabled={isInteractionLocked}
             className="min-w-44 rounded-xl bg-blue-600 px-8 py-3 text-base font-bold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
@@ -714,9 +718,11 @@ export default function StudentTakeTestClient({
                 : ui.scoring
               : isExpired
                 ? ui.expired
-                : ui.submit}
+                : includesFreeCourseAiFeedback && hasAiQuestions
+                  ? ui.scoreWithAiFeedback
+                  : ui.submit}
           </button>
-          {hasAiQuestions ? (
+          {hasAiQuestions && !includesFreeCourseAiFeedback ? (
             <button
               type="button"
               onClick={() => void handleSubmit({ includeAiFeedback: true })}

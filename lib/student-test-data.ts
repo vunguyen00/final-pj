@@ -177,7 +177,8 @@ export async function getStudentTestPayload(
     }
   }
 
-  const chargeAiFeedback = shouldChargeAiPoints(user.role);
+  const chargeAiFeedback =
+    test.kind !== "COURSE" && shouldChargeAiPoints(user.role);
   const [attempts, availableAiPoints] = await Promise.all([
     prisma.testAttempt.findMany({
       where: { testId, userId: user.id },
