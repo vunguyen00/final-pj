@@ -100,8 +100,9 @@ Mot so script co san:
 
 - `npm run dev`: chay Next.js dev server.
 - `npm run dev:next`: chay Next.js voi host `::`.
+- `npm run dev:tunnel:reset`: don cac connector cu cua Cloudflare tunnel `finncenter`.
 - `npm run dev:tunnel`: chay Cloudflare tunnel ten `finncenter`.
-- `npm run dev:all`: khoi dong Docker container, Next.js va tunnel cung luc.
+- `npm run dev:all`: khoi dong Docker container, reset tunnel, sau do chay Next.js va tunnel cung luc. Khi chuyen sang may khac, may do can co `cloudflared` va quyen truy cap tunnel `finncenter`.
 - `npm run build`: build production.
 - `npm run start`: chay ban build.
 - `npm run lint`: chay ESLint.
