@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { ollamaService, speakingService } from "@/lib/ai";
+import { speakingService } from "@/lib/ai";
 import { getSpeakingAiSetting } from "@/lib/speaking-ai-setting";
 import {
   getSpeakingLanguageFromExamSetting,
@@ -87,17 +87,6 @@ export async function POST(request: NextRequest) {
       .trim()
       .slice(0, 80);
     const randomTopic = body.randomTopic === true || !topic;
-
-    const healthy = await ollamaService.healthCheck();
-    if (!healthy) {
-      return NextResponse.json({
-        language,
-        task,
-        topic: topic || DEFAULT_TOPICS[language],
-        prompt: fallbackPrompt(language, task, topic),
-        fallback: true,
-      });
-    }
 
     try {
       const generated = await speakingService.generatePracticePrompt({

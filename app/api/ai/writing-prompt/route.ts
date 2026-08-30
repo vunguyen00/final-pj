@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { ollamaService } from "@/lib/ai";
+import { geminiService } from "@/lib/ai";
 import { parseAiJsonObject } from "@/lib/ai-json-repair";
 import {
   isChartMaterialData,
@@ -182,14 +182,6 @@ export async function POST(request: NextRequest) {
         ? fallbackTaskOne(topic, language)
         : fallbackTaskTwo(topic, language);
 
-    if (!(await ollamaService.healthCheck())) {
-      return NextResponse.json({
-        ...fallback,
-        language,
-        fallback: true,
-      });
-    }
-
     try {
       const taskInstruction =
         taskType === "task_1"
@@ -208,52 +200,64 @@ The prompt must accurately describe the generated chart without revealing an ana
         ? "Choose a varied, realistic topic suitable for language writing practice."
         : `Use this requested topic: ${topic}`;
 
-      const raw = await ollamaService.chat(
-        [
-          {
-            role: "system",
-            content: `You create language Writing practice tasks. Return only valid JSON with fields "topic", "prompt", and "chart". Write the topic, task prompt, chart title, categories, series names, unit labels, and source in ${outputLanguage}. Keep JSON property names in English.`,
-          },
-          {
-            role: "user",
-            content: `Task type: ${taskType}
+      let lastGenerationError: Error | null = null;
+      for (let attempt = 1; attempt <= 2; attempt += 1) {
+        try {
+          const raw = await geminiService.chat(
+            [
+              {
+                role: "system",
+                content: `You create language Writing practice tasks. Return only valid JSON with fields "topic", "prompt", and "chart". Write the topic, task prompt, chart title, categories, series names, unit labels, and source in ${outputLanguage}. Keep JSON property names in English.`,
+              },
+              {
+                role: "user",
+                content: `Task type: ${taskType}
 ${topicInstruction}
 ${taskInstruction}
 
-Do not include markdown. Keep the prompt under 130 words.`,
-          },
-        ],
-        { maxOutputTokens: 1100 },
-      );
-      const parsed = extractJson(raw);
-      const prompt = String(parsed.prompt || "").trim().slice(0, 1800);
-      const generatedTopic = String(parsed.topic || topic || "General")
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 100);
+Do not include markdown. Keep the prompt under 130 words.
+${attempt > 1 ? "The previous response failed validation. Strictly follow every chart constraint and return a complete corrected JSON object." : ""}`,
+              },
+            ],
+            { maxOutputTokens: 1100, maxRetries: 1, think: false },
+          );
+          const parsed = extractJson(raw);
+          const prompt = String(parsed.prompt || "").trim().slice(0, 1800);
+          const generatedTopic = String(parsed.topic || topic || "General")
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 100);
 
-      if (!prompt) throw new Error("AI returned an empty writing prompt.");
-      if (
-        taskType === "task_1" &&
-        (!isChartMaterialData(parsed.chart) ||
-          parsed.chart.series.length < 2 ||
-          !hasAtLeastTwoYearCategories(parsed.chart) ||
-          !hasMeaningfulTrendVariation(parsed.chart))
-      ) {
-        throw new Error("AI returned invalid chart data.");
+          if (!prompt) throw new Error("AI returned an empty writing prompt.");
+          if (
+            taskType === "task_1" &&
+            (!isChartMaterialData(parsed.chart) ||
+              parsed.chart.series.length < 2 ||
+              !hasAtLeastTwoYearCategories(parsed.chart) ||
+              !hasMeaningfulTrendVariation(parsed.chart))
+          ) {
+            throw new Error("AI returned invalid chart data.");
+          }
+          const chart =
+            taskType === "task_1"
+              ? normalizeChart(parsed.chart as ChartMaterialData)
+              : null;
+
+          return NextResponse.json({
+            topic: generatedTopic,
+            prompt,
+            chart,
+            language,
+            fallback: false,
+          });
+        } catch (error) {
+          lastGenerationError = error instanceof Error ? error : new Error(String(error));
+          if (attempt < 2) {
+            console.warn("Retrying invalid AI writing prompt:", lastGenerationError.message);
+          }
+        }
       }
-      const chart =
-        taskType === "task_1"
-          ? normalizeChart(parsed.chart as ChartMaterialData)
-          : null;
-
-      return NextResponse.json({
-        topic: generatedTopic,
-        prompt,
-        chart,
-        language,
-        fallback: false,
-      });
+      throw lastGenerationError || new Error("AI writing prompt generation failed.");
     } catch (error) {
       console.error("Error generating writing prompt:", error);
       return NextResponse.json({

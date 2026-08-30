@@ -3,7 +3,7 @@
  * Creates structured prompts with system instructions and user messages
  */
 
-import { OllamaMessage, SupportedLanguage } from "./types";
+import { AIMessage, SupportedLanguage } from "./types";
 
 const SYSTEM_PROMPT = `You are a strict multilingual language examiner and writing coach.
 
@@ -104,9 +104,9 @@ Return JSON in exactly this format:
 }`;
 
 /**
- * Creates messages array for Ollama chat API
+ * Creates messages for the configured AI chat service.
  */
-export function buildPromptMessages(essay: string): OllamaMessage[] {
+export function buildPromptMessages(essay: string): AIMessage[] {
   return [
     {
       role: "system",
@@ -118,7 +118,7 @@ export function buildPromptMessages(essay: string): OllamaMessage[] {
     },
   ];
 }
-export function buildPromptMessagesWithTask(essay: string, taskPrompt?: string): OllamaMessage[] {
+export function buildPromptMessagesWithTask(essay: string, taskPrompt?: string): AIMessage[] {
   return [
     {
       role: "system",

@@ -1,4 +1,4 @@
-import { ollamaService } from "@/lib/ai";
+import { geminiService } from "@/lib/ai";
 import {
   calculateIeltsOverallBand,
   detectIeltsWritingTaskType,
@@ -520,7 +520,7 @@ async function requestValidatedEvaluation<T>(
 
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
-      const raw = await ollamaService.chat(messagesForAttempt(attempt), {
+      const raw = await geminiService.chat(messagesForAttempt(attempt), {
         maxOutputTokens,
         maxRetries: 1,
         think: false,

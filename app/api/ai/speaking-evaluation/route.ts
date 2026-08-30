@@ -10,7 +10,7 @@ import {
   spendAiPointsWithClient,
 } from "@/lib/ai-points";
 import { prisma } from "@/lib/prisma";
-import { ollamaService, sanitizeEssay, validateEssay, validatePromptSafety } from "@/lib/ai";
+import { sanitizeEssay, validateEssay, validatePromptSafety } from "@/lib/ai";
 import { getSpeakingAiSetting } from "@/lib/speaking-ai-setting";
 import { canUseAiForCourse, shouldChargeAiPoints } from "@/lib/ai-access";
 import { evaluateTestAiAnswers } from "@/lib/test-ai-evaluation";
@@ -128,11 +128,6 @@ export async function POST(request: NextRequest) {
         );
       }
 
-    }
-
-    const healthy = await ollamaService.healthCheck();
-    if (!healthy) {
-      return NextResponse.json({ error: "AI service is unavailable. Please ensure Ollama is running." }, { status: 503 });
     }
 
     const audioFile = audio instanceof File ? audio : null;

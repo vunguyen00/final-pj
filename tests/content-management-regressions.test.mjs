@@ -30,7 +30,7 @@ test("module deletion removes child lessons before the parent module", async () 
 test("test AI grading has a bounded parallel request path", async () => {
   const [evaluation, service] = await Promise.all([
     source("lib/test-ai-evaluation.ts"),
-    source("lib/ai/ollama-service.ts"),
+    source("lib/ai/gemini-service.ts"),
   ]);
 
   assert.match(evaluation, /Promise\.all\(inputs\.map/);

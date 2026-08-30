@@ -1,4 +1,4 @@
-import { ollamaService } from "@/lib/ai";
+import { geminiService } from "@/lib/ai";
 import { getCertificateRubric, weightedScoreFromCriteria } from "@/lib/ai-rubrics";
 import { getSpeakingExamTypeForLanguageCode } from "@/lib/test-rules";
 import { normalizeFeedbackTextItems } from "@/lib/ai-feedback-normalization";
@@ -653,7 +653,7 @@ export async function evaluateTestAiAnswers(inputs: TestAiAnswerInput[]) {
         if (remainingTime < 1_000) {
           throw new Error("AI evaluation exceeded its request time budget.");
         }
-        const raw = await ollamaService.chat(
+        const raw = await geminiService.chat(
           buildEvaluationMessages(payload, responseAttempt > 1),
           {
             maxOutputTokens: input.scoreOnly

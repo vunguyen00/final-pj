@@ -7,9 +7,8 @@
     "dev": "next dev",
     "dev:next": "next dev -H ::",
     "dev:tunnel": "set TUNNEL_TRANSPORT_PROTOCOL=http2&& cloudflared tunnel run finncenter",
-    "dev:ollama": "ollama serve",
     "docker:up": "docker start musing_curie",
-    "dev:all": "npm run docker:up && concurrently -n next,tunnel,ollama -c green,cyan,magenta \"npm:dev:next\" \"npm:dev:tunnel\" \"npm:dev:ollama\"",
+    "dev:all": "npm run docker:up && concurrently -n next,tunnel -c green,cyan \"npm:dev:next\" \"npm:dev:tunnel\"",
     "seed:demo": "node scripts/seed-demo-data.mjs",
     "build": "next build",
     "start": "next start",
@@ -18,6 +17,7 @@
     "doctor": "npx react-doctor@latest"
   },
   "dependencies": {
+    "@google/genai": "^2.19.0",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "dotenv": "^17.4.2",

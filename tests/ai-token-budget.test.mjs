@@ -7,16 +7,24 @@ async function source(path) {
 }
 
 test("AI grading uses bounded output and retry budgets", async () => {
-  const [ollama, courseTests, ielts, scoring, speaking] = await Promise.all([
-    source("lib/ai/ollama-service.ts"),
+  const [gemini, courseTests, ielts, scoring, speaking, writingPrompt] = await Promise.all([
+    source("lib/ai/gemini-service.ts"),
     source("lib/test-ai-evaluation.ts"),
     source("lib/ielts-grading.ts"),
     source("lib/ai/scoring-service.ts"),
     source("lib/ai/speaking-service.ts"),
+    source("app/api/ai/writing-prompt/route.ts"),
   ]);
 
-  assert.match(ollama, /OLLAMA_NUM_PREDICT \?\? 3200/);
-  assert.match(ollama, /OLLAMA_MAX_RETRIES", 2/);
+  assert.match(gemini, /GEMINI_MAX_OUTPUT_TOKENS \?\? 3200/);
+  assert.match(gemini, /GEMINI_MAX_RETRIES", 2/);
+  assert.match(gemini, /"x-goog-api-key": this\.config\.apiKey/);
+  assert.match(gemini, /systemInstruction/);
+  assert.match(gemini, /responseMimeType: "application\/json"/);
+  assert.match(gemini, /thinkingLevel: "minimal"/);
+  assert.match(gemini, /gemini-3\.6-flash/);
+  assert.doesNotMatch(gemini, /thinkingBudget/);
+  assert.doesNotMatch(gemini, /OLLAMA_|127\.0\.0\.1:11434/);
   assert.match(courseTests, /TEST_AI_TOTAL_OUTPUT_BUDGET/);
   assert.match(courseTests, /maxRetries: 1/);
   assert.match(courseTests, /think: false/);
@@ -24,4 +32,6 @@ test("AI grading uses bounded output and retry budgets", async () => {
   assert.match(ielts, /maxOutputTokens,\s+maxRetries: 1,\s+think: false/);
   assert.match(scoring, /maxOutputTokens: 2800,\s+maxRetries: 1,\s+think: false/);
   assert.match(speaking, /maxOutputTokens: 2800, maxRetries: 1, think: false/);
+  assert.match(speaking, /maxOutputTokens: 700, think: false/);
+  assert.match(writingPrompt, /maxOutputTokens: 1100, maxRetries: 1, think: false/);
 });

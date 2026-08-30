@@ -1,4 +1,4 @@
-import { ollamaService } from "./ollama-service";
+import { geminiService } from "./gemini-service";
 import { detectLanguageFromText, sanitizeEssay, validateEssay } from "./validators";
 import { validatePromptSafety } from "./prompt-builder";
 import { SpeakingEvaluationResponse, SpeakingExamType } from "./types";
@@ -293,7 +293,7 @@ export class SpeakingService {
     }
 
     const language = detectLanguageFromText(transcript) as SpeakingEvaluationResponse["language"];
-    const raw = await ollamaService.chat(
+    const raw = await geminiService.chat(
       [
         { role: "system", content: SPEAKING_SYSTEM_PROMPT },
         {
@@ -348,7 +348,7 @@ export class SpeakingService {
     const targetLanguage = targetLanguages[input.language];
     const formatInstruction = taskGuides[input.task];
 
-    const raw = await ollamaService.chat(
+    const raw = await geminiService.chat(
       [
         { role: "system", content: SPEAKING_PROMPT_SYSTEM },
         {
@@ -362,7 +362,7 @@ Write both the topic and the complete prompt entirely in ${targetLanguage}.
 The prompt must be ready to show directly to the learner. Keep it under 180 words.`,
         },
       ],
-      { maxOutputTokens: 700 },
+      { maxOutputTokens: 700, think: false },
     );
     const cleaned = raw
       .trim()

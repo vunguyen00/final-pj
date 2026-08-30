@@ -4,7 +4,7 @@
  */
 
 import { buildPromptMessagesWithTask, validatePromptSafety } from "./prompt-builder";
-import { ollamaService } from "./ollama-service";
+import { geminiService } from "./gemini-service";
 import {
   sanitizeEssay,
   validateEssay,
@@ -116,8 +116,8 @@ class ScoringService {
         // Build prompt messages
         const messages = buildPromptMessagesWithTask(essay, taskPrompt);
 
-        // Call Ollama API
-        const rawResponse = await ollamaService.chat(messages, {
+        // Call Gemini API
+        const rawResponse = await geminiService.chat(messages, {
           maxOutputTokens: 2800,
           maxRetries: 1,
           think: false,

@@ -8,7 +8,7 @@ FinnCenter la nen tang hoc ngoai ngu theo mo hinh LMS ket hop marketplace khoa h
 - Tailwind CSS 4 cho giao dien.
 - Prisma 7 voi PostgreSQL.
 - Nodemailer de gui OTP, thong bao va email chung chi.
-- Ollama de tao de, cham Writing/Speaking va cham cau hoi tu luan/noi trong bai test.
+- Gemini API de tao de, cham Writing/Speaking va cham cau hoi tu luan/noi trong bai test.
 - VNPAY de thanh toan truc tiep khoa hoc va diem AI.
 - Web Worker phia trinh duyet de nhan dien va phan tich audio Speaking.
 
@@ -18,7 +18,7 @@ FinnCenter la nen tang hoc ngoai ngu theo mo hinh LMS ket hop marketplace khoa h
 
 - Node.js phien ban moi tuong thich Next.js 16.
 - PostgreSQL, co the chay bang Docker Compose trong repo.
-- Ollama neu muon dung cac tinh nang AI cham bai.
+- Gemini API key neu muon dung cac tinh nang AI cham bai.
 - Tai khoan SMTP neu muon gui OTP/email.
 - Cau hinh VNPAY sandbox/production neu muon thanh toan that.
 
@@ -55,10 +55,11 @@ VNPAY_BASE_URL="http://localhost:3000"
 VNPAY_RETURN_PATH="/api/payments/vnpay-return"
 VNPAY_IPN_PATH="/api/payments/vnpay-ipn"
 
-OLLAMA_URL="http://127.0.0.1:11434"
-OLLAMA_MODEL="minimax-m3:cloud"
-OLLAMA_NUM_PREDICT="3200"
-OLLAMA_MAX_RETRIES="2"
+GEMINI_API_KEY="your_new_gemini_api_key"
+GEMINI_MODEL="gemini-3.6-flash"
+GEMINI_MAX_OUTPUT_TOKENS="3200"
+GEMINI_MAX_RETRIES="2"
+GEMINI_TIMEOUT_MS="180000"
 TEST_AI_TOTAL_OUTPUT_BUDGET="12000"
 
 AI_POINT_PRICE_VND="1000"
@@ -99,9 +100,8 @@ Mot so script co san:
 
 - `npm run dev`: chay Next.js dev server.
 - `npm run dev:next`: chay Next.js voi host `::`.
-- `npm run dev:ollama`: chay `ollama serve`.
 - `npm run dev:tunnel`: chay Cloudflare tunnel ten `finncenter`.
-- `npm run dev:all`: khoi dong Docker container, Next.js, tunnel va Ollama cung luc.
+- `npm run dev:all`: khoi dong Docker container, Next.js va tunnel cung luc.
 - `npm run build`: build production.
 - `npm run start`: chay ban build.
 - `npm run lint`: chay ESLint.
@@ -367,7 +367,7 @@ Cac nhom bang chinh:
 
 - Mot so text tieng Viet trong source dang bi loi ma hoa/mojibake; can chuan hoa lai UTF-8 de giao dien dep va de bao tri hon.
 - Upload video, audio speaking, thumbnail va chung chi dang luu vao thu muc `public/` local; neu deploy serverless hoac nhieu instance nen chuyen sang object storage nhu S3/R2.
-- AI evaluation phu thuoc Ollama va model local/remote. Neu Ollama khong chay, tao de co fallback nhung cham bai se loi hoac tam thoi khong kha dung.
+- AI evaluation phu thuoc Gemini API. Neu API key khong hop le, het quota hoac Gemini khong kha dung, tao de co fallback nhung cham bai se loi hoac tam thoi khong kha dung.
 - Speaking phu thuoc quyen microphone, MediaRecorder, AudioContext va Web Worker phia trinh duyet; mot so trinh duyet/may yeu co the nhan dien audio cham hoac khong ho tro day du.
 - `Feedback` dang duoc dung cho nhieu muc dich: review khoa hoc, marker tien do, hoan thanh khoa hoc va chung chi. Khi du lieu lon nen tach thanh cac bang rieng.
 - `Session` co trong schema nhung flow auth hien dung cookie HMAC tu ky, chua su dung bang session de quan ly/thu hoi phien dang nhap.

@@ -60,24 +60,9 @@ export interface AIEvaluationResponse {
   corrections: Correction[];
 }
 
-export interface OllamaMessage {
+export interface AIMessage {
   role: "user" | "system" | "assistant";
   content: string;
-}
-
-export interface OllamaChatRequest {
-  model: string;
-  messages: OllamaMessage[];
-  temperature: number;
-  top_p: number;
-  stream: boolean;
-  think?: boolean | "low" | "medium" | "high";
-  format?: "json" | "text";
-  options?: {
-    num_predict?: number;
-    temperature?: number;
-    top_p?: number;
-  };
 }
 
 export interface SpeakingEvaluationResponse {
@@ -109,29 +94,14 @@ export type SpeakingExamType = "IELTS" | "HSK" | "JLPT";
 
 export type AssessmentType = "SPEAKING" | "WRITING";
 
-export interface OllamaChatResponse {
-  message: {
-    role: string;
-    content: string;
-  };
-  model: string;
-  created_at: string;
-  done: boolean;
-  total_duration: number;
-  load_duration: number;
-  prompt_eval_count: number;
-  prompt_eval_duration: number;
-  eval_count: number;
-  eval_duration: number;
-}
-
 export interface EssayValidationResult {
   valid: boolean;
   error?: string;
 }
 
 export interface AIServiceConfig {
-  ollamaUrl: string;
+  apiUrl: string;
+  apiKey: string;
   model: string;
   temperature: number;
   top_p: number;

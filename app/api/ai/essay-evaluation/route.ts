@@ -31,19 +31,6 @@ import {
 } from "@/lib/writing-languages";
 
 /**
- * Health check before evaluation
- */
-async function checkOllamaHealth() {
-  try {
-    const { ollamaService } = await import("@/lib/ai");
-    const isHealthy = await ollamaService.healthCheck();
-    return isHealthy;
-  } catch {
-    return false;
-  }
-}
-
-/**
  * POST /api/ai/essay-evaluation
  * Evaluates an essay and returns detailed feedback
  *
@@ -143,18 +130,6 @@ export async function POST(request: NextRequest) {
         );
       }
 
-    }
-
-    // Check if Ollama is available
-    const ollamaHealthy = await checkOllamaHealth();
-    if (!ollamaHealthy) {
-      console.error("Ollama health check failed");
-      return NextResponse.json(
-        {
-          error: "AI service is unavailable. Please ensure Ollama is running at http://127.0.0.1:11434",
-        },
-        { status: 503 }
-      );
     }
 
     const validation = validateEssay(essay);
@@ -392,7 +367,7 @@ export async function POST(request: NextRequest) {
     // Handle specific error messages
     if (errorMessage.includes("timeout")) {
       return NextResponse.json(
-        { error: "Request timeout. Ollama took too long to respond." },
+        { error: "Request timeout. Gemini took too long to respond." },
         { status: 504 }
       );
     }
@@ -447,8 +422,8 @@ export async function POST(request: NextRequest) {
  */
 export async function GET() {
   try {
-    const { ollamaService } = await import("@/lib/ai");
-    const isHealthy = await ollamaService.healthCheck();
+    const { geminiService } = await import("@/lib/ai");
+    const isHealthy = await geminiService.healthCheck();
 
     if (isHealthy) {
       return NextResponse.json(
@@ -464,7 +439,7 @@ export async function GET() {
         {
           status: "unhealthy",
           service: "essay-evaluation",
-          message: "Ollama service is not responding",
+          message: "Gemini service is not responding",
           timestamp: new Date().toISOString(),
         },
         { status: 503 }
