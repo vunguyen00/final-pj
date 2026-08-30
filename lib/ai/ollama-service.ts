@@ -10,7 +10,7 @@ import {
   OllamaMessage,
 } from "./types";
 
-const DEFAULT_CLOUD_MODEL = "minimax-m3:cloud";
+const DEFAULT_CLOUD_MODEL = "gemma4";
 
 function positiveIntegerFromEnv(name: string, fallback: number) {
   const value = Number(process.env[name]);
