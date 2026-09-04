@@ -233,7 +233,7 @@ const WRITING_UI_LABELS: Record<WritingLanguage, WritingUiLabels> = {
     scoringStatus: "The system is scoring your response. The result will appear below the form.",
     emptyResultNotice: "Scores and AI feedback will appear here after you submit.",
     freeScoring: "Score",
-    aiFeedback: (isAdmin) => (isAdmin ? "Score with AI" : "AI feedback (-2 beans)"),
+    aiFeedback: () => "Score & Review",
     scoring: "Scoring...",
     reviewing: "AI is reviewing...",
     paidAi: "AI feedback - Paid",

@@ -233,7 +233,7 @@ const SPEAKING_AI_UI_LABELS: Record<SpeakingLanguage, SpeakingAiUiLabels> = {
     scoring: "AI is scoring...",
     startingMic: "Starting microphone...",
     startSession: "Start speaking",
-    payAiFeedback: "Pay for AI feedback",
+    payAiFeedback: "Score and Review",
     finishScore: "Finish and score",
     finishFeedback: (isAdmin) => `Finish and get AI feedback${isAdmin ? "" : " (-7 beans)"}`,
     waitReady: "Please wait until the system is ready before speaking.",
