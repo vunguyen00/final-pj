@@ -211,7 +211,7 @@ test("admin invitations create approved language-scoped teachers through an emai
   assert.match(schema, /model UserInvitation/);
 });
 
-test("unknown devices require email confirmation and every login revokes the previous session", async () => {
+test("unknown devices require email confirmation, remember multiple accounts, and revoke previous sessions", async () => {
   const [login, auth, confirm, schema] = await Promise.all([
     source("app/api/auth/login/route.ts"),
     source("lib/auth.ts"),
@@ -223,6 +223,9 @@ test("unknown devices require email confirmation and every login revokes the pre
   assert.match(confirm, /confirmLoginDevice/);
   assert.match(auth, /session\.deleteMany\(\{ where: \{ userId: params\.user\.id \} \}\)/);
   assert.match(auth, /trustedDevice\.tokenHash !== hashOpaqueToken/);
+  assert.match(auth, /cookieStore\.get\(TRUSTED_DEVICE_COOKIE_NAME\)\?\.value \|\| randomBytes/);
+  assert.match(auth, /userId_tokenHash: \{ userId: params\.user\.id, tokenHash \}/);
+  assert.match(schema, /@@unique\(\[userId, tokenHash\]\)/);
   assert.match(schema, /model TrustedDevice/);
   assert.match(schema, /model LoginDeviceChallenge/);
 });

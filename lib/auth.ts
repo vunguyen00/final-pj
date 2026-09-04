@@ -190,8 +190,10 @@ export async function getTrustedDeviceForUser(userId: string) {
   const cookieStore = await cookies();
   const rawToken = cookieStore.get(TRUSTED_DEVICE_COOKIE_NAME)?.value;
   if (!rawToken) return null;
-  return prisma.trustedDevice.findFirst({
-    where: { userId, tokenHash: hashOpaqueToken(rawToken) },
+  return prisma.trustedDevice.findUnique({
+    where: {
+      userId_tokenHash: { userId, tokenHash: hashOpaqueToken(rawToken) },
+    },
   });
 }
 
@@ -206,14 +208,25 @@ export async function startAuthenticatedSession(params: {
   let rawDeviceToken: string | null = null;
 
   if (!trustedDeviceId && params.trustCurrentDevice) {
-    rawDeviceToken = randomBytes(32).toString("hex");
-    const device = await prisma.trustedDevice.create({
-      data: {
+    const cookieStore = await cookies();
+    rawDeviceToken =
+      cookieStore.get(TRUSTED_DEVICE_COOKIE_NAME)?.value || randomBytes(32).toString("hex");
+    const tokenHash = hashOpaqueToken(rawDeviceToken);
+    const device = await prisma.trustedDevice.upsert({
+      where: {
+        userId_tokenHash: { userId: params.user.id, tokenHash },
+      },
+      create: {
         userId: params.user.id,
-        tokenHash: hashOpaqueToken(rawDeviceToken),
+        tokenHash,
         label: metadata.userAgent?.slice(0, 120) || "Thiết bị đã xác nhận",
         userAgent: metadata.userAgent,
         lastIp: metadata.ip,
+      },
+      update: {
+        lastUsedAt: new Date(),
+        lastIp: metadata.ip,
+        userAgent: metadata.userAgent,
       },
     });
     trustedDeviceId = device.id;

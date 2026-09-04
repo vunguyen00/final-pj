@@ -75,7 +75,7 @@ model Session {
 model TrustedDevice {
   id         String   @id @default(uuid())
   userId     String
-  tokenHash  String   @unique
+  tokenHash  String
   label      String?
   userAgent  String?
   lastIp     String?
@@ -86,6 +86,7 @@ model TrustedDevice {
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessions Session[]
 
+  @@unique([userId, tokenHash])
   @@index([userId, lastUsedAt])
 }
 
