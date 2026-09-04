@@ -15,7 +15,7 @@ test("teacher uses the shared test center and can open the AI point wallet", asy
     /const teacherNavItems = \[([\s\S]*?)\] satisfies BasicNavItem\[\];/,
   )?.[1] ?? "";
 
-  assert.match(teacherNavigation, /href: "\/student\/tests", label: "Bài test"/);
+  assert.match(teacherNavigation, /href: "\/student\/tests", label: "Bài kiểm tra"/);
   assert.match(teacherNavigation, /href: "\/student\/wallet", label: "Điểm nhận xét"/);
   assert.doesNotMatch(teacherNavigation, /href: "\/teacher\/tests"/);
   assert.match(profileMenu, /href="\/student\/tests"/);

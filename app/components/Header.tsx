@@ -44,7 +44,7 @@ const navItems = [
 const studentNavItems = [
   { href: "/", label: "Khám phá" },
   { href: "/courses", label: "Khóa học" },
-  { href: "/student/tests", label: "Bài test" },
+  { href: "/student/tests", label: "Bài kiểm tra" },
   { href: "/student/results", label: "Kết quả" },
   { href: "/student/wallet", label: "Điểm nhận xét" },
   { href: "/student", label: "Tổng quan" },
@@ -52,7 +52,7 @@ const studentNavItems = [
 
 const teacherNavItems = [
   { href: "/my-courses", label: "Khóa học của tôi" },
-  { href: "/student/tests", label: "Bài test" },
+  { href: "/student/tests", label: "Bài kiểm tra" },
   { href: "/teacher/students", label: "Học viên" },
   { href: "/student/wallet", label: "Điểm nhận xét" },
 ] satisfies BasicNavItem[];
@@ -63,7 +63,7 @@ const adminNavItems = [
   { href: "/", label: "Khám phá" },
   { href: "/courses", label: "Khóa học" },
   { href: "/my-courses", label: "Khóa học của tôi" },
-  { href: "/student/tests", label: "Bài test" },
+  { href: "/student/tests", label: "Bài kiểm tra" },
   { href: "/student/results", label: "Kết quả" },
   { href: "/student/wallet", label: "Điểm nhận xét" },
   { href: "/admin", label: "Tổng quan" },
@@ -322,7 +322,7 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
                 aria-haspopup="menu"
                 aria-expanded={aiMenuOpen}
               >
-                AI luyện tập
+                Luyện tập
               </button>
               <div
                 className={`absolute right-0 top-full z-50 mt-2 min-w-44 rounded-lg border border-border bg-card p-2 shadow-lg transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 ${
@@ -383,7 +383,7 @@ export default function Header({ showOnAdmin = false }: { showOnAdmin?: boolean 
           ))}
           {showAiMenu ? (
             <div className="mt-2 border-t border-border pt-2">
-              <p className="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">AI luyện tập</p>
+              <p className="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Luyện tập</p>
               {aiNavItems.map((item) => (
                 <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className="block rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted">
                   {item.label}

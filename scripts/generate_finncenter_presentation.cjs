@@ -546,7 +546,7 @@ actorProcessSlide({
   slide.addShape(pptx.ShapeType.roundRect, { x: 8.45, y: 1.35, w: 4.10, h: 4.60, rectRadius: 0.08, fill: { color: '142238' }, line: { color: C.teal, width: 1.3 } });
   addText(slide, 'Thông điệp chốt', 8.82, 1.78, 3.35, 0.38, { fontSize: 18, bold: true, color: C.teal });
   addText(slide, 'FinnCenter không chỉ cung cấp nội dung học. Hệ thống quản lý trọn vòng đời:', 8.82, 2.35, 3.25, 0.85, { fontSize: 15, color: C.white, bold: true, valign: 'top' });
-  ['nguồn cung giảng viên', 'mua – học – thi – chứng nhận', 'AI luyện tập đa ngôn ngữ', 'thanh toán và kiểm soát vận hành'].forEach((t, i) => {
+  ['nguồn cung giảng viên', 'mua – học – thi – chứng nhận', 'Luyện tập đa ngôn ngữ', 'thanh toán và kiểm soát vận hành'].forEach((t, i) => {
     slide.addShape(pptx.ShapeType.ellipse, { x: 8.83, y: 3.43 + i * 0.48, w: 0.20, h: 0.20, fill: { color: C.orange }, line: { color: C.orange } });
     addText(slide, t, 9.15, 3.36 + i * 0.48, 2.90, 0.32, { fontSize: 12.5, color: 'D9E2EE' });
   });
