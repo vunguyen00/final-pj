@@ -8,6 +8,18 @@ export type TeacherExamScores = {
 };
 
 export const TEACHER_EXAM_PASSING_AVERAGE = 80;
+export const TEACHER_EXAM_MIN_SCORE = 0;
+export const TEACHER_EXAM_MAX_SCORE = 100;
+
+export function normalizeTeacherExamScoreInput(value: string) {
+  if (value === "") return "";
+
+  const score = Number(value);
+  if (!Number.isFinite(score)) return "";
+  if (score > TEACHER_EXAM_MAX_SCORE) return TEACHER_EXAM_MAX_SCORE.toString();
+  if (score < TEACHER_EXAM_MIN_SCORE) return TEACHER_EXAM_MIN_SCORE.toString();
+  return value;
+}
 
 export function calculateTeacherExamAverage(scores: TeacherExamScores) {
   const values = [scores.writingScore, scores.speakingScore, scores.listeningScore, scores.readingScore];

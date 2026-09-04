@@ -19,7 +19,9 @@ export default function AdminTestsManagement({
   const [form, setForm] = useState({ name: "", description: "", languageId: "", assessmentMode: "STANDARD", timeLimit: "60" });
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"create" | string | null>(null);
+  const saving = pendingAction === "create";
+  const deletingTestId = pendingAction && pendingAction !== "create" ? pendingAction : null;
 
   async function refresh() {
     const query = new URLSearchParams({ search });
@@ -30,7 +32,7 @@ export default function AdminTestsManagement({
 
   async function createTest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSaving(true);
+    setPendingAction("create");
     setMessage("");
     try {
       const response = await fetch("/api/teacher/tests", {
@@ -57,7 +59,31 @@ export default function AdminTestsManagement({
       setMessage("Đã tạo bài luyện tập công khai. Hãy mở phần câu hỏi để hoàn thiện đề.");
       await refresh();
     } finally {
-      setSaving(false);
+      setPendingAction(null);
+    }
+  }
+
+  async function deleteTest(testId: string) {
+    if (deletingTestId || !window.confirm("Bạn có chắc chắn muốn xóa bài luyện tập này?")) return;
+
+    setPendingAction(testId);
+    setMessage("");
+    try {
+      const response = await fetch(`/api/teacher/tests/${testId}`, {
+        method: "DELETE",
+      });
+      const data = await readJsonResponse(response).catch(() => ({}));
+      if (!response.ok) {
+        setMessage(data.error ?? "Không thể xóa bài luyện tập.");
+        return;
+      }
+
+      setTests((current) => current.filter((test) => test.id !== testId));
+      setMessage("Đã xóa bài luyện tập.");
+    } catch {
+      setMessage("Có lỗi khi xóa bài luyện tập. Vui lòng thử lại.");
+    } finally {
+      setPendingAction(null);
     }
   }
 
@@ -98,7 +124,18 @@ export default function AdminTestsManagement({
           {visibleTests.length === 0 ? <p className="text-sm text-slate-500">Chưa có bài luyện tập phù hợp.</p> : visibleTests.map((test) => (
             <article key={test.id} className="flex flex-col gap-3 rounded-xl border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div><h3 className="font-bold text-slate-950">{test.name}</h3><p className="mt-1 text-sm text-slate-500">{test.language?.name ?? "Chưa có ngôn ngữ"} · {test.assessmentMode} · {test._count.questions} câu hỏi · {test._count.attempts} lượt làm</p></div>
-              <Link href={`/teacher/tests/${test.id}`} className="rounded-lg bg-slate-900 px-4 py-2 text-center text-sm font-bold text-white hover:bg-slate-800">Quản lý câu hỏi</Link>
+              <div className="flex flex-wrap gap-2">
+                <Link href={`/teacher/tests/${test.id}/questions`} className="rounded-lg bg-slate-900 px-4 py-2 text-center text-sm font-bold text-white hover:bg-slate-800">Quản lý câu hỏi</Link>
+                <Link href={`/teacher/tests/${test.id}`} className="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-bold text-slate-700 hover:bg-slate-50">Chỉnh sửa</Link>
+                <button
+                  type="button"
+                  disabled={deletingTestId === test.id}
+                  onClick={() => void deleteTest(test.id)}
+                  className="rounded-lg border border-red-200 px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {deletingTestId === test.id ? "Đang xóa..." : "Xóa"}
+                </button>
+              </div>
             </article>
           ))}
         </div>

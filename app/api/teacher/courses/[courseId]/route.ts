@@ -55,11 +55,23 @@ async function deleteCourseWithRelations(courseId: string) {
       });
     }
 
+    const lessons = await tx.lesson.findMany({
+      where: { module: { courseId } },
+      select: { id: true },
+    });
+    const lessonIds = lessons.map((lesson) => lesson.id);
+
     await tx.courseRefundRequest.deleteMany({ where: { courseId } });
     await tx.aiAssessment.updateMany({ where: { courseId }, data: { courseId: null } });
     await tx.pointTransaction.updateMany({ where: { courseId }, data: { courseId: null } });
     await tx.learningActivity.updateMany({ where: { courseId }, data: { courseId: null } });
     await tx.payment.updateMany({ where: { courseId }, data: { courseId: null } });
+    await tx.courseReport.deleteMany({ where: { courseId } });
+    if (lessonIds.length > 0) {
+      await tx.videoWatchProgress.deleteMany({
+        where: { lessonId: { in: lessonIds } },
+      });
+    }
     await tx.test.deleteMany({ where: { courseId } });
     await tx.lesson.deleteMany({ where: { module: { courseId } } });
     await tx.module.deleteMany({ where: { courseId } });

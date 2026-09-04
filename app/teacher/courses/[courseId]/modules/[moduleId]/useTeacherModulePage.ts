@@ -120,10 +120,19 @@ export function useTeacherModulePage() {
         body: JSON.stringify(lessonForm),
       });
       if (response.ok) {
+        const data = await readJsonResponse<{ lesson: Lesson }>(response);
+        setModule((current) => current
+          ? {
+              ...current,
+              lessons: current.lessons.map((lesson) =>
+                lesson.id === data.lesson.id ? data.lesson : lesson,
+              ),
+            }
+          : current,
+        );
         setShowModal(false);
         setEditingLesson(null);
         setLessonForm(EMPTY_LESSON_FORM);
-        await fetchModule();
         setNotice({ tone: "success", message: "Đã cập nhật bài học." });
       } else {
         const data = await response.json().catch(() => ({}));
@@ -143,8 +152,11 @@ export function useTeacherModulePage() {
     try {
       const response = await fetch(`/api/teacher/courses/${courseId}/modules/${moduleId}/lessons/${lessonId}`, { method: "DELETE" });
       if (response.ok) {
+        setModule((current) => current
+          ? { ...current, lessons: current.lessons.filter((lesson) => lesson.id !== lessonId) }
+          : current,
+        );
         setDeleteTarget(null);
-        await fetchModule();
         setNotice({ tone: "success", message: "Đã xóa bài học." });
       } else {
         const data = await response.json().catch(() => ({}));

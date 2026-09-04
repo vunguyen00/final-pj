@@ -237,45 +237,45 @@ export async function PUT(
       );
     }
 
-    await prisma.question.update({
-      where: { id: questionId },
-      data: {
-        ...(type && { type }),
-        ...(content && { content }),
-        ...(finalAudioUrl !== undefined && { audioUrl: finalAudioUrl }),
-        ...(order !== undefined && { order }),
-        ...(score !== undefined && { score: parsedScore }),
-        ...(explanation !== undefined && { explanation }),
-        ...(hint !== undefined && { hint }),
-        ...timing,
-      },
-    });
-
-    if (Array.isArray(answers)) {
-      await prisma.answer.deleteMany({
-        where: { questionId },
+    const updatedQuestion = await prisma.$transaction(async (tx) => {
+      await tx.question.update({
+        where: { id: questionId },
+        data: {
+          ...(type && { type }),
+          ...(content && { content }),
+          ...(finalAudioUrl !== undefined && { audioUrl: finalAudioUrl }),
+          ...(order !== undefined && { order }),
+          ...(score !== undefined && { score: parsedScore }),
+          ...(explanation !== undefined && { explanation }),
+          ...(hint !== undefined && { hint }),
+          ...timing,
+        },
       });
 
-      if (normalizedAnswers.length > 0 && nextType !== "SPEAKING") {
-        await prisma.answer.createMany({
-          data: normalizedAnswers.map((answer, index) => ({
-            questionId,
-            content: answer.content,
-            isCorrect: answer.isCorrect || false,
-            order: answer.order ?? index + 1,
-            feedback: answer.feedback || null,
-          })),
-        });
-      }
-    }
+      if (Array.isArray(answers)) {
+        await tx.answer.deleteMany({ where: { questionId } });
 
-    const updatedQuestion = await prisma.question.findUnique({
-      where: { id: questionId },
-      include: {
-        answers: {
-          orderBy: { order: "asc" },
+        if (normalizedAnswers.length > 0 && nextType !== "SPEAKING") {
+          await tx.answer.createMany({
+            data: normalizedAnswers.map((answer, index) => ({
+              questionId,
+              content: answer.content,
+              isCorrect: answer.isCorrect || false,
+              order: answer.order ?? index + 1,
+              feedback: answer.feedback || null,
+            })),
+          });
+        }
+      }
+
+      return tx.question.findUnique({
+        where: { id: questionId },
+        include: {
+          answers: {
+            orderBy: { order: "asc" },
+          },
         },
-      },
+      });
     });
 
     return NextResponse.json({ question: updatedQuestion });

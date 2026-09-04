@@ -24,7 +24,53 @@ test("module deletion removes child lessons before the parent module", async () 
 
   assert.ok(lessonDelete >= 0);
   assert.ok(moduleDelete > lessonDelete);
+  assert.match(route, /tx\.test\.updateMany/);
+  assert.match(route, /tx\.courseReport\.updateMany/);
+  assert.match(route, /tx\.videoWatchProgress\.deleteMany/);
   assert.match(route, /data: \{ lessons: lessonCount \}/);
+});
+
+test("course deletion clears dependent learning records and updates the list", async () => {
+  const [route, page] = await Promise.all([
+    source("app/api/teacher/courses/[courseId]/route.ts"),
+    source("app/teacher/courses/page.tsx"),
+  ]);
+
+  assert.match(route, /tx\.courseReport\.deleteMany\(\{ where: \{ courseId \} \}\)/);
+  assert.match(route, /tx\.videoWatchProgress\.deleteMany/);
+  assert.match(page, /data\?\.deleted/);
+  assert.match(page, /status: "PENDING_DELETE"/);
+  assert.match(page, /status: "LOCKED"/);
+});
+
+test("lesson and question management expose edit and delete paths", async () => {
+  const [lessonController, lessonRoute, questionPage, questionRoute, adminTests] =
+    await Promise.all([
+      source("app/teacher/courses/[courseId]/modules/[moduleId]/useTeacherModulePage.ts"),
+      source("app/api/teacher/courses/[courseId]/modules/[moduleId]/lessons/[lessonId]/route.ts"),
+      source("app/teacher/tests/[testId]/questions/page.tsx"),
+      source("app/api/teacher/tests/[testId]/questions/[questionId]/route.ts"),
+      source("app/admin/AdminTestsManagement.tsx"),
+    ]);
+
+  assert.match(lessonController, /method: "PUT"/);
+  assert.match(lessonController, /method: "DELETE"/);
+  assert.match(lessonController, /lessons: current\.lessons\.map/);
+  assert.match(lessonController, /current\.lessons\.filter/);
+  assert.match(lessonRoute, /export async function PUT/);
+  assert.match(lessonRoute, /export async function DELETE/);
+
+  assert.match(questionPage, /editingQuestion \? "PUT" : "POST"/);
+  assert.match(questionPage, /method: "DELETE"/);
+  assert.match(questionPage, /current\.map\(\(question\) => question\.id === savedQuestion\.id/);
+  assert.match(questionPage, /current\.filter\(\(question\) => question\.id !== questionId\)/);
+  assert.match(questionRoute, /export async function PUT/);
+  assert.match(questionRoute, /export async function DELETE/);
+  assert.match(questionRoute, /prisma\.\$transaction\(async \(tx\)/);
+
+  assert.match(adminTests, /href=\{`\/teacher\/tests\/\$\{test\.id\}\/questions`\}/);
+  assert.match(adminTests, /href=\{`\/teacher\/tests\/\$\{test\.id\}`\}/);
+  assert.match(adminTests, /void deleteTest\(test\.id\)/);
 });
 
 test("test AI grading has a bounded parallel request path", async () => {

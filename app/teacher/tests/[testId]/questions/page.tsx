@@ -317,11 +317,17 @@ export default function TeacherTestQuestionsPage() {
         return;
       }
 
+      const savedQuestion = data.question as Question | undefined;
+      if (savedQuestion) {
+        setQuestions((current) => editingQuestion
+          ? current.map((question) => question.id === savedQuestion.id ? savedQuestion : question)
+          : [...current, savedQuestion].sort((left, right) => left.order - right.order),
+        );
+      }
       setShowModal(false);
       setEditingQuestion(null);
       setAudioUploadMessage("");
       resetForm();
-      await fetchTestAndQuestions();
       setNotice({ tone: "success", message: editingQuestion ? "Đã cập nhật câu hỏi." : "Đã thêm câu hỏi." });
     } catch (error) {
       console.error("Error saving question:", error);
@@ -337,8 +343,8 @@ export default function TeacherTestQuestionsPage() {
     try {
       const res = await fetch(`/api/teacher/tests/${testId}/questions/${questionId}`, { method: "DELETE" });
       if (res.ok) {
+        setQuestions((current) => current.filter((question) => question.id !== questionId));
         setDeleteTarget(null);
-        await fetchTestAndQuestions();
         setNotice({ tone: "success", message: "Đã xóa câu hỏi." });
       } else {
         const data = await res.json().catch(() => ({}));
@@ -404,9 +410,9 @@ export default function TeacherTestQuestionsPage() {
         ) : null}
 
         {notice ? (
-          <div role="status" className={`fixed right-4 top-4 z-[70] max-w-md rounded-lg border p-3 text-sm shadow-lg ${notice.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}`}>
+          <output className={`fixed right-4 top-4 z-[70] max-w-md rounded-lg border p-3 text-sm shadow-lg ${notice.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}`}>
             {notice.message}
-          </div>
+          </output>
         ) : null}
 
         <section className="mb-6 rounded-xl border border-slate-200 bg-white p-6">

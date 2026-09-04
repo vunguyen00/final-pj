@@ -203,7 +203,7 @@ export default function AdminDashboard({
   async function toggleCourseAutoApproval(enabled: boolean) {
     if (busyId) return;
     setBusyId("course-auto-approval");
-    setMessage(enabled ? "Đang bật và kiểm tra các khóa học chờ duyệt..." : "Đang tắt tự động duyệt khóa học...");
+    setMessage(enabled ? "Đang bật Duyệt nhanh và kiểm tra các khóa học chờ duyệt..." : "Đang tắt Duyệt nhanh...");
     try {
       const response = await fetch("/api/admin/course-approval", {
         method: "PUT",
@@ -218,7 +218,7 @@ export default function AdminDashboard({
 
       setCourseAutoApproval(enabled);
       if (!enabled) {
-        setMessage("Đã tắt tự động duyệt khóa học.");
+        setMessage("Đã tắt Duyệt nhanh.");
         return;
       }
 
@@ -241,7 +241,7 @@ export default function AdminDashboard({
       }
 
       if (!scan || scan.scanned === 0) {
-        setMessage("Đã bật tự động duyệt khóa học. Không có khóa học nào đang chờ duyệt.");
+        setMessage("Đã bật Duyệt nhanh. Không có khóa học nào đang chờ duyệt.");
         return;
       }
 
@@ -250,10 +250,10 @@ export default function AdminDashboard({
         : "";
       const unresolved = scan.skipped + scan.failed;
       setMessage(
-        `Đã bật và quét ${scan.scanned} khóa học: duyệt ${scan.approved} khóa${incompletePart}${unresolved > 0 ? `; ${unresolved} khóa chưa xử lý được` : ""}.`,
+        `Duyệt nhanh đã quét ${scan.scanned} khóa học: duyệt ${scan.approved} khóa${incompletePart}${unresolved > 0 ? `; ${unresolved} khóa chưa xử lý được` : ""}.`,
       );
     } catch {
-      setMessage("Không thể kết nối máy chủ để cập nhật tự động duyệt khóa học.");
+      setMessage("Không thể kết nối máy chủ để cập nhật Duyệt nhanh.");
     } finally {
       setBusyId(null);
     }
@@ -266,7 +266,7 @@ export default function AdminDashboard({
         <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-sm font-semibold text-slate-500">Hồ sơ giảng viên</p><p className="mt-2 text-2xl font-bold text-slate-950">{pendingApplications.length}</p><p className="text-xs text-slate-500">đang chờ mời dự thi hoặc từ chối</p></article>
         <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-sm font-semibold text-slate-500">Khóa học</p><p className="mt-2 text-2xl font-bold text-slate-950">{pendingCourses.length}</p><p className="text-xs text-slate-500">yêu cầu đang chờ xử lý</p></article>
         <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm font-semibold text-slate-500">Tự động duyệt khóa</p>
+          <p className="text-sm font-semibold text-slate-500">Duyệt nhanh</p>
           <label className="mt-3 flex items-center gap-3 text-sm font-bold text-slate-800">
             <input
               type="checkbox"

@@ -2,7 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { readJsonResponse } from "@/lib/http-response";
-import { TEACHER_EXAM_PASSING_AVERAGE } from "@/lib/teacher-exam-skills";
+import {
+  normalizeTeacherExamScoreInput,
+  TEACHER_EXAM_MAX_SCORE,
+  TEACHER_EXAM_MIN_SCORE,
+  TEACHER_EXAM_PASSING_AVERAGE,
+} from "@/lib/teacher-exam-skills";
 
 type SkillLabels = { writing: string; speaking: string; listening: string; reading: string };
 
@@ -76,7 +81,16 @@ function ScoreInput({ label, value, disabled, onChange }: { label: string; value
   return (
     <label className="grid w-full gap-2 text-sm font-bold text-slate-600">
       {label}
-      <input type="number" min={0} max={100} step="0.1" value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} className="h-11 w-full rounded-xl border border-slate-300 px-3 text-base text-slate-950 disabled:bg-slate-100 disabled:opacity-60" />
+      <input
+        type="number"
+        min={TEACHER_EXAM_MIN_SCORE}
+        max={TEACHER_EXAM_MAX_SCORE}
+        step="0.1"
+        value={value}
+        disabled={disabled}
+        onChange={(event) => onChange(normalizeTeacherExamScoreInput(event.target.value))}
+        className="h-11 w-full rounded-xl border border-slate-300 px-3 text-base text-slate-950 disabled:bg-slate-100 disabled:opacity-60"
+      />
     </label>
   );
 }

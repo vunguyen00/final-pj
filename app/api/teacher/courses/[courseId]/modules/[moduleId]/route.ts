@@ -160,10 +160,28 @@ export async function DELETE(
 
     const lessons = await prisma.lesson.findMany({
       where: { moduleId },
-      select: { videoUrl: true },
+      select: { id: true, videoUrl: true },
     });
+    const lessonIds = lessons.map((lesson) => lesson.id);
 
     await prisma.$transaction(async (tx) => {
+      await tx.test.updateMany({
+        where: { moduleId },
+        data: { moduleId: null },
+      });
+      if (lessonIds.length > 0) {
+        await tx.test.updateMany({
+          where: { lessonId: { in: lessonIds } },
+          data: { lessonId: null },
+        });
+        await tx.courseReport.updateMany({
+          where: { lessonId: { in: lessonIds } },
+          data: { lessonId: null },
+        });
+        await tx.videoWatchProgress.deleteMany({
+          where: { lessonId: { in: lessonIds } },
+        });
+      }
       await tx.lesson.deleteMany({ where: { moduleId } });
       await tx.module.delete({ where: { id: moduleId } });
       const lessonCount = await tx.lesson.count({

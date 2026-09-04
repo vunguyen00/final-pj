@@ -79,11 +79,11 @@ export async function scanPendingCoursesForAutoApproval(): Promise<CourseAutoApp
             data: {
               userId: course.instructorId,
               title: readiness.ready
-                ? "Khóa học đã được tự động duyệt"
-                : "Khóa học chưa đủ điều kiện duyệt",
+                ? "Khóa học đã được duyệt nhanh"
+                : "Khóa học chưa đạt yêu cầu Duyệt nhanh",
               body: readiness.ready
-                ? `Khóa học "${course.name}" đã được tự động duyệt và hiển thị công khai.`
-                : `Khóa học "${course.name}" bị từ chối khi tự động kiểm tra. Lý do: ${reasons.join(" ")}`,
+                ? `Khóa học "${course.name}" đã được duyệt nhanh và hiển thị công khai.`
+                : `Khóa học "${course.name}" chưa đạt yêu cầu Duyệt nhanh và đã bị từ chối. Lý do: ${reasons.join(" ")}`,
             },
           });
         }
@@ -101,7 +101,7 @@ export async function scanPendingCoursesForAutoApproval(): Promise<CourseAutoApp
       result.outcomes.push({ courseId: course.id, status: nextStatus, reasons });
     } catch (error) {
       result.failed += 1;
-      console.error(`Không thể tự động kiểm tra khóa học ${course.id}:`, error);
+      console.error(`Duyệt nhanh không thể kiểm tra khóa học ${course.id}:`, error);
     }
   }
 

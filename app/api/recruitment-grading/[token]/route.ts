@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { calculateTeacherExamAverage, getExamSkillLabels, TEACHER_EXAM_PASSING_AVERAGE } from "@/lib/teacher-exam-skills";
+import {
+  calculateTeacherExamAverage,
+  getExamSkillLabels,
+  TEACHER_EXAM_MAX_SCORE,
+  TEACHER_EXAM_MIN_SCORE,
+  TEACHER_EXAM_PASSING_AVERAGE,
+} from "@/lib/teacher-exam-skills";
 import { getRecruitmentRoundForGrading, parseRoundLocations } from "@/lib/teacher-recruitment-rounds";
 
 function serializeGradingRound(round: NonNullable<Awaited<ReturnType<typeof getRecruitmentRoundForGrading>>>) {
@@ -99,8 +105,8 @@ export async function POST(
     if (!completed && (manuallyFailed || hasAnyScore)) {
       return NextResponse.json({ error: `${application.user.username}: phải đánh dấu hoàn thành bài thi trước khi nhập điểm hoặc kết quả trượt.` }, { status: 400 });
     }
-    if (Object.values(scores).some((score) => score !== null && (!Number.isFinite(score) || score < 0 || score > 100))) {
-      return NextResponse.json({ error: `${application.user.username}: điểm từng kỹ năng phải nằm trong khoảng 0–100.` }, { status: 400 });
+    if (Object.values(scores).some((score) => score !== null && (!Number.isFinite(score) || score < TEACHER_EXAM_MIN_SCORE || score > TEACHER_EXAM_MAX_SCORE))) {
+      return NextResponse.json({ error: `${application.user.username}: điểm từng kỹ năng phải nằm trong khoảng ${TEACHER_EXAM_MIN_SCORE}–${TEACHER_EXAM_MAX_SCORE}.` }, { status: 400 });
     }
     if (completed && !manuallyFailed && Object.values(scores).some((score) => score === null)) {
       return NextResponse.json({ error: `${application.user.username}: vui lòng nhập đủ điểm bốn kỹ năng trước khi nộp kết quả đạt.` }, { status: 400 });

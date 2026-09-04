@@ -255,7 +255,17 @@ function useTeacherCoursesPage() {
               ? "Khóa học đã có người học hoặc giao dịch nên được khóa để bảo toàn lịch sử, không thể xóa vĩnh viễn."
               : "Xóa khóa học thành công.",
         );
-        await fetchCourses();
+        if (data?.deleted) {
+          setCourses((current) => current.filter((course) => course.id !== courseId));
+        } else if (data?.archived) {
+          setCourses((current) => current.map((course) =>
+            course.id === courseId ? { ...course, status: "LOCKED" } : course,
+          ));
+        } else if (data?.requiresApproval) {
+          setCourses((current) => current.map((course) =>
+            course.id === courseId ? { ...course, status: "PENDING_DELETE" } : course,
+          ));
+        }
       } else {
         setMessage(data?.error || "Không thể xóa khóa học.");
       }
