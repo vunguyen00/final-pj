@@ -30,6 +30,8 @@ export default function CourseDetailClient({
   const [tests, setTests] = useState<Test[]>(initialData.course.tests);
   const [languages, setLanguages] = useState<LearningLanguage[]>(initialData.languages);
   const [activeTab, setActiveTab] = useState<CourseTab>("modules");
+  const [isResubmitting, setIsResubmitting] = useState(false);
+  const [approvalMessage, setApprovalMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const [showModuleModal, setShowModuleModal] = useState(false);
   const [editingModule, setEditingModule] = useState<Module | null>(null);
@@ -174,6 +176,36 @@ export default function CourseDetailClient({
     }
   };
 
+  const handleResubmitForApproval = async () => {
+    if (isResubmitting || course.status !== "REJECTED") return;
+    setIsResubmitting(true);
+    setApprovalMessage(null);
+
+    try {
+      const response = await fetch(`/api/teacher/courses/${courseId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "submitForApproval" }),
+      });
+      const data = await readJsonResponse(response).catch(() => ({}));
+      if (!response.ok) {
+        setApprovalMessage({ type: "error", text: data?.error || labels.approval.error });
+        return;
+      }
+
+      setCourse((current) => ({ ...current, ...data.course }));
+      setApprovalMessage({
+        type: "success",
+        text: data?.autoApproved ? labels.approval.autoApproved : labels.approval.submitted,
+      });
+    } catch (error) {
+      console.error("Error resubmitting course for approval:", error);
+      setApprovalMessage({ type: "error", text: labels.approval.error });
+    } finally {
+      setIsResubmitting(false);
+    }
+  };
+
   const openModuleCreateModal = () => {
     setEditingModule(null);
     setModuleName("");
@@ -210,7 +242,13 @@ export default function CourseDetailClient({
   return (
     <div className="min-h-dvh bg-slate-50 py-8">
       <div className="mx-auto max-w-7xl px-4">
-        <CourseHeader course={course} />
+        <CourseHeader
+          course={course}
+          viewerRole={initialData.viewerRole}
+          isResubmitting={isResubmitting}
+          approvalMessage={approvalMessage}
+          onResubmit={() => void handleResubmitForApproval()}
+        />
         <CourseTabs activeTab={activeTab} moduleCount={modules.length} testCount={tests.length} labels={labels.tabs} onTabChange={setActiveTab} />
 
         {activeTab === "information" && (

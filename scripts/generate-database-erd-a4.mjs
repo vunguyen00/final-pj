@@ -278,7 +278,7 @@ svg.push(
 );
 svg.push(`<title id="title">FinnCenter — Sơ đồ cơ sở dữ liệu</title>`);
 svg.push(
-  `<desc id="description">Sơ đồ 44 bảng PostgreSQL từ Prisma schema, tối ưu cho giấy A4 nằm ngang.</desc>`,
+  `<desc id="description">Sơ đồ ${models.length} bảng PostgreSQL từ Prisma schema, tối ưu cho giấy A4 nằm ngang.</desc>`,
 );
 svg.push(`<rect width="${WIDTH}" height="${HEIGHT}" fill="#F7F9FC"/>`);
 svg.push(
@@ -397,7 +397,7 @@ const drawioCells = [
 ];
 
 drawioCells.push(
-  `<mxCell id="diagram-title" value="${escapeXml("FinnCenter — Sơ đồ cơ sở dữ liệu • 44 bảng • A4 ngang")}" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1;fontColor=#0F172A;" vertex="1" parent="tables-layer"><mxGeometry x="${(
+  `<mxCell id="diagram-title" value="${escapeXml(`FinnCenter — Sơ đồ cơ sở dữ liệu • ${models.length} bảng • A4 ngang`)}" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1;fontColor=#0F172A;" vertex="1" parent="tables-layer"><mxGeometry x="${(
     PAGE_MARGIN * drawioScale
   ).toFixed(2)}" y="10" width="700" height="35" as="geometry"/></mxCell>`,
   `<mxCell id="diagram-note" value="${escapeXml("PK: khóa chính • FK: khóa ngoại • UQ: duy nhất • ?: nullable • Quan hệ nằm ở layer riêng")}" style="text;html=1;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=8;fontColor=#64748B;" vertex="1" parent="tables-layer"><mxGeometry x="720" y="12" width="420" height="30" as="geometry"/></mxCell>`,

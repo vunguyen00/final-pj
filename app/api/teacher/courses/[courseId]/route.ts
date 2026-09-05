@@ -559,6 +559,12 @@ export async function PATCH(
           { status: 400 }
         );
       }
+      if (course.status !== "REJECTED") {
+        return NextResponse.json(
+          { error: "Only rejected courses can be resubmitted for approval" },
+          { status: 409 },
+        );
+      }
       const readiness = await getCourseReadiness(courseId);
       if (!readiness.ready) {
         return NextResponse.json({ error: readiness.errors.join(" ") }, { status: 400 });
@@ -581,7 +587,11 @@ export async function PATCH(
             : {}),
         },
       });
-      return NextResponse.json({ course: updatedCourse });
+      return NextResponse.json({
+        course: updatedCourse,
+        autoApproved: updatedCourse.status === "ACTIVE",
+        requiresApproval: updatedCourse.status === "PENDING_APPROVAL",
+      });
     }
 
     return NextResponse.json(

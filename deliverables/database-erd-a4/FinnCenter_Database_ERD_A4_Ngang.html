@@ -32,576 +32,579 @@
 <rect x="754.6" y="79" width="8" height="8" rx="2" fill="#475569"/>
 <text x="767.6" y="87" font-family="Arial, sans-serif" font-size="9.2" font-weight="600" fill="#334155">Thông báo &amp; email</text>
 <g>
-<rect x="28.00" y="110.00" width="224.86" height="191.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 33.00 110.00 H 247.86 Q 252.86 110.00 252.86 115.00 V 131.00 H 28.00 V 115.00 Q 28.00 110.00 33.00 110.00 Z" fill="#ECFDF5"/>
-<rect x="28.00" y="110.00" width="4" height="21" rx="2" fill="#059669"/>
-<text x="38.00" y="124.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">Course</text>
-<text x="245.86" y="124.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#059669">LMS</text>
+<rect x="28.00" y="110.00" width="224.86" height="257.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 33.00 110.00 H 247.86 Q 252.86 110.00 252.86 115.00 V 131.00 H 28.00 V 115.00 Q 28.00 110.00 33.00 110.00 Z" fill="#F5F3FF"/>
+<rect x="28.00" y="110.00" width="4" height="21" rx="2" fill="#7C3AED"/>
+<text x="38.00" y="124.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">Test</text>
+<text x="245.86" y="124.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#7C3AED">TEST</text>
 <line x1="28.00" y1="131.00" x2="252.86" y2="131.00" stroke="#E2E8F0"/>
-<text x="35.00" y="138.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#059669">PK</text>
+<text x="35.00" y="138.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#7C3AED">PK</text>
 <text x="60.00" y="138.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="35.00" y="149.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="149.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">name: String</text>
-<text x="35.00" y="160.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="160.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">description: String</text>
-<text x="35.00" y="171.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="171.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">thumbnail: String?</text>
-<text x="35.00" y="182.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="182.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">category: String?</text>
+<text x="35.00" y="149.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="60.00" y="149.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">courseId: String? → Course.id</text>
+<text x="35.00" y="160.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="60.00" y="160.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">languageId: String? → LearningLanguage.id</text>
+<text x="35.00" y="171.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="60.00" y="171.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">moduleId: String? → Module.id</text>
+<text x="35.00" y="182.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="60.00" y="182.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">lessonId: String? → Lesson.id</text>
 <text x="35.00" y="193.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="193.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">level: String?</text>
+<text x="60.00" y="193.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">kind: TestKind</text>
 <text x="35.00" y="204.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="204.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">duration: String?</text>
+<text x="60.00" y="204.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">assessmentMode: TestAssessmentMode</text>
 <text x="35.00" y="215.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="215.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">lessons: Int</text>
+<text x="60.00" y="215.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">name: String</text>
 <text x="35.00" y="226.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="226.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">status: CourseStatus</text>
+<text x="60.00" y="226.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">description: String?</text>
 <text x="35.00" y="237.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="237.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">deleteRequestedFromStatus: CourseStatus?</text>
+<text x="60.00" y="237.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">maxScore: Float</text>
 <text x="35.00" y="248.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="248.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
+<text x="60.00" y="248.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">passingScore: Float</text>
 <text x="35.00" y="259.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="259.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
+<text x="60.00" y="259.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">maxAttempts: Int</text>
 <text x="35.00" y="270.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="270.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">price: Float</text>
-<text x="35.00" y="281.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="60.00" y="281.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">languageId: String? → LearningLanguage.id</text>
-<text x="35.00" y="292.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="60.00" y="292.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">instructorId: String? → User.id</text>
+<text x="60.00" y="270.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">timeLimit: Int?</text>
+<text x="35.00" y="281.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="60.00" y="281.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">shuffleQuestions: Boolean</text>
+<text x="35.00" y="292.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="60.00" y="292.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">materialTitle: String?</text>
+<text x="35.00" y="303.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="60.00" y="303.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">materialContent: String?</text>
+<text x="35.00" y="314.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="60.00" y="314.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">materialUrl: String?</text>
+<text x="35.00" y="325.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="60.00" y="325.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">materialType: String?</text>
+<text x="35.00" y="336.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="60.00" y="336.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">materialData: Json?</text>
+<text x="35.00" y="347.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="60.00" y="347.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
+<text x="35.00" y="358.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="60.00" y="358.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
 </g>
 <g>
-<rect x="28.00" y="309.00" width="224.86" height="180.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 33.00 309.00 H 247.86 Q 252.86 309.00 252.86 314.00 V 330.00 H 28.00 V 314.00 Q 28.00 309.00 33.00 309.00 Z" fill="#FFFBEB"/>
-<rect x="28.00" y="309.00" width="4" height="21" rx="2" fill="#D97706"/>
-<text x="38.00" y="323.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">AntiCheatLog</text>
-<text x="245.86" y="323.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#D97706">HR</text>
-<line x1="28.00" y1="330.00" x2="252.86" y2="330.00" stroke="#E2E8F0"/>
-<text x="35.00" y="337.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#D97706">PK</text>
-<text x="60.00" y="337.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="35.00" y="348.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="60.00" y="348.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">applicationId: String → TeacherApplication.id</text>
-<text x="35.00" y="359.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="60.00" y="359.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">testAttemptId: String? → TestAttempt.id</text>
-<text x="35.00" y="370.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="370.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">eventType: String</text>
-<text x="35.00" y="381.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="381.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">detail: String?</text>
-<text x="35.00" y="392.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="392.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">severity: Int</text>
-<text x="35.00" y="403.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="403.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">durationSeconds: Int?</text>
-<text x="35.00" y="414.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="414.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">confidence: Float?</text>
+<rect x="28.00" y="375.00" width="224.86" height="169.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 33.00 375.00 H 247.86 Q 252.86 375.00 252.86 380.00 V 396.00 H 28.00 V 380.00 Q 28.00 375.00 33.00 375.00 Z" fill="#F5F3FF"/>
+<rect x="28.00" y="375.00" width="4" height="21" rx="2" fill="#7C3AED"/>
+<text x="38.00" y="389.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">Question</text>
+<text x="245.86" y="389.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#7C3AED">TEST</text>
+<line x1="28.00" y1="396.00" x2="252.86" y2="396.00" stroke="#E2E8F0"/>
+<text x="35.00" y="403.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#7C3AED">PK</text>
+<text x="60.00" y="403.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
+<text x="35.00" y="414.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="60.00" y="414.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">testId: String → Test.id</text>
 <text x="35.00" y="425.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="425.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">counted: Boolean</text>
+<text x="60.00" y="425.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">type: QuestionType</text>
 <text x="35.00" y="436.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="436.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">clientTimestamp: DateTime?</text>
+<text x="60.00" y="436.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">content: String</text>
 <text x="35.00" y="447.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="447.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">serverTimestamp: DateTime</text>
+<text x="60.00" y="447.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">audioUrl: String?</text>
 <text x="35.00" y="458.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="458.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">metadata: Json?</text>
+<text x="60.00" y="458.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">order: Int</text>
 <text x="35.00" y="469.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="469.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">incidentId: String?</text>
-<text x="35.00" y="480.92" font-family="Arial, sans-serif" font-size="8.60" font-style="italic" fill="#64748B">UQ (applicationId,incidentId)</text>
+<text x="60.00" y="469.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">score: Float</text>
+<text x="35.00" y="480.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="60.00" y="480.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">explanation: String?</text>
+<text x="35.00" y="491.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="60.00" y="491.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">hint: String?</text>
+<text x="35.00" y="502.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="60.00" y="502.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">preparationTimeSeconds: Int?</text>
+<text x="35.00" y="513.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="60.00" y="513.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">answerTimeSeconds: Int?</text>
+<text x="35.00" y="524.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="60.00" y="524.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
+<text x="35.00" y="535.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="60.00" y="535.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
 </g>
 <g>
-<rect x="28.00" y="497.00" width="224.86" height="169.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 33.00 497.00 H 247.86 Q 252.86 497.00 252.86 502.00 V 518.00 H 28.00 V 502.00 Q 28.00 497.00 33.00 497.00 Z" fill="#FFF1F2"/>
-<rect x="28.00" y="497.00" width="4" height="21" rx="2" fill="#E11D48"/>
-<text x="38.00" y="511.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">TeacherBankAccountChangeLog</text>
-<text x="245.86" y="511.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#E11D48">PAY</text>
-<line x1="28.00" y1="518.00" x2="252.86" y2="518.00" stroke="#E2E8F0"/>
-<text x="35.00" y="525.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#E11D48">PK</text>
-<text x="60.00" y="525.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="35.00" y="536.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="60.00" y="536.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">teacherId: String → User.id</text>
-<text x="35.00" y="547.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="547.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">previousBankName: String?</text>
-<text x="35.00" y="558.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="558.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">previousAccountNumberMasked: String?</text>
-<text x="35.00" y="569.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="569.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">previousAccountName: String?</text>
-<text x="35.00" y="580.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="580.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">previousBranch: String?</text>
-<text x="35.00" y="591.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="591.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">nextBankName: String</text>
-<text x="35.00" y="602.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="602.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">nextAccountNumberMasked: String</text>
+<rect x="28.00" y="552.00" width="224.86" height="158.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 33.00 552.00 H 247.86 Q 252.86 552.00 252.86 557.00 V 573.00 H 28.00 V 557.00 Q 28.00 552.00 33.00 552.00 Z" fill="#ECFDF5"/>
+<rect x="28.00" y="552.00" width="4" height="21" rx="2" fill="#059669"/>
+<text x="38.00" y="566.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">VideoWatchProgress</text>
+<text x="245.86" y="566.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#059669">LMS</text>
+<line x1="28.00" y1="573.00" x2="252.86" y2="573.00" stroke="#E2E8F0"/>
+<text x="35.00" y="580.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#059669">PK</text>
+<text x="60.00" y="580.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
+<text x="35.00" y="591.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="60.00" y="591.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">userId: String → User.id</text>
+<text x="35.00" y="602.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="60.00" y="602.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">lessonId: String → Lesson.id</text>
 <text x="35.00" y="613.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="613.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">nextAccountName: String</text>
+<text x="60.00" y="613.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">lastPositionSeconds: Float</text>
 <text x="35.00" y="624.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="624.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">nextBranch: String?</text>
+<text x="60.00" y="624.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">durationSeconds: Float?</text>
 <text x="35.00" y="635.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="635.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">requestIp: String?</text>
+<text x="60.00" y="635.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">lastHeartbeatAt: DateTime</text>
 <text x="35.00" y="646.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="646.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">deviceFingerprint: String?</text>
+<text x="60.00" y="646.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">startedAt: DateTime</text>
 <text x="35.00" y="657.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="657.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
+<text x="60.00" y="657.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">completedAt: DateTime?</text>
+<text x="35.00" y="668.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="60.00" y="668.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">seekViolation: Boolean</text>
+<text x="35.00" y="679.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="60.00" y="679.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
+<text x="35.00" y="690.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="60.00" y="690.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
+<text x="35.00" y="701.92" font-family="Arial, sans-serif" font-size="8.60" font-style="italic" fill="#64748B">UQ (userId,lessonId)</text>
 </g>
 <g>
-<rect x="28.00" y="674.00" width="224.86" height="136.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 33.00 674.00 H 247.86 Q 252.86 674.00 252.86 679.00 V 695.00 H 28.00 V 679.00 Q 28.00 674.00 33.00 674.00 Z" fill="#FFF1F2"/>
-<rect x="28.00" y="674.00" width="4" height="21" rx="2" fill="#E11D48"/>
-<text x="38.00" y="688.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">TeacherBankAccountChangeOtp</text>
-<text x="245.86" y="688.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#E11D48">PAY</text>
-<line x1="28.00" y1="695.00" x2="252.86" y2="695.00" stroke="#E2E8F0"/>
-<text x="35.00" y="702.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#E11D48">PK</text>
-<text x="60.00" y="702.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="35.00" y="713.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="60.00" y="713.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">teacherId: String → User.id</text>
-<text x="35.00" y="724.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="724.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">email: String</text>
-<text x="35.00" y="735.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="735.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">codeHash: String</text>
-<text x="35.00" y="746.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="746.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">payload: Json</text>
-<text x="35.00" y="757.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="757.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">expiresAt: DateTime</text>
+<rect x="28.00" y="718.00" width="224.86" height="125.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 33.00 718.00 H 247.86 Q 252.86 718.00 252.86 723.00 V 739.00 H 28.00 V 723.00 Q 28.00 718.00 33.00 718.00 Z" fill="#FFF1F2"/>
+<rect x="28.00" y="718.00" width="4" height="21" rx="2" fill="#E11D48"/>
+<text x="38.00" y="732.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">TeacherBankAccount</text>
+<text x="245.86" y="732.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#E11D48">PAY</text>
+<line x1="28.00" y1="739.00" x2="252.86" y2="739.00" stroke="#E2E8F0"/>
+<text x="35.00" y="746.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#E11D48">PK</text>
+<text x="60.00" y="746.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
+<text x="35.00" y="757.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK·UQ</text>
+<text x="60.00" y="757.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">teacherId: String → User.id</text>
 <text x="35.00" y="768.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="768.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">consumedAt: DateTime?</text>
+<text x="60.00" y="768.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">bankName: String</text>
 <text x="35.00" y="779.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="779.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">attempts: Int</text>
+<text x="60.00" y="779.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">accountNumber: String</text>
 <text x="35.00" y="790.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="790.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
+<text x="60.00" y="790.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">accountName: String</text>
 <text x="35.00" y="801.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="801.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
+<text x="60.00" y="801.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">branch: String?</text>
+<text x="35.00" y="812.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="60.00" y="812.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">verificationStatus: BankVerificationStatus</text>
+<text x="35.00" y="823.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="60.00" y="823.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
+<text x="35.00" y="834.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="60.00" y="834.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
 </g>
 <g>
-<rect x="28.00" y="818.00" width="224.86" height="114.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 33.00 818.00 H 247.86 Q 252.86 818.00 252.86 823.00 V 839.00 H 28.00 V 823.00 Q 28.00 818.00 33.00 818.00 Z" fill="#EFF6FF"/>
-<rect x="28.00" y="818.00" width="4" height="21" rx="2" fill="#2563EB"/>
-<text x="38.00" y="832.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">PasswordResetOtp</text>
-<text x="245.86" y="832.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#2563EB">AUTH</text>
-<line x1="28.00" y1="839.00" x2="252.86" y2="839.00" stroke="#E2E8F0"/>
-<text x="35.00" y="846.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#2563EB">PK</text>
-<text x="60.00" y="846.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="35.00" y="857.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="60.00" y="857.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">userId: String → User.id</text>
-<text x="35.00" y="868.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="868.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">email: String</text>
-<text x="35.00" y="879.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="879.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">codeHash: String</text>
-<text x="35.00" y="890.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="890.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">expiresAt: DateTime</text>
-<text x="35.00" y="901.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="901.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">consumedAt: DateTime?</text>
+<rect x="28.00" y="851.00" width="224.86" height="114.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 33.00 851.00 H 247.86 Q 252.86 851.00 252.86 856.00 V 872.00 H 28.00 V 856.00 Q 28.00 851.00 33.00 851.00 Z" fill="#FFF1F2"/>
+<rect x="28.00" y="851.00" width="4" height="21" rx="2" fill="#E11D48"/>
+<text x="38.00" y="865.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">OrderItem</text>
+<text x="245.86" y="865.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#E11D48">PAY</text>
+<line x1="28.00" y1="872.00" x2="252.86" y2="872.00" stroke="#E2E8F0"/>
+<text x="35.00" y="879.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#E11D48">PK</text>
+<text x="60.00" y="879.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
+<text x="35.00" y="890.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="60.00" y="890.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">orderId: String → Order.id</text>
+<text x="35.00" y="901.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="60.00" y="901.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">courseId: String → Course.id</text>
 <text x="35.00" y="912.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="912.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">attempts: Int</text>
+<text x="60.00" y="912.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">price: Float</text>
 <text x="35.00" y="923.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="923.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
+<text x="60.00" y="923.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">adminRevenue: Int</text>
+<text x="35.00" y="934.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="60.00" y="934.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">teacherRevenue: Int</text>
+<text x="35.00" y="945.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="60.00" y="945.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">revenueSplit: String</text>
+<text x="35.00" y="956.92" font-family="Arial, sans-serif" font-size="8.60" font-style="italic" fill="#64748B">UQ (orderId,courseId)</text>
 </g>
 <g>
-<rect x="28.00" y="940.00" width="224.86" height="92.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 33.00 940.00 H 247.86 Q 252.86 940.00 252.86 945.00 V 961.00 H 28.00 V 945.00 Q 28.00 940.00 33.00 940.00 Z" fill="#F5F3FF"/>
-<rect x="28.00" y="940.00" width="4" height="21" rx="2" fill="#7C3AED"/>
-<text x="38.00" y="954.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">Answer</text>
-<text x="245.86" y="954.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#7C3AED">TEST</text>
-<line x1="28.00" y1="961.00" x2="252.86" y2="961.00" stroke="#E2E8F0"/>
-<text x="35.00" y="968.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#7C3AED">PK</text>
-<text x="60.00" y="968.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="35.00" y="979.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="60.00" y="979.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">questionId: String → Question.id</text>
-<text x="35.00" y="990.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="990.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">content: String</text>
-<text x="35.00" y="1001.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="1001.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">isCorrect: Boolean</text>
-<text x="35.00" y="1012.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="1012.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">order: Int</text>
+<rect x="28.00" y="973.00" width="224.86" height="81.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 33.00 973.00 H 247.86 Q 252.86 973.00 252.86 978.00 V 994.00 H 28.00 V 978.00 Q 28.00 973.00 33.00 973.00 Z" fill="#ECFDF5"/>
+<rect x="28.00" y="973.00" width="4" height="21" rx="2" fill="#059669"/>
+<text x="38.00" y="987.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">Lesson</text>
+<text x="245.86" y="987.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#059669">LMS</text>
+<line x1="28.00" y1="994.00" x2="252.86" y2="994.00" stroke="#E2E8F0"/>
+<text x="35.00" y="1001.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#059669">PK</text>
+<text x="60.00" y="1001.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
+<text x="35.00" y="1012.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="60.00" y="1012.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">moduleId: String → Module.id</text>
 <text x="35.00" y="1023.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="1023.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">feedback: String?</text>
+<text x="60.00" y="1023.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">title: String</text>
+<text x="35.00" y="1034.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="60.00" y="1034.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">content: String</text>
+<text x="35.00" y="1045.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="60.00" y="1045.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">videoUrl: String?</text>
 </g>
 <g>
-<rect x="28.00" y="1040.00" width="224.86" height="81.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 33.00 1040.00 H 247.86 Q 252.86 1040.00 252.86 1045.00 V 1061.00 H 28.00 V 1045.00 Q 28.00 1040.00 33.00 1040.00 Z" fill="#ECFDF5"/>
-<rect x="28.00" y="1040.00" width="4" height="21" rx="2" fill="#059669"/>
-<text x="38.00" y="1054.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">Feedback</text>
-<text x="245.86" y="1054.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#059669">LMS</text>
-<line x1="28.00" y1="1061.00" x2="252.86" y2="1061.00" stroke="#E2E8F0"/>
-<text x="35.00" y="1068.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#059669">PK</text>
-<text x="60.00" y="1068.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="35.00" y="1079.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="60.00" y="1079.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">userId: String → User.id</text>
-<text x="35.00" y="1090.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="60.00" y="1090.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">courseId: String → Course.id</text>
-<text x="35.00" y="1101.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="60.00" y="1101.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">content: String</text>
+<rect x="28.00" y="1062.00" width="224.86" height="59.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 33.00 1062.00 H 247.86 Q 252.86 1062.00 252.86 1067.00 V 1083.00 H 28.00 V 1067.00 Q 28.00 1062.00 33.00 1062.00 Z" fill="#FFF1F2"/>
+<rect x="28.00" y="1062.00" width="4" height="21" rx="2" fill="#E11D48"/>
+<text x="38.00" y="1076.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">Order</text>
+<text x="245.86" y="1076.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#E11D48">PAY</text>
+<line x1="28.00" y1="1083.00" x2="252.86" y2="1083.00" stroke="#E2E8F0"/>
+<text x="35.00" y="1090.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#E11D48">PK</text>
+<text x="60.00" y="1090.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
+<text x="35.00" y="1101.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="60.00" y="1101.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">userId: String → User.id</text>
 <text x="35.00" y="1112.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
 <text x="60.00" y="1112.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
 </g>
 <g>
-<rect x="261.86" y="110.00" width="224.86" height="378.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 266.86 110.00 H 481.71 Q 486.71 110.00 486.71 115.00 V 131.00 H 261.86 V 115.00 Q 261.86 110.00 266.86 110.00 Z" fill="#FFFBEB"/>
-<rect x="261.86" y="110.00" width="4" height="21" rx="2" fill="#D97706"/>
-<text x="271.86" y="124.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">TeacherApplication</text>
-<text x="479.71" y="124.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#D97706">HR</text>
+<rect x="261.86" y="110.00" width="224.86" height="191.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 266.86 110.00 H 481.71 Q 486.71 110.00 486.71 115.00 V 131.00 H 261.86 V 115.00 Q 261.86 110.00 266.86 110.00 Z" fill="#ECFDF5"/>
+<rect x="261.86" y="110.00" width="4" height="21" rx="2" fill="#059669"/>
+<text x="271.86" y="124.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">Course</text>
+<text x="479.71" y="124.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#059669">LMS</text>
 <line x1="261.86" y1="131.00" x2="486.71" y2="131.00" stroke="#E2E8F0"/>
-<text x="268.86" y="138.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#D97706">PK</text>
+<text x="268.86" y="138.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#059669">PK</text>
 <text x="293.86" y="138.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="268.86" y="149.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="293.86" y="149.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">userId: String → User.id</text>
-<text x="268.86" y="160.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="293.86" y="160.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">languageId: String → LearningLanguage.id</text>
+<text x="268.86" y="149.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="149.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">name: String</text>
+<text x="268.86" y="160.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="160.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">description: String</text>
 <text x="268.86" y="171.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="171.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">examLocationId: String?</text>
+<text x="293.86" y="171.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">thumbnail: String?</text>
 <text x="268.86" y="182.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="182.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">examLocationName: String?</text>
+<text x="293.86" y="182.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">category: String?</text>
 <text x="268.86" y="193.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="193.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">examLocationAddress: String?</text>
+<text x="293.86" y="193.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">level: String?</text>
 <text x="268.86" y="204.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="204.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">examLocationNote: String?</text>
-<text x="268.86" y="215.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="293.86" y="215.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">recruitmentRoundId: String? → RecruitmentRound…</text>
+<text x="293.86" y="204.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">duration: String?</text>
+<text x="268.86" y="215.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="215.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">lessons: Int</text>
 <text x="268.86" y="226.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="226.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">status: TeacherAppStatus</text>
+<text x="293.86" y="226.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">status: CourseStatus</text>
 <text x="268.86" y="237.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="237.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">attemptNo: Int</text>
-<text x="268.86" y="248.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="293.86" y="248.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">entranceTestId: String? → Test.id</text>
+<text x="293.86" y="237.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">deleteRequestedFromStatus: CourseStatus?</text>
+<text x="268.86" y="248.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="248.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
 <text x="268.86" y="259.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="259.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">entranceAttemptId: String?</text>
+<text x="293.86" y="259.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
 <text x="268.86" y="270.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="270.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">answerState: Json?</text>
-<text x="268.86" y="281.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="281.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">startedAt: DateTime?</text>
-<text x="268.86" y="292.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="292.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">submittedAt: DateTime?</text>
-<text x="268.86" y="303.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="303.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">reviewedAt: DateTime?</text>
-<text x="268.86" y="314.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="293.86" y="314.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">reviewedById: String? → User.id</text>
-<text x="268.86" y="325.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="325.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">rejectionReason: String?</text>
-<text x="268.86" y="336.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="336.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">violationCount: Int</text>
-<text x="268.86" y="347.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="347.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">failureReason: String?</text>
-<text x="268.86" y="358.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="358.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">antiCheatAcknowledgedAt: DateTime?</text>
-<text x="268.86" y="369.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="369.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">proctorSessionId: String?</text>
-<text x="268.86" y="380.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="380.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">proctorHeartbeatAt: DateTime?</text>
-<text x="268.86" y="391.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="391.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">proctorHeartbeatSequence: Int</text>
-<text x="268.86" y="402.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="402.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">questionRevealState: Json?</text>
-<text x="268.86" y="413.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="413.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">currentQuestionInstanceId: String?</text>
-<text x="268.86" y="424.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="424.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">sequentialCompletedAt: DateTime?</text>
-<text x="268.86" y="435.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="435.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">entrancePassingScore: Float?</text>
-<text x="268.86" y="446.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="446.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">entranceMaxScore: Float?</text>
-<text x="268.86" y="457.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="457.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">entranceTimeLimit: Int?</text>
-<text x="268.86" y="468.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="468.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
-<text x="268.86" y="479.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="479.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
+<text x="293.86" y="270.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">price: Float</text>
+<text x="268.86" y="281.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="293.86" y="281.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">languageId: String? → LearningLanguage.id</text>
+<text x="268.86" y="292.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="293.86" y="292.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">instructorId: String? → User.id</text>
 </g>
 <g>
-<rect x="261.86" y="496.00" width="224.86" height="169.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 266.86 496.00 H 481.71 Q 486.71 496.00 486.71 501.00 V 517.00 H 261.86 V 501.00 Q 261.86 496.00 266.86 496.00 Z" fill="#FFF1F2"/>
-<rect x="261.86" y="496.00" width="4" height="21" rx="2" fill="#E11D48"/>
-<text x="271.86" y="510.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">CourseReport</text>
-<text x="479.71" y="510.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#E11D48">PAY</text>
-<line x1="261.86" y1="517.00" x2="486.71" y2="517.00" stroke="#E2E8F0"/>
-<text x="268.86" y="524.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#E11D48">PK</text>
-<text x="293.86" y="524.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="268.86" y="535.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="293.86" y="535.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">courseId: String → Course.id</text>
-<text x="268.86" y="546.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="293.86" y="546.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">reporterId: String → User.id</text>
-<text x="268.86" y="557.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="293.86" y="557.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">lessonId: String? → Lesson.id</text>
-<text x="268.86" y="568.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="568.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">category: CourseReportCategory</text>
-<text x="268.86" y="579.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="579.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">title: String</text>
-<text x="268.86" y="590.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="590.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">description: String</text>
-<text x="268.86" y="601.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="601.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">truthfulConfirmed: Boolean</text>
-<text x="268.86" y="612.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="612.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">status: CourseReportStatus</text>
-<text x="268.86" y="623.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="623.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">response: String?</text>
-<text x="268.86" y="634.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="293.86" y="634.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">respondedById: String? → User.id</text>
-<text x="268.86" y="645.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="645.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
-<text x="268.86" y="656.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="656.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
+<rect x="261.86" y="309.00" width="224.86" height="180.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 266.86 309.00 H 481.71 Q 486.71 309.00 486.71 314.00 V 330.00 H 261.86 V 314.00 Q 261.86 309.00 266.86 309.00 Z" fill="#FFFBEB"/>
+<rect x="261.86" y="309.00" width="4" height="21" rx="2" fill="#D97706"/>
+<text x="271.86" y="323.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">AntiCheatLog</text>
+<text x="479.71" y="323.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#D97706">HR</text>
+<line x1="261.86" y1="330.00" x2="486.71" y2="330.00" stroke="#E2E8F0"/>
+<text x="268.86" y="337.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#D97706">PK</text>
+<text x="293.86" y="337.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
+<text x="268.86" y="348.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="293.86" y="348.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">applicationId: String → TeacherApplication.id</text>
+<text x="268.86" y="359.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="293.86" y="359.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">testAttemptId: String? → TestAttempt.id</text>
+<text x="268.86" y="370.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="370.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">eventType: String</text>
+<text x="268.86" y="381.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="381.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">detail: String?</text>
+<text x="268.86" y="392.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="392.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">severity: Int</text>
+<text x="268.86" y="403.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="403.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">durationSeconds: Int?</text>
+<text x="268.86" y="414.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="414.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">confidence: Float?</text>
+<text x="268.86" y="425.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="425.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">counted: Boolean</text>
+<text x="268.86" y="436.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="436.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">clientTimestamp: DateTime?</text>
+<text x="268.86" y="447.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="447.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">serverTimestamp: DateTime</text>
+<text x="268.86" y="458.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="458.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">metadata: Json?</text>
+<text x="268.86" y="469.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="469.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">incidentId: String?</text>
+<text x="268.86" y="480.92" font-family="Arial, sans-serif" font-size="8.60" font-style="italic" fill="#64748B">UQ (applicationId,incidentId)</text>
 </g>
 <g>
-<rect x="261.86" y="673.00" width="224.86" height="158.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 266.86 673.00 H 481.71 Q 486.71 673.00 486.71 678.00 V 694.00 H 261.86 V 678.00 Q 261.86 673.00 266.86 673.00 Z" fill="#FFFBEB"/>
-<rect x="261.86" y="673.00" width="4" height="21" rx="2" fill="#D97706"/>
-<text x="271.86" y="687.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">TeacherExamResult</text>
-<text x="479.71" y="687.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#D97706">HR</text>
-<line x1="261.86" y1="694.00" x2="486.71" y2="694.00" stroke="#E2E8F0"/>
-<text x="268.86" y="701.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#D97706">PK</text>
-<text x="293.86" y="701.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="268.86" y="712.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK·UQ</text>
-<text x="293.86" y="712.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">applicationId: String → TeacherApplication.id</text>
-<text x="268.86" y="723.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="723.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">checkedIn: Boolean</text>
-<text x="268.86" y="734.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="734.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">completed: Boolean</text>
-<text x="268.86" y="745.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="745.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">writingScore: Float?</text>
-<text x="268.86" y="756.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="756.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">speakingScore: Float?</text>
-<text x="268.86" y="767.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="767.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">listeningScore: Float?</text>
-<text x="268.86" y="778.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="778.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">readingScore: Float?</text>
-<text x="268.86" y="789.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="789.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">failed: Boolean</text>
-<text x="268.86" y="800.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="800.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">submittedAt: DateTime?</text>
-<text x="268.86" y="811.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="811.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
-<text x="268.86" y="822.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="822.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
+<rect x="261.86" y="497.00" width="224.86" height="169.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 266.86 497.00 H 481.71 Q 486.71 497.00 486.71 502.00 V 518.00 H 261.86 V 502.00 Q 261.86 497.00 266.86 497.00 Z" fill="#FFF1F2"/>
+<rect x="261.86" y="497.00" width="4" height="21" rx="2" fill="#E11D48"/>
+<text x="271.86" y="511.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">TeacherBankAccountChangeLog</text>
+<text x="479.71" y="511.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#E11D48">PAY</text>
+<line x1="261.86" y1="518.00" x2="486.71" y2="518.00" stroke="#E2E8F0"/>
+<text x="268.86" y="525.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#E11D48">PK</text>
+<text x="293.86" y="525.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
+<text x="268.86" y="536.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="293.86" y="536.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">teacherId: String → User.id</text>
+<text x="268.86" y="547.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="547.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">previousBankName: String?</text>
+<text x="268.86" y="558.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="558.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">previousAccountNumberMasked: String?</text>
+<text x="268.86" y="569.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="569.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">previousAccountName: String?</text>
+<text x="268.86" y="580.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="580.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">previousBranch: String?</text>
+<text x="268.86" y="591.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="591.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">nextBankName: String</text>
+<text x="268.86" y="602.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="602.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">nextAccountNumberMasked: String</text>
+<text x="268.86" y="613.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="613.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">nextAccountName: String</text>
+<text x="268.86" y="624.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="624.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">nextBranch: String?</text>
+<text x="268.86" y="635.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="635.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">requestIp: String?</text>
+<text x="268.86" y="646.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="646.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">deviceFingerprint: String?</text>
+<text x="268.86" y="657.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="657.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
 </g>
 <g>
-<rect x="261.86" y="839.00" width="224.86" height="114.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 266.86 839.00 H 481.71 Q 486.71 839.00 486.71 844.00 V 860.00 H 261.86 V 844.00 Q 261.86 839.00 266.86 839.00 Z" fill="#FFFBEB"/>
-<rect x="261.86" y="839.00" width="4" height="21" rx="2" fill="#D97706"/>
-<text x="271.86" y="853.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">TeacherCertificate</text>
-<text x="479.71" y="853.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#D97706">HR</text>
-<line x1="261.86" y1="860.00" x2="486.71" y2="860.00" stroke="#E2E8F0"/>
-<text x="268.86" y="867.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#D97706">PK</text>
-<text x="293.86" y="867.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="268.86" y="878.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="293.86" y="878.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">applicationId: String → TeacherApplication.id</text>
-<text x="268.86" y="889.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="889.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">fileName: String</text>
-<text x="268.86" y="900.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="900.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">fileUrl: String</text>
-<text x="268.86" y="911.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="911.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">fileType: String</text>
-<text x="268.86" y="922.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="922.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">fileSize: Int</text>
-<text x="268.86" y="933.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="933.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">expiryDate: DateTime</text>
-<text x="268.86" y="944.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="944.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
+<rect x="261.86" y="674.00" width="224.86" height="136.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 266.86 674.00 H 481.71 Q 486.71 674.00 486.71 679.00 V 695.00 H 261.86 V 679.00 Q 261.86 674.00 266.86 674.00 Z" fill="#F5F3FF"/>
+<rect x="261.86" y="674.00" width="4" height="21" rx="2" fill="#7C3AED"/>
+<text x="271.86" y="688.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">PointTransaction</text>
+<text x="479.71" y="688.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#7C3AED">TEST</text>
+<line x1="261.86" y1="695.00" x2="486.71" y2="695.00" stroke="#E2E8F0"/>
+<text x="268.86" y="702.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#7C3AED">PK</text>
+<text x="293.86" y="702.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
+<text x="268.86" y="713.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="293.86" y="713.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">userId: String → User.id</text>
+<text x="268.86" y="724.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="293.86" y="724.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">courseId: String? → Course.id</text>
+<text x="268.86" y="735.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="735.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">type: String</text>
+<text x="268.86" y="746.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="746.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">amount: Int</text>
+<text x="268.86" y="757.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="757.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">balanceAfter: Int</text>
+<text x="268.86" y="768.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">UQ</text>
+<text x="293.86" y="768.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">sourceKey: String</text>
+<text x="268.86" y="779.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="779.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">description: String</text>
+<text x="268.86" y="790.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="790.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">metadata: Json?</text>
+<text x="268.86" y="801.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="801.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
 </g>
 <g>
-<rect x="261.86" y="961.00" width="224.86" height="92.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 266.86 961.00 H 481.71 Q 486.71 961.00 486.71 966.00 V 982.00 H 261.86 V 966.00 Q 261.86 961.00 266.86 961.00 Z" fill="#EFF6FF"/>
-<rect x="261.86" y="961.00" width="4" height="21" rx="2" fill="#2563EB"/>
-<text x="271.86" y="975.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">LearningLanguage</text>
-<text x="479.71" y="975.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#2563EB">AUTH</text>
-<line x1="261.86" y1="982.00" x2="486.71" y2="982.00" stroke="#E2E8F0"/>
-<text x="268.86" y="989.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#2563EB">PK</text>
-<text x="293.86" y="989.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="268.86" y="1000.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">UQ</text>
-<text x="293.86" y="1000.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">name: String</text>
-<text x="268.86" y="1011.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">UQ</text>
-<text x="293.86" y="1011.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">code: String</text>
-<text x="268.86" y="1022.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="1022.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">isActive: Boolean</text>
-<text x="268.86" y="1033.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="1033.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
-<text x="268.86" y="1044.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="1044.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
+<rect x="261.86" y="818.00" width="224.86" height="114.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 266.86 818.00 H 481.71 Q 486.71 818.00 486.71 823.00 V 839.00 H 261.86 V 823.00 Q 261.86 818.00 266.86 818.00 Z" fill="#EFF6FF"/>
+<rect x="261.86" y="818.00" width="4" height="21" rx="2" fill="#2563EB"/>
+<text x="271.86" y="832.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">PasswordResetOtp</text>
+<text x="479.71" y="832.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#2563EB">AUTH</text>
+<line x1="261.86" y1="839.00" x2="486.71" y2="839.00" stroke="#E2E8F0"/>
+<text x="268.86" y="846.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#2563EB">PK</text>
+<text x="293.86" y="846.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
+<text x="268.86" y="857.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="293.86" y="857.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">userId: String → User.id</text>
+<text x="268.86" y="868.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="868.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">email: String</text>
+<text x="268.86" y="879.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="879.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">codeHash: String</text>
+<text x="268.86" y="890.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="890.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">expiresAt: DateTime</text>
+<text x="268.86" y="901.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="901.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">consumedAt: DateTime?</text>
+<text x="268.86" y="912.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="912.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">attempts: Int</text>
+<text x="268.86" y="923.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="923.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
 </g>
 <g>
-<rect x="261.86" y="1061.00" width="224.86" height="59.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 266.86 1061.00 H 481.71 Q 486.71 1061.00 486.71 1066.00 V 1082.00 H 261.86 V 1066.00 Q 261.86 1061.00 266.86 1061.00 Z" fill="#FFF1F2"/>
-<rect x="261.86" y="1061.00" width="4" height="21" rx="2" fill="#E11D48"/>
-<text x="271.86" y="1075.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">Order</text>
-<text x="479.71" y="1075.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#E11D48">PAY</text>
-<line x1="261.86" y1="1082.00" x2="486.71" y2="1082.00" stroke="#E2E8F0"/>
-<text x="268.86" y="1089.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#E11D48">PK</text>
-<text x="293.86" y="1089.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="268.86" y="1100.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="293.86" y="1100.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">userId: String → User.id</text>
-<text x="268.86" y="1111.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="293.86" y="1111.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
+<rect x="261.86" y="940.00" width="224.86" height="92.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 266.86 940.00 H 481.71 Q 486.71 940.00 486.71 945.00 V 961.00 H 261.86 V 945.00 Q 261.86 940.00 266.86 940.00 Z" fill="#F5F3FF"/>
+<rect x="261.86" y="940.00" width="4" height="21" rx="2" fill="#7C3AED"/>
+<text x="271.86" y="954.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">Answer</text>
+<text x="479.71" y="954.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#7C3AED">TEST</text>
+<line x1="261.86" y1="961.00" x2="486.71" y2="961.00" stroke="#E2E8F0"/>
+<text x="268.86" y="968.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#7C3AED">PK</text>
+<text x="293.86" y="968.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
+<text x="268.86" y="979.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="293.86" y="979.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">questionId: String → Question.id</text>
+<text x="268.86" y="990.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="990.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">content: String</text>
+<text x="268.86" y="1001.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="1001.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">isCorrect: Boolean</text>
+<text x="268.86" y="1012.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="1012.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">order: Int</text>
+<text x="268.86" y="1023.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="1023.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">feedback: String?</text>
 </g>
 <g>
-<rect x="495.71" y="110.00" width="224.86" height="433.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<rect x="261.86" y="1040.00" width="224.86" height="81.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 266.86 1040.00 H 481.71 Q 486.71 1040.00 486.71 1045.00 V 1061.00 H 261.86 V 1045.00 Q 261.86 1040.00 266.86 1040.00 Z" fill="#ECFDF5"/>
+<rect x="261.86" y="1040.00" width="4" height="21" rx="2" fill="#059669"/>
+<text x="271.86" y="1054.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">Feedback</text>
+<text x="479.71" y="1054.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#059669">LMS</text>
+<line x1="261.86" y1="1061.00" x2="486.71" y2="1061.00" stroke="#E2E8F0"/>
+<text x="268.86" y="1068.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#059669">PK</text>
+<text x="293.86" y="1068.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
+<text x="268.86" y="1079.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="293.86" y="1079.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">userId: String → User.id</text>
+<text x="268.86" y="1090.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="293.86" y="1090.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">courseId: String → Course.id</text>
+<text x="268.86" y="1101.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="1101.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">content: String</text>
+<text x="268.86" y="1112.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="293.86" y="1112.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
+</g>
+<g>
+<rect x="495.71" y="110.00" width="224.86" height="378.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
 <path d="M 500.71 110.00 H 715.57 Q 720.57 110.00 720.57 115.00 V 131.00 H 495.71 V 115.00 Q 495.71 110.00 500.71 110.00 Z" fill="#FFFBEB"/>
 <rect x="495.71" y="110.00" width="4" height="21" rx="2" fill="#D97706"/>
-<text x="505.71" y="124.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">TeacherEntranceQuestionInstance</text>
+<text x="505.71" y="124.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">TeacherApplication</text>
 <text x="713.57" y="124.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#D97706">HR</text>
 <line x1="495.71" y1="131.00" x2="720.57" y2="131.00" stroke="#E2E8F0"/>
 <text x="502.71" y="138.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#D97706">PK</text>
 <text x="527.71" y="138.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
 <text x="502.71" y="149.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="527.71" y="149.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">applicationId: String → TeacherApplication.id</text>
-<text x="502.71" y="160.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="160.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">sourceQuestionId: String</text>
+<text x="527.71" y="149.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">userId: String → User.id</text>
+<text x="502.71" y="160.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="527.71" y="160.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">languageId: String → LearningLanguage.id</text>
 <text x="502.71" y="171.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="171.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">sequence: Int</text>
+<text x="527.71" y="171.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">examLocationId: String?</text>
 <text x="502.71" y="182.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="182.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">type: QuestionType</text>
+<text x="527.71" y="182.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">examLocationName: String?</text>
 <text x="502.71" y="193.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="193.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">content: String</text>
+<text x="527.71" y="193.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">examLocationAddress: String?</text>
 <text x="502.71" y="204.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="204.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">audioUrl: String?</text>
-<text x="502.71" y="215.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="215.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">hint: String?</text>
+<text x="527.71" y="204.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">examLocationNote: String?</text>
+<text x="502.71" y="215.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="527.71" y="215.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">recruitmentRoundId: String? → RecruitmentRound…</text>
 <text x="502.71" y="226.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="226.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">score: Float</text>
+<text x="527.71" y="226.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">status: TeacherAppStatus</text>
 <text x="502.71" y="237.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="237.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">preparationTimeSeconds: Int?</text>
-<text x="502.71" y="248.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="248.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">answerTimeSeconds: Int?</text>
+<text x="527.71" y="237.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">attemptNo: Int</text>
+<text x="502.71" y="248.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="527.71" y="248.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">entranceTestId: String? → Test.id</text>
 <text x="502.71" y="259.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="259.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">answerOptions: Json?</text>
+<text x="527.71" y="259.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">entranceAttemptId: String?</text>
 <text x="502.71" y="270.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="270.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">scoringData: Json?</text>
+<text x="527.71" y="270.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">answerState: Json?</text>
 <text x="502.71" y="281.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="281.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">status: QuestionInstanceStatus</text>
+<text x="527.71" y="281.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">startedAt: DateTime?</text>
 <text x="502.71" y="292.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="292.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">revealedAt: DateTime?</text>
+<text x="527.71" y="292.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">submittedAt: DateTime?</text>
 <text x="502.71" y="303.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="303.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">answerStartsAt: DateTime?</text>
-<text x="502.71" y="314.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="314.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">deadlineAt: DateTime?</text>
+<text x="527.71" y="303.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">reviewedAt: DateTime?</text>
+<text x="502.71" y="314.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="527.71" y="314.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">reviewedById: String? → User.id</text>
 <text x="502.71" y="325.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="325.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">answerState: String?</text>
+<text x="527.71" y="325.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">rejectionReason: String?</text>
 <text x="502.71" y="336.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="336.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">answerRevision: Int</text>
+<text x="527.71" y="336.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">violationCount: Int</text>
 <text x="502.71" y="347.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="347.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">finalAnswer: String?</text>
+<text x="527.71" y="347.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">failureReason: String?</text>
 <text x="502.71" y="358.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="358.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">finalizedAt: DateTime?</text>
+<text x="527.71" y="358.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">antiCheatAcknowledgedAt: DateTime?</text>
 <text x="502.71" y="369.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="369.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">transitionTokenHash: String?</text>
+<text x="527.71" y="369.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">proctorSessionId: String?</text>
 <text x="502.71" y="380.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="380.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">transitionTokenExpiresAt: DateTime?</text>
+<text x="527.71" y="380.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">proctorHeartbeatAt: DateTime?</text>
 <text x="502.71" y="391.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="391.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">speakingAudioUrl: String?</text>
+<text x="527.71" y="391.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">proctorHeartbeatSequence: Int</text>
 <text x="502.71" y="402.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="402.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">speakingAudioHash: String?</text>
+<text x="527.71" y="402.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">questionRevealState: Json?</text>
 <text x="502.71" y="413.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="413.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">speakingAudioMime: String?</text>
+<text x="527.71" y="413.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">currentQuestionInstanceId: String?</text>
 <text x="502.71" y="424.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="424.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">speakingAudioBytes: Int?</text>
+<text x="527.71" y="424.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">sequentialCompletedAt: DateTime?</text>
 <text x="502.71" y="435.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="435.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">speakingMediaStatus: SpeakingMediaStatus</text>
+<text x="527.71" y="435.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">entrancePassingScore: Float?</text>
 <text x="502.71" y="446.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="446.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">speakingTranscript: String?</text>
+<text x="527.71" y="446.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">entranceMaxScore: Float?</text>
 <text x="502.71" y="457.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="457.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">speakingProcessingTokenHash: String?</text>
+<text x="527.71" y="457.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">entranceTimeLimit: Int?</text>
 <text x="502.71" y="468.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="468.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">speakingProcessingTokenExpiresAt: DateTime?</text>
+<text x="527.71" y="468.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
 <text x="502.71" y="479.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="479.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">speakingProcessingError: String?</text>
-<text x="502.71" y="490.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="490.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">speakingProcessingAttempts: Int</text>
-<text x="502.71" y="501.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="501.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">contentHash: String</text>
-<text x="502.71" y="512.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="512.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
-<text x="502.71" y="523.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="523.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
-<text x="502.71" y="534.92" font-family="Arial, sans-serif" font-size="8.60" font-style="italic" fill="#64748B">UQ (applicationId,sequence)</text>
+<text x="527.71" y="479.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
 </g>
 <g>
-<rect x="495.71" y="551.00" width="224.86" height="158.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 500.71 551.00 H 715.57 Q 720.57 551.00 720.57 556.00 V 572.00 H 495.71 V 556.00 Q 495.71 551.00 500.71 551.00 Z" fill="#EFF6FF"/>
-<rect x="495.71" y="551.00" width="4" height="21" rx="2" fill="#2563EB"/>
-<text x="505.71" y="565.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">EmailVerificationOtp</text>
-<text x="713.57" y="565.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#2563EB">AUTH</text>
-<line x1="495.71" y1="572.00" x2="720.57" y2="572.00" stroke="#E2E8F0"/>
-<text x="502.71" y="579.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#2563EB">PK</text>
-<text x="527.71" y="579.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="502.71" y="590.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="527.71" y="590.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">userId: String → User.id</text>
+<rect x="495.71" y="496.00" width="224.86" height="169.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 500.71 496.00 H 715.57 Q 720.57 496.00 720.57 501.00 V 517.00 H 495.71 V 501.00 Q 495.71 496.00 500.71 496.00 Z" fill="#FFF1F2"/>
+<rect x="495.71" y="496.00" width="4" height="21" rx="2" fill="#E11D48"/>
+<text x="505.71" y="510.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">CourseReport</text>
+<text x="713.57" y="510.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#E11D48">PAY</text>
+<line x1="495.71" y1="517.00" x2="720.57" y2="517.00" stroke="#E2E8F0"/>
+<text x="502.71" y="524.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#E11D48">PK</text>
+<text x="527.71" y="524.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
+<text x="502.71" y="535.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="527.71" y="535.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">courseId: String → Course.id</text>
+<text x="502.71" y="546.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="527.71" y="546.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">reporterId: String → User.id</text>
+<text x="502.71" y="557.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="527.71" y="557.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">lessonId: String? → Lesson.id</text>
+<text x="502.71" y="568.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="527.71" y="568.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">category: CourseReportCategory</text>
+<text x="502.71" y="579.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="527.71" y="579.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">title: String</text>
+<text x="502.71" y="590.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="527.71" y="590.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">description: String</text>
 <text x="502.71" y="601.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="601.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">email: String</text>
+<text x="527.71" y="601.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">truthfulConfirmed: Boolean</text>
 <text x="502.71" y="612.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="612.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">codeHash: String</text>
+<text x="527.71" y="612.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">status: CourseReportStatus</text>
 <text x="502.71" y="623.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="623.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">expiresAt: DateTime</text>
-<text x="502.71" y="634.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="634.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">consumedAt: DateTime?</text>
+<text x="527.71" y="623.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">response: String?</text>
+<text x="502.71" y="634.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="527.71" y="634.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">respondedById: String? → User.id</text>
 <text x="502.71" y="645.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="645.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">attempts: Int</text>
+<text x="527.71" y="645.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
 <text x="502.71" y="656.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="656.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">resendAvailableAt: DateTime</text>
-<text x="502.71" y="667.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="667.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">requestIp: String?</text>
-<text x="502.71" y="678.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="678.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">deviceFingerprint: String?</text>
-<text x="502.71" y="689.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="689.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
-<text x="502.71" y="700.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="700.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
+<text x="527.71" y="656.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
 </g>
 <g>
-<rect x="495.71" y="717.00" width="224.86" height="125.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 500.71 717.00 H 715.57 Q 720.57 717.00 720.57 722.00 V 738.00 H 495.71 V 722.00 Q 495.71 717.00 500.71 717.00 Z" fill="#FFFBEB"/>
-<rect x="495.71" y="717.00" width="4" height="21" rx="2" fill="#D97706"/>
-<text x="505.71" y="731.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">SuspiciousEvent</text>
-<text x="713.57" y="731.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#D97706">HR</text>
-<line x1="495.71" y1="738.00" x2="720.57" y2="738.00" stroke="#E2E8F0"/>
-<text x="502.71" y="745.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#D97706">PK</text>
-<text x="527.71" y="745.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="502.71" y="756.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="527.71" y="756.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">applicationId: String → TeacherApplication.id</text>
+<rect x="495.71" y="673.00" width="224.86" height="158.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 500.71 673.00 H 715.57 Q 720.57 673.00 720.57 678.00 V 694.00 H 495.71 V 678.00 Q 495.71 673.00 500.71 673.00 Z" fill="#FFFBEB"/>
+<rect x="495.71" y="673.00" width="4" height="21" rx="2" fill="#D97706"/>
+<text x="505.71" y="687.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">TeacherExamResult</text>
+<text x="713.57" y="687.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#D97706">HR</text>
+<line x1="495.71" y1="694.00" x2="720.57" y2="694.00" stroke="#E2E8F0"/>
+<text x="502.71" y="701.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#D97706">PK</text>
+<text x="527.71" y="701.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
+<text x="502.71" y="712.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK·UQ</text>
+<text x="527.71" y="712.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">applicationId: String → TeacherApplication.id</text>
+<text x="502.71" y="723.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="527.71" y="723.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">checkedIn: Boolean</text>
+<text x="502.71" y="734.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="527.71" y="734.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">completed: Boolean</text>
+<text x="502.71" y="745.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="527.71" y="745.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">writingScore: Float?</text>
+<text x="502.71" y="756.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="527.71" y="756.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">speakingScore: Float?</text>
 <text x="502.71" y="767.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="767.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">eventType: String</text>
+<text x="527.71" y="767.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">listeningScore: Float?</text>
 <text x="502.71" y="778.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="778.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">count: Int</text>
+<text x="527.71" y="778.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">readingScore: Float?</text>
 <text x="502.71" y="789.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="789.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">totalDurationSeconds: Int</text>
+<text x="527.71" y="789.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">failed: Boolean</text>
 <text x="502.71" y="800.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="800.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">severity: Int</text>
+<text x="527.71" y="800.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">submittedAt: DateTime?</text>
 <text x="502.71" y="811.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
 <text x="527.71" y="811.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
 <text x="502.71" y="822.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
 <text x="527.71" y="822.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
-<text x="502.71" y="833.92" font-family="Arial, sans-serif" font-size="8.60" font-style="italic" fill="#64748B">UQ (applicationId,eventType)</text>
 </g>
 <g>
-<rect x="495.71" y="850.00" width="224.86" height="114.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 500.71 850.00 H 715.57 Q 720.57 850.00 720.57 855.00 V 871.00 H 495.71 V 855.00 Q 495.71 850.00 500.71 850.00 Z" fill="#FFF1F2"/>
-<rect x="495.71" y="850.00" width="4" height="21" rx="2" fill="#E11D48"/>
-<text x="505.71" y="864.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">OrderItem</text>
-<text x="713.57" y="864.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#E11D48">PAY</text>
-<line x1="495.71" y1="871.00" x2="720.57" y2="871.00" stroke="#E2E8F0"/>
-<text x="502.71" y="878.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#E11D48">PK</text>
-<text x="527.71" y="878.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="502.71" y="889.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="527.71" y="889.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">orderId: String → Order.id</text>
-<text x="502.71" y="900.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="527.71" y="900.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">courseId: String → Course.id</text>
+<rect x="495.71" y="839.00" width="224.86" height="114.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 500.71 839.00 H 715.57 Q 720.57 839.00 720.57 844.00 V 860.00 H 495.71 V 844.00 Q 495.71 839.00 500.71 839.00 Z" fill="#FFFBEB"/>
+<rect x="495.71" y="839.00" width="4" height="21" rx="2" fill="#D97706"/>
+<text x="505.71" y="853.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">TeacherCertificate</text>
+<text x="713.57" y="853.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#D97706">HR</text>
+<line x1="495.71" y1="860.00" x2="720.57" y2="860.00" stroke="#E2E8F0"/>
+<text x="502.71" y="867.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#D97706">PK</text>
+<text x="527.71" y="867.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
+<text x="502.71" y="878.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="527.71" y="878.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">applicationId: String → TeacherApplication.id</text>
+<text x="502.71" y="889.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="527.71" y="889.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">fileName: String</text>
+<text x="502.71" y="900.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="527.71" y="900.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">fileUrl: String</text>
 <text x="502.71" y="911.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="911.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">price: Float</text>
+<text x="527.71" y="911.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">fileType: String</text>
 <text x="502.71" y="922.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="922.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">adminRevenue: Int</text>
+<text x="527.71" y="922.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">fileSize: Int</text>
 <text x="502.71" y="933.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="933.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">teacherRevenue: Int</text>
+<text x="527.71" y="933.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">expiryDate: DateTime</text>
 <text x="502.71" y="944.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="944.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">revenueSplit: String</text>
-<text x="502.71" y="955.92" font-family="Arial, sans-serif" font-size="8.60" font-style="italic" fill="#64748B">UQ (orderId,courseId)</text>
+<text x="527.71" y="944.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
 </g>
 <g>
-<rect x="495.71" y="972.00" width="224.86" height="81.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 500.71 972.00 H 715.57 Q 720.57 972.00 720.57 977.00 V 993.00 H 495.71 V 977.00 Q 495.71 972.00 500.71 972.00 Z" fill="#ECFDF5"/>
-<rect x="495.71" y="972.00" width="4" height="21" rx="2" fill="#059669"/>
-<text x="505.71" y="986.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">Lesson</text>
-<text x="713.57" y="986.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#059669">LMS</text>
-<line x1="495.71" y1="993.00" x2="720.57" y2="993.00" stroke="#E2E8F0"/>
-<text x="502.71" y="1000.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#059669">PK</text>
-<text x="527.71" y="1000.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="502.71" y="1011.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="527.71" y="1011.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">moduleId: String → Module.id</text>
+<rect x="495.71" y="961.00" width="224.86" height="92.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 500.71 961.00 H 715.57 Q 720.57 961.00 720.57 966.00 V 982.00 H 495.71 V 966.00 Q 495.71 961.00 500.71 961.00 Z" fill="#EFF6FF"/>
+<rect x="495.71" y="961.00" width="4" height="21" rx="2" fill="#2563EB"/>
+<text x="505.71" y="975.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">LearningLanguage</text>
+<text x="713.57" y="975.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#2563EB">AUTH</text>
+<line x1="495.71" y1="982.00" x2="720.57" y2="982.00" stroke="#E2E8F0"/>
+<text x="502.71" y="989.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#2563EB">PK</text>
+<text x="527.71" y="989.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
+<text x="502.71" y="1000.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">UQ</text>
+<text x="527.71" y="1000.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">name: String</text>
+<text x="502.71" y="1011.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">UQ</text>
+<text x="527.71" y="1011.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">code: String</text>
 <text x="502.71" y="1022.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="1022.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">title: String</text>
+<text x="527.71" y="1022.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">isActive: Boolean</text>
 <text x="502.71" y="1033.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="1033.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">content: String</text>
+<text x="527.71" y="1033.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
 <text x="502.71" y="1044.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="527.71" y="1044.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">videoUrl: String?</text>
+<text x="527.71" y="1044.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
 </g>
 <g>
 <rect x="495.71" y="1061.00" width="224.86" height="59.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
@@ -727,31 +730,30 @@
 </g>
 <g>
 <rect x="729.57" y="674.00" width="224.86" height="136.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 734.57 674.00 H 949.43 Q 954.43 674.00 954.43 679.00 V 695.00 H 729.57 V 679.00 Q 729.57 674.00 734.57 674.00 Z" fill="#F5F3FF"/>
-<rect x="729.57" y="674.00" width="4" height="21" rx="2" fill="#7C3AED"/>
-<text x="739.57" y="688.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">PointTransaction</text>
-<text x="947.43" y="688.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#7C3AED">TEST</text>
+<path d="M 734.57 674.00 H 949.43 Q 954.43 674.00 954.43 679.00 V 695.00 H 729.57 V 679.00 Q 729.57 674.00 734.57 674.00 Z" fill="#EFF6FF"/>
+<rect x="729.57" y="674.00" width="4" height="21" rx="2" fill="#2563EB"/>
+<text x="739.57" y="688.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">TrustedDevice</text>
+<text x="947.43" y="688.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#2563EB">AUTH</text>
 <line x1="729.57" y1="695.00" x2="954.43" y2="695.00" stroke="#E2E8F0"/>
-<text x="736.57" y="702.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#7C3AED">PK</text>
+<text x="736.57" y="702.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#2563EB">PK</text>
 <text x="761.57" y="702.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
 <text x="736.57" y="713.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
 <text x="761.57" y="713.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">userId: String → User.id</text>
-<text x="736.57" y="724.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="761.57" y="724.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">courseId: String? → Course.id</text>
+<text x="736.57" y="724.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="761.57" y="724.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">tokenHash: String</text>
 <text x="736.57" y="735.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="761.57" y="735.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">type: String</text>
+<text x="761.57" y="735.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">label: String?</text>
 <text x="736.57" y="746.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="761.57" y="746.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">amount: Int</text>
+<text x="761.57" y="746.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">userAgent: String?</text>
 <text x="736.57" y="757.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="761.57" y="757.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">balanceAfter: Int</text>
-<text x="736.57" y="768.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">UQ</text>
-<text x="761.57" y="768.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">sourceKey: String</text>
+<text x="761.57" y="757.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">lastIp: String?</text>
+<text x="736.57" y="768.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="761.57" y="768.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">verifiedAt: DateTime</text>
 <text x="736.57" y="779.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="761.57" y="779.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">description: String</text>
+<text x="761.57" y="779.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">lastUsedAt: DateTime</text>
 <text x="736.57" y="790.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="761.57" y="790.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">metadata: Json?</text>
-<text x="736.57" y="801.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="761.57" y="801.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
+<text x="761.57" y="790.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
+<text x="736.57" y="801.92" font-family="Arial, sans-serif" font-size="8.60" font-style="italic" fill="#64748B">UQ (userId,tokenHash)</text>
 </g>
 <g>
 <rect x="729.57" y="818.00" width="224.86" height="114.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
@@ -998,325 +1000,324 @@
 <text x="995.43" y="1056.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
 </g>
 <g>
-<rect x="1197.29" y="110.00" width="224.86" height="246.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 1202.29 110.00 H 1417.14 Q 1422.14 110.00 1422.14 115.00 V 131.00 H 1197.29 V 115.00 Q 1197.29 110.00 1202.29 110.00 Z" fill="#FFF1F2"/>
-<rect x="1197.29" y="110.00" width="4" height="21" rx="2" fill="#E11D48"/>
-<text x="1207.29" y="124.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">Payment</text>
-<text x="1415.14" y="124.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#E11D48">PAY</text>
+<rect x="1197.29" y="110.00" width="224.86" height="433.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 1202.29 110.00 H 1417.14 Q 1422.14 110.00 1422.14 115.00 V 131.00 H 1197.29 V 115.00 Q 1197.29 110.00 1202.29 110.00 Z" fill="#FFFBEB"/>
+<rect x="1197.29" y="110.00" width="4" height="21" rx="2" fill="#D97706"/>
+<text x="1207.29" y="124.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">TeacherEntranceQuestionInstance</text>
+<text x="1415.14" y="124.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#D97706">HR</text>
 <line x1="1197.29" y1="131.00" x2="1422.14" y2="131.00" stroke="#E2E8F0"/>
-<text x="1204.29" y="138.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#E11D48">PK</text>
+<text x="1204.29" y="138.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#D97706">PK</text>
 <text x="1229.29" y="138.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="1204.29" y="149.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK·UQ</text>
-<text x="1229.29" y="149.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">orderId: String? → Order.id</text>
-<text x="1204.29" y="160.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="1229.29" y="160.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">userId: String → User.id</text>
-<text x="1204.29" y="171.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="1229.29" y="171.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">courseId: String? → Course.id</text>
+<text x="1204.29" y="149.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="1229.29" y="149.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">applicationId: String → TeacherApplication.id</text>
+<text x="1204.29" y="160.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="160.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">sourceQuestionId: String</text>
+<text x="1204.29" y="171.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="171.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">sequence: Int</text>
 <text x="1204.29" y="182.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="182.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">purpose: String?</text>
+<text x="1229.29" y="182.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">type: QuestionType</text>
 <text x="1204.29" y="193.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="193.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">pointAmount: Int?</text>
+<text x="1229.29" y="193.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">content: String</text>
 <text x="1204.29" y="204.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="204.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">provider: String</text>
-<text x="1204.29" y="215.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">UQ</text>
-<text x="1229.29" y="215.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">txnRef: String</text>
+<text x="1229.29" y="204.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">audioUrl: String?</text>
+<text x="1204.29" y="215.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="215.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">hint: String?</text>
 <text x="1204.29" y="226.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="226.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">amount: Int</text>
+<text x="1229.29" y="226.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">score: Float</text>
 <text x="1204.29" y="237.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="237.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">status: String</text>
+<text x="1229.29" y="237.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">preparationTimeSeconds: Int?</text>
 <text x="1204.29" y="248.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="248.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">orderInfo: String?</text>
+<text x="1229.29" y="248.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">answerTimeSeconds: Int?</text>
 <text x="1204.29" y="259.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="259.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">bankCode: String?</text>
+<text x="1229.29" y="259.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">answerOptions: Json?</text>
 <text x="1204.29" y="270.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="270.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">transactionNo: String?</text>
+<text x="1229.29" y="270.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">scoringData: Json?</text>
 <text x="1204.29" y="281.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="281.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">responseCode: String?</text>
+<text x="1229.29" y="281.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">status: QuestionInstanceStatus</text>
 <text x="1204.29" y="292.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="292.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">transactionStatus: String?</text>
+<text x="1229.29" y="292.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">revealedAt: DateTime?</text>
 <text x="1204.29" y="303.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="303.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">payDate: String?</text>
+<text x="1229.29" y="303.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">answerStartsAt: DateTime?</text>
 <text x="1204.29" y="314.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="314.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">rawResponse: Json?</text>
+<text x="1229.29" y="314.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">deadlineAt: DateTime?</text>
 <text x="1204.29" y="325.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="325.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">expiresAt: DateTime?</text>
+<text x="1229.29" y="325.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">answerState: String?</text>
 <text x="1204.29" y="336.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="336.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
+<text x="1229.29" y="336.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">answerRevision: Int</text>
 <text x="1204.29" y="347.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="347.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
+<text x="1229.29" y="347.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">finalAnswer: String?</text>
+<text x="1204.29" y="358.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="358.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">finalizedAt: DateTime?</text>
+<text x="1204.29" y="369.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="369.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">transitionTokenHash: String?</text>
+<text x="1204.29" y="380.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="380.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">transitionTokenExpiresAt: DateTime?</text>
+<text x="1204.29" y="391.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="391.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">speakingAudioUrl: String?</text>
+<text x="1204.29" y="402.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="402.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">speakingAudioHash: String?</text>
+<text x="1204.29" y="413.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="413.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">speakingAudioMime: String?</text>
+<text x="1204.29" y="424.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="424.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">speakingAudioBytes: Int?</text>
+<text x="1204.29" y="435.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="435.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">speakingMediaStatus: SpeakingMediaStatus</text>
+<text x="1204.29" y="446.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="446.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">speakingTranscript: String?</text>
+<text x="1204.29" y="457.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="457.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">speakingProcessingTokenHash: String?</text>
+<text x="1204.29" y="468.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="468.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">speakingProcessingTokenExpiresAt: DateTime?</text>
+<text x="1204.29" y="479.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="479.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">speakingProcessingError: String?</text>
+<text x="1204.29" y="490.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="490.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">speakingProcessingAttempts: Int</text>
+<text x="1204.29" y="501.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="501.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">contentHash: String</text>
+<text x="1204.29" y="512.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="512.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
+<text x="1204.29" y="523.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="523.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
+<text x="1204.29" y="534.92" font-family="Arial, sans-serif" font-size="8.60" font-style="italic" fill="#64748B">UQ (applicationId,sequence)</text>
 </g>
 <g>
-<rect x="1197.29" y="364.00" width="224.86" height="169.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 1202.29 364.00 H 1417.14 Q 1422.14 364.00 1422.14 369.00 V 385.00 H 1197.29 V 369.00 Q 1197.29 364.00 1202.29 364.00 Z" fill="#EFF6FF"/>
-<rect x="1197.29" y="364.00" width="4" height="21" rx="2" fill="#2563EB"/>
-<text x="1207.29" y="378.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">UserInvitation</text>
-<text x="1415.14" y="378.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#2563EB">AUTH</text>
-<line x1="1197.29" y1="385.00" x2="1422.14" y2="385.00" stroke="#E2E8F0"/>
-<text x="1204.29" y="392.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#2563EB">PK</text>
-<text x="1229.29" y="392.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="1204.29" y="403.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="403.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">email: String</text>
-<text x="1204.29" y="414.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="414.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">username: String</text>
-<text x="1204.29" y="425.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="425.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">role: Role</text>
-<text x="1204.29" y="436.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="1229.29" y="436.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">languageId: String? → LearningLanguage.id</text>
-<text x="1204.29" y="447.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">UQ</text>
-<text x="1229.29" y="447.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">tokenHash: String</text>
-<text x="1204.29" y="458.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="1229.29" y="458.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">invitedById: String → User.id</text>
-<text x="1204.29" y="469.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK·UQ</text>
-<text x="1229.29" y="469.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">acceptedUserId: String? → User.id</text>
-<text x="1204.29" y="480.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="480.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">expiresAt: DateTime</text>
-<text x="1204.29" y="491.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="491.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">acceptedAt: DateTime?</text>
-<text x="1204.29" y="502.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="502.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">revokedAt: DateTime?</text>
-<text x="1204.29" y="513.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="513.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
-<text x="1204.29" y="524.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="524.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
+<rect x="1197.29" y="551.00" width="224.86" height="158.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 1202.29 551.00 H 1417.14 Q 1422.14 551.00 1422.14 556.00 V 572.00 H 1197.29 V 556.00 Q 1197.29 551.00 1202.29 551.00 Z" fill="#EFF6FF"/>
+<rect x="1197.29" y="551.00" width="4" height="21" rx="2" fill="#2563EB"/>
+<text x="1207.29" y="565.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">EmailVerificationOtp</text>
+<text x="1415.14" y="565.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#2563EB">AUTH</text>
+<line x1="1197.29" y1="572.00" x2="1422.14" y2="572.00" stroke="#E2E8F0"/>
+<text x="1204.29" y="579.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#2563EB">PK</text>
+<text x="1229.29" y="579.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
+<text x="1204.29" y="590.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="1229.29" y="590.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">userId: String → User.id</text>
+<text x="1204.29" y="601.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="601.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">email: String</text>
+<text x="1204.29" y="612.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="612.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">codeHash: String</text>
+<text x="1204.29" y="623.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="623.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">expiresAt: DateTime</text>
+<text x="1204.29" y="634.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="634.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">consumedAt: DateTime?</text>
+<text x="1204.29" y="645.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="645.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">attempts: Int</text>
+<text x="1204.29" y="656.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="656.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">resendAvailableAt: DateTime</text>
+<text x="1204.29" y="667.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="667.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">requestIp: String?</text>
+<text x="1204.29" y="678.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="678.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">deviceFingerprint: String?</text>
+<text x="1204.29" y="689.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="689.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
+<text x="1204.29" y="700.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="700.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
 </g>
 <g>
-<rect x="1197.29" y="541.00" width="224.86" height="158.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 1202.29 541.00 H 1417.14 Q 1422.14 541.00 1422.14 546.00 V 562.00 H 1197.29 V 546.00 Q 1197.29 541.00 1202.29 541.00 Z" fill="#EFF6FF"/>
-<rect x="1197.29" y="541.00" width="4" height="21" rx="2" fill="#2563EB"/>
-<text x="1207.29" y="555.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">User</text>
-<text x="1415.14" y="555.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#2563EB">AUTH</text>
-<line x1="1197.29" y1="562.00" x2="1422.14" y2="562.00" stroke="#E2E8F0"/>
-<text x="1204.29" y="569.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#2563EB">PK</text>
-<text x="1229.29" y="569.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="1204.29" y="580.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="580.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">username: String</text>
-<text x="1204.29" y="591.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">UQ</text>
-<text x="1229.29" y="591.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">email: String</text>
-<text x="1204.29" y="602.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="602.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">password: String</text>
-<text x="1204.29" y="613.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="613.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">role: Role</text>
-<text x="1204.29" y="624.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="624.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">phoneNumber: String?</text>
-<text x="1204.29" y="635.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="635.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">isBanned: Boolean</text>
-<text x="1204.29" y="646.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="646.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">accountStatus: UserAccountStatus</text>
-<text x="1204.29" y="657.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="657.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">emailVerifiedAt: DateTime?</text>
-<text x="1204.29" y="668.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="668.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">authVersion: Int</text>
-<text x="1204.29" y="679.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="1229.29" y="679.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">learningLanguageId: String? → LearningLanguage…</text>
-<text x="1204.29" y="690.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="690.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
+<rect x="1197.29" y="717.00" width="224.86" height="125.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 1202.29 717.00 H 1417.14 Q 1422.14 717.00 1422.14 722.00 V 738.00 H 1197.29 V 722.00 Q 1197.29 717.00 1202.29 717.00 Z" fill="#FFFBEB"/>
+<rect x="1197.29" y="717.00" width="4" height="21" rx="2" fill="#D97706"/>
+<text x="1207.29" y="731.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">SuspiciousEvent</text>
+<text x="1415.14" y="731.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#D97706">HR</text>
+<line x1="1197.29" y1="738.00" x2="1422.14" y2="738.00" stroke="#E2E8F0"/>
+<text x="1204.29" y="745.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#D97706">PK</text>
+<text x="1229.29" y="745.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
+<text x="1204.29" y="756.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="1229.29" y="756.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">applicationId: String → TeacherApplication.id</text>
+<text x="1204.29" y="767.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="767.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">eventType: String</text>
+<text x="1204.29" y="778.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="778.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">count: Int</text>
+<text x="1204.29" y="789.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="789.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">totalDurationSeconds: Int</text>
+<text x="1204.29" y="800.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="800.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">severity: Int</text>
+<text x="1204.29" y="811.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="811.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
+<text x="1204.29" y="822.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="822.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
+<text x="1204.29" y="833.92" font-family="Arial, sans-serif" font-size="8.60" font-style="italic" fill="#64748B">UQ (applicationId,eventType)</text>
 </g>
 <g>
-<rect x="1197.29" y="707.00" width="224.86" height="125.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 1202.29 707.00 H 1417.14 Q 1422.14 707.00 1422.14 712.00 V 728.00 H 1197.29 V 712.00 Q 1197.29 707.00 1202.29 707.00 Z" fill="#EFF6FF"/>
-<rect x="1197.29" y="707.00" width="4" height="21" rx="2" fill="#2563EB"/>
-<text x="1207.29" y="721.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">TrustedDevice</text>
-<text x="1415.14" y="721.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#2563EB">AUTH</text>
-<line x1="1197.29" y1="728.00" x2="1422.14" y2="728.00" stroke="#E2E8F0"/>
-<text x="1204.29" y="735.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#2563EB">PK</text>
-<text x="1229.29" y="735.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="1204.29" y="746.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="1229.29" y="746.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">userId: String → User.id</text>
-<text x="1204.29" y="757.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">UQ</text>
-<text x="1229.29" y="757.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">tokenHash: String</text>
-<text x="1204.29" y="768.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="768.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">label: String?</text>
-<text x="1204.29" y="779.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="779.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">userAgent: String?</text>
-<text x="1204.29" y="790.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="790.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">lastIp: String?</text>
-<text x="1204.29" y="801.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="801.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">verifiedAt: DateTime</text>
-<text x="1204.29" y="812.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="812.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">lastUsedAt: DateTime</text>
-<text x="1204.29" y="823.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="823.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
+<rect x="1197.29" y="850.00" width="224.86" height="114.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 1202.29 850.00 H 1417.14 Q 1422.14 850.00 1422.14 855.00 V 871.00 H 1197.29 V 855.00 Q 1197.29 850.00 1202.29 850.00 Z" fill="#F8FAFC"/>
+<rect x="1197.29" y="850.00" width="4" height="21" rx="2" fill="#475569"/>
+<text x="1207.29" y="864.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">EmailLog</text>
+<text x="1415.14" y="864.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#475569">MSG</text>
+<line x1="1197.29" y1="871.00" x2="1422.14" y2="871.00" stroke="#E2E8F0"/>
+<text x="1204.29" y="878.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#475569">PK</text>
+<text x="1229.29" y="878.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
+<text x="1204.29" y="889.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="1229.29" y="889.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">userId: String? → User.id</text>
+<text x="1204.29" y="900.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="900.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">to: String</text>
+<text x="1204.29" y="911.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="911.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">subject: String</text>
+<text x="1204.29" y="922.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="922.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">status: String</text>
+<text x="1204.29" y="933.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="933.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">error: String?</text>
+<text x="1204.29" y="944.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="944.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">sentAt: DateTime?</text>
+<text x="1204.29" y="955.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="955.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
 </g>
 <g>
-<rect x="1197.29" y="840.00" width="224.86" height="114.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 1202.29 840.00 H 1417.14 Q 1422.14 840.00 1422.14 845.00 V 861.00 H 1197.29 V 845.00 Q 1197.29 840.00 1202.29 840.00 Z" fill="#F8FAFC"/>
-<rect x="1197.29" y="840.00" width="4" height="21" rx="2" fill="#475569"/>
-<text x="1207.29" y="854.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">EmailLog</text>
-<text x="1415.14" y="854.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#475569">MSG</text>
-<line x1="1197.29" y1="861.00" x2="1422.14" y2="861.00" stroke="#E2E8F0"/>
-<text x="1204.29" y="868.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#475569">PK</text>
-<text x="1229.29" y="868.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="1204.29" y="879.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="1229.29" y="879.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">userId: String? → User.id</text>
-<text x="1204.29" y="890.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="890.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">to: String</text>
-<text x="1204.29" y="901.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="901.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">subject: String</text>
-<text x="1204.29" y="912.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="912.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">status: String</text>
-<text x="1204.29" y="923.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="923.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">error: String?</text>
-<text x="1204.29" y="934.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="934.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">sentAt: DateTime?</text>
-<text x="1204.29" y="945.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="945.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
+<rect x="1197.29" y="972.00" width="224.86" height="92.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 1202.29 972.00 H 1417.14 Q 1422.14 972.00 1422.14 977.00 V 993.00 H 1197.29 V 977.00 Q 1197.29 972.00 1202.29 972.00 Z" fill="#F8FAFC"/>
+<rect x="1197.29" y="972.00" width="4" height="21" rx="2" fill="#475569"/>
+<text x="1207.29" y="986.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">Notification</text>
+<text x="1415.14" y="986.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#475569">MSG</text>
+<line x1="1197.29" y1="993.00" x2="1422.14" y2="993.00" stroke="#E2E8F0"/>
+<text x="1204.29" y="1000.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#475569">PK</text>
+<text x="1229.29" y="1000.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
+<text x="1204.29" y="1011.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="1229.29" y="1011.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">userId: String → User.id</text>
+<text x="1204.29" y="1022.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="1022.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">title: String</text>
+<text x="1204.29" y="1033.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="1033.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">body: String</text>
+<text x="1204.29" y="1044.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="1044.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">readAt: DateTime?</text>
+<text x="1204.29" y="1055.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1229.29" y="1055.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
 </g>
 <g>
-<rect x="1197.29" y="962.00" width="224.86" height="92.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 1202.29 962.00 H 1417.14 Q 1422.14 962.00 1422.14 967.00 V 983.00 H 1197.29 V 967.00 Q 1197.29 962.00 1202.29 962.00 Z" fill="#F8FAFC"/>
-<rect x="1197.29" y="962.00" width="4" height="21" rx="2" fill="#475569"/>
-<text x="1207.29" y="976.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">Notification</text>
-<text x="1415.14" y="976.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#475569">MSG</text>
-<line x1="1197.29" y1="983.00" x2="1422.14" y2="983.00" stroke="#E2E8F0"/>
-<text x="1204.29" y="990.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#475569">PK</text>
-<text x="1229.29" y="990.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="1204.29" y="1001.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="1229.29" y="1001.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">userId: String → User.id</text>
-<text x="1204.29" y="1012.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="1012.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">title: String</text>
-<text x="1204.29" y="1023.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="1023.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">body: String</text>
-<text x="1204.29" y="1034.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="1034.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">readAt: DateTime?</text>
-<text x="1204.29" y="1045.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1229.29" y="1045.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
-</g>
-<g>
-<rect x="1431.14" y="110.00" width="224.86" height="257.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 1436.14 110.00 H 1651.00 Q 1656.00 110.00 1656.00 115.00 V 131.00 H 1431.14 V 115.00 Q 1431.14 110.00 1436.14 110.00 Z" fill="#F5F3FF"/>
-<rect x="1431.14" y="110.00" width="4" height="21" rx="2" fill="#7C3AED"/>
-<text x="1441.14" y="124.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">Test</text>
-<text x="1649.00" y="124.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#7C3AED">TEST</text>
+<rect x="1431.14" y="110.00" width="224.86" height="246.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 1436.14 110.00 H 1651.00 Q 1656.00 110.00 1656.00 115.00 V 131.00 H 1431.14 V 115.00 Q 1431.14 110.00 1436.14 110.00 Z" fill="#FFF1F2"/>
+<rect x="1431.14" y="110.00" width="4" height="21" rx="2" fill="#E11D48"/>
+<text x="1441.14" y="124.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">Payment</text>
+<text x="1649.00" y="124.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#E11D48">PAY</text>
 <line x1="1431.14" y1="131.00" x2="1656.00" y2="131.00" stroke="#E2E8F0"/>
-<text x="1438.14" y="138.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#7C3AED">PK</text>
+<text x="1438.14" y="138.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#E11D48">PK</text>
 <text x="1463.14" y="138.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="1438.14" y="149.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="1463.14" y="149.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">courseId: String? → Course.id</text>
+<text x="1438.14" y="149.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK·UQ</text>
+<text x="1463.14" y="149.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">orderId: String? → Order.id</text>
 <text x="1438.14" y="160.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="1463.14" y="160.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">languageId: String? → LearningLanguage.id</text>
+<text x="1463.14" y="160.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">userId: String → User.id</text>
 <text x="1438.14" y="171.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="1463.14" y="171.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">moduleId: String? → Module.id</text>
-<text x="1438.14" y="182.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="1463.14" y="182.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">lessonId: String? → Lesson.id</text>
+<text x="1463.14" y="171.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">courseId: String? → Course.id</text>
+<text x="1438.14" y="182.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1463.14" y="182.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">purpose: String?</text>
 <text x="1438.14" y="193.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="193.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">kind: TestKind</text>
+<text x="1463.14" y="193.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">pointAmount: Int?</text>
 <text x="1438.14" y="204.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="204.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">assessmentMode: TestAssessmentMode</text>
-<text x="1438.14" y="215.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="215.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">name: String</text>
+<text x="1463.14" y="204.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">provider: String</text>
+<text x="1438.14" y="215.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">UQ</text>
+<text x="1463.14" y="215.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">txnRef: String</text>
 <text x="1438.14" y="226.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="226.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">description: String?</text>
+<text x="1463.14" y="226.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">amount: Int</text>
 <text x="1438.14" y="237.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="237.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">maxScore: Float</text>
+<text x="1463.14" y="237.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">status: String</text>
 <text x="1438.14" y="248.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="248.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">passingScore: Float</text>
+<text x="1463.14" y="248.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">orderInfo: String?</text>
 <text x="1438.14" y="259.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="259.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">maxAttempts: Int</text>
+<text x="1463.14" y="259.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">bankCode: String?</text>
 <text x="1438.14" y="270.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="270.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">timeLimit: Int?</text>
+<text x="1463.14" y="270.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">transactionNo: String?</text>
 <text x="1438.14" y="281.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="281.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">shuffleQuestions: Boolean</text>
+<text x="1463.14" y="281.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">responseCode: String?</text>
 <text x="1438.14" y="292.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="292.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">materialTitle: String?</text>
+<text x="1463.14" y="292.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">transactionStatus: String?</text>
 <text x="1438.14" y="303.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="303.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">materialContent: String?</text>
+<text x="1463.14" y="303.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">payDate: String?</text>
 <text x="1438.14" y="314.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="314.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">materialUrl: String?</text>
+<text x="1463.14" y="314.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">rawResponse: Json?</text>
 <text x="1438.14" y="325.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="325.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">materialType: String?</text>
+<text x="1463.14" y="325.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">expiresAt: DateTime?</text>
 <text x="1438.14" y="336.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="336.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">materialData: Json?</text>
+<text x="1463.14" y="336.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
 <text x="1438.14" y="347.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="347.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
-<text x="1438.14" y="358.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="358.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
+<text x="1463.14" y="347.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
 </g>
 <g>
-<rect x="1431.14" y="375.00" width="224.86" height="169.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 1436.14 375.00 H 1651.00 Q 1656.00 375.00 1656.00 380.00 V 396.00 H 1431.14 V 380.00 Q 1431.14 375.00 1436.14 375.00 Z" fill="#F5F3FF"/>
-<rect x="1431.14" y="375.00" width="4" height="21" rx="2" fill="#7C3AED"/>
-<text x="1441.14" y="389.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">Question</text>
-<text x="1649.00" y="389.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#7C3AED">TEST</text>
-<line x1="1431.14" y1="396.00" x2="1656.00" y2="396.00" stroke="#E2E8F0"/>
-<text x="1438.14" y="403.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#7C3AED">PK</text>
-<text x="1463.14" y="403.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="1438.14" y="414.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="1463.14" y="414.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">testId: String → Test.id</text>
+<rect x="1431.14" y="364.00" width="224.86" height="169.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 1436.14 364.00 H 1651.00 Q 1656.00 364.00 1656.00 369.00 V 385.00 H 1431.14 V 369.00 Q 1431.14 364.00 1436.14 364.00 Z" fill="#EFF6FF"/>
+<rect x="1431.14" y="364.00" width="4" height="21" rx="2" fill="#2563EB"/>
+<text x="1441.14" y="378.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">UserInvitation</text>
+<text x="1649.00" y="378.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#2563EB">AUTH</text>
+<line x1="1431.14" y1="385.00" x2="1656.00" y2="385.00" stroke="#E2E8F0"/>
+<text x="1438.14" y="392.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#2563EB">PK</text>
+<text x="1463.14" y="392.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
+<text x="1438.14" y="403.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1463.14" y="403.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">email: String</text>
+<text x="1438.14" y="414.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1463.14" y="414.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">username: String</text>
 <text x="1438.14" y="425.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="425.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">type: QuestionType</text>
-<text x="1438.14" y="436.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="436.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">content: String</text>
-<text x="1438.14" y="447.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="447.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">audioUrl: String?</text>
-<text x="1438.14" y="458.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="458.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">order: Int</text>
-<text x="1438.14" y="469.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="469.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">score: Float</text>
+<text x="1463.14" y="425.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">role: Role</text>
+<text x="1438.14" y="436.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="1463.14" y="436.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">languageId: String? → LearningLanguage.id</text>
+<text x="1438.14" y="447.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">UQ</text>
+<text x="1463.14" y="447.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">tokenHash: String</text>
+<text x="1438.14" y="458.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="1463.14" y="458.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">invitedById: String → User.id</text>
+<text x="1438.14" y="469.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK·UQ</text>
+<text x="1463.14" y="469.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">acceptedUserId: String? → User.id</text>
 <text x="1438.14" y="480.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="480.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">explanation: String?</text>
+<text x="1463.14" y="480.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">expiresAt: DateTime</text>
 <text x="1438.14" y="491.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="491.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">hint: String?</text>
+<text x="1463.14" y="491.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">acceptedAt: DateTime?</text>
 <text x="1438.14" y="502.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="502.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">preparationTimeSeconds: Int?</text>
+<text x="1463.14" y="502.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">revokedAt: DateTime?</text>
 <text x="1438.14" y="513.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="513.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">answerTimeSeconds: Int?</text>
+<text x="1463.14" y="513.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
 <text x="1438.14" y="524.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="524.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
-<text x="1438.14" y="535.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="535.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
+<text x="1463.14" y="524.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
 </g>
 <g>
-<rect x="1431.14" y="552.00" width="224.86" height="158.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 1436.14 552.00 H 1651.00 Q 1656.00 552.00 1656.00 557.00 V 573.00 H 1431.14 V 557.00 Q 1431.14 552.00 1436.14 552.00 Z" fill="#ECFDF5"/>
-<rect x="1431.14" y="552.00" width="4" height="21" rx="2" fill="#059669"/>
-<text x="1441.14" y="566.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">VideoWatchProgress</text>
-<text x="1649.00" y="566.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#059669">LMS</text>
-<line x1="1431.14" y1="573.00" x2="1656.00" y2="573.00" stroke="#E2E8F0"/>
-<text x="1438.14" y="580.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#059669">PK</text>
-<text x="1463.14" y="580.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="1438.14" y="591.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="1463.14" y="591.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">userId: String → User.id</text>
-<text x="1438.14" y="602.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
-<text x="1463.14" y="602.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">lessonId: String → Lesson.id</text>
+<rect x="1431.14" y="541.00" width="224.86" height="158.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 1436.14 541.00 H 1651.00 Q 1656.00 541.00 1656.00 546.00 V 562.00 H 1431.14 V 546.00 Q 1431.14 541.00 1436.14 541.00 Z" fill="#EFF6FF"/>
+<rect x="1431.14" y="541.00" width="4" height="21" rx="2" fill="#2563EB"/>
+<text x="1441.14" y="555.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">User</text>
+<text x="1649.00" y="555.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#2563EB">AUTH</text>
+<line x1="1431.14" y1="562.00" x2="1656.00" y2="562.00" stroke="#E2E8F0"/>
+<text x="1438.14" y="569.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#2563EB">PK</text>
+<text x="1463.14" y="569.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
+<text x="1438.14" y="580.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1463.14" y="580.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">username: String</text>
+<text x="1438.14" y="591.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">UQ</text>
+<text x="1463.14" y="591.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">email: String</text>
+<text x="1438.14" y="602.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1463.14" y="602.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">password: String</text>
 <text x="1438.14" y="613.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="613.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">lastPositionSeconds: Float</text>
+<text x="1463.14" y="613.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">role: Role</text>
 <text x="1438.14" y="624.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="624.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">durationSeconds: Float?</text>
+<text x="1463.14" y="624.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">phoneNumber: String?</text>
 <text x="1438.14" y="635.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="635.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">lastHeartbeatAt: DateTime</text>
+<text x="1463.14" y="635.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">isBanned: Boolean</text>
 <text x="1438.14" y="646.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="646.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">startedAt: DateTime</text>
+<text x="1463.14" y="646.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">accountStatus: UserAccountStatus</text>
 <text x="1438.14" y="657.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="657.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">completedAt: DateTime?</text>
+<text x="1463.14" y="657.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">emailVerifiedAt: DateTime?</text>
 <text x="1438.14" y="668.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="668.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">seekViolation: Boolean</text>
-<text x="1438.14" y="679.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="679.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
+<text x="1463.14" y="668.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">authVersion: Int</text>
+<text x="1438.14" y="679.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="1463.14" y="679.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">learningLanguageId: String? → LearningLanguage…</text>
 <text x="1438.14" y="690.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="690.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">updatedAt: DateTime</text>
-<text x="1438.14" y="701.92" font-family="Arial, sans-serif" font-size="8.60" font-style="italic" fill="#64748B">UQ (userId,lessonId)</text>
+<text x="1463.14" y="690.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
 </g>
 <g>
-<rect x="1431.14" y="718.00" width="224.86" height="125.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
-<path d="M 1436.14 718.00 H 1651.00 Q 1656.00 718.00 1656.00 723.00 V 739.00 H 1431.14 V 723.00 Q 1431.14 718.00 1436.14 718.00 Z" fill="#FFF1F2"/>
-<rect x="1431.14" y="718.00" width="4" height="21" rx="2" fill="#E11D48"/>
-<text x="1441.14" y="732.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">TeacherBankAccount</text>
-<text x="1649.00" y="732.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#E11D48">PAY</text>
-<line x1="1431.14" y1="739.00" x2="1656.00" y2="739.00" stroke="#E2E8F0"/>
-<text x="1438.14" y="746.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#E11D48">PK</text>
-<text x="1463.14" y="746.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
-<text x="1438.14" y="757.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK·UQ</text>
-<text x="1463.14" y="757.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">teacherId: String → User.id</text>
+<rect x="1431.14" y="707.00" width="224.86" height="136.00" rx="5" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1"/>
+<path d="M 1436.14 707.00 H 1651.00 Q 1656.00 707.00 1656.00 712.00 V 728.00 H 1431.14 V 712.00 Q 1431.14 707.00 1436.14 707.00 Z" fill="#FFF1F2"/>
+<rect x="1431.14" y="707.00" width="4" height="21" rx="2" fill="#E11D48"/>
+<text x="1441.14" y="721.50" font-family="Arial, sans-serif" font-size="10.8" font-weight="700" fill="#0F172A">TeacherBankAccountChangeOtp</text>
+<text x="1649.00" y="721.00" text-anchor="end" font-family="Arial, sans-serif" font-size="7.3" font-weight="700" fill="#E11D48">PAY</text>
+<line x1="1431.14" y1="728.00" x2="1656.00" y2="728.00" stroke="#E2E8F0"/>
+<text x="1438.14" y="735.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#E11D48">PK</text>
+<text x="1463.14" y="735.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">id: String</text>
+<text x="1438.14" y="746.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B">FK</text>
+<text x="1463.14" y="746.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">teacherId: String → User.id</text>
+<text x="1438.14" y="757.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
+<text x="1463.14" y="757.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">email: String</text>
 <text x="1438.14" y="768.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="768.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">bankName: String</text>
+<text x="1463.14" y="768.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">codeHash: String</text>
 <text x="1438.14" y="779.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="779.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">accountNumber: String</text>
+<text x="1463.14" y="779.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">payload: Json</text>
 <text x="1438.14" y="790.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="790.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">accountName: String</text>
+<text x="1463.14" y="790.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">expiresAt: DateTime</text>
 <text x="1438.14" y="801.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="801.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">branch: String?</text>
+<text x="1463.14" y="801.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">consumedAt: DateTime?</text>
 <text x="1438.14" y="812.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
-<text x="1463.14" y="812.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">verificationStatus: BankVerificationStatus</text>
+<text x="1463.14" y="812.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">attempts: Int</text>
 <text x="1438.14" y="823.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
 <text x="1463.14" y="823.92" font-family="Arial, sans-serif" font-size="8.60" fill="#1E293B">createdAt: DateTime</text>
 <text x="1438.14" y="834.92" font-family="Arial, sans-serif" font-size="8.60" font-weight="700" fill="#64748B"></text>
@@ -1366,6 +1367,6 @@
 </g>
 <line x1="28" y1="1148" x2="1656" y2="1148" stroke="#CBD5E1"/>
 <text x="28" y="1166" font-family="Arial, sans-serif" font-size="8.8" fill="#64748B">Nguồn: prisma/schema.prisma • FK được ghi ngay tại cột theo dạng → Bảng.cột</text>
-<text x="1656" y="1166" text-anchor="end" font-family="Arial, sans-serif" font-size="8.8" fill="#64748B">Sinh tự động • 2026-08-12</text>
+<text x="1656" y="1166" text-anchor="end" font-family="Arial, sans-serif" font-size="8.8" fill="#64748B">Sinh tự động • 2026-09-05</text>
 </svg></body>
 </html>

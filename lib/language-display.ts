@@ -168,6 +168,14 @@ export type CourseManagementLabels = {
   modules: (count: number) => string;
   tests: (count: number) => string;
   status: Record<string, string>;
+  approval: {
+    resubmitDescription: string;
+    resubmit: string;
+    resubmitting: string;
+    submitted: string;
+    autoApproved: string;
+    error: string;
+  };
   tabs: {
     information: string;
     modules: (count: number) => string;
@@ -270,6 +278,14 @@ const courseManagementLabels: Record<UiLanguage, CourseManagementLabels> = {
     modules: (count) => `${count} chương`,
     tests: (count) => `${count} bài test`,
     status: { ACTIVE: "Hoạt động", LOCKED: "Đã khóa", PENDING_APPROVAL: "Chờ duyệt", PENDING_DELETE: "Chờ duyệt xóa", REJECTED: "Bị từ chối" },
+    approval: {
+      resubmitDescription: "Sau khi hoàn thiện nội dung, bạn có thể gửi lại khóa học để quản trị viên duyệt lần nữa.",
+      resubmit: "Gửi duyệt lại",
+      resubmitting: "Đang gửi...",
+      submitted: "Đã gửi lại khóa học và đang chờ quản trị viên duyệt.",
+      autoApproved: "Khóa học đã được duyệt nhanh và chuyển sang hoạt động.",
+      error: "Không thể gửi lại khóa học để duyệt.",
+    },
     tabs: {
       information: "Chỉnh sửa thông tin",
       modules: (count) => `Quản lý chương (${count})`,
@@ -370,6 +386,14 @@ const courseManagementLabels: Record<UiLanguage, CourseManagementLabels> = {
     modules: (count) => `${count} modules`,
     tests: (count) => `${count} tests`,
     status: { ACTIVE: "Active", LOCKED: "Locked", PENDING_APPROVAL: "Pending approval", PENDING_DELETE: "Pending deletion", REJECTED: "Rejected" },
+    approval: {
+      resubmitDescription: "After completing the content, you can submit the course for another admin review.",
+      resubmit: "Resubmit for approval",
+      resubmitting: "Submitting...",
+      submitted: "The course was resubmitted and is waiting for admin approval.",
+      autoApproved: "The course passed Quick approval and is now active.",
+      error: "Unable to resubmit the course for approval.",
+    },
     tabs: {
       information: "Edit information",
       modules: (count) => `Manage modules (${count})`,
@@ -476,6 +500,7 @@ courseManagementLabels.zh = {
   modules: (count) => `${count}\u4e2a\u7ae0\u8282`,
   tests: (count) => `${count}\u4e2a\u6d4b\u8bd5`,
   status: { ACTIVE: "\u542f\u7528", LOCKED: "\u5df2\u9501\u5b9a", PENDING_APPROVAL: "\u5f85\u5ba1\u6838", PENDING_DELETE: "\u5f85\u5220\u9664\u5ba1\u6838", REJECTED: "\u5df2\u62d2\u7edd" },
+  approval: { resubmitDescription: "\u5b8c\u5584\u5185\u5bb9\u540e\uff0c\u60a8\u53ef\u4ee5\u91cd\u65b0\u63d0\u4ea4\u8bfe\u7a0b\u4f9b\u7ba1\u7406\u5458\u5ba1\u6838\u3002", resubmit: "\u91cd\u65b0\u63d0\u4ea4\u5ba1\u6838", resubmitting: "\u63d0\u4ea4\u4e2d...", submitted: "\u8bfe\u7a0b\u5df2\u91cd\u65b0\u63d0\u4ea4\uff0c\u6b63\u5728\u7b49\u5f85\u7ba1\u7406\u5458\u5ba1\u6838\u3002", autoApproved: "\u8bfe\u7a0b\u5df2\u901a\u8fc7\u5feb\u901f\u5ba1\u6838\u5e76\u542f\u7528\u3002", error: "\u65e0\u6cd5\u91cd\u65b0\u63d0\u4ea4\u8bfe\u7a0b\u5ba1\u6838\u3002" },
   tabs: { information: "\u7f16\u8f91\u4fe1\u606f", modules: (count) => `\u7ba1\u7406\u7ae0\u8282 (${count})`, tests: (count) => `\u7ba1\u7406\u6d4b\u8bd5 (${count})` },
   modulesTab: { ...courseManagementLabels.en.modulesTab, addModule: "\u6dfb\u52a0\u7ae0\u8282", videoOptional: "\u89c6\u9891\u662f\u6bcf\u8282\u8bfe\u7684\u53ef\u9009\u5185\u5bb9\uff0c\u53ef\u4ee5\u6dfb\u52a0\u6216\u7559\u7a7a\u3002", empty: "\u6682\u65e0\u7ae0\u8282", lessonCount: (count) => `${count}\u8282\u8bfe`, manageLessons: "\u7ba1\u7406", edit: "\u7f16\u8f91", delete: "\u5220\u9664" },
   testsTab: { ...courseManagementLabels.en.testsTab, createTest: "\u521b\u5efa\u6d4b\u8bd5", alreadyHasTest: "\u8be5\u8bfe\u7a0b\u5df2\u6709\u6d4b\u8bd5\u3002\u6bcf\u95e8\u8bfe\u7a0b\u53ea\u80fd\u6709\u4e00\u4e2a\u6d4b\u8bd5\u3002", needsModule: "\u521b\u5efa\u6d4b\u8bd5\u524d\uff0c\u8bfe\u7a0b\u81f3\u5c11\u9700\u8981\u4e00\u4e2a\u7ae0\u8282\u3002", emptyTitle: "\u6682\u65e0\u6d4b\u8bd5", emptyDescription: "\u8bfe\u7a0b\u81f3\u5c11\u6709\u4e00\u4e2a\u7ae0\u8282\u540e\u53ef\u521b\u5efa\u6d4b\u8bd5\u3002", maxScore: (score) => `\u6700\u9ad8\u5206\uff1a${score}`, passingScore: (score) => `\u901a\u8fc7\u5206\uff1a${score}`, attempts: (count) => `\u5df2\u4f5c\u7b54\uff1a${count}`, timeLimit: (minutes) => `\u65f6\u95f4\uff1a${minutes ? `${minutes}\u5206\u949f` : "\u4e0d\u9650\u65f6"}`, questions: (count) => `${count}\u9898`, editInfo: "\u7f16\u8f91\u4fe1\u606f", manageQuestions: "\u7ba1\u7406\u9898\u76ee", deleting: "\u5220\u9664\u4e2d...", delete: "\u5220\u9664" },
@@ -494,6 +519,7 @@ courseManagementLabels.ja = {
   modules: (count) => `${count}\u7ae0`,
   tests: (count) => `${count}\u4ef6\u306e\u30c6\u30b9\u30c8`,
   status: { ACTIVE: "\u6709\u52b9", LOCKED: "\u30ed\u30c3\u30af\u4e2d", PENDING_APPROVAL: "\u627f\u8a8d\u5f85\u3061", PENDING_DELETE: "\u524a\u9664\u627f\u8a8d\u5f85\u3061", REJECTED: "\u5374\u4e0b" },
+  approval: { resubmitDescription: "\u5185\u5bb9\u3092\u6574\u3048\u305f\u5f8c\u3001\u7ba1\u7406\u8005\u306e\u518d\u5be9\u67fb\u306b\u30b3\u30fc\u30b9\u3092\u9001\u4fe1\u3067\u304d\u307e\u3059\u3002", resubmit: "\u518d\u5be9\u67fb\u306b\u9001\u4fe1", resubmitting: "\u9001\u4fe1\u4e2d...", submitted: "\u30b3\u30fc\u30b9\u3092\u518d\u9001\u4fe1\u3057\u3001\u7ba1\u7406\u8005\u306e\u627f\u8a8d\u3092\u5f85\u3063\u3066\u3044\u307e\u3059\u3002", autoApproved: "\u30b3\u30fc\u30b9\u306f\u30af\u30a4\u30c3\u30af\u627f\u8a8d\u3092\u901a\u904e\u3057\u3001\u6709\u52b9\u306b\u306a\u308a\u307e\u3057\u305f\u3002", error: "\u30b3\u30fc\u30b9\u3092\u518d\u5be9\u67fb\u306b\u9001\u4fe1\u3067\u304d\u307e\u305b\u3093\u3002" },
   tabs: { information: "\u60c5\u5831\u3092\u7de8\u96c6", modules: (count) => `\u7ae0\u3092\u7ba1\u7406 (${count})`, tests: (count) => `\u30c6\u30b9\u30c8\u3092\u7ba1\u7406 (${count})` },
   modulesTab: {
     ...courseManagementLabels.en.modulesTab,
@@ -537,6 +563,7 @@ courseManagementLabels.ko = {
   modules: (count) => `${count}\uac1c \ucc55\ud130`,
   tests: (count) => `${count}\uac1c \ud14c\uc2a4\ud2b8`,
   status: { ACTIVE: "\ud65c\uc131", LOCKED: "\uc7a0\uae40", PENDING_APPROVAL: "\uc2b9\uc778 \ub300\uae30", PENDING_DELETE: "\uc0ad\uc81c \uc2b9\uc778 \ub300\uae30", REJECTED: "\uac70\uc808\ub428" },
+  approval: { resubmitDescription: "\ub0b4\uc6a9\uc744 \ubcf4\uc644\ud55c \ud6c4 \uad00\ub9ac\uc790\uc758 \uc7ac\uc2ec\uc0ac\ub97c \uc704\ud574 \ucf54\uc2a4\ub97c \ub2e4\uc2dc \uc81c\ucd9c\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4.", resubmit: "\uc2b9\uc778 \uc7ac\uc694\uccad", resubmitting: "\uc81c\ucd9c \uc911...", submitted: "\ucf54\uc2a4\uac00 \ub2e4\uc2dc \uc81c\ucd9c\ub418\uc5b4 \uad00\ub9ac\uc790 \uc2b9\uc778\uc744 \uae30\ub2e4\ub9ac\uace0 \uc788\uc2b5\ub2c8\ub2e4.", autoApproved: "\ucf54\uc2a4\uac00 \ube60\ub978 \uc2b9\uc778\uc744 \ud1b5\uacfc\ud558\uc5ec \ud65c\uc131\ud654\ub418\uc5c8\uc2b5\ub2c8\ub2e4.", error: "\ucf54\uc2a4 \uc2b9\uc778\uc744 \ub2e4\uc2dc \uc694\uccad\ud560 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4." },
   tabs: { information: "\uc815\ubcf4 \uc218\uc815", modules: (count) => `\ucc55\ud130 \uad00\ub9ac (${count})`, tests: (count) => `\ud14c\uc2a4\ud2b8 \uad00\ub9ac (${count})` },
   modulesTab: { ...courseManagementLabels.en.modulesTab, addModule: "\ucc55\ud130 \ucd94\uac00", videoOptional: "\ube44\ub514\uc624\ub294 \uac01 \ub808\uc2a8\uc758 \uc120\ud0dd \ud56d\ubaa9\uc774\uba70 \ucd94\uac00\ud558\uac70\ub098 \ube44\uc6cc\ub458 \uc218 \uc788\uc2b5\ub2c8\ub2e4.", empty: "\uc544\uc9c1 \ucc55\ud130\uac00 \uc5c6\uc2b5\ub2c8\ub2e4", lessonCount: (count) => `${count}\uac1c \ub808\uc2a8`, manageLessons: "\uad00\ub9ac", edit: "\uc218\uc815", delete: "\uc0ad\uc81c" },
   testsTab: { ...courseManagementLabels.en.testsTab, createTest: "\ud14c\uc2a4\ud2b8 \uc0dd\uc131", alreadyHasTest: "\uc774 \ucf54\uc2a4\uc5d0\ub294 \uc774\ubbf8 \ud14c\uc2a4\ud2b8\uac00 \uc788\uc2b5\ub2c8\ub2e4. \uac01 \ucf54\uc2a4\ub294 \ud14c\uc2a4\ud2b8\ub97c \ud558\ub098\ub9cc \uac00\uc9c8 \uc218 \uc788\uc2b5\ub2c8\ub2e4.", needsModule: "\ud14c\uc2a4\ud2b8\ub97c \uc0dd\uc131\ud558\uae30 \uc804\uc5d0 \ucd5c\uc18c \ud558\ub098\uc758 \ucc55\ud130\uac00 \ud544\uc694\ud569\ub2c8\ub2e4.", emptyTitle: "\uc544\uc9c1 \ud14c\uc2a4\ud2b8\uac00 \uc5c6\uc2b5\ub2c8\ub2e4", emptyDescription: "\ucf54\uc2a4\uc5d0 \ucd5c\uc18c \ud558\ub098\uc758 \ucc55\ud130\uac00 \uc788\uc744 \ub54c \ud14c\uc2a4\ud2b8\ub97c \uc0dd\uc131\ud558\uc138\uc694.", maxScore: (score) => `\ucd5c\ub300 \uc810\uc218: ${score}`, passingScore: (score) => `\ud569\uaca9 \uc810\uc218: ${score}`, attempts: (count) => `\uc751\uc2dc \ud69f\uc218: ${count}`, timeLimit: (minutes) => `\uc2dc\uac04: ${minutes ? `${minutes}\ubd84` : "\uc81c\ud55c \uc5c6\uc74c"}`, questions: (count) => `${count}\ubb38\ud56d`, editInfo: "\uc815\ubcf4 \uc218\uc815", manageQuestions: "\ubb38\ud56d \uad00\ub9ac", deleting: "\uc0ad\uc81c \uc911...", delete: "\uc0ad\uc81c" },

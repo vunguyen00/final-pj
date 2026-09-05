@@ -5,25 +5,72 @@ import { Course } from "../types";
 
 type CourseHeaderProps = {
   course: Course;
+  viewerRole: string;
+  isResubmitting: boolean;
+  approvalMessage: { type: "success" | "error"; text: string } | null;
+  onResubmit: () => void;
 };
 
-export function CourseHeader({ course }: CourseHeaderProps) {
+const statusClasses: Record<string, string> = {
+  ACTIVE: "bg-green-100 text-green-700",
+  LOCKED: "bg-red-100 text-red-700",
+  PENDING_APPROVAL: "bg-amber-100 text-amber-700",
+  PENDING_DELETE: "bg-orange-100 text-orange-700",
+  REJECTED: "bg-rose-100 text-rose-700",
+};
+
+type CourseApprovalPanelProps = Pick<
+  CourseHeaderProps,
+  "viewerRole" | "isResubmitting" | "approvalMessage" | "onResubmit"
+> & {
+  status: string;
+  labels: ReturnType<typeof getCourseManagementLabels>["approval"];
+};
+
+function CourseApprovalPanel({
+  viewerRole,
+  status,
+  labels,
+  isResubmitting,
+  approvalMessage,
+  onResubmit,
+}: CourseApprovalPanelProps) {
+  const canResubmit = viewerRole === "TEACHER" && status === "REJECTED";
+
+  if (!canResubmit && !approvalMessage) return null;
+
+  return (
+    <>
+      {canResubmit ? (
+        <div className="mt-5 flex flex-col gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-rose-800">{labels.resubmitDescription}</p>
+          <button
+            type="button"
+            disabled={isResubmitting}
+            onClick={onResubmit}
+            className="shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isResubmitting ? labels.resubmitting : labels.resubmit}
+          </button>
+        </div>
+      ) : null}
+      {approvalMessage ? (
+        <p className={`mt-4 rounded-xl border p-3 text-sm ${approvalMessage.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}`}>
+          {approvalMessage.text}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+export function CourseHeader({ course, viewerRole, isResubmitting, approvalMessage, onResubmit }: CourseHeaderProps) {
   const createdAt = new Date(course.createdAt).toLocaleString("vi-VN");
   const courseLanguageKey = course.language?.code || course.language?.name || "vi";
   const labels = getCourseManagementLabels(courseLanguageKey);
   const learningLabels = getLearningUiLabels(courseLanguageKey).course;
   const statusLabel =
     labels.status[course.status] || course.status;
-  const statusClass =
-    course.status === "ACTIVE"
-      ? "bg-green-100 text-green-700"
-      : course.status === "LOCKED"
-        ? "bg-red-100 text-red-700"
-        : course.status === "PENDING_APPROVAL"
-          ? "bg-amber-100 text-amber-700"
-          : course.status === "PENDING_DELETE"
-            ? "bg-orange-100 text-orange-700"
-          : "bg-rose-100 text-rose-700";
+  const statusClass = statusClasses[course.status] || statusClasses.REJECTED;
 
   return (
     <>
@@ -64,6 +111,14 @@ export function CourseHeader({ course }: CourseHeaderProps) {
             </Link>
           </div>
         </div>
+        <CourseApprovalPanel
+          viewerRole={viewerRole}
+          status={course.status}
+          labels={labels.approval}
+          isResubmitting={isResubmitting}
+          approvalMessage={approvalMessage}
+          onResubmit={onResubmit}
+        />
       </div>
     </>
   );
