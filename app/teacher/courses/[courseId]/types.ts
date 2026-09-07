@@ -67,9 +67,8 @@ export type TestForm = {
   passingScore: string;
   timeLimit: string;
   shuffleQuestions: boolean;
-  targetType: "COURSE" | "MODULE" | "LESSON";
+  targetType: "COURSE" | "MODULE";
   moduleId: string;
-  lessonId: string;
 };
 
 export const initialTestForm: TestForm = {
@@ -80,5 +79,4 @@ export const initialTestForm: TestForm = {
   shuffleQuestions: false,
   targetType: "COURSE",
   moduleId: "",
-  lessonId: "",
 };

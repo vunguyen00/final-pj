@@ -226,9 +226,7 @@ export type CourseManagementLabels = {
     target: string;
     targetCourse: string;
     targetModule: string;
-    targetLesson: string;
     chooseModule: string;
-    chooseLesson: string;
     fixedScore: (score: number) => string;
     passingScore: string;
     timeLimit: string;
@@ -336,9 +334,7 @@ const courseManagementLabels: Record<UiLanguage, CourseManagementLabels> = {
       target: "Phạm vi bài test",
       targetCourse: "Toàn khóa học",
       targetModule: "Theo chương",
-      targetLesson: "Theo bài học",
       chooseModule: "Chọn chương",
-      chooseLesson: "Chọn bài học",
       fixedScore: (score) => `Điểm tối đa được cố định là ${score} điểm. Tổng điểm của tất cả câu hỏi phải bằng ${score}.`,
       passingScore: "Điểm đạt",
       timeLimit: "Giới hạn thời gian làm bài",
@@ -444,9 +440,7 @@ const courseManagementLabels: Record<UiLanguage, CourseManagementLabels> = {
       target: "Test scope",
       targetCourse: "Whole course",
       targetModule: "A chapter",
-      targetLesson: "A lesson",
       chooseModule: "Choose a chapter",
-      chooseLesson: "Choose a lesson",
       fixedScore: (score) => `The maximum score is fixed at ${score} points. The total score of all questions must equal ${score}.`,
       passingScore: "Passing score",
       timeLimit: "Time limit",

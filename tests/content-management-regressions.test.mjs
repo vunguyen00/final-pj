@@ -73,6 +73,19 @@ test("lesson and question management expose edit and delete paths", async () => 
   assert.match(adminTests, /void deleteTest\(test\.id\)/);
 });
 
+test("course tests can only target the full course or a chapter", async () => {
+  const [modal, types, route] = await Promise.all([
+    source("app/teacher/courses/[courseId]/_components/TestModal.tsx"),
+    source("app/teacher/courses/[courseId]/types.ts"),
+    source("app/api/teacher/tests/route.ts"),
+  ]);
+
+  assert.doesNotMatch(modal, /option value="LESSON"/);
+  assert.doesNotMatch(types, /targetType: "COURSE" \| "MODULE" \| "LESSON"/);
+  assert.match(route, /body\.targetType === "LESSON"/);
+  assert.match(route, /lessonId: null/);
+});
+
 test("test AI grading has a bounded parallel request path", async () => {
   const [evaluation, service] = await Promise.all([
     source("lib/test-ai-evaluation.ts"),

@@ -28,7 +28,6 @@ export function TestModal({
 
   const inputClass =
     "mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
-  const selectedModule = modules.find((module) => module.id === form.moduleId);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
@@ -78,13 +77,11 @@ export function TestModal({
                   ...form,
                   targetType: event.target.value as TestForm["targetType"],
                   moduleId: "",
-                  lessonId: "",
                 })}
                 className={inputClass}
               >
                 <option value="COURSE">{labels.targetCourse}</option>
                 <option value="MODULE">{labels.targetModule}</option>
-                <option value="LESSON">{labels.targetLesson}</option>
               </select>
             </label>
 
@@ -95,7 +92,7 @@ export function TestModal({
                   required
                   value={form.moduleId}
                   disabled={isSubmitting}
-                  onChange={(event) => onChangeForm({ ...form, moduleId: event.target.value, lessonId: "" })}
+                  onChange={(event) => onChangeForm({ ...form, moduleId: event.target.value })}
                   className={inputClass}
                 >
                   <option value="">{labels.chooseModule}</option>
@@ -104,21 +101,6 @@ export function TestModal({
               </label>
             ) : null}
 
-            {form.targetType === "LESSON" ? (
-              <label className="block text-sm font-semibold text-slate-700 sm:col-start-2">
-                {labels.chooseLesson}
-                <select
-                  required
-                  value={form.lessonId}
-                  disabled={isSubmitting || !form.moduleId}
-                  onChange={(event) => onChangeForm({ ...form, lessonId: event.target.value })}
-                  className={inputClass}
-                >
-                  <option value="">{labels.chooseLesson}</option>
-                  {(selectedModule?.lessons ?? []).map((lesson) => <option key={lesson.id} value={lesson.id}>{lesson.title}</option>)}
-                </select>
-              </label>
-            ) : null}
           </div>
 
           <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-900">

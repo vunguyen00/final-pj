@@ -71,9 +71,14 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { name, description, courseId, languageId, passingScore, timeLimit, shuffleQuestions } = body;
-    const targetType = body.targetType === "MODULE" || body.targetType === "LESSON" ? body.targetType : "COURSE";
-    const moduleId = targetType === "MODULE" || targetType === "LESSON" ? String(body.moduleId || "").trim() : "";
-    const lessonId = targetType === "LESSON" ? String(body.lessonId || "").trim() : "";
+    if (body.targetType === "LESSON") {
+      return NextResponse.json(
+        { error: "Lesson-level tests are no longer supported. Choose a chapter or the full course." },
+        { status: 400 },
+      );
+    }
+    const targetType = body.targetType === "MODULE" ? "MODULE" : "COURSE";
+    const moduleId = targetType === "MODULE" ? String(body.moduleId || "").trim() : "";
     const kind: TestKind = body.kind === "PUBLIC_PRACTICE" ? body.kind : "COURSE";
     const assessmentMode = normalizeTestAssessmentMode(body.assessmentMode);
 
@@ -125,15 +130,6 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: "Invalid test chapter" }, { status: 400 });
         }
       }
-      if (targetType === "LESSON") {
-        const targetLesson = await prisma.lesson.findFirst({
-          where: { id: lessonId, moduleId },
-          select: { id: true },
-        });
-        if (!targetLesson) {
-          return NextResponse.json({ error: "Invalid test lesson" }, { status: 400 });
-        }
-      }
     }
 
     if (languageId) {
@@ -162,8 +158,8 @@ export async function POST(request: NextRequest) {
         name,
         description: description || null,
         courseId: kind === "COURSE" ? courseId : null,
-        moduleId: kind === "COURSE" && targetType !== "COURSE" ? moduleId : null,
-        lessonId: kind === "COURSE" && targetType === "LESSON" ? lessonId : null,
+        moduleId: kind === "COURSE" && targetType === "MODULE" ? moduleId : null,
+        lessonId: null,
         languageId: languageId || null,
         assessmentMode,
         maxScore: FIXED_TEST_MAX_SCORE,
