@@ -5,9 +5,9 @@
   "scripts": {
     "postinstall": "prisma generate",
     "dev": "next dev",
-    "dev:next": "next dev -H ::",
+    "dev:next": "next dev -H 127.0.0.1",
     "dev:tunnel:reset": "cloudflared tunnel cleanup finncenter",
-    "dev:tunnel": "set TUNNEL_TRANSPORT_PROTOCOL=http2&& cloudflared tunnel run finncenter",
+    "dev:tunnel": "set \"TUNNEL_TRANSPORT_PROTOCOL=http2\" && cloudflared tunnel --config cloudflared.yml run finncenter",
     "docker:up": "docker start musing_curie",
     "dev:all": "npm run docker:up && npm run dev:tunnel:reset && concurrently -n next,tunnel -c green,cyan \"npm:dev:next\" \"npm:dev:tunnel\"",
     "seed:demo": "node scripts/seed-demo-data.mjs",
