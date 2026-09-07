@@ -70,14 +70,18 @@ test("security-sensitive account changes revoke old auth tokens", async () => {
   assert.match(password, /authVersion: \{ increment: 1 \}/);
 });
 
-test("video completion and bank withdrawals are server verified", async () => {
-  const [complete, bank, withdrawal] = await Promise.all([
+test("video completion follows playback ending while bank withdrawals remain server verified", async () => {
+  const [learningClient, complete, bank, withdrawal] = await Promise.all([
+    source("app/student/hoc-bai/components/LearningContent.tsx"),
     source("app/api/learning/lessons/[lessonId]/complete/route.ts"),
     source("app/api/teacher/bank-account/verify-otp/route.ts"),
     source("app/api/teacher/revenue-withdrawals/route.ts"),
   ]);
+  assert.match(learningClient, /onEnded=\{\(\) => void onMarkDone\(lesson\)\}/);
+  assert.doesNotMatch(learningClient, /\/heartbeat/);
+  assert.doesNotMatch(learningClient, /onSeek(?:ing|ed)=/);
   assert.doesNotMatch(complete, /body\?\.watchedFull/);
-  assert.match(complete, /videoWatchProgress/);
+  assert.doesNotMatch(complete, /videoWatchProgress/);
   assert.match(bank, /verificationStatus: "VERIFIED"/);
   assert.match(withdrawal, /verificationStatus !== "VERIFIED"/);
 });

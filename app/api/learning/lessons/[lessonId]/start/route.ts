@@ -16,7 +16,6 @@ export async function POST(
       where: { id: lessonId },
       select: {
         id: true,
-        videoUrl: true,
         module: {
           select: {
             id: true,
@@ -63,13 +62,6 @@ export async function POST(
     }
 
     const start = await ensureLessonStart(user.id, courseId, lessonId);
-    if (lesson.videoUrl) {
-      await prisma.videoWatchProgress.upsert({
-        where: { userId_lessonId: { userId: user.id, lessonId } },
-        create: { userId: user.id, lessonId },
-        update: {},
-      });
-    }
 
     return NextResponse.json({ ok: true, startedAt: start.createdAt });
   } catch {

@@ -401,7 +401,7 @@ const labels: Record<UiLanguage, LearningUiLabels> = {
     scoreWithAiFeedback: "Score & Review",
     aiFeedback: "AI feedback",
     aiFeedbackWithCost: () => "Score & Review",
-    waiting: "Please wait...",
+    waiting: "Please wait...",  
     aiReviewing: "AI is reviewing...",
     scoring: "Scoring...",
     reviewing: "Reviewing...",

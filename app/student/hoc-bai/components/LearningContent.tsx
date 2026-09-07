@@ -152,9 +152,6 @@ function LessonPlayer({
   progress,
   labels,
   onStartVideo,
-  onVideoTimeUpdate,
-  onPreventSeek,
-  onVideoHeartbeat,
   onMarkDone,
 }: {
   lesson: Lesson;
@@ -167,9 +164,6 @@ function LessonPlayer({
   progress: number;
   labels: CourseLearningLabels;
   onStartVideo: (lessonId: string) => Promise<void>;
-  onVideoTimeUpdate: (lessonId: string, currentTime: number, duration: number) => void;
-  onPreventSeek: (lessonId: string, currentTime: number, seekTo: (value: number) => void) => void;
-  onVideoHeartbeat: (lessonId: string, position: number, duration: number, force?: boolean) => Promise<void>;
   onMarkDone: (lesson: Lesson) => Promise<void>;
 }) {
   return (
@@ -194,32 +188,7 @@ function LessonPlayer({
                 void onStartVideo(lesson.id);
               }}
               onPlay={() => void onStartVideo(lesson.id)}
-              onTimeUpdate={(event) =>
-                onVideoTimeUpdate(
-                  lesson.id,
-                  event.currentTarget.currentTime,
-                  event.currentTarget.duration,
-                )
-              }
-              onSeeking={(event) =>
-                onPreventSeek(lesson.id, event.currentTarget.currentTime, (value) => {
-                  event.currentTarget.currentTime = value;
-                })
-              }
-              onSeeked={(event) =>
-                onPreventSeek(lesson.id, event.currentTarget.currentTime, (value) => {
-                  event.currentTarget.currentTime = value;
-                })
-              }
-              onEnded={async (event) => {
-                await onVideoHeartbeat(
-                  lesson.id,
-                  event.currentTarget.duration,
-                  event.currentTarget.duration,
-                  true,
-                );
-                await onMarkDone(lesson);
-              }}
+              onEnded={() => void onMarkDone(lesson)}
             >
               <source key={lesson.videoUrl} src={lesson.videoUrl} />
             </video>
@@ -300,9 +269,7 @@ export default function LearningContent({
   const [readingStarts, setReadingStarts] = useState<Record<string, number>>({});
   const [readingNow, setReadingNow] = useState<Record<string, number>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const maxPlayedRef = useRef<Record<string, number>>({});
   const startedReadingRef = useRef<Record<string, boolean>>({});
-  const lastHeartbeatRef = useRef<Record<string, number>>({});
   const startedVideoRef = useRef<Record<string, boolean>>({});
 
   const gateState = useMemo(
@@ -382,22 +349,6 @@ export default function LearningContent({
     }
   }, []);
 
-  const sendVideoHeartbeat = useCallback(async (
-    lessonId: string,
-    positionSeconds: number,
-    durationSeconds: number,
-    force = false,
-  ) => {
-    const now = Date.now();
-    if (!force && now - (lastHeartbeatRef.current[lessonId] ?? 0) < 4_000) return;
-    lastHeartbeatRef.current[lessonId] = now;
-    await fetch(`/api/learning/lessons/${lessonId}/heartbeat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ positionSeconds, durationSeconds }),
-    });
-  }, []);
-
   const markDone = useCallback(async (lesson: Lesson) => {
     if (completed[lesson.id] || loadingLesson === lesson.id) return;
 
@@ -437,29 +388,6 @@ export default function LearningContent({
 
     const elapsed = Math.floor((now - startedAt) / 1000);
     return Math.max(0, MIN_READING_SECONDS - elapsed);
-  }
-
-  function onVideoTimeUpdate(lessonId: string, currentTime: number, duration: number) {
-    void sendVideoHeartbeat(lessonId, currentTime, duration);
-    if (completed[lessonId]) {
-      maxPlayedRef.current[lessonId] = Math.max(maxPlayedRef.current[lessonId] ?? 0, currentTime);
-      return;
-    }
-
-    const maxPlayed = maxPlayedRef.current[lessonId] ?? 0;
-    if (currentTime > maxPlayed + 1) {
-      return;
-    }
-    maxPlayedRef.current[lessonId] = Math.max(maxPlayed, currentTime);
-  }
-
-  function preventSeek(lessonId: string, currentTime: number, seekTo: (value: number) => void) {
-    if (completed[lessonId]) return;
-
-    const maxPlayed = maxPlayedRef.current[lessonId] ?? 0;
-    if (currentTime > maxPlayed + 0.5) {
-      seekTo(maxPlayed);
-    }
   }
 
   const readingRemain = selectedLesson ? remainingReadingSeconds(selectedLesson.id) : MIN_READING_SECONDS;
@@ -517,9 +445,6 @@ export default function LearningContent({
         progress={progress}
         labels={labels}
         onStartVideo={startVideo}
-        onVideoTimeUpdate={onVideoTimeUpdate}
-        onPreventSeek={preventSeek}
-        onVideoHeartbeat={sendVideoHeartbeat}
         onMarkDone={markDone}
       />
     </div>

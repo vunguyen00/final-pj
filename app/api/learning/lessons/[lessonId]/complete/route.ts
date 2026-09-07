@@ -82,35 +82,6 @@ export async function POST(
           { status: 400 },
         );
       }
-    } else {
-      const watch = await prisma.videoWatchProgress.findUnique({
-        where: { userId_lessonId: { userId: user.id, lessonId } },
-      });
-      const duration = watch?.durationSeconds ?? 0;
-      const watchedSeconds = watch
-        ? (Date.now() - watch.startedAt.getTime()) / 1000
-        : 0;
-      const heartbeatFresh = watch
-        ? Date.now() - watch.lastHeartbeatAt.getTime() <= 15_000
-        : false;
-      const serverVerified = Boolean(
-        watch &&
-          !watch.seekViolation &&
-          heartbeatFresh &&
-          duration > 0 &&
-          watch.lastPositionSeconds >= duration - 2 &&
-          watchedSeconds >= duration * 0.9,
-      );
-      if (!serverVerified) {
-        return NextResponse.json(
-          { error: "Máy chủ chưa xác nhận bạn đã xem hết video liên tục và không tua." },
-          { status: 400 },
-        );
-      }
-      await prisma.videoWatchProgress.update({
-        where: { id: watch!.id },
-        data: { completedAt: new Date() },
-      });
     }
 
     await markLessonCompleted(user.id, courseId, lessonId);
