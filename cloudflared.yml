@@ -1,0 +1,4 @@
+ingress:
+  - hostname: finncenter.name.vn
+    service: http://127.0.0.1:3000
+  - service: http_status:404

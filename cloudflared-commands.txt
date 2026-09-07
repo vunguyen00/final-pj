@@ -1,0 +1,47 @@
+npm run dev:all
+
+Lenh tren tu dong khoi dong Docker, Next.js tren IPv4 va Cloudflare Tunnel
+bang file cloudflared.yml cua du an.
+
+npm run dev
+
+cloudflared tunnel --config "D:\study-pj\final-pj\cloudflared.yml" run finncenter
+
+cloudflared tunnel --config ".\cloudflared.yml" ingress validate
+
+cloudflared tunnel --config ".\cloudflared.yml" ingress rule "https://finncenter.name.vn/"
+
+node -e "fetch('http://127.0.0.1:3000').then(r => console.log(r.status))"
+
+node -e "fetch('http://localhost:3000').then(r => console.log(r.status))"
+
+node -e "fetch('https://finncenter.name.vn').then(r => console.log(r.status))"
+
+node -e "(async()=>{for(let i=1;i<=12;i++){const r=await fetch('https://finncenter.name.vn/?verify='+Date.now()+'-'+i,{cache:'no-store'});console.log(i,r.status,r.headers.get('cf-ray'));await r.body.cancel()}})()"
+
+
+cloudflared tunnel info finncenter
+
+cloudflared tunnel list
+
+Get-Process node,cloudflared -ErrorAction SilentlyContinue
+
+Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue
+
+exit
+
+Get-Process cloudflared -ErrorAction SilentlyContinue | Stop-Process
+
+cloudflared tunnel cleanup finncenter
+
+ping finncenter.name.vn
+
+Get-Content -Raw -LiteralPath "package.json"
+
+Get-Process node,cloudflared -ErrorAction SilentlyContinue
+
+Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue
+
+cloudflared tunnel --config ".\cloudflared.yml" ingress validate
+
+cloudflared tunnel info finncenter
